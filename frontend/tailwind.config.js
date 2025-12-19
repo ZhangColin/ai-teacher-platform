@@ -1,8 +1,7 @@
 /** @type {import('tailwindcss').Config} */
-import typography from '@tailwindcss/typography';
+import typography from '@tailwindcss/typography'; 
 
 export default {
-  // 注意：这里要把 ts, tsx 也加上
   content: [
     "./index.html",
     "./src/**/*.{vue,js,ts,jsx,tsx}",
@@ -10,5 +9,7 @@ export default {
   theme: {
     extend: {},
   },
-  plugins: [],
+  plugins: [
+    typography(), // 2. 必须注册这个函数
+  ],
 }

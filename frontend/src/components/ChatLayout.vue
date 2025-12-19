@@ -7,7 +7,7 @@ import MarkdownViewer from "./MarkdownViewer.vue";
 
 // --- 状态定义 ---
 
-// 聊天记录列表，预置一条欢迎语
+// 聊天记录列表
 const messages = ref<ChatMessage[]>([
   {
     role: "assistant",
@@ -16,64 +16,111 @@ const messages = ref<ChatMessage[]>([
   },
 ]);
 
-// 当前右侧演示区显示的代码内容
-const currentCode = ref<string>("");
 // 当前右侧显示的内容
 const currentContent = ref<string>("");
-// 当前内容的类型：'code' | 'plan' | null
+// 当前内容的类型：'code' (HTML/SVG) | 'plan' (Markdown) | null
 const currentType = ref<"code" | "plan" | null>(null);
 
-// 用户输入框内容
+// 用户输入框
 const userInput = ref("");
-
-// 网络请求加载状态
 const isLoading = ref(false);
+
+// --- 工具函数：终极代码清洗器 ---
+const cleanCode = (raw: string): string => {
+  // 1. 第一层过滤：Markdown 代码块提取
+  // 正则含义：找到 ``` 后面跟任意字符(或没有)，换行，然后是核心内容，最后是 ```
+  // [\w-]* : 匹配 html, xml, vue, javascript 等任意语言标记
+  // \s* : 允许标记后有空格或换行
+  // ([\s\S]*?) : 核心捕获组，非贪婪匹配
+  const mdMatch = raw.match(/```[\w-]*\s*([\s\S]*?)```/);
+
+  if (mdMatch && mdMatch[1]) {
+    return mdMatch[1].trim();
+  }
+
+  // 2. 第二层过滤：暴力寻找 HTML/SVG 特征头
+  // 如果 AI 没打 Markdown 标记，或者正则失效，我们直接去文本里“挖”代码
+
+  // 常见的起始标签
+  const patterns = ["<!DOCTYPE html>", "<html", "<svg"];
+
+  let bestStartIndex = -1;
+
+  // 找到最早出现的特征头
+  for (const p of patterns) {
+    const idx = raw.indexOf(p);
+    if (idx !== -1) {
+      if (bestStartIndex === -1 || idx < bestStartIndex) {
+        bestStartIndex = idx;
+      }
+    }
+  }
+
+  // 如果找到了特征头
+  if (bestStartIndex !== -1) {
+    // 从特征头开始，截取到最后
+    // (通常 AI 的废话都在前面，后面的废话较少，且 HTML 容错性高，多余的尾部文本通常不影响渲染)
+    return raw.substring(bestStartIndex);
+  }
+
+  // 3. 实在救不回来，返回原始文本
+  return raw;
+};
 
 // --- 业务逻辑 ---
 
-// 发送消息处理函数
 const sendMessage = async () => {
-  // 校验输入有效性
   if (!userInput.value.trim() || isLoading.value) return;
 
   const userMsg = userInput.value;
 
-  // 1. 将用户消息推入列表
   messages.value.push({ role: "user", content: userMsg });
   userInput.value = "";
   isLoading.value = true;
   scrollToBottom();
 
   try {
-    // 2. 调用后端全流程接口
+    const historyPayload = messages.value.slice(0, -1).map((msg) => ({
+      role: msg.role,
+      content: msg.content,
+    }));
+
     const response = await axios.post<ApiResponse>("/api/generate_all", {
       user_input: userMsg,
+      history: historyPayload,
     });
 
     const data = response.data;
     const intent = data.router_info.intent;
 
-    // 3. 将 AI 回复推入列表
+    // 自动清洗内容 (如果是代码类意图)
+    let finalContent = data.content;
+    if (intent === "agent_coder" || intent === "agent_visual") {
+      finalContent = cleanCode(data.content);
+    }
+
+    // 确定消息类型
+    // agent_visual (SVG) 也归类为 'code'，因为 CodePreview 组件能直接渲染 SVG
+    const msgType =
+      intent === "agent_coder" || intent === "agent_visual"
+        ? "code"
+        : intent === "agent_planner"
+        ? "plan"
+        : "text";
+
     messages.value.push({
       role: "assistant",
-      content: data.content,
-      // 如果是 coder 就是 code，如果是 planner 就是 plan，其他都是 text
-      type:
-        intent === "agent_coder"
-          ? "code"
-          : intent === "agent_planner"
-          ? "plan"
-          : "text",
+      content: finalContent, // 存入清洗后的内容
+      type: msgType,
     });
 
-    // 4. 更新右侧显示区逻辑
-    if (intent === "agent_coder") {
+    // 自动更新右侧演示区
+    if (intent === "agent_coder" || intent === "agent_visual") {
       currentType.value = "code";
-      currentContent.value = data.content;
+      currentContent.value = finalContent;
     } else if (intent === "agent_planner") {
-      // 如果是教案，也显示在右侧
       currentType.value = "plan";
-      currentContent.value = data.content;
+      currentContent.value = finalContent;
     }
   } catch (error) {
     console.error("请求失败:", error);
@@ -87,7 +134,6 @@ const sendMessage = async () => {
   }
 };
 
-// 滚动聊天列表到底部
 const scrollToBottom = async () => {
   await nextTick();
   const chatContainer = document.getElementById("chat-history");
@@ -99,7 +145,9 @@ const scrollToBottom = async () => {
 
 <template>
   <div class="flex h-screen bg-gray-100 overflow-hidden">
-    <div class="w-[400px] flex flex-col border-r bg-white shadow-lg z-10">
+    <div
+      class="w-[400px] flex flex-col border-r bg-white shadow-lg z-10 shrink-0"
+    >
       <header class="p-4 border-b bg-white">
         <h1 class="text-lg font-bold text-gray-800">AI 备课助手</h1>
         <p class="text-xs text-gray-500">Kimi 驱动 | 智能教学平台</p>
@@ -123,19 +171,33 @@ const scrollToBottom = async () => {
                 : 'bg-white text-gray-800 border'
             "
           >
-            <div v-if="msg.type !== 'code'">
+            <div v-if="!msg.type || msg.type === 'text'">
               {{ msg.content }}
             </div>
 
-            <div v-if="msg.type === 'code'" class="flex items-center gap-2 cursor-pointer" @click="currentType = 'code'; currentContent = msg.content">
-              <span class="text-xl">🚀</span>
+            <div
+              v-else-if="msg.type === 'code'"
+              class="flex items-center gap-2 cursor-pointer hover:opacity-80 transition"
+              @click="
+                currentType = 'code';
+                currentContent = msg.content;
+              "
+            >
+              <span class="text-xl">🎨</span>
               <div>
-                <p class="font-bold">交互课件已生成</p>
-                <p class="text-xs opacity-80">点击加载演示</p>
+                <p class="font-bold">可视化素材已生成</p>
+                <p class="text-xs opacity-80">点击预览渲染结果</p>
               </div>
             </div>
 
-            <div v-else-if="msg.type === 'plan'" class="flex items-center gap-2 cursor-pointer" @click="currentType = 'plan'; currentContent = msg.content">
+            <div
+              v-else-if="msg.type === 'plan'"
+              class="flex items-center gap-2 cursor-pointer hover:opacity-80 transition"
+              @click="
+                currentType = 'plan';
+                currentContent = msg.content;
+              "
+            >
               <span class="text-xl">📄</span>
               <div>
                 <p class="font-bold">教学设计已生成</p>
@@ -156,7 +218,7 @@ const scrollToBottom = async () => {
           <div
             class="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"
           ></div>
-          正在思考并生成代码...
+          正在思考并生成内容...
         </div>
       </div>
 
@@ -166,7 +228,7 @@ const scrollToBottom = async () => {
             v-model="userInput"
             @keyup.enter="sendMessage"
             type="text"
-            placeholder="请输入需求，如：演示勾股定理..."
+            placeholder="请输入需求，如：画一个植物细胞SVG..."
             class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             :disabled="isLoading"
           />
@@ -181,21 +243,24 @@ const scrollToBottom = async () => {
       </div>
     </div>
 
-    <div class="flex-1 bg-gray-200 relative">
-      <CodePreview 
-        v-if="currentType === 'code' && currentContent" 
-        :code="currentContent" 
+    <div class="flex-1 bg-gray-200 relative overflow-hidden">
+      <CodePreview
+        v-if="currentType === 'code' && currentContent"
+        :code="currentContent"
       />
-      
-      <MarkdownViewer 
-        v-else-if="currentType === 'plan' && currentContent" 
-        :content="currentContent" 
+
+      <MarkdownViewer
+        v-else-if="currentType === 'plan' && currentContent"
+        :content="currentContent"
       />
-      
-      <div v-else class="h-full flex flex-col items-center justify-center text-gray-400">
+
+      <div
+        v-else
+        class="h-full flex flex-col items-center justify-center text-gray-400 select-none"
+      >
         <div class="text-6xl mb-4">🧠</div>
         <p class="text-lg font-medium">AI 备课工作台</p>
-        <p class="text-sm">支持 生成交互课件(Code) 与 教学设计(Plan)</p>
+        <p class="text-sm mt-2">就绪</p>
       </div>
     </div>
   </div>

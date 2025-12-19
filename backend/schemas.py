@@ -1,23 +1,22 @@
-# schemas.py
+# backend/schemas.py
+from typing import Optional, List
 from pydantic import BaseModel, Field
-from typing import Literal, Optional
 
-# --- Request DTO ---
+# --- 1. 基础消息模型 ---
+class Message(BaseModel):
+    role: str = Field(..., description="消息角色", examples=["user", "assistant", "system"])
+    content: str = Field(..., description="消息内容")
+
+# --- 2. 用户请求模型 (User Request DTO) ---
 class UserRequest(BaseModel):
-    user_input: str = Field(..., description="老师的原始输入", example="帮我做一个平抛运动演示")
+    user_input: str = Field(..., description="用户当前的输入指令", examples=["帮我做一个物理平抛运动演示"])
+    # 新增：历史对话记录，默认为空列表
+    history: List[Message] = Field(default=[], description="上下文对话历史，用于多轮对话")
 
-# --- Response DTO ---
-# 这里对应我们之前定义的 Router JSON 结构
+# --- 3. 路由响应模型 (Router Response DTO) ---
 class RouterResponse(BaseModel):
-    intent: Literal["agent_coder", "agent_visual", "agent_planner", "agent_roleplay"]
-    subject: Literal[
-        "Chinese", "Math", "English", 
-        "Physics", "Chemistry", "Biology", 
-        "History", "Politics", "Geography", 
-        "Music", "PE", "General"
-    ]
-    topic: str = Field(..., description="提取的核心主题(英文)")
-    user_language: str = Field(..., description="用户语言代码")
-    
-    # 额外加一个字段，方便调试看结果
-    reasoning: Optional[str] = Field(None, description="AI的思考过程(如果有)")
+    intent: str = Field(..., description="AI 识别出的意图代理", examples=["agent_coder", "agent_planner"])
+    subject: str = Field(..., description="识别出的学科", examples=["Physics", "Math"])
+    topic: str = Field(..., description="提取的核心主题 (英文)", examples=["projectile motion"])
+    user_language: str = Field(..., description="检测到的用户语言", examples=["zh-CN"])
+    reasoning: Optional[str] = Field(None, description="AI 的推理过程分析 (可选)")
