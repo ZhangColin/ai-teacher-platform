@@ -1,0 +1,18 @@
+# Python 编译文件 (类似 Java .class)
+__pycache__/
+*.py[cod]
+
+# 虚拟环境 (类似 node_modules，绝对不能提交！)
+ai-teacher-platform-backend/
+.ai-teacher-platform-backend/
+env/
+
+# 环境变量 (包含 API Key，绝对不能提交！)
+.env
+
+# IDE 配置 (Cursor/VSCode)
+.vscode/
+.idea/
+
+# Mac 系统文件
+.DS_Store
