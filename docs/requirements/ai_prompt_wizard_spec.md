@@ -476,7 +476,7 @@ AI: 完成！提示词已生成，请查看右侧。
 ## 8. 相关文档
 
 - 📄 [产品功能模块清单](./product_spec.md)
-- 🎨 [UI设计需求Brief](./ui_design_brief.md)
+- 🎯 [UI交互指南](./ui_interaction_guide.md)
 - 🔧 [系统提示词文档](../system-prompt.md)
 - 📚 [后端API文档](../../backend/README.md)
 
