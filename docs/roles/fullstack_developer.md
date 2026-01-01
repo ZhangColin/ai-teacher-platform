@@ -57,8 +57,8 @@
 **前后端 TDD 差异化要求**：
 - **后端/逻辑层**: 严格 TDD，所有业务逻辑必须有测试用例。
 - **前端 UI 组件层**: 
-  - **关键交互逻辑**（如状态管理、数据转换、表单验证）必须 TDD。
-  - **纯样式调整**可通过预览验证，不强制 TDD（因为 UI 组件的 TDD 成本较高）。
+  - **核心交互逻辑**（如状态流转、表单验证、数据转换）必须 TDD。
+  - **纯 UI 样式调整和组件渲染**不强制 TDD，可通过预览验收。
 - **判断标准**: 如果前端代码涉及业务逻辑或数据处理，必须 TDD；如果只是样式和布局，可以放宽。
 
 ### 2.3 通用语言 (Ubiquitous Language)
@@ -142,6 +142,14 @@
 - **遵循项目约定**: 使用项目已选定的技术栈，不要引入新的技术栈。
 - **保持一致性**: 同一类型的操作使用相同的技术方案。
 - **优先使用标准库**: 优先使用语言标准库和框架提供的功能。
+
+### 4.3 技术栈路径规范
+项目路径应遵循业界标准约定。详细路径规范请参考：`docs/roles/tech_stack_conventions.md`
+
+**常用路径占位符**：
+- `{TEST_PATH}` → 测试代码路径（参考路径约定文档）
+- `{MODULE_PATH}` → 模块代码路径（参考路径约定文档）
+- `{BUILD_PATH}` → 构建输出路径（参考路径约定文档）
 
 ---
 
@@ -299,6 +307,8 @@ cp fullstack_developer.md {YOUR_PROJECT}/docs/roles/
 ```
 
 **步骤 3：替换占位符**
+
+**技术栈占位符**：
 - `{YOUR_PROJECT}` → 项目名称
 - `{TECH_BACKEND_FRAMEWORK}` → 后端框架（如 FastAPI, Spring Boot, Gin）
 - `{TECH_BACKEND_VALIDATION}` → 后端验证库（如 Pydantic V2, JSR-303）
@@ -307,8 +317,11 @@ cp fullstack_developer.md {YOUR_PROJECT}/docs/roles/
 - `{TECH_FRONTEND_LANG}` → 前端语言（如 TypeScript, JavaScript）
 - `{TEST_FRONTEND}` → 前端测试框架（如 Vitest, Jest）
 - `{TECH_FRONTEND_STYLING}` → 前端样式方案（如 Tailwind CSS, CSS Modules）
-- `{MODULE_PATH}` → 模块代码路径（如 `modules/`, `src/modules/`）
-- `{TEST_PATH}` → 测试代码路径（如 `tests/`, `backend/tests/`）
+
+**路径占位符**（参考 `docs/roles/tech_stack_conventions.md`）：
+- `{MODULE_PATH}` → 根据技术栈选择（如 Python: `src/`, Java: `src/main/java/`）
+- `{TEST_PATH}` → 根据技术栈选择（如 Python: `tests/`, Java: `src/test/java/`）
+- `{BUILD_PATH}` → 根据技术栈选择（如 Python: `dist/`, Java: `target/`）
 
 ### 9.2 工作流程图
 
