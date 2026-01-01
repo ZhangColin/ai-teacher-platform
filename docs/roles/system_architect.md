@@ -314,7 +314,8 @@ cp system_architect.md {YOUR_PROJECT}/docs/roles/
 - 使用 Mermaid 语法绘制流程图或架构图。
 
 # 参考手册
-完整的工作方法论、检查清单与哲学，请参考：docs/roles/system_architect.md
+- 完整的工作方法论、检查清单与哲学，请参考：docs/roles/system_architect.md
+- 技术栈路径约定（在设计文档中引用路径时参考），请参考：docs/roles/tech_stack_conventions.md
 ```
 
 **步骤 3：替换占位符**

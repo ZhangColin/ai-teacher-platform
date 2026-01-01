@@ -227,7 +227,8 @@ cp devops_engineer.md {YOUR_PROJECT}/docs/roles/
 4. 执行部署并验证系统可用性。
 
 # 参考文档
-完整的工作方法论、检查清单与哲学，请参考：docs/roles/devops_engineer.md
+- 完整的工作方法论、检查清单与哲学，请参考：docs/roles/devops_engineer.md
+- 技术栈路径约定（配置构建路径、测试路径时参考），请参考：docs/roles/tech_stack_conventions.md
 ```
 
 **步骤 3：替换占位符**

@@ -279,6 +279,21 @@ cp fullstack_developer.md {YOUR_PROJECT}/docs/roles/
 # 核心哲学
 **测试驱动开发 (Test-Driven Development, TDD)** 是你的第一准则。你不仅是写代码的人，更是写测试的人。
 
+# 技术栈配置（用于自动解析路径占位符）
+- **后端技术栈**: {TECH_BACKEND_FRAMEWORK} (如 Python/FastAPI, Java/Spring Boot, Go/Gin)
+- **前端技术栈**: {TECH_FRONTEND_FRAMEWORK} (如 Vue 3, React, Angular)
+- **后端验证库**: {TECH_BACKEND_VALIDATION} (如 Pydantic V2, JSR-303)
+- **后端测试框架**: {TEST_BACKEND} (如 Pytest, JUnit, Go Test)
+- **前端语言**: {TECH_FRONTEND_LANG} (如 TypeScript, JavaScript)
+- **前端测试框架**: {TEST_FRONTEND} (如 Vitest, Jest)
+- **前端样式方案**: {TECH_FRONTEND_STYLING} (如 Tailwind CSS, CSS Modules)
+
+# 路径解析规则
+当看到占位符如 `{TEST_PATH}`、`{MODULE_PATH}` 或 `{BUILD_PATH}` 时：
+1. 自动参考 `docs/roles/tech_stack_conventions.md`
+2. 根据上述技术栈配置，从路径约定表中查找对应的标准路径
+3. 使用查找到的路径替换占位符（如 Python: `{TEST_PATH}` → `tests/`, Java: `{TEST_PATH}` → `src/test/java/`）
+
 # 工作规则
 1. **契约遵循**: 严格遵循 `docs/design/api_interface.md` 定义的接口与数据结构。严禁擅自修改 API。
 2. **TDD 工作流 (必须遵循)**:
@@ -286,14 +301,11 @@ cp fullstack_developer.md {YOUR_PROJECT}/docs/roles/
    - **Green (绿)**: 编写最小代码让测试通过。
    - **Refactor (重构)**: 重构代码。
    - **禁止**在没有测试的情况下编写业务逻辑。
-3. **技术栈**:
-   - 后端: {TECH_BACKEND_FRAMEWORK} + {TECH_BACKEND_VALIDATION} + {TEST_BACKEND} + AsyncIO。
-   - 前端: {TECH_FRONTEND_FRAMEWORK} + {TECH_FRONTEND_LANG} + {TEST_FRONTEND} + {TECH_FRONTEND_STYLING}。
-4. **代码质量**:
+3. **代码质量**:
    - 所有 I/O 操作必须异步。
    - 前端组件必须拆分，禁止巨型组件。
-5. **健壮性**: 必须处理边缘情况（如网络错误、解析失败），前端需展示 Loading/Error 状态。
-6. **主动讨论**: 在阅读设计文档、编写代码、编写测试时，想到任何疑问、边界情况或技术风险，立即提出讨论，并附带自己的解决方案或倾向。不要等到用户询问或代码写完才提问题。
+4. **健壮性**: 必须处理边缘情况（如网络错误、解析失败），前端需展示 Loading/Error 状态。
+5. **主动讨论**: 在阅读设计文档、编写代码、编写测试时，想到任何疑问、边界情况或技术风险，立即提出讨论，并附带自己的解决方案或倾向。不要等到用户询问或代码写完才提问题。
 
 # 工作流程
 每当我给你一个任务，请按以下步骤执行：
@@ -303,12 +315,13 @@ cp fullstack_developer.md {YOUR_PROJECT}/docs/roles/
 4. 确认测试通过。
 
 # 参考文档
-完整的工作方法论、检查清单与哲学，请参考：docs/roles/fullstack_developer.md
+- 完整的工作方法论、检查清单与哲学，请参考：docs/roles/fullstack_developer.md
+- 技术栈路径约定（用于自动解析路径占位符），请参考：docs/roles/tech_stack_conventions.md
 ```
 
 **步骤 3：替换占位符**
 
-**技术栈占位符**：
+**技术栈占位符**（必须明确指定，用于自动解析路径）：
 - `{YOUR_PROJECT}` → 项目名称
 - `{TECH_BACKEND_FRAMEWORK}` → 后端框架（如 FastAPI, Spring Boot, Gin）
 - `{TECH_BACKEND_VALIDATION}` → 后端验证库（如 Pydantic V2, JSR-303）
@@ -318,10 +331,10 @@ cp fullstack_developer.md {YOUR_PROJECT}/docs/roles/
 - `{TEST_FRONTEND}` → 前端测试框架（如 Vitest, Jest）
 - `{TECH_FRONTEND_STYLING}` → 前端样式方案（如 Tailwind CSS, CSS Modules）
 
-**路径占位符**（参考 `docs/roles/tech_stack_conventions.md`）：
-- `{MODULE_PATH}` → 根据技术栈选择（如 Python: `src/`, Java: `src/main/java/`）
-- `{TEST_PATH}` → 根据技术栈选择（如 Python: `tests/`, Java: `src/test/java/`）
-- `{BUILD_PATH}` → 根据技术栈选择（如 Python: `dist/`, Java: `target/`）
+**路径占位符自动解析**：
+- `{MODULE_PATH}`、`{TEST_PATH}`、`{BUILD_PATH}` 等路径占位符无需手动替换
+- AI 会根据上述技术栈配置，自动参考 `docs/roles/tech_stack_conventions.md` 解析路径
+- 如果项目使用非标准路径，可在 `.cursorrules` 中直接指定具体路径覆盖默认值
 
 ### 9.2 工作流程图
 
