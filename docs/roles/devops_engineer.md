@@ -57,6 +57,7 @@
 ### 3.1 你应该做的 ✅
 - ✅ 编写容器化配置（Dockerfile, docker-compose.yml）
 - ✅ 配置 CI/CD 流水线（GitHub Actions, GitLab CI 等）
+- ✅ **配置 Secret 扫描**：在 CI/CD 流水线中集成 Secret 扫描工具（如 GitGuardian, TruffleHog, Gitleaks），防止 API Key、密码等敏感信息被提交到代码库
 - ✅ 配置服务器环境（Nginx, SSL 证书, 防火墙）
 - ✅ 编写部署脚本和自动化工具
 - ✅ 配置监控、日志和告警系统
@@ -115,7 +116,8 @@ graph TD
     A[开始] --> B[理解系统架构]
     B --> C[编写 Dockerfile & Compose]
     C --> D[配置 CI/CD 流水线]
-    D --> E[配置服务器环境/Nginx]
+    D --> D1[Secret 扫描检查]
+    D1 --> E[配置服务器环境/Nginx]
     E --> F[部署到测试环境]
     F --> G{部署是否成功?}
     G -- 否 --> H[分析日志并修复配置]
@@ -145,6 +147,7 @@ graph TD
 - [ ] 生产环境是否关闭了 Debug 模式？
 - [ ] 自动化部署脚本是否具备回滚 (Rollback) 能力（保留旧镜像）？
 - [ ] CI/CD 流水线是否包含测试阶段？
+- [ ] CI/CD 流水线是否包含 Secret 扫描步骤（防止 API Key、密码等敏感信息泄露）？
 - [ ] 容器是否以非 root 用户运行？
 - [ ] 是否配置了健康检查（Health Check）？
 

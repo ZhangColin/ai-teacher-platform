@@ -425,7 +425,7 @@
 **错误示例**：
 ```markdown
 技术约束：
-- 使用 Kimi API
+- 使用 {AI_SERVICE_PROVIDER} API
 - 数据存储使用 PostgreSQL
 - 前端使用 Tailwind CSS
 ```
@@ -553,7 +553,7 @@ graph TD
 - A: 不算。用Mermaid绘制业务流程图、状态转换图是PM的职责。
 
 **Q3: 可以指定使用某个API吗？**
-- A: 不可以。可以说"调用AI服务"，但不能说"调用Kimi API"。
+- A: 不可以。可以说"调用AI服务"，但不能说"调用{AI_SERVICE_PROVIDER} API"。
 
 **Q4: 数据流向图是否可以画？**
 - A: 可以，但要抽象描述。说"用户输入 → 后端处理 → 前端展示"，不要说"POST /api → Controller → Service → DAO"。

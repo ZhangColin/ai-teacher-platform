@@ -10,6 +10,7 @@
 - [2. 模块/源码路径规范](#2-模块源码路径规范)
 - [3. 文档路径规范](#3-文档路径规范)
 - [4. 构建输出路径规范](#4-构建输出路径规范)
+- [5. 命名规范](#5-命名规范)
 
 ---
 
@@ -81,15 +82,115 @@
 
 ---
 
-## 5. 使用说明
+## 5. 命名规范
 
-### 5.1 在项目中使用
+> **目的**: 统一代码命名风格，减少 Code Review 时间，提高代码可读性。
+
+### 5.1 通用命名约定
+
+| 类型 | 命名风格 | 示例 | 说明 |
+|:---|:---|:---|:---|
+| **文件/目录名** | kebab-case | `user-service.ts`, `api-client.js` | 小写字母，单词间用连字符分隔 |
+| **类名** | PascalCase | `UserService`, `ApiClient` | 首字母大写的驼峰命名 |
+| **接口/类型** | PascalCase | `UserInfo`, `ApiResponse` | 与类名相同 |
+| **变量/函数** | camelCase | `userName`, `getUserInfo()` | 首字母小写的驼峰命名 |
+| **常量** | UPPER_SNAKE_CASE | `MAX_RETRY_COUNT`, `API_BASE_URL` | 全大写，单词间用下划线分隔 |
+| **私有成员** | 前缀 + camelCase | `_privateField`, `#privateMethod` | 根据语言约定使用 `_` 或 `#` |
+
+### 5.2 后端命名约定
+
+#### Python
+| 类型 | 命名风格 | 示例 |
+|:---|:---|:---|
+| **模块文件** | snake_case | `user_service.py`, `api_client.py` |
+| **类名** | PascalCase | `UserService`, `ApiClient` |
+| **函数/变量** | snake_case | `get_user_info()`, `user_name` |
+| **常量** | UPPER_SNAKE_CASE | `MAX_RETRY_COUNT`, `API_BASE_URL` |
+| **私有成员** | 前缀 `_` | `_private_field`, `_private_method()` |
+
+#### Java
+| 类型 | 命名风格 | 示例 |
+|:---|:---|:---|
+| **类文件** | PascalCase | `UserService.java`, `ApiClient.java` |
+| **类名** | PascalCase | `UserService`, `ApiClient` |
+| **方法/变量** | camelCase | `getUserInfo()`, `userName` |
+| **常量** | UPPER_SNAKE_CASE | `MAX_RETRY_COUNT`, `API_BASE_URL` |
+| **包名** | lowercase | `com.example.service`, `com.example.client` |
+
+#### Go
+| 类型 | 命名风格 | 示例 |
+|:---|:---|:---|
+| **文件** | snake_case | `user_service.go`, `api_client.go` |
+| **公开类型/函数** | PascalCase | `UserService`, `GetUserInfo()` |
+| **私有类型/函数** | camelCase | `userService`, `getUserInfo()` |
+| **常量** | PascalCase 或 UPPER_SNAKE_CASE | `MaxRetryCount`, `API_BASE_URL` |
+
+#### Node.js/TypeScript
+| 类型 | 命名风格 | 示例 |
+|:---|:---|:---|
+| **文件** | kebab-case | `user-service.ts`, `api-client.ts` |
+| **类/接口** | PascalCase | `UserService`, `ApiClient` |
+| **函数/变量** | camelCase | `getUserInfo()`, `userName` |
+| **常量** | UPPER_SNAKE_CASE | `MAX_RETRY_COUNT`, `API_BASE_URL` |
+
+### 5.3 前端命名约定
+
+#### Vue 3
+| 类型 | 命名风格 | 示例 |
+|:---|:---|:---|
+| **组件文件** | PascalCase | `UserCard.vue`, `ApiClient.vue` |
+| **组件名** | PascalCase | `<UserCard />`, `<ApiClient />` |
+| **Composables** | camelCase + `use` 前缀 | `useUserInfo()`, `useApiClient()` |
+| **Props/Emits** | camelCase | `userName`, `onSubmit` |
+| **CSS 类名** | kebab-case | `.user-card`, `.api-client` |
+
+#### React
+| 类型 | 命名风格 | 示例 |
+|:---|:---|:---|
+| **组件文件** | PascalCase | `UserCard.tsx`, `ApiClient.tsx` |
+| **组件名** | PascalCase | `<UserCard />`, `<ApiClient />` |
+| **Hooks** | camelCase + `use` 前缀 | `useUserInfo()`, `useApiClient()` |
+| **Props** | camelCase | `userName`, `onSubmit` |
+| **CSS 类名** | camelCase 或 kebab-case | `.userCard` 或 `.user-card` |
+
+### 5.4 数据库命名约定
+
+| 类型 | 命名风格 | 示例 | 说明 |
+|:---|:---|:---|:---|
+| **表名** | snake_case (复数) | `user_profiles`, `order_items` | 小写，单词间用下划线，通常使用复数 |
+| **字段名** | snake_case | `user_id`, `created_at`, `is_active` | 小写，单词间用下划线 |
+| **主键** | `id` 或 `{table}_id` | `id`, `user_id` | 简洁明确 |
+| **外键** | `{referenced_table}_id` | `user_id`, `order_id` | 明确引用关系 |
+| **索引名** | `idx_{table}_{field}` | `idx_users_email`, `idx_orders_created_at` | 便于识别 |
+| **约束名** | `{type}_{table}_{field}` | `pk_users_id`, `fk_orders_user_id` | 明确约束类型 |
+
+### 5.5 API 命名约定
+
+| 类型 | 命名风格 | 示例 | 说明 |
+|:---|:---|:---|:---|
+| **RESTful 路径** | kebab-case (复数) | `/api/v1/user-profiles`, `/api/v1/order-items` | 小写，单词间用连字符，使用复数 |
+| **查询参数** | camelCase | `?userId=123&pageSize=10` | 或 snake_case，保持项目内一致 |
+| **请求体字段** | camelCase | `{ "userName": "John", "email": "..." }` | 与前端保持一致 |
+| **响应体字段** | camelCase | `{ "userId": 123, "userName": "John" }` | 与前端保持一致 |
+
+### 5.6 环境变量命名约定
+
+| 类型 | 命名风格 | 示例 | 说明 |
+|:---|:---|:---|:---|
+| **环境变量** | UPPER_SNAKE_CASE | `API_BASE_URL`, `DATABASE_HOST`, `MAX_RETRY_COUNT` | 全大写，单词间用下划线 |
+| **命名空间** | 前缀 + `_` | `REDIS_HOST`, `POSTGRES_PASSWORD` | 使用服务名作为前缀 |
+
+---
+
+## 6. 使用说明
+
+### 6.1 在项目中使用
 
 1. **选择技术栈**：根据项目实际使用的技术栈，从表格中选择对应的路径。
 2. **替换占位符**：在 `.cursorrules` 或其他配置文件中，将占位符替换为实际路径。
 3. **保持一致性**：同一项目内，相同技术栈的路径应保持一致。
 
-### 5.2 占位符映射示例
+### 6.2 占位符映射示例
 
 在角色文档的 `.cursorrules` 模板中：
 
@@ -100,7 +201,7 @@
 - `{BUILD_PATH}` → 根据技术栈选择（如 Python: `dist/`, Java: `target/`）
 ```
 
-### 5.3 特殊项目处理
+### 6.3 特殊项目处理
 
 如果项目使用了非标准路径结构：
 - 在项目文档中明确说明路径选择的原因
@@ -109,7 +210,7 @@
 
 ---
 
-## 6. 参考资源
+## 7. 参考资源
 
 - [Python Project Structure](https://docs.python-guide.org/writing/structure/)
 - [Java Maven Standard Directory Layout](https://maven.apache.org/guides/introduction/introduction-to-the-standard-directory-layout.html)
