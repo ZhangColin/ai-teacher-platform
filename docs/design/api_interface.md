@@ -6,6 +6,7 @@
 
 ## 1. 基础信息
 - **Base Path**: `/api/v1`
+- **API 前缀**: 所有接口统一使用 `/api` 前缀
 - **协议标准**: RESTful API，JSON 格式
 - **认证方式**: MVP 阶段暂不需要认证
 
@@ -16,7 +17,7 @@
 ### 2.1 获取 Agent 列表
 获取所有已配置的 Agent 列表，用于前端导航展示。
 
-- **Endpoint**: `GET /agents`
+- **Endpoint**: `GET /api/v1/agents`
 - **Description**: 返回所有已配置的 Agent 列表。
 - **Response Structure**:
 ```python
@@ -53,7 +54,7 @@ class AgentListResponse(BaseModel):
 ### 2.2 开启 Agent 会话
 根据 Agent 唯一标识初始化一个交互环境，并自动触发 AI 生成欢迎语。
 
-- **Endpoint**: `POST /agents/{agent_id}/sessions`
+- **Endpoint**: `POST /api/v1/agents/{agent_id}/sessions`
 - **Description**: 激活特定 Agent 并创建会话。系统会自动调用一次 AI（用户不可见），将 AI 生成的欢迎语作为第一条消息返回。
 - **Path Parameters**:
   - `agent_id` (str, required): Agent 唯一标识符
@@ -101,7 +102,7 @@ class UIConfig(BaseModel):
 ### 2.3 通用对话交互
 这是系统最核心的接口，负责透传消息并解析 AI 返回的结构化状态。
 
-- **Endpoint**: `POST /sessions/{session_id}/chat`
+- **Endpoint**: `POST /api/v1/sessions/{session_id}/chat`
 - **Description**: 发送用户消息，获取 AI 回复，并解析成果物。
 - **Path Parameters**:
   - `session_id` (str, required): 会话 UUID
@@ -232,7 +233,7 @@ class ErrorResponse(BaseModel):
 
 2. **Agent 配置加载失败**
    - 状态码：`500 Internal Server Error`
-   - 处理方式：启动时检测，加载失败的 Agent 不显示在 `GET /agents` 列表中，记录错误日志
+   - 处理方式：启动时检测，加载失败的 Agent 不显示在 `GET /api/v1/agents` 列表中，记录错误日志
    - 用户影响：该 Agent 不可用，但其他 Agent 正常使用
 
 3. **代码块解析失败**
@@ -253,7 +254,7 @@ sequenceDiagram
     participant AI as AI 服务
 
     User->>Frontend: 点击 Agent 入口
-    Frontend->>Backend: POST /agents/{agent_id}/sessions
+    Frontend->>Backend: POST /api/v1/agents/{agent_id}/sessions
     Backend->>Backend: 加载 Agent 配置
     Backend->>AI: 调用 AI（传入 system_prompt）
     AI-->>Backend: 返回欢迎语
@@ -273,7 +274,7 @@ sequenceDiagram
 
     User->>Frontend: 输入消息并发送
     Frontend->>Frontend: 从本地存储读取历史消息
-    Frontend->>Backend: POST /sessions/{session_id}/chat<br/>(包含 history)
+    Frontend->>Backend: POST /api/v1/sessions/{session_id}/chat<br/>(包含 history)
     Backend->>AI: 调用 AI（传入历史消息 + 用户消息）
     AI-->>Backend: 返回 AI 回复（Markdown 格式）
     Backend->>Backend: 解析回复中的代码块
