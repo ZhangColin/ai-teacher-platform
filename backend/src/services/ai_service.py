@@ -62,6 +62,10 @@ class AIService:
             return "你好！我是你的 AI 助手。请告诉我你需要什么帮助。"
         
         try:
+            # 记录系统提示词（用于调试）
+            logger.info(f"生成欢迎消息 - 系统提示词长度: {len(system_prompt)} 字符")
+            logger.debug(f"系统提示词内容: {system_prompt[:200]}...")
+            
             response = self.client.chat.completions.create(
                 model=self.model_name,
                 messages=[
@@ -70,7 +74,9 @@ class AIService:
                 ],
                 temperature=0.7
             )
-            return response.choices[0].message.content
+            result = response.choices[0].message.content
+            logger.info(f"AI 返回的欢迎消息: {result[:100]}...")
+            return result
         except Exception as e:
             logger.error(f"AI 服务调用异常（生成欢迎消息）: {e}", exc_info=True)
             return "欢迎使用 AI 助手！抱歉，当前服务暂时不可用，请稍后重试。"
@@ -102,12 +108,17 @@ class AIService:
             # 添加当前用户消息
             messages.append({"role": "user", "content": user_message})
             
+            # 记录系统提示词（用于调试）
+            logger.info(f"对话请求 - 系统提示词长度: {len(system_prompt)} 字符, 历史消息数: {len(history)}, 用户消息: {user_message[:50]}...")
+            
             response = self.client.chat.completions.create(
                 model=self.model_name,
                 messages=messages,
                 temperature=0.7
             )
-            return response.choices[0].message.content
+            result = response.choices[0].message.content
+            logger.info(f"AI 返回的回复长度: {len(result)} 字符")
+            return result
         except Exception as e:
             logger.error(f"AI 服务调用异常（对话）: {e}", exc_info=True)
             return "抱歉，当前服务暂时不可用，请稍后重试。"
