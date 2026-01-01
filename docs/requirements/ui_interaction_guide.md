@@ -52,7 +52,7 @@
 sequenceDiagram
     participant User as 用户
     participant UI as 前端界面
-    participant Server as 后端宿主
+    participant Server as 系统服务
     participant AI as Agent (AI)
 
     User->>UI: 输入需求
