@@ -1,8 +1,8 @@
 <template>
   <div class="ai-tools-layout">
-    <!-- 左侧：功能导航栏 -->
+    <!-- 左侧：AI工具选择器 -->
     <aside class="sidebar" :class="{ collapsed: sidebarCollapsed }">
-      <SidebarMenu @collapse-change="handleSidebarCollapse" />
+      <AIToolSelector @collapse-change="handleSidebarCollapse" @tool-change="handleToolChange" />
     </aside>
     
     <!-- 右侧：聊天区域 -->
@@ -12,7 +12,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import SidebarMenu from '../components/SidebarMenu.vue'
+import AIToolSelector from '../components/AIToolSelector.vue'
 import ChatArea from '../components/ChatArea.vue'
 
 const sidebarCollapsed = ref(false)
@@ -20,40 +20,38 @@ const sidebarCollapsed = ref(false)
 function handleSidebarCollapse(collapsed: boolean) {
   sidebarCollapsed.value = collapsed
 }
+
+function handleToolChange(toolId: string) {
+  // 工具切换逻辑（后续实现）
+  console.log('切换到工具:', toolId)
+}
 </script>
 
 <style scoped>
 .ai-tools-layout {
-  display: flex;
-  height: 100%;
-  overflow: hidden;
+  @apply flex h-full overflow-hidden;
 }
 
 .sidebar {
-  width: 240px;
-  flex-shrink: 0;
-  border-right: 1px solid #e5e7eb;
-  background-color: #f9fafb;
-  overflow-y: auto;
-  transition: width 0.3s ease;
+  @apply flex-shrink-0 border-r border-gray-200 overflow-y-auto transition-all duration-300 ease-in-out;
+  /* 层级1：容器层 - 浅灰背景，右侧阴影，工具选择器区域 */
+  width: 260px; /* 恢复原来的宽度 */
+  background-color: theme('colors.gray.50');
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.04);
 }
 
 .sidebar.collapsed {
-  width: 0;
-  border-right: none;
-  overflow: hidden;
+  @apply w-0 border-r-0 overflow-hidden;
 }
 
 .chat-area {
-  flex: 1;
-  min-width: 0;
-  background-color: #ffffff;
+  @apply flex-1 min-w-0 bg-white;
 }
 
 /* 平板端响应式（768px - 1023px） */
 @media (min-width: 768px) and (max-width: 1023px) {
   .sidebar {
-    width: 200px;
+    width: 260px; /* 平板端保持较宽，确保卡片布局舒适 */
   }
   
   .sidebar.collapsed {

@@ -210,35 +210,22 @@ onUnmounted(() => {
 }
 
 .message-error {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem;
-  background-color: #fee2e2;
-  border: 1px solid #fca5a5;
-  border-radius: 0.375rem;
-  color: #991b1b;
+  @apply flex items-center gap-3 p-3 rounded-md;
+  background-color: theme('colors.error.100');
+  border: 1px solid theme('colors.error.300');
+  color: theme('colors.error.800');
 }
 
 .error-text {
-  flex: 1;
-  font-size: 0.875rem;
+  @apply flex-1 text-sm;
 }
 
 .retry-button {
-  padding: 0.375rem 0.75rem;
-  background-color: #dc2626;
-  color: white;
-  border: none;
-  border-radius: 0.25rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
+  @apply px-3 py-1.5 bg-error-600 text-white border-none rounded text-sm font-medium cursor-pointer transition-all duration-200;
 }
 
 .retry-button:hover {
-  background-color: #b91c1c;
+  @apply bg-error-700;
 }
 
 .message-pending {

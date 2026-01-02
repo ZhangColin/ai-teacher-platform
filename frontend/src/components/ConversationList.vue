@@ -74,76 +74,59 @@ function handleNewConversation() {
 
 <style scoped>
 .conversation-list {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  border-right: 1px solid #e5e7eb;
-  background-color: #f9fafb;
+  @apply flex flex-col h-full border-r border-gray-200;
+  /* 层级1：容器层 - 浅灰背景，右侧阴影 */
+  background-color: theme('colors.gray.50');
+  border-right-width: 1px;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.04);
 }
 
 .conversation-header {
-  padding: 12px;
-  border-bottom: 1px solid #e5e7eb;
+  @apply p-4 border-b border-gray-200; /* 从p-3(12px)增加到p-4(16px)，更宽松 */
 }
 
 .new-conversation-btn {
-  width: 100%;
-  padding: 10px 12px;
-  background-color: #3b82f6;
-  color: #ffffff;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 1px 2px rgba(59, 130, 246, 0.2);
+  @apply w-full px-3 py-2.5 bg-primary-500 text-white border-none rounded-lg text-sm font-medium cursor-pointer transition-all duration-200;
+  box-shadow: 0 2px 4px theme('colors.primary.500 / 0.25');
 }
 
 .new-conversation-btn:hover {
-  background-color: #2563eb;
-  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+  @apply bg-primary-600;
+  box-shadow: 0 4px 8px theme('colors.primary.500 / 0.35');
 }
 
 .new-conversation-btn:active {
-  transform: scale(0.98);
+  @apply scale-[0.98];
 }
 
 .conversation-items {
-  flex: 1;
-  overflow-y: auto;
-  padding: 8px;
+  @apply flex-1 overflow-y-auto p-3; /* 从p-2(8px)增加到p-3(12px)，更宽松 */
 }
 
 .conversation-item {
-  padding: 12px;
-  margin-bottom: 4px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
+  @apply px-4 py-3 mb-2 rounded-lg cursor-pointer transition-all duration-200;
+  /* 添加更柔和的hover效果 */
 }
 
 .conversation-item:hover {
-  background-color: #f3f4f6;
+  @apply bg-gray-100;
+  transform: translateX(2px);
 }
 
 .conversation-item.active {
-  background-color: #eff6ff;
-  border-left: 3px solid #2563eb;
-  padding-left: 9px;
+  @apply bg-primary-50 border-primary-600 pl-2.5;
+  border-left-width: 3px;
+  /* 激活状态添加更明显的视觉反馈 */
+  box-shadow: inset 0 0 0 1px theme('colors.primary.100');
 }
 
 .conversation-title {
-  font-size: 14px;
-  font-weight: 500;
-  color: #1f2937;
-  margin-bottom: 4px;
+  @apply text-sm font-medium text-gray-800 mb-1;
   line-height: 1.4;
 }
 
 .conversation-preview {
-  font-size: 12px;
-  color: #6b7280;
+  @apply text-xs text-gray-500;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

@@ -64,76 +64,55 @@ function handleChildClick(childId: string) {
 
 <style scoped>
 .menu-item {
-  margin-bottom: 2px;
+  @apply mb-0.5;
 }
 
 .menu-item-primary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 12px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-  color: #374151;
-  font-size: 14px;
+  @apply flex items-center justify-between px-4 py-3 rounded-lg cursor-pointer transition-all duration-200 text-gray-700 text-sm;
+  /* 添加更柔和的hover效果 */
 }
 
 .menu-item-primary:hover:not(.not-clickable) {
-  background-color: #f3f4f6;
+  @apply bg-gray-100;
+  transform: translateX(2px);
 }
 
 .menu-item-primary.not-clickable {
-  cursor: default;
-  color: #4b5563;
-  font-weight: 600;
-  font-size: 13px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  @apply cursor-default text-gray-600 font-semibold text-xs uppercase tracking-wide;
 }
 
 .menu-item-primary.active {
-  background-color: #eff6ff;
-  color: #2563eb;
-  font-weight: 600;
+  @apply bg-primary-50 text-primary-600 font-semibold;
+  /* 激活状态添加更明显的视觉反馈 */
+  box-shadow: inset 0 0 0 1px theme('colors.primary.100');
 }
 
 .menu-label {
-  flex: 1;
+  @apply flex-1;
 }
 
 .menu-arrow {
-  color: #9ca3af;
-  font-size: 16px;
-  margin-left: 8px;
-  transition: transform 0.2s;
+  @apply text-gray-400 text-base ml-2 transition-transform duration-200;
 }
 
 .menu-item-children {
-  margin-left: 20px;
-  margin-top: 4px;
-  padding-left: 8px;
-  border-left: 2px solid #e5e7eb;
+  @apply ml-5 mt-1 pl-2 border-l-2 border-gray-200;
 }
 
 .menu-item-secondary {
-  padding: 8px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s;
-  color: #6b7280;
-  font-size: 13px;
+  @apply px-4 py-2.5 rounded-md cursor-pointer transition-all duration-200 text-gray-500 text-xs;
+  /* 添加更柔和的hover效果 */
 }
 
 .menu-item-secondary:hover {
-  background-color: #f3f4f6;
-  color: #1f2937;
+  @apply bg-gray-100 text-gray-800;
+  transform: translateX(2px);
 }
 
 .menu-item-secondary.active {
-  background-color: #eff6ff;
-  color: #2563eb;
-  font-weight: 600;
+  @apply bg-primary-50 text-primary-600 font-semibold;
+  /* 激活状态添加更明显的视觉反馈 */
+  box-shadow: inset 0 0 0 1px theme('colors.primary.100');
 }
 </style>
 

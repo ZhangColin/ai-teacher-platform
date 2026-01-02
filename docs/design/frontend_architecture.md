@@ -24,7 +24,7 @@
 
 ### 1.1 核心目标
 - **模块化**: 布局结构模块化，各区域独立，便于扩展
-- **可配置**: 导航体系可配置，支持动态添加新模块、新菜单项
+- **可配置**: 导航体系可配置，支持动态添加新模块、新工具分类和工具
 - **响应式**: 支持桌面端、平板端、移动端适配
 - **扩展性**: UI框架定下来后，后续功能迭代不应推倒重来
 
@@ -65,9 +65,7 @@ App.vue (根组件)
 │   └── UserInfo.vue (用户信息组件)
 └── MainLayout.vue (主内容区容器)
     ├── AIToolsLayout.vue (AI工具模块布局)
-    │   ├── SidebarMenu.vue (左侧功能导航栏)
-    │   │   ├── MenuItem.vue (菜单项组件)
-    │   │   └── SubMenuItem.vue (二级菜单项组件)
+    │   ├── AIToolSelector.vue (左侧工具选择器)
     │   └── ChatArea.vue (右侧聊天区域)
     │       ├── ConversationList.vue (历史对话列表)
     │       ├── ChatPanel.vue (当前对话区域)
@@ -107,15 +105,15 @@ App.vue (根组件)
 #### 3.2.2 AI工具模块组件
 
 **AIToolsLayout.vue**
-- **职责**: AI工具模块的整体布局（左侧菜单 + 右侧聊天区域）
-- **子组件**: SidebarMenu, ChatArea
-- **状态**: 从 `uiFrameworkStore` 获取菜单状态、菜单收起状态
+- **职责**: AI工具模块的整体布局（左侧工具选择器 + 右侧聊天区域）
+- **子组件**: AIToolSelector, ChatArea
+- **状态**: 从 `uiFrameworkStore` 获取工具选择器状态、收起状态
 
-**SidebarMenu.vue**
-- **职责**: 左侧功能导航栏，展示菜单项
-- **子组件**: MenuItem, SubMenuItem
-- **状态**: 从 `uiFrameworkStore` 获取菜单数据、当前激活菜单项
-- **事件**: 菜单项点击事件、菜单收起/展开事件
+**AIToolSelector.vue**
+- **职责**: 左侧工具选择器，展示工具分类和工具卡片
+- **设计**: 分类+卡片式设计，每个分类下有工具卡片（带图标）
+- **状态**: 从 `uiFrameworkStore` 获取工具数据、当前激活工具
+- **事件**: 工具切换事件、工具选择器收起/展开事件
 
 **ChatArea.vue**
 - **职责**: 右侧聊天区域，包含历史对话列表和当前对话区域
@@ -149,9 +147,9 @@ App.vue (根组件)
 stores/
 ├── uiFrameworkStore.ts (UI框架状态 - 新建)
 │   ├── 当前激活模块 (currentModule)
-│   ├── 菜单数据 (menuData)
-│   ├── 菜单收起状态 (sidebarCollapsed)
-│   ├── 当前激活菜单项 (activeMenuItem)
+  │   ├── 工具数据 (toolData)
+  │   ├── 工具选择器收起状态 (toolSelectorCollapsed)
+  │   ├── 当前激活工具 (activeTool)
 │   └── 对话列表 (conversationList)
 └── sessionStore.ts (会话状态 - 现有，保持不变)
     └── (现有会话相关状态)
@@ -170,11 +168,17 @@ interface ModuleConfig {
   icon?: string           // 图标（可选）
 }
 
-interface MenuItem {
-  id: string              // 菜单项ID
-  label: string           // 菜单项标签
-  icon?: string           // 图标（可选）
-  children?: MenuItem[]   // 二级菜单（可选）
+interface ToolCategory {
+  id: string              // 分类ID
+  label: string           // 分类名称
+  icon?: string           // 分类图标（可选）
+  children?: ToolItem[]   // 工具列表（可选）
+}
+
+interface ToolItem {
+  id: string              // 工具ID
+  label: string           // 工具名称
+  icon?: string           // 工具图标（可选）
   route?: string          // 路由路径（可选，当前迭代不涉及）
 }
 
@@ -196,14 +200,14 @@ export const useUIFrameworkStore = defineStore('uiFramework', () => {
     { id: 'works', name: '作品展示' }
   ])
   
-  // 菜单数据（当前写死，后续可配置化）
-  const menuData = ref<MenuItem[]>([])
+  // 工具数据（当前写死，后续可配置化）
+  const toolData = ref<ToolCategory[]>([])
   
-  // 菜单收起状态
-  const sidebarCollapsed = ref<boolean>(false)
+  // 工具选择器收起状态
+  const toolSelectorCollapsed = ref<boolean>(false)
   
-  // 当前激活菜单项
-  const activeMenuItem = ref<string | null>(null)
+  // 当前激活工具
+  const activeTool = ref<string | null>(null)
   
   // 对话列表（当前写死）
   const conversationList = ref<ConversationItem[]>([])
@@ -216,12 +220,12 @@ export const useUIFrameworkStore = defineStore('uiFramework', () => {
     currentModule.value = moduleId
   }
   
-  function toggleSidebar() {
-    sidebarCollapsed.value = !sidebarCollapsed.value
+  function toggleToolSelector() {
+    toolSelectorCollapsed.value = !toolSelectorCollapsed.value
   }
   
-  function setActiveMenuItem(menuItemId: string) {
-    activeMenuItem.value = menuItemId
+  function setActiveTool(toolId: string) {
+    activeTool.value = toolId
   }
   
   function setCurrentConversation(conversationId: string) {
@@ -232,15 +236,15 @@ export const useUIFrameworkStore = defineStore('uiFramework', () => {
     // State
     currentModule,
     modules,
-    menuData,
-    sidebarCollapsed,
-    activeMenuItem,
+    toolData,
+    toolSelectorCollapsed,
+    activeTool,
     conversationList,
     currentConversationId,
     // Actions
     setCurrentModule,
-    toggleSidebar,
-    setActiveMenuItem,
+    toggleToolSelector,
+    setActiveTool,
     setCurrentConversation
   }
 })
@@ -258,7 +262,7 @@ export const useUIFrameworkStore = defineStore('uiFramework', () => {
 
 **状态持久化**:
 - 当前迭代：状态不持久化（刷新后恢复默认）
-- 后续迭代：可考虑将菜单收起状态、当前模块等持久化到 localStorage
+- 后续迭代：可考虑将工具选择器收起状态、当前模块等持久化到 localStorage
 
 ---
 
@@ -272,7 +276,7 @@ export const useUIFrameworkStore = defineStore('uiFramework', () => {
 │   ├── /modules/ai-tools (AI工具模块)
 │   ├── /modules/common-tools (常用工具模块)
 │   └── /modules/works (作品展示模块)
-└── /modules/ai-tools/:menuItemId? (AI工具模块 + 菜单项，可选)
+└── /modules/ai-tools/:toolId? (AI工具模块 + 工具ID，可选)
 ```
 
 ### 5.2 路由配置
@@ -298,8 +302,8 @@ const routes: RouteRecordRaw[] = [
         component: () => import('../layouts/AIToolsLayout.vue') // 默认布局，根据moduleId动态加载
       },
       {
-        path: ':menuItemId?',
-        name: 'module-menu',
+        path: ':toolId?',
+        name: 'module-tool',
         component: () => import('../layouts/AIToolsLayout.vue'),
         props: true
       }
@@ -360,7 +364,7 @@ watch(moduleId, (newModuleId) => {
 
 ### 6.1 配置驱动架构
 
-**目标**: 支持动态添加新模块、新菜单项，无需修改核心代码
+**目标**: 支持动态添加新模块、新工具分类和工具，无需修改核心代码
 
 **实现方案**:
 
@@ -373,14 +377,20 @@ export interface ModuleConfig {
   name: string
   icon?: string
   layout: 'ai-tools' | 'common-tools' | 'works' | string  // 布局类型
-  menuItems?: MenuItem[]  // 菜单项（仅AI工具模块需要）
+  toolCategories?: ToolCategory[]  // 工具分类（仅AI工具模块需要）
 }
 
-export interface MenuItem {
+export interface ToolCategory {
   id: string
   label: string
   icon?: string
-  children?: MenuItem[]
+  children?: ToolItem[]
+}
+
+export interface ToolItem {
+  id: string
+  label: string
+  icon?: string
 }
 ```
 
@@ -393,10 +403,16 @@ export const moduleConfigs: ModuleConfig[] = [
     id: 'ai-tools',
     name: 'AI工具',
     layout: 'ai-tools',
-    menuItems: [
-      { id: 'text-gen', label: '文生文' },
-      { id: 'image-gen', label: '文生图' },
-      { id: 'video-gen', label: '文生视频' },
+    toolCategories: [
+      {
+        id: 'content-gen',
+        label: '内容生成',
+        children: [
+          { id: 'text-gen', label: '文生文' },
+          { id: 'image-gen', label: '文生图' },
+          { id: 'video-gen', label: '文生视频' }
+        ]
+      },
       {
         id: 'agents',
         label: '智能体',
@@ -430,10 +446,10 @@ export const useUIFrameworkStore = defineStore('uiFramework', () => {
   // 从配置初始化模块列表
   const modules = ref<ModuleConfig[]>(moduleConfigs)
   
-  // 从配置初始化菜单数据（仅AI工具模块）
-  const menuData = computed(() => {
+  // 从配置初始化工具数据（仅AI工具模块）
+  const toolData = computed(() => {
     const aiToolsModule = modules.value.find(m => m.id === 'ai-tools')
-    return aiToolsModule?.menuItems || []
+    return aiToolsModule?.toolCategories || []
   })
   
   // ...
@@ -507,12 +523,12 @@ const routes = [
 <template>
   <!-- 桌面端显示，移动端隐藏 -->
   <div class="hidden md:block">
-    <SidebarMenu />
+    <AIToolSelector />
   </div>
   
   <!-- 移动端显示，桌面端隐藏 -->
   <button class="md:hidden" @click="toggleMobileMenu">
-    菜单
+    工具选择器
   </button>
 </template>
 ```
@@ -556,8 +572,8 @@ const isDesktop = useMediaQuery('(min-width: 1024px)')
 - 桌面端：完整显示 Logo、大模块切换、用户信息
 - 移动端：Logo + 汉堡菜单按钮（大模块切换收起）+ 用户信息
 
-**SidebarMenu.vue**:
-- 桌面端：固定宽度，支持收起/展开
+**AIToolSelector.vue**:
+- 桌面端：固定宽度260px，支持收起/展开
 - 平板端：自动收起为抽屉式
 - 移动端：完全收起为抽屉式，通过按钮触发
 
@@ -577,14 +593,20 @@ interface ModuleConfig {
   name: string                  // 必填，模块显示名称
   icon?: string                 // 可选，图标标识
   layout: string                // 必填，布局类型
-  menuItems?: MenuItem[]        // 可选，菜单项列表（仅AI工具模块）
+  toolCategories?: ToolCategory[]  // 可选，工具分类列表（仅AI工具模块）
 }
 
-interface MenuItem {
-  id: string                    // 必填，菜单项唯一标识
-  label: string                  // 必填，菜单项显示标签
-  icon?: string                 // 可选，图标标识
-  children?: MenuItem[]          // 可选，二级菜单列表
+interface ToolCategory {
+  id: string                    // 必填，分类唯一标识
+  label: string                 // 必填，分类显示名称
+  icon?: string                 // 可选，分类图标标识
+  children?: ToolItem[]          // 可选，工具列表
+}
+
+interface ToolItem {
+  id: string                    // 必填，工具唯一标识
+  label: string                 // 必填，工具显示名称
+  icon?: string                 // 可选，工具图标标识
   route?: string                // 可选，路由路径（当前迭代不使用）
 }
 ```
@@ -616,7 +638,7 @@ interface UserInfo {
 ### 9.1 代码规范
 
 **组件命名**:
-- 组件文件名使用 PascalCase: `Header.vue`, `SidebarMenu.vue`
+- 组件文件名使用 PascalCase: `Header.vue`, `AIToolSelector.vue`
 - 组件名与文件名保持一致
 
 **Store 命名**:
@@ -637,10 +659,8 @@ frontend/src/
 │   │   ├── Logo.vue
 │   │   ├── ModuleSwitcher.vue
 │   │   └── UserInfo.vue
-│   ├── SidebarMenu/
-│   │   ├── SidebarMenu.vue
-│   │   ├── MenuItem.vue
-│   │   └── SubMenuItem.vue
+│   ├── AIToolSelector/
+│   │   └── AIToolSelector.vue
 │   └── ...
 ├── layouts/             # 布局组件（新建）
 │   ├── MainLayout.vue
@@ -688,7 +708,7 @@ frontend/src/
 - 配置文件可从后端获取
 - Store 状态可持久化到 localStorage
 - 路由可支持动态注册
-- 菜单项可支持实际路由跳转
+- 工具可支持实际路由跳转
 
 ---
 
@@ -709,11 +729,8 @@ graph TD
     C --> H[CommonToolsLayout]
     C --> I[WorksLayout]
     
-    G --> J[SidebarMenu.vue]
+    G --> J[AIToolSelector.vue]
     G --> K[ChatArea.vue]
-    
-    J --> L[MenuItem.vue]
-    J --> M[SubMenuItem.vue]
     
     K --> N[ConversationList.vue]
     K --> O[ChatPanel.vue]
@@ -728,13 +745,13 @@ graph TD
 ```mermaid
 graph LR
     A[uiFrameworkStore] --> B[modules]
-    A --> C[menuData]
-    A --> D[sidebarCollapsed]
-    A --> E[activeMenuItem]
+    A --> C[toolData]
+    A --> D[toolSelectorCollapsed]
+    A --> E[activeTool]
     A --> F[conversationList]
     
     G[Header.vue] --> A
-    H[SidebarMenu.vue] --> A
+    H[AIToolSelector.vue] --> A
     I[ChatArea.vue] --> A
     J[MainLayout.vue] --> A
 ```
@@ -751,7 +768,7 @@ graph TD
     C --> F[CommonToolsLayout]
     D --> G[WorksLayout]
     
-    E --> H[SidebarMenu + ChatArea]
+    E --> H[AIToolSelector + ChatArea]
     F --> I[CategoryNav + CardGrid]
     G --> J[CategoryNav + CardGrid]
 ```
@@ -770,7 +787,7 @@ graph TD
 ### 11.2 扩展性验收
 
 - [ ] 新增模块只需添加布局组件和配置，无需修改核心代码
-- [ ] 新增菜单项只需更新配置，无需修改组件代码
+- [ ] 新增工具分类和工具只需更新配置，无需修改组件代码
 - [ ] 布局结构模块化，各区域独立
 
 ### 11.3 响应式验收

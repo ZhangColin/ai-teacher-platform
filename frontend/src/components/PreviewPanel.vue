@@ -149,32 +149,23 @@ watch(
 }
 
 .preview-error {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  padding: 2rem;
-  text-align: center;
-  color: #991b1b;
-  background-color: #fee2e2;
+  @apply flex flex-col items-center justify-center h-full p-8 text-center;
+  color: theme('colors.error.800');
+  background-color: theme('colors.error.100');
 }
 
 .error-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
+  @apply text-xl font-semibold mb-2;
+  color: theme('colors.error.800');
 }
 
 .error-message {
-  font-size: 0.875rem;
-  margin-bottom: 0.5rem;
+  @apply text-sm mb-2;
+  color: theme('colors.error.600');
 }
 
 .error-hint {
-  font-size: 0.75rem;
-  color: #6b7280;
-  margin-top: 1rem;
+  @apply text-xs text-gray-500 mt-4;
 }
 
 .preview-content {
@@ -245,25 +236,21 @@ watch(
   height: 100%;
   padding: 2rem;
   text-align: center;
-  color: #991b1b;
+  color: theme('colors.error.800');
 }
 
 .error-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
+  @apply text-xl font-semibold mb-2;
+  color: theme('colors.error.800');
 }
 
 .error-message {
-  font-size: 0.875rem;
-  color: #dc2626;
-  margin-bottom: 1rem;
+  @apply text-sm mb-4;
+  color: theme('colors.error.600');
 }
 
 .error-hint {
-  font-size: 0.875rem;
-  color: #6b7280;
-  font-style: italic;
+  @apply text-sm text-gray-500 italic;
 }
 </style>
 

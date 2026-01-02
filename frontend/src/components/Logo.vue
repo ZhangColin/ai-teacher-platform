@@ -1,11 +1,13 @@
 <template>
   <div class="logo" @click="handleClick">
-    <span class="logo-text">AI Platform</span>
+    <img :src="logoImage" alt="海创元AI教育平台" class="logo-image" />
+    <span class="logo-text">海创元AI教育平台</span>
   </div>
 </template>
 
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
+import logoImage from '@/assets/logo/logo.png'
 
 const router = useRouter()
 
@@ -16,26 +18,29 @@ function handleClick() {
 
 <style scoped>
 .logo {
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-  padding: 8px 0;
-  transition: opacity 0.2s;
+  @apply flex items-center gap-2 cursor-pointer py-2 transition-opacity duration-200;
 }
 
 .logo:hover {
-  opacity: 0.7;
+  @apply opacity-80;
+}
+
+.logo-image {
+  @apply h-10 w-auto; /* 从h-8(32px)增加到h-10(40px) */
+  object-fit: contain;
 }
 
 .logo-text {
-  font-size: 18px;
-  font-weight: 600;
-  color: #1f2937;
+  @apply text-lg font-semibold text-gray-900;
   letter-spacing: -0.5px;
 }
 
 /* 平板端响应式（768px - 1023px） */
 @media (min-width: 768px) and (max-width: 1023px) {
+  .logo-image {
+    height: 28px;
+  }
+  
   .logo-text {
     font-size: 17px;
   }
@@ -43,6 +48,10 @@ function handleClick() {
 
 /* 移动端响应式（<768px） */
 @media (max-width: 767px) {
+  .logo-image {
+    height: 24px;
+  }
+  
   .logo-text {
     font-size: 16px;
   }

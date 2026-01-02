@@ -13,24 +13,16 @@ const welcomeText = '我是你的AI助手，可以帮助你处理各种任务。
 
 <style scoped>
 .welcome-message {
-  text-align: center;
-  padding: 48px 24px;
-  max-width: 600px;
-  margin: 0 auto;
+  @apply text-center py-16 px-6 max-w-2xl mx-auto; /* 从py-12(48px)增加到py-16(64px)，更大气 */
 }
 
 .welcome-title {
-  font-size: 28px;
-  font-weight: 600;
-  color: #1f2937;
-  margin-bottom: 16px;
+  @apply text-3xl font-semibold text-gray-900 mb-4;
   letter-spacing: -0.5px;
 }
 
 .welcome-text {
-  font-size: 15px;
-  color: #6b7280;
-  line-height: 1.7;
+  @apply text-base text-gray-500 leading-relaxed;
 }
 
 /* 平板端响应式（768px - 1023px） */

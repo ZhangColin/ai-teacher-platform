@@ -21,37 +21,27 @@ const userInitial = computed(() => user.name.charAt(0))
 
 <style scoped>
 .user-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  @apply flex items-center gap-3;
 }
 
 .user-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: transform 0.2s;
+  @apply w-9 h-9 rounded-full flex items-center justify-center cursor-pointer transition-transform duration-200;
+  /* 使用主色渐变（待品牌色提取后更新） */
+  background: linear-gradient(135deg, theme('colors.primary.500') 0%, theme('colors.primary.700') 100%);
+  box-shadow: 0 2px 4px theme('colors.primary.500 / 0.3');
 }
 
 .user-avatar:hover {
-  transform: scale(1.05);
+  @apply scale-105;
+  box-shadow: 0 4px 8px theme('colors.primary.500 / 0.4');
 }
 
 .avatar-text {
-  color: #ffffff;
-  font-size: 14px;
-  font-weight: 600;
+  @apply text-white text-sm font-semibold;
 }
 
 .user-name {
-  font-size: 14px;
-  color: #1f2937;
-  font-weight: 500;
+  @apply text-sm text-gray-900 font-medium;
 }
 
 /* 平板端响应式（768px - 1023px） */

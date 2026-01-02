@@ -26,18 +26,13 @@ const moduleId = computed(() => route.params.moduleId as string)
 
 <style scoped>
 .main-layout {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  background-color: #ffffff;
+  @apply flex flex-col min-h-screen;
+  /* 层级0：背景层 - 继承App的背景 */
 }
 
 .main-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  height: calc(100vh - 64px);
+  @apply flex-1 flex flex-col overflow-hidden;
+  height: calc(100vh - 72px);
 }
 
 /* 平板端响应式（768px - 1023px） */

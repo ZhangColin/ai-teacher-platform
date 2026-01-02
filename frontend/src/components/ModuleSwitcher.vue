@@ -34,37 +34,27 @@ function handleModuleClick(moduleId: string) {
 
 <style scoped>
 .module-switcher {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  background-color: #f3f4f6;
-  padding: 4px;
-  border-radius: 12px;
+  @apply flex items-center gap-1 bg-gray-100 p-1 rounded-xl;
 }
 
 .module-button {
-  padding: 8px 20px;
-  font-size: 14px;
-  font-weight: 500;
-  color: #6b7280;
-  background-color: transparent;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-  white-space: nowrap;
+  @apply px-5 py-2 text-sm font-medium text-gray-500 bg-transparent border-none rounded-lg cursor-pointer transition-all duration-200 whitespace-nowrap;
+  /* 添加更柔和的hover效果 */
 }
 
 .module-button:hover {
-  background-color: rgba(255, 255, 255, 0.8);
-  color: #1f2937;
+  @apply bg-white/80 text-gray-800;
+  transform: translateY(-1px);
 }
 
 .module-button.active {
-  background-color: #ffffff;
-  color: #1f2937;
-  font-weight: 600;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  @apply bg-white text-gray-900 font-semibold;
+  /* 层级3：交互层 - 白色背景，轻微阴影，添加更明显的视觉反馈 */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.module-button:active {
+  transform: translateY(0);
 }
 
 /* 平板端响应式（768px - 1023px） */

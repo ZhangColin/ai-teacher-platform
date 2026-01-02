@@ -10,13 +10,15 @@
       />
     </div>
     <button class="collapse-button" @click="toggleCollapse">
-      {{ isCollapsed ? '›' : '‹' }}
+      <ChevronLeftIcon v-if="!isCollapsed" class="w-4 h-4" />
+      <ChevronRightIcon v-else class="w-4 h-4" />
     </button>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/vue/24/outline'
 import MenuItem from './MenuItem.vue'
 
 const emit = defineEmits<{
@@ -56,6 +58,7 @@ function toggleCollapse() {
   height: 100%;
   position: relative;
   transition: width 0.3s;
+  /* 层级1：容器层 - 继承父容器的浅灰背景 */
 }
 
 .sidebar-menu.collapsed {
@@ -64,34 +67,20 @@ function toggleCollapse() {
 }
 
 .menu-list {
-  padding: 8px;
+  padding: 16px 12px; /* 从12px 8px增加到16px 12px，更宽松 */
   height: 100%;
   overflow-y: auto;
 }
 
 .collapse-button {
-  position: absolute;
-  top: 12px;
-  right: -16px;
-  width: 32px;
-  height: 32px;
-  background-color: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 50%;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  color: #6b7280;
-  z-index: 10;
-  transition: all 0.2s;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  @apply absolute top-3 -right-4 w-8 h-8 bg-white border border-gray-200 rounded-full cursor-pointer flex items-center justify-center text-gray-500 z-10 transition-all duration-200;
+  /* 层级3：交互层 - 白色背景，明显阴影 */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
 .collapse-button:hover {
-  background-color: #f3f4f6;
-  color: #1f2937;
+  @apply bg-gray-50 text-gray-800;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 </style>
 

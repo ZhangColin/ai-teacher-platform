@@ -41,62 +41,54 @@ function handleSend() {
 
 <style scoped>
 .chat-input {
-  display: flex;
-  align-items: flex-end;
-  gap: 12px;
+  @apply flex items-end gap-3;
 }
 
 .input-textarea {
-  flex: 1;
-  padding: 12px 16px;
-  border: 1px solid #d1d5db;
-  border-radius: 12px;
-  font-size: 14px;
+  @apply flex-1 px-4 py-3 border border-gray-300 rounded-xl text-sm resize-none min-h-[44px] max-h-[200px] leading-relaxed bg-white transition-all duration-200;
+  /* 层级3：交互层 - 白色背景，轻微阴影，更柔和的边框 */
   font-family: inherit;
-  resize: none;
-  min-height: 44px;
-  max-height: 200px;
-  line-height: 1.6;
-  background-color: #ffffff;
-  transition: all 0.2s;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  border-color: theme('colors.gray.300');
+}
+
+.input-textarea:hover {
+  border-color: theme('colors.gray.400');
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .input-textarea:focus {
-  outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  @apply outline-none border-primary-500;
+  box-shadow: 0 0 0 3px theme('colors.primary.500 / 0.1'), 0 2px 4px rgba(0, 0, 0, 0.08);
 }
 
 .input-textarea::placeholder {
-  color: #9ca3af;
+  @apply text-gray-400;
 }
 
 .send-button {
-  padding: 12px 24px;
-  background-color: #3b82f6;
-  color: #ffffff;
-  border: none;
-  border-radius: 12px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  flex-shrink: 0;
-  box-shadow: 0 1px 2px rgba(59, 130, 246, 0.2);
+  @apply px-6 py-3 bg-primary-500 text-white border-none rounded-xl text-sm font-medium cursor-pointer transition-all duration-200 flex-shrink-0;
+  /* 层级3：交互层 - 主色背景，明显阴影，添加hover提升效果 */
+  box-shadow: 0 2px 4px theme('colors.primary.500 / 0.3'), 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .send-button:hover:not(:disabled) {
-  background-color: #2563eb;
-  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+  @apply bg-primary-600;
+  box-shadow: 0 4px 8px theme('colors.primary.500 / 0.4'), 0 2px 4px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
 }
 
 .send-button:active:not(:disabled) {
-  transform: scale(0.98);
+  transform: translateY(0);
+  box-shadow: 0 2px 4px theme('colors.primary.500 / 0.3'), 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.send-button:active:not(:disabled) {
+  @apply scale-[0.98];
 }
 
 .send-button:disabled {
-  background-color: #d1d5db;
-  cursor: not-allowed;
+  @apply bg-gray-300 cursor-not-allowed;
   box-shadow: none;
 }
 

@@ -19,8 +19,10 @@ import { RouterView } from 'vue-router'
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   line-height: 1.5;
-  color: #1f2937;
-  background-color: #ffffff;
+  color: theme('colors.gray.800');
+  /* 层级0：页面主背景 - 极浅灰，带微妙渐变，避免纯白刺眼 */
+  background: linear-gradient(to bottom, theme('colors.gray.50') 0%, theme('colors.gray.100') 100%);
+  min-height: 100vh;
 }
 
 .app-container {

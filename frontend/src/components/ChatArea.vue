@@ -55,20 +55,22 @@ defineExpose({
 
 <style scoped>
 .chat-area {
-  display: flex;
-  height: 100%;
-  overflow: hidden;
+  @apply flex h-full overflow-hidden bg-white;
+  /* 层级2：内容层 - 白色背景，轻微阴影 */
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.04);
 }
 
 .conversation-list {
-  width: 240px;
+  width: 280px;
   flex-shrink: 0;
+  /* 层级1：容器层 - 浅灰背景，右侧阴影 */
 }
 
 .chat-panel {
   flex: 1;
   min-width: 0;
   transition: width 0.3s ease;
+  /* 层级2：内容层 - 白色背景 */
 }
 
 .chat-area.with-preview .chat-panel {
@@ -77,60 +79,38 @@ defineExpose({
 }
 
 .preview-panel {
+  @apply flex flex-col border-l border-gray-200 bg-white;
   width: 50%;
-  flex: 0 0 50%;
-  display: flex;
-  flex-direction: column;
-  border-left: 1px solid #e5e7eb;
-  background-color: #fafafa;
+  flex-shrink: 0;
+  /* 层级2：内容层 - 白色背景，左侧边框 */
+  box-shadow: -2px 0 4px rgba(0, 0, 0, 0.04);
 }
 
 .preview-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  border-bottom: 1px solid #e5e7eb;
-  background-color: #ffffff;
+  @apply flex items-center justify-between px-4 py-3 border-b border-gray-200;
+  /* 层级2：内容层 - 白色背景，底部边框 */
 }
 
 .preview-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #1f2937;
+  @apply text-sm font-semibold text-gray-900;
 }
 
 .preview-close {
-  width: 28px;
-  height: 28px;
-  background-color: transparent;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
+  @apply w-6 h-6 flex items-center justify-center text-gray-400 hover:text-gray-600 cursor-pointer transition-colors duration-200;
   font-size: 20px;
-  color: #6b7280;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
+  line-height: 1;
 }
 
 .preview-close:hover {
-  background-color: #f3f4f6;
-  color: #1f2937;
+  @apply bg-gray-100 rounded;
 }
 
 .preview-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px;
+  @apply flex-1 overflow-y-auto p-4;
 }
 
 .preview-placeholder {
-  text-align: center;
-  color: #9ca3af;
-  font-size: 14px;
-  padding: 48px 24px;
+  @apply text-sm text-gray-400 text-center py-8;
 }
 
 /* 平板端响应式（768px - 1023px） */

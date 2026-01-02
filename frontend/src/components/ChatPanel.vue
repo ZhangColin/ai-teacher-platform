@@ -7,7 +7,11 @@
     
     <!-- 对话内容区域 -->
     <div v-if="messages.length > 0" class="messages-area">
-      <div v-for="message in messages" :key="message.id" class="message-item">
+      <div 
+        v-for="message in messages" 
+        :key="message.id" 
+        :class="['message-item', message.role]"
+      >
         <div class="message-role">{{ message.role === 'user' ? '你' : 'AI' }}</div>
         <div class="message-content">{{ message.content }}</div>
         <button v-if="message.role === 'assistant'" class="preview-btn" @click="handlePreview">
@@ -103,75 +107,82 @@ function handlePreview() {
 
 <style scoped>
 .chat-panel {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  overflow: hidden;
-  background-color: #ffffff;
+  @apply flex flex-col h-full overflow-hidden bg-white;
 }
 
 .welcome-area {
-  padding: 48px 24px;
-  flex-shrink: 0;
+  @apply py-16 px-6 flex-shrink-0; /* 从py-12(48px)增加到py-16(64px)，更大气 */
 }
 
 .messages-area {
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
+  @apply flex-1 overflow-y-auto px-6 py-8 flex flex-col gap-8; /* 从py-6(24px)增加到py-8(32px)，gap从6增加到8 */
   scroll-behavior: smooth;
 }
 
 .message-item {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  max-width: 100%;
+  @apply flex flex-col gap-2 max-w-full;
+}
+
+.message-item.user {
+  @apply items-end;
+}
+
+.message-item.assistant {
+  @apply items-start;
 }
 
 .message-role {
-  font-size: 12px;
-  font-weight: 600;
-  color: #6b7280;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  @apply text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1 px-1;
 }
 
 .message-content {
-  font-size: 14px;
-  color: #1f2937;
-  line-height: 1.7;
-  margin-bottom: 8px;
-  word-wrap: break-word;
+  @apply text-sm leading-relaxed break-words px-4 py-3 rounded-2xl max-w-[85%];
+  /* 层级3：交互层 - 明显的阴影和背景 */
+}
+
+.message-item.user .message-content {
+  @apply bg-primary-500 text-white;
+  /* 层级3：交互层 - 主色背景，明显阴影 */
+  box-shadow: 0 2px 8px theme('colors.primary.500 / 0.3'), 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.message-item.assistant .message-content {
+  @apply bg-white text-gray-900;
+  /* 层级2：内容层 - 白色背景，更柔和的边框和阴影 */
+  border: 1px solid theme('colors.gray.200');
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.message-item.assistant .message-content:hover {
+  border-color: theme('colors.gray.300');
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .preview-btn {
-  padding: 6px 14px;
-  background-color: #f3f4f6;
-  color: #1f2937;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  align-self: flex-start;
+  @apply px-3.5 py-1.5 bg-white text-gray-700 border border-gray-300 rounded-md text-xs font-medium cursor-pointer transition-all duration-200 self-start;
+  /* 层级3：交互层 - 白色背景，轻微阴影，更柔和的边框 */
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  border-color: theme('colors.gray.300');
 }
 
 .preview-btn:hover {
-  background-color: #e5e7eb;
-  border-color: #9ca3af;
-  color: #111827;
+  @apply bg-gray-50;
+  border-color: theme('colors.gray.400');
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+.preview-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .input-area {
-  padding: 20px 24px;
-  border-top: 1px solid #e5e7eb;
-  flex-shrink: 0;
-  background-color: #ffffff;
+  @apply py-6 px-6 border-t border-gray-200 flex-shrink-0 bg-white;
+  /* 层级2：内容层 - 白色背景，顶部边框 */
+  /* 内边距保持24px (px-6)，已符合要求 */
+  box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.04);
 }
 
 /* 平板端响应式（768px - 1023px） */
