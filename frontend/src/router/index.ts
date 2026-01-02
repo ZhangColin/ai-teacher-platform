@@ -6,8 +6,15 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/',
     name: 'home',
-    redirect: '/agents',
+    redirect: '/modules/ai-tools',
   },
+  {
+    path: '/modules/:moduleId',
+    name: 'module',
+    component: () => import('../layouts/MainLayout.vue'),
+    props: true,
+  },
+  // 保留原有路由（后续处理）
   {
     path: '/agents',
     name: 'agent-list',

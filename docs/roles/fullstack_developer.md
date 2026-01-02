@@ -547,6 +547,25 @@ cp fullstack_developer.md {YOUR_PROJECT}/docs/roles/
 5. **质量检查** - 测试通过、无调试代码、异常处理
 6. **用户确认** - 只有用户确认测试通过，才能标记任务完成
 
+### 任务状态更新规则（必须遵守）
+
+**开始任务时**：
+- 用户说"开始任务X"或"继续任务X"时，立即更新 `docs/development/backlog.md` 中对应任务的状态为 `in_progress`
+- 同时使用 `todo_write` 工具更新任务状态为 `in_progress`
+
+**完成任务时**：
+- **禁止**在代码实现完成后自动标记为 `completed`
+- **必须等待**用户明确说"完成"、"确认"、"下一个任务"等确认信息
+- 用户确认后，更新 `docs/development/backlog.md` 中对应任务的状态为 `completed`
+- 同时使用 `todo_write` 工具更新任务状态为 `completed`
+- **提交代码**：更新任务状态后，立即提交代码（包含 backlog.md 的更新）
+- 提交信息格式：`feat: 完成[任务描述]` 或 `style: 完成[任务描述]` 等（根据任务类型选择合适的前缀）
+
+**重要原则**：
+- 任务状态更新必须与用户确认同步，不能提前更新
+- 代码提交必须在任务状态更新为 `completed` 之后
+- 如果用户说"继续下一个任务"，表示当前任务已完成，需要更新状态并提交代码
+
 # 参考文档
 - 完整的工作方法论、检查清单与哲学，请参考：docs/roles/fullstack_developer.md
 - 技术栈路径约定（用于自动解析路径占位符），请参考：docs/roles/tech_stack_conventions.md
