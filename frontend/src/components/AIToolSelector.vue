@@ -1,12 +1,6 @@
 <template>
   <div class="tool-selector" :class="{ collapsed: isCollapsed }">
     <div v-if="!isCollapsed" class="tool-selector-content">
-      <!-- 标题区域 -->
-      <div class="tool-selector-header">
-        <h2 class="tool-selector-title">AI 工具</h2>
-        <p class="tool-selector-subtitle">选择你想要使用的工具</p>
-      </div>
-      
       <!-- 工具列表 -->
       <div class="tool-list">
         <!-- 所有工具都按分类组织 -->
@@ -39,20 +33,12 @@
         </div>
       </div>
     </div>
-    
-    <!-- 收起按钮 -->
-    <button class="collapse-button" @click="toggleCollapse">
-      <ChevronLeftIcon v-if="!isCollapsed" class="w-4 h-4" />
-      <ChevronRightIcon v-else class="w-4 h-4" />
-    </button>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import {
-  ChevronLeftIcon,
-  ChevronRightIcon,
   DocumentTextIcon,
   PhotoIcon,
   VideoCameraIcon,
@@ -68,6 +54,10 @@ interface ToolItem {
   icon: any
   children?: ToolItem[]
 }
+
+const props = defineProps<{
+  collapsed?: boolean
+}>()
 
 const emit = defineEmits<{
   'tool-change': [toolId: string]
@@ -118,7 +108,14 @@ const tools: ToolItem[] = [
 ]
 
 const activeToolId = ref<string | null>('prompt-wizard')
-const isCollapsed = ref(false)
+const isCollapsed = ref(props.collapsed ?? false)
+
+// 同步外部传入的 collapsed 状态
+watch(() => props.collapsed, (newVal) => {
+  if (newVal !== undefined) {
+    isCollapsed.value = newVal
+  }
+})
 
 function handleToolClick(toolId: string) {
   activeToolId.value = toolId
@@ -140,27 +137,13 @@ function toggleCollapse() {
 
 .tool-selector.collapsed {
   width: 0;
-  overflow: hidden;
+  overflow: visible; /* 允许按钮显示在容器外 */
 }
 
 .tool-selector-content {
   padding: 20px 16px;
   height: 100%;
   overflow-y: auto;
-}
-
-.tool-selector-header {
-  margin-bottom: 20px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid theme('colors.gray.200');
-}
-
-.tool-selector-title {
-  @apply text-base font-semibold text-gray-900 mb-1;
-}
-
-.tool-selector-subtitle {
-  @apply text-xs text-gray-500;
 }
 
 .tool-list {
@@ -239,34 +222,10 @@ function toggleCollapse() {
   @apply text-primary-700;
 }
 
-/* 收起按钮 */
-.collapse-button {
-  @apply absolute top-3 -right-4 w-8 h-8 bg-white border border-gray-200 rounded-full cursor-pointer flex items-center justify-center text-gray-500 z-10 transition-all duration-200;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
-}
-
-.collapse-button:hover {
-  @apply bg-gray-50 text-gray-800;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
 /* 平板端响应式（768px - 1023px） */
 @media (min-width: 768px) and (max-width: 1023px) {
   .tool-selector-content {
     padding: 16px 12px;
-  }
-  
-  .tool-selector-header {
-    margin-bottom: 16px;
-    padding-bottom: 10px;
-  }
-  
-  .tool-selector-title {
-    font-size: 15px;
-  }
-  
-  .tool-selector-subtitle {
-    font-size: 11px;
   }
   
   .category-name {
