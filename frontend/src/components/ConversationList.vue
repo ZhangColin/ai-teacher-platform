@@ -1,11 +1,21 @@
 <template>
-  <div class="conversation-list">
-    <div class="conversation-header">
+  <div class="conversation-list" :class="{ collapsed: isCollapsed }">
+    <div v-if="!isCollapsed" class="conversation-header">
       <button class="new-conversation-btn" @click="handleNewConversation">
         + 新建对话
       </button>
     </div>
-    <div class="conversation-items">
+    
+    <!-- 收起/展开按钮 - 在布局层级 -->
+    <button 
+      class="collapse-button" 
+      :class="{ 'collapsed': isCollapsed }"
+      @click="toggleCollapse"
+    >
+      <ChevronLeftIcon v-if="!isCollapsed" class="w-4 h-4" />
+      <ChatBubbleLeftRightIcon v-else class="w-4 h-4" />
+    </button>
+    <div v-if="!isCollapsed" class="conversation-items">
       <!-- 加载状态 -->
       <div v-if="loading" class="loading-state">
         <div class="loading-spinner"></div>
@@ -78,12 +88,27 @@
 
 <script setup lang="ts">
 import { ref, watch, nextTick } from 'vue'
+import { ChevronLeftIcon, ChatBubbleLeftRightIcon } from '@heroicons/vue/24/outline'
 import { ApiService } from '../services/apiClient'
 import type { ConversationListItem } from '../types'
 
 const props = defineProps<{
   toolId?: string
+  collapsed?: boolean
 }>()
+
+const isCollapsed = ref(props.collapsed ?? false)
+
+// 同步外部传入的 collapsed 状态
+watch(() => props.collapsed, (newVal) => {
+  if (newVal !== undefined) {
+    isCollapsed.value = newVal
+  }
+})
+
+function toggleCollapse() {
+  isCollapsed.value = !isCollapsed.value
+}
 
 const emit = defineEmits<{
   'conversation-change': [sessionId: string]
@@ -266,6 +291,33 @@ defineExpose({
   background-color: theme('colors.gray.50');
   border-right-width: 1px;
   box-shadow: 2px 0 4px rgba(0, 0, 0, 0.04);
+  position: relative; /* 为按钮提供定位上下文 */
+  transition: width 0.3s ease;
+  width: 280px;
+}
+
+.conversation-list.collapsed {
+  width: 0;
+  overflow: visible; /* 允许按钮显示在容器外 */
+  border-right: none;
+}
+
+/* 收起/展开按钮 - 在布局层级，不受 conversation-list overflow 影响 */
+.collapse-button {
+  @apply absolute w-8 h-8 bg-white border border-gray-200 rounded-full cursor-pointer flex items-center justify-center text-gray-500 z-30 transition-all duration-200;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+  left: 264px; /* 展开时：conversation-list宽度280px - 按钮宽度的一半 */
+  top: 85px; /* header高度(64px) + border(1px) + 间距(20px) = 85px，在新建会话按钮下面那条线下面一点 */
+}
+
+.collapse-button.collapsed {
+  left: 8px; /* 收起时向左平移，与工具选择器按钮左右对齐 */
+  /* top 保持 85px，只是向左平移 */
+}
+
+.collapse-button:hover {
+  @apply bg-gray-50 text-gray-800;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .conversation-header {
@@ -398,6 +450,24 @@ defineExpose({
 @media (min-width: 768px) and (max-width: 1023px) {
   .conversation-list {
     width: 200px;
+  }
+  
+  .conversation-list.collapsed {
+    width: 0;
+  }
+  
+  .collapse-button {
+    left: 184px; /* 展开时：200px - 8px */
+    top: 70px; /* 平板端：header高度(52px) + border(1px) + 间距(17px) = 70px */
+  }
+  
+  .collapse-button.collapsed {
+    left: 8px; /* 收起时向左平移，与工具选择器按钮左右对齐 */
+    /* top 保持 70px，只是向左平移 */
+  }
+  
+  .collapse-button.collapsed {
+    left: 8px;
   }
   
   .conversation-header {

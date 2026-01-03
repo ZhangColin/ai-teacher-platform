@@ -163,8 +163,12 @@ function handleSend() {
 }
 
 .send-button:disabled {
-  @apply bg-gray-300 cursor-not-allowed;
+  @apply bg-gray-300 cursor-not-allowed opacity-60;
   box-shadow: none;
+}
+
+.input-textarea:disabled {
+  @apply bg-gray-50 cursor-not-allowed opacity-60;
 }
 
 /* 平板端响应式（768px - 1023px） */

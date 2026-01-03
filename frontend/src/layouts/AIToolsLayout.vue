@@ -16,7 +16,7 @@
       @click="toggleSidebar"
     >
       <ChevronLeftIcon v-if="!sidebarCollapsed" class="w-4 h-4" />
-      <ChevronRightIcon v-else class="w-4 h-4" />
+      <SparklesIcon v-else class="w-4 h-4" />
     </button>
     
     <!-- 右侧：聊天区域或敬请期待页面 -->
@@ -38,7 +38,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/vue/24/outline'
+import { ChevronLeftIcon, SparklesIcon } from '@heroicons/vue/24/outline'
 import AIToolSelector from '../components/AIToolSelector.vue'
 import ChatArea from '../components/ChatArea.vue'
 import ComingSoon from '../components/ComingSoon.vue'

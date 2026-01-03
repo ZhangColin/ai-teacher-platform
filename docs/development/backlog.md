@@ -155,9 +155,9 @@
 
 | ID | 任务描述 | 状态 | 优先级 |
 |:---|:---|:---|:---|
-| ui-interaction-1 | 实现工具选择器收起功能：收起为浮动图标，点击重新展开，位置固定左侧中间 | pending | P0 |
-| ui-interaction-2 | 实现历史对话列表收起功能：收起为浮动图标，点击重新展开，位置固定左侧偏下（避免重叠） | pending | P0 |
-| ui-interaction-3 | 完善对话交互细节：参考DeepSeek实现消息展示样式、输入框交互、加载状态、错误处理 | pending | P0 |
+| ui-interaction-1 | 实现工具选择器收起功能：收起为浮动图标，点击重新展开，位置固定左侧中间 | completed | P0 |
+| ui-interaction-2 | 实现历史对话列表收起功能：收起为浮动图标，点击重新展开，位置固定左侧偏下（避免重叠） | completed | P0 |
+| ui-interaction-3 | 完善对话交互细节：参考DeepSeek实现消息展示样式、输入框交互、加载状态、错误处理 | completed | P0 |
 
 #### 提示词向导工具配置
 

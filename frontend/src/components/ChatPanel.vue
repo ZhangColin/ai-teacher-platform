@@ -1,7 +1,11 @@
 <template>
   <div class="chat-panel">
     <!-- 消息内容区域（包含欢迎语和消息，可滚动） -->
-    <div class="messages-area">
+    <div 
+      class="messages-area" 
+      :class="{ 'conversation-collapsed': conversationCollapsed }"
+      :style="conversationCollapsed ? { paddingLeft: '80px' } : {}"
+    >
       <!-- 欢迎语（仅在没有消息时显示） -->
       <div v-if="sessionStore.messages.length === 0" class="welcome-area">
         <WelcomeMessage :welcome-message="welcomeMessage" />
@@ -27,16 +31,31 @@
       
       <!-- 加载指示器 -->
       <div v-if="sessionStore.loading" class="loading-indicator">
-        <div class="loading-dots">
+        <div class="loading-typing">
           <span></span>
           <span></span>
           <span></span>
+        </div>
+        <span class="loading-text">AI 正在思考...</span>
+      </div>
+      
+      <!-- 错误提示 -->
+      <div v-if="sessionStore.error" class="error-message">
+        <div class="error-icon">⚠️</div>
+        <div class="error-content">
+          <div class="error-title">出错了</div>
+          <div class="error-detail">{{ sessionStore.error }}</div>
+          <button class="error-retry-btn" @click="handleRetry">重试</button>
         </div>
       </div>
     </div>
     
     <!-- 输入框区域（固定在底部） -->
-    <div class="input-area">
+    <div 
+      class="input-area" 
+      :class="{ 'conversation-collapsed': conversationCollapsed }"
+      :style="conversationCollapsed ? { paddingLeft: '80px' } : {}"
+    >
       <ChatInput @send="handleSendMessage" :disabled="sessionStore.loading" />
     </div>
   </div>
@@ -54,6 +73,7 @@ const props = defineProps<{
   toolId?: string
   welcomeMessage?: string
   sessionId?: string
+  conversationCollapsed?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -125,6 +145,31 @@ async function handleSendMessage(content: string) {
   } catch (err) {
     console.error('发送消息失败:', err)
     // 错误已经在 sessionStore 中处理，这里只记录日志
+    // 滚动到底部以显示错误信息
+    await nextTick()
+    scrollToBottom()
+  }
+}
+
+/**
+ * 重试发送最后一条消息
+ */
+async function handleRetry() {
+  const lastUserMessage = sessionStore.messages
+    .slice()
+    .reverse()
+    .find(msg => msg.role === 'user')
+  
+  if (lastUserMessage && lastUserMessage.content) {
+    // 移除错误状态和最后一条 AI 消息（如果有）
+    sessionStore.error = null
+    const lastIndex = sessionStore.messages.length - 1
+    if (lastIndex >= 0 && sessionStore.messages[lastIndex].role === 'assistant') {
+      sessionStore.messages.pop()
+    }
+    
+    // 重新发送消息
+    await handleSendMessage(lastUserMessage.content)
   }
 }
 
@@ -172,6 +217,12 @@ function handleMarkdownClick(event: Event) {
   @apply flex-1 overflow-y-auto px-6 py-8 flex flex-col gap-8; /* 从py-6(24px)增加到py-8(32px)，gap从6增加到8 */
   scroll-behavior: smooth;
   min-height: 0; /* 确保 flex 子元素可以正确收缩 */
+  transition: padding-left 0.3s ease;
+}
+
+/* 当历史列表收起时，增加左边距，避免图标压到文字 */
+.messages-area.conversation-collapsed {
+  padding-left: 80px !important; /* 增加左边距，为收起按钮留出空间，确保按钮和文字之间有一个字的距离 */
 }
 
 .welcome-area {
@@ -179,7 +230,7 @@ function handleMarkdownClick(event: Event) {
   min-height: 0;
 }
 
-/* 用户消息：显示在聊天框里，右侧对齐 */
+/* 用户消息：显示在聊天框里，右侧对齐 - 参考 DeepSeek 样式 */
 .user-message {
   @apply flex justify-end mb-6;
 }
@@ -188,6 +239,8 @@ function handleMarkdownClick(event: Event) {
   @apply text-sm leading-relaxed break-words px-4 py-3 rounded-2xl max-w-[85%] bg-primary-500 text-white;
   /* 层级3：交互层 - 主色背景，明显阴影 */
   box-shadow: 0 2px 8px theme('colors.primary.500 / 0.3'), 0 1px 3px rgba(0, 0, 0, 0.1);
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 /* AI 消息：直接渲染 Markdown，充分利用页面宽度 */
@@ -292,24 +345,80 @@ function handleMarkdownClick(event: Event) {
   transform: translateY(1px);
 }
 
+/* 加载指示器 - 参考 DeepSeek 样式 */
 .loading-indicator {
-  @apply flex items-center justify-center py-4;
+  @apply flex flex-col items-center justify-center py-6 gap-3;
 }
 
-.loading-dots {
-  @apply flex gap-2;
+.loading-typing {
+  @apply flex gap-1.5;
 }
 
-.loading-dots span {
-  @apply w-2 h-2 bg-gray-400 rounded-full animate-pulse;
+.loading-typing span {
+  @apply w-2 h-2 bg-gray-400 rounded-full;
+  animation: typing 1.4s infinite ease-in-out;
 }
 
-.loading-dots span:nth-child(2) {
+.loading-typing span:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.loading-typing span:nth-child(2) {
   animation-delay: 0.2s;
 }
 
-.loading-dots span:nth-child(3) {
+.loading-typing span:nth-child(3) {
   animation-delay: 0.4s;
+}
+
+@keyframes typing {
+  0%, 60%, 100% {
+    transform: translateY(0);
+    opacity: 0.7;
+  }
+  30% {
+    transform: translateY(-10px);
+    opacity: 1;
+  }
+}
+
+.loading-text {
+  @apply text-sm text-gray-500;
+}
+
+/* 错误提示 */
+.error-message {
+  @apply flex gap-4 p-4 bg-red-50 border border-red-200 rounded-lg mb-6;
+}
+
+.error-icon {
+  @apply text-2xl flex-shrink-0;
+}
+
+.error-content {
+  @apply flex-1;
+}
+
+.error-title {
+  @apply text-sm font-semibold text-red-900 mb-1;
+}
+
+.error-detail {
+  @apply text-sm text-red-700 mb-3;
+}
+
+.error-retry-btn {
+  @apply px-4 py-2 bg-red-500 text-white border-none rounded-lg text-sm font-medium cursor-pointer transition-all duration-200;
+  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
+}
+
+.error-retry-btn:hover {
+  @apply bg-red-600;
+  box-shadow: 0 4px 8px rgba(239, 68, 68, 0.4);
+}
+
+.error-retry-btn:active {
+  @apply scale-[0.98];
 }
 
 .input-area {
@@ -317,6 +426,12 @@ function handleMarkdownClick(event: Event) {
   /* 层级2：内容层 - 白色背景，顶部边框 */
   /* 内边距保持24px (px-6)，已符合要求 */
   box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.04);
+  transition: padding-left 0.3s ease;
+}
+
+/* 当历史列表收起时，输入框也增加左边距 */
+.input-area.conversation-collapsed {
+  padding-left: 80px !important; /* 输入框也增加左边距，保持一致 */
 }
 
 /* 平板端响应式（768px - 1023px） */

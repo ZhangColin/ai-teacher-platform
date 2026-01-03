@@ -1,19 +1,23 @@
 <template>
-  <div class="chat-area" :class="{ 'with-preview': showPreview }">
+  <div class="chat-area" :class="{ 'with-preview': showPreview, 'conversation-collapsed': conversationListCollapsed }">
     <!-- 左侧：历史对话列表 -->
     <ConversationList 
       :tool-id="toolId"
+      :collapsed="conversationListCollapsed"
       class="conversation-list" 
+      :class="{ collapsed: conversationListCollapsed }"
       @conversation-change="handleConversationChange"
       @new-conversation="handleNewConversation"
     />
+    
     
     <!-- 中间：当前对话区域 -->
     <ChatPanel 
       :tool-id="toolId"
       :welcome-message="welcomeMessage"
       :session-id="currentSessionId"
-      class="chat-panel" 
+      :conversation-collapsed="conversationListCollapsed"
+      class="chat-panel"
       @send="handleSendMessage" 
       @preview="openPreview" 
     />
@@ -47,6 +51,11 @@ const sessionStore = useSessionStore()
 const currentSessionId = ref<string | null>(null)
 const showPreview = ref(false)
 const currentArtifact = ref<Artifact | null>(null)
+const conversationListCollapsed = ref(false)
+
+function toggleConversationList() {
+  conversationListCollapsed.value = !conversationListCollapsed.value
+}
 
 // 监听工具切换，清空当前会话
 watch(() => props.toolId, (newToolId) => {
@@ -94,17 +103,21 @@ function closePreview() {
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.04);
 }
 
-.conversation-list {
-  width: 280px;
-  flex-shrink: 0;
-  /* 层级1：容器层 - 浅灰背景，右侧阴影 */
-}
 
 .chat-panel {
   flex: 1;
   min-width: 0;
-  transition: width 0.3s ease;
+  transition: width 0.3s ease, padding-left 0.3s ease;
   /* 层级2：内容层 - 白色背景 */
+}
+
+/* 当历史列表收起时，增加左边距，避免图标压到文字 */
+.chat-area.conversation-collapsed .chat-panel :deep(.messages-area) {
+  padding-left: 80px !important; /* 增加左边距，为收起按钮留出空间，确保按钮和文字之间有一个字的距离 */
+}
+
+.chat-area.conversation-collapsed .chat-panel :deep(.input-area) {
+  padding-left: 80px !important; /* 输入框也增加左边距，保持一致 */
 }
 
 .chat-area.with-preview .chat-panel {
@@ -147,12 +160,6 @@ function closePreview() {
   @apply text-sm text-gray-400 text-center py-8;
 }
 
-/* 平板端响应式（768px - 1023px） */
-@media (min-width: 768px) and (max-width: 1023px) {
-  .conversation-list {
-    width: 200px;
-  }
-}
 
 /* 移动端响应式（<768px） */
 @media (max-width: 767px) {
