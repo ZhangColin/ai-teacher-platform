@@ -1,6 +1,6 @@
-# 通用 Agent 交互协议 (API Interface)
+# 通用工具交互协议 (API Interface)
 
-> **设计哲学**: 插件化架构。后端提供宿主环境，业务逻辑由 Agent 配置（System Prompt）定义。
+> **设计哲学**: 插件化架构。后端提供宿主环境，业务逻辑由工具配置（System Prompt）定义。
 
 ---
 
@@ -304,38 +304,60 @@ class CreateUserResponse(BaseModel):
 
 ---
 
-## 4. Agent 相关接口（需要认证）
+## 4. 工具相关接口（需要认证）
 
-### 4.1 获取 Agent 列表
-获取所有已配置的 Agent 列表，用于前端导航展示。
+### 4.1 获取工具列表
+获取所有已配置的工具列表，按分类组织，用于前端工具选择器展示。
 
-- **Endpoint**: `GET /api/v1/agents`
-- **Description**: 返回所有已配置的 Agent 列表。
+- **Endpoint**: `GET /api/v1/tools`
+- **Description**: 返回所有已配置的工具列表，按分类组织。
+- **认证要求**: 需要认证（Bearer Token）
+
 - **Response Structure**:
 ```python
-class AgentListItem(BaseModel):
-    agent_id: str = Field(..., description="Agent 唯一标识符")
-    name: str = Field(..., description="功能名称")
-    description: Optional[str] = Field(None, description="功能描述")
+class ToolListItem(BaseModel):
+    tool_id: str = Field(..., description="工具唯一标识符")
+    name: str = Field(..., description="工具名称")
+    description: Optional[str] = Field(None, description="工具描述")
     icon: Optional[str] = Field(None, description="图标标识（可选）")
+    category: str = Field(..., description="分类名称")
+    visible: bool = Field(True, description="是否在工具选择器中显示")
+    type: Literal["normal", "placeholder"] = Field("normal", description="工具类型")
 
-class AgentListResponse(BaseModel):
-    agents: List[AgentListItem] = Field(..., description="Agent 列表")
+class CategoryGroup(BaseModel):
+    name: str = Field(..., description="分类名称")
+    icon: Optional[str] = Field(None, description="分类图标（可选）")
+    tools: List[ToolListItem] = Field(..., description="该分类下的工具列表")
+
+class ToolListResponse(BaseModel):
+    categories: List[CategoryGroup] = Field(..., description="按分类组织的工具列表")
 ```
 
 **业务规则**：
-- 只返回成功加载的 Agent，配置加载失败的 Agent 不包含在列表中
-- 如果所有 Agent 配置都加载失败，返回空列表 `[]`
+- 只返回 `visible=true` 的工具
+- 只返回成功加载的工具，配置加载失败的工具不包含在列表中
+- 如果所有工具配置都加载失败，返回空列表 `[]`
+- 工具按 `category` 字段聚合，生成分类结构
+- 如果多个工具使用相同的 `category` 名称，自动归为一类
 
 **Example Response**:
 ```json
 {
-  "agents": [
+  "categories": [
     {
-      "agent_id": "prompt_wizard",
-      "name": "AI 提示词向导",
-      "description": "通过六步引导法，帮助您打造专家级提示词",
-      "icon": null
+      "name": "智能体",
+      "icon": "command-line",
+      "tools": [
+        {
+          "tool_id": "prompt_wizard",
+          "name": "AI 提示词向导",
+          "description": "通过六步引导法，帮助您打造专家级提示词",
+          "icon": "command-line",
+          "category": "智能体",
+          "visible": true,
+          "type": "normal"
+        }
+      ]
     }
   ]
 }
@@ -343,71 +365,13 @@ class AgentListResponse(BaseModel):
 
 ---
 
-**认证要求**: 需要认证（Bearer Token）
+### 4.2 通用对话交互
+这是系统最核心的接口，负责发送用户消息，获取 AI 回复，并解析成果物。首次调用时自动创建会话。
 
----
-
-### 4.2 开启 Agent 会话
-根据 Agent 唯一标识初始化一个交互环境，并自动触发 AI 生成欢迎语。
-
-- **Endpoint**: `POST /api/v1/agents/{agent_id}/sessions`
-- **Description**: 激活特定 Agent 并创建会话。系统会自动调用一次 AI（用户不可见），将 AI 生成的欢迎语作为第一条消息返回。
+- **Endpoint**: `POST /api/v1/tools/{tool_id}/chat`
+- **Description**: 向指定工具发送消息，获取 AI 回复。如果 `session_id` 不存在，自动创建新会话。
 - **Path Parameters**:
-  - `agent_id` (str, required): Agent 唯一标识符
-
-- **Response Structure**:
-```python
-class SessionInitResponse(BaseModel):
-    session_id: str = Field(..., description="会话 UUID")
-    welcome_message: str = Field(..., description="AI 生成的欢迎语（第一条消息）")
-    ui_config: UIConfig = Field(..., description="UI 配置，如是否开启预览、预览类型等")
-    artifacts: List[Artifact] = Field(
-        default_factory=list,
-        description="欢迎语中可能包含的成果物（如代码块）"
-    )
-
-class UIConfig(BaseModel):
-    show_preview: bool = Field(..., description="是否开启侧边预览栏")
-    preview_types: List[str] = Field(
-        default_factory=list,
-        description="支持的预览类型（如 ['markdown', 'html', 'svg']）"
-    )
-```
-
-**业务规则**：
-- 会话创建时，从 JWT Token 中获取用户ID，关联到会话
-- 会话创建后，系统自动调用 AI，传入 Agent 的 `system_prompt`，生成欢迎语
-- 如果欢迎语中包含代码块，后端需要解析并返回 `artifacts` 列表
-- 前端收到响应后，直接展示 `welcome_message` 和 `artifacts`，无需再次调用 AI
-- 如果 Agent 不存在，返回 404 错误
-- 如果未认证，返回 401 错误
-
-**Example Response**:
-```json
-{
-  "session_id": "550e8400-e29b-41d4-a716-446655440000",
-  "welcome_message": "你好！我是你的提示词向导。请告诉我你想让 AI 帮你完成什么任务，我将引导你打造一个专家级的提示词。",
-  "ui_config": {
-    "show_preview": true,
-    "preview_types": ["markdown", "html", "svg"]
-  },
-  "artifacts": []
-}
-```
-
----
-
-**认证要求**: 需要认证（Bearer Token）
-
----
-
-### 4.3 通用对话交互
-这是系统最核心的接口，负责透传消息并解析 AI 返回的结构化状态。
-
-- **Endpoint**: `POST /api/v1/sessions/{session_id}/chat`
-- **Description**: 发送用户消息，获取 AI 回复，并解析成果物。
-- **Path Parameters**:
-  - `session_id` (str, required): 会话 UUID
+  - `tool_id` (str, required): 工具唯一标识符
 
 - **Request Body**:
 ```python
@@ -417,24 +381,28 @@ class Message(BaseModel):
 
 class ChatRequest(BaseModel):
     message: str = Field(..., description="用户输入的消息", min_length=1)
+    session_id: Optional[str] = Field(None, description="会话 UUID（可选）。如果有则继续会话，没有则创建新会话")
     history: Optional[List[Message]] = Field(
         None,
-        description="历史消息列表（可选）。如果提供，后端使用该历史；如果不提供，后端从数据库读取（未来扩展）"
+        description="历史消息列表（可选）。如果提供，后端使用该历史；如果不提供，后端从数据库读取"
     )
 ```
 
 **认证要求**: 需要认证（Bearer Token）
 
 **业务规则**：
-- MVP 阶段：前端必须传递 `history`，后端仅透传给 AI 服务，不存储
-- 未来扩展：前端可以不传递 `history`，后端从数据库读取会话历史
-- 后端从 JWT Token 中获取用户ID，验证会话是否属于当前用户
-- 后端解析 `reply` 中的 Markdown 代码块，生成 `artifacts` 列表
-- 前端展示 `reply` 的完整内容（支持 Markdown 渲染）
-- 前端根据 `artifacts` 列表，在代码块上提供预览按钮
-- 如果会话不存在，返回 404 错误
-- 如果会话不属于当前用户，返回 403 Forbidden
-- 如果未认证，返回 401 错误
+- **会话创建时机**：用户发送第一条消息时，如果 `session_id` 不存在，自动创建新会话
+- **会话命名**：会话创建时，基于第一条用户消息的前 N 个字符自动命名（具体长度由 UI 决定，保证美观）
+- **历史消息处理**：
+  - 如果提供 `history`，后端使用该历史消息
+  - 如果不提供 `history`，后端从数据库读取会话历史
+- **用户验证**：后端从 JWT Token 中获取用户ID，验证会话是否属于当前用户
+- **成果物解析**：后端解析 `reply` 中的 Markdown 代码块，生成 `artifacts` 列表
+- **预览按钮显示**：代码块的语言标识为 `markdown`、`html`、`svg` 时，前端自动显示预览按钮
+- **错误处理**：
+  - 如果工具不存在，返回 404 错误
+  - 如果会话不属于当前用户，返回 403 Forbidden
+  - 如果未认证，返回 401 错误
 
 **响应方式**：
 - **MVP 阶段**：一次性返回完整回复（简化实现，快速验证架构）
@@ -443,6 +411,7 @@ class ChatRequest(BaseModel):
 - **Response Structure**:
 ```python
 class ChatResponse(BaseModel):
+    session_id: str = Field(..., description="会话 UUID。首次调用返回新创建的session_id，后续调用返回原session_id")
     reply: str = Field(..., description="AI 的文本回复内容（完整 Markdown 文本）")
     artifacts: List[Artifact] = Field(
         default_factory=list, 
@@ -450,14 +419,27 @@ class ChatResponse(BaseModel):
     )
 ```
 
-**Example Request**:
+**Example Request** (首次调用，创建新会话):
 ```json
 {
   "message": "我想让 AI 帮我写小红书美妆文案",
+  "session_id": null
+}
+```
+
+**Example Request** (后续调用，继续会话):
+```json
+{
+  "message": "继续优化这个提示词",
+  "session_id": "550e8400-e29b-41d4-a716-446655440000",
   "history": [
     {
+      "role": "user",
+      "content": "我想让 AI 帮我写小红书美妆文案"
+    },
+    {
       "role": "assistant",
-      "content": "你好！我是你的提示词向导..."
+      "content": "好的，我来帮你打造一个专业的小红书美妆文案提示词..."
     }
   ]
 }
@@ -466,13 +448,14 @@ class ChatResponse(BaseModel):
 **Example Response**:
 ```json
 {
+  "session_id": "550e8400-e29b-41d4-a716-446655440000",
   "reply": "好的，我来帮你打造一个专业的小红书美妆文案提示词。\n\n```markdown\n## [角色设定]\n你是一位拥有5年经验的小红书美妆文案专家...\n```\n\n让我们开始第一步：角色定义...",
   "artifacts": [
     {
       "type": "markdown",
       "content": "## [角色设定]\n你是一位拥有5年经验的小红书美妆文案专家...",
       "language": "markdown",
-      "timestamp": "2026-01-01T10:00:00Z"
+      "timestamp": "2026-01-03T10:00:00Z"
     }
   ]
 }
@@ -480,38 +463,216 @@ class ChatResponse(BaseModel):
 
 ---
 
-## 3. 成果物解析协议 (Artifacts Protocol)
+### 4.3 获取历史对话列表
+获取当前用户在当前工具下的所有历史对话列表。
 
-### 3.1 代码块识别规则
+- **Endpoint**: `GET /api/v1/tools/{tool_id}/conversations`
+- **Description**: 返回当前用户在当前工具下的所有历史对话列表，按更新时间倒序排列。
+- **Path Parameters**:
+  - `tool_id` (str, required): 工具唯一标识符
+- **认证要求**: 需要认证（Bearer Token）
+
+- **Response Structure**:
+```python
+class ConversationListItem(BaseModel):
+    session_id: str = Field(..., description="会话 UUID")
+    title: str = Field(..., description="会话标题")
+    updated_at: datetime = Field(..., description="最后更新时间")
+
+class ConversationListResponse(BaseModel):
+    conversations: List[ConversationListItem] = Field(..., description="对话列表")
+```
+
+**业务规则**：
+- 只返回当前用户在当前工具下的会话
+- 按 `updated_at` 倒序排列（最新的在最前面）
+- 如果用户在该工具下没有会话，返回空列表 `[]`
+
+**Example Response**:
+```json
+{
+  "conversations": [
+    {
+      "session_id": "550e8400-e29b-41d4-a716-446655440000",
+      "title": "我想让 AI 帮我写小红书美妆文案",
+      "updated_at": "2026-01-03T10:30:00Z"
+    },
+    {
+      "session_id": "660e8400-e29b-41d4-a716-446655440001",
+      "title": "如何优化提示词效果",
+      "updated_at": "2026-01-03T09:00:00Z"
+    }
+  ]
+}
+```
+
+**错误响应**：
+- `401 Unauthorized`: 未登录或 Token 无效
+- `404 Not Found`: 工具不存在
+
+---
+
+### 4.4 获取会话详情
+获取指定会话的完整消息历史。
+
+- **Endpoint**: `GET /api/v1/sessions/{session_id}`
+- **Description**: 返回指定会话的完整消息历史，用于恢复会话。
+- **Path Parameters**:
+  - `session_id` (str, required): 会话 UUID
+- **认证要求**: 需要认证（Bearer Token）
+
+- **Response Structure**:
+```python
+class SessionDetailResponse(BaseModel):
+    session_id: str = Field(..., description="会话 UUID")
+    tool_id: str = Field(..., description="工具唯一标识符")
+    title: str = Field(..., description="会话标题")
+    created_at: datetime = Field(..., description="创建时间")
+    updated_at: datetime = Field(..., description="最后更新时间")
+    messages: List[Message] = Field(..., description="消息列表")
+```
+
+**业务规则**：
+- 验证会话是否属于当前用户
+- 如果会话不属于当前用户，返回 403 Forbidden
+- 消息按 `created_at` 正序排列（最早的在最前面）
+
+**Example Response**:
+```json
+{
+  "session_id": "550e8400-e29b-41d4-a716-446655440000",
+  "tool_id": "prompt_wizard",
+  "title": "我想让 AI 帮我写小红书美妆文案",
+  "created_at": "2026-01-03T10:00:00Z",
+  "updated_at": "2026-01-03T10:30:00Z",
+  "messages": [
+    {
+      "role": "user",
+      "content": "我想让 AI 帮我写小红书美妆文案"
+    },
+    {
+      "role": "assistant",
+      "content": "好的，我来帮你打造一个专业的小红书美妆文案提示词..."
+    }
+  ]
+}
+```
+
+**错误响应**：
+- `401 Unauthorized`: 未登录或 Token 无效
+- `403 Forbidden`: 会话不属于当前用户
+- `404 Not Found`: 会话不存在
+
+---
+
+### 4.5 编辑会话标题
+更新指定会话的标题。
+
+- **Endpoint**: `PATCH /api/v1/sessions/{session_id}`
+- **Description**: 更新指定会话的标题。
+- **Path Parameters**:
+  - `session_id` (str, required): 会话 UUID
+- **认证要求**: 需要认证（Bearer Token）
+
+- **Request Body**:
+```python
+class UpdateSessionRequest(BaseModel):
+    title: str = Field(..., description="新的会话标题", min_length=1, max_length=200)
+```
+
+- **Response Structure**:
+```python
+class UpdateSessionResponse(BaseModel):
+    session_id: str = Field(..., description="会话 UUID")
+    title: str = Field(..., description="更新后的会话标题")
+```
+
+**业务规则**：
+- 验证会话是否属于当前用户
+- 如果会话不属于当前用户，返回 403 Forbidden
+- 标题长度限制：1-200 个字符
+
+**Example Request**:
+```json
+{
+  "title": "优化后的提示词讨论"
+}
+```
+
+**Example Response**:
+```json
+{
+  "session_id": "550e8400-e29b-41d4-a716-446655440000",
+  "title": "优化后的提示词讨论"
+}
+```
+
+**错误响应**：
+- `400 Bad Request`: 标题长度不符合要求
+- `401 Unauthorized`: 未登录或 Token 无效
+- `403 Forbidden`: 会话不属于当前用户
+- `404 Not Found`: 会话不存在
+
+---
+
+### 4.6 删除会话
+删除指定会话及其所有消息。
+
+- **Endpoint**: `DELETE /api/v1/sessions/{session_id}`
+- **Description**: 删除指定会话及其所有消息（级联删除）。
+- **Path Parameters**:
+  - `session_id` (str, required): 会话 UUID
+- **认证要求**: 需要认证（Bearer Token）
+
+**业务规则**：
+- 验证会话是否属于当前用户
+- 如果会话不属于当前用户，返回 403 Forbidden
+- 删除会话时，级联删除该会话下的所有消息和成果物
+- 删除操作不可恢复
+
+**响应**：
+- `204 No Content`: 删除成功
+
+**错误响应**：
+- `401 Unauthorized`: 未登录或 Token 无效
+- `403 Forbidden`: 会话不属于当前用户
+- `404 Not Found`: 会话不存在
+
+---
+
+## 5. 成果物解析协议 (Artifacts Protocol)
+
+### 5.1 代码块识别规则
 系统从 AI 的 Markdown 回复中识别代码块，只有代码块中的内容才被视为可预览的成果物。
 
 **识别规则**：
 - 标准 Markdown 代码块格式：`` ```language\ncontent\n``` ``
-- 代码块的语言标识（language）决定成果物类型：
-  - `markdown` → Markdown 文本预览
-  - `html` → HTML 页面预览
-  - `svg` → SVG 图形预览
-  - `javascript` / `js` → JavaScript 代码预览
-  - 其他语言 → 纯文本代码预览
+- 代码块的语言标识（language）决定是否显示预览按钮：
+  - `markdown` → 显示预览按钮，支持 Markdown 文本预览
+  - `html` → 显示预览按钮，支持 HTML 页面预览
+  - `svg` → 显示预览按钮，支持 SVG 图形预览
+  - 其他语言（如 `javascript`、`python` 等）→ 不显示预览按钮，仅作为代码展示
+- 预览按钮的显示逻辑由前端根据代码块的语言标识自动判断，无需后端配置
 
 **成果物数据结构**：
 ```python
 class Artifact(BaseModel):
-    type: str = Field(..., description="成果物类型，由代码块语言标识决定")
+    type: str = Field(..., description="成果物类型，由代码块语言标识决定（如 'markdown', 'html', 'svg'）")
     content: str = Field(..., description="代码块中的原始内容")
     language: str = Field(..., description="代码块的语言标识（如 'markdown', 'html', 'svg'）")
     timestamp: datetime = Field(..., description="成果物生成时间")
 ```
 
-### 3.2 成果物提取逻辑
+### 5.2 成果物提取逻辑
 - 后端解析 AI 回复的 Markdown 文本，提取所有代码块
 - 每个代码块生成一个 `Artifact` 对象
 - 如果 AI 回复中没有代码块，`artifacts` 列表为空
 - 前端根据 `artifacts` 列表，在聊天窗口中为每个代码块提供预览按钮
+- 用户点击预览按钮后，开启侧边预览栏，显示预览内容
 
 ---
 
-## 4. 错误处理
+## 6. 错误处理
 
 ### 4.1 标准错误响应
 所有接口在发生错误时，应返回统一的错误格式：
@@ -541,10 +702,10 @@ class ErrorResponse(BaseModel):
    - 错误信息：`"AI 服务暂时不可用，请稍后重试"`
    - 处理方式：前端显示友好提示，提供重试按钮
 
-2. **Agent 配置加载失败**
+2. **工具配置加载失败**
    - 状态码：`500 Internal Server Error`
-   - 处理方式：启动时检测，加载失败的 Agent 不显示在 `GET /api/v1/agents` 列表中，记录错误日志
-   - 用户影响：该 Agent 不可用，但其他 Agent 正常使用
+   - 处理方式：启动时检测，加载失败的工具不显示在 `GET /api/v1/tools` 列表中，记录错误日志
+   - 用户影响：该工具不可用，但其他工具正常使用
 
 3. **代码块解析失败**
    - 状态码：`200 OK`（不中断对话）
@@ -553,7 +714,7 @@ class ErrorResponse(BaseModel):
 
 ---
 
-## 5. 认证流程设计
+## 7. 认证流程设计
 
 ### 5.1 用户登录流程
 ```mermaid
@@ -601,65 +762,122 @@ sequenceDiagram
 
 ---
 
-## 6. 数据流设计
+## 8. 数据流设计
 
-### 6.1 Agent 初始化流程
+### 8.1 工具进入流程（显示欢迎语）
 ```mermaid
 sequenceDiagram
     participant User as 用户
     participant Frontend as 前端
     participant Backend as 后端
-    participant AI as AI 服务
 
-    User->>Frontend: 点击 Agent 入口
+    User->>Frontend: 点击工具入口
     Frontend->>Frontend: 检查登录状态（从localStorage/sessionStorage读取Token）
-    Frontend->>Backend: POST /api/v1/agents/{agent_id}/sessions<br/>(携带Authorization Header)
+    Frontend->>Backend: GET /api/v1/tools<br/>(携带Authorization Header)
     Backend->>Backend: 验证Token，获取user_id
-    Backend->>Backend: 加载 Agent 配置
-    Backend->>AI: 调用 AI（传入 system_prompt）
-    AI-->>Backend: 返回欢迎语
-    Backend->>Backend: 创建会话（关联user_id和agent_id）
-    Backend->>Backend: 解析欢迎语中的代码块
-    Backend-->>Frontend: 返回 session_id + welcome_message + artifacts
-    Frontend->>Frontend: 展示欢迎语和预览按钮
-    Frontend->>Frontend: 保存会话到本地存储
+    Backend->>Backend: 加载工具配置
+    Backend-->>Frontend: 返回工具列表（按分类组织）
+    Frontend->>Frontend: 展示工具选择器
+    Frontend->>Frontend: 显示欢迎语（从工具配置的welcome_message字段读取）
+    Note over Frontend: 此时尚未创建会话，仅显示欢迎语和输入框
 ```
 
-### 6.2 对话交互流程
+### 8.2 首次对话流程（创建会话）
 ```mermaid
 sequenceDiagram
     participant User as 用户
     participant Frontend as 前端
     participant Backend as 后端
     participant AI as AI 服务
+    participant DB as 数据库
+
+    User->>Frontend: 输入第一条消息并发送
+    Frontend->>Backend: POST /api/v1/tools/{tool_id}/chat<br/>{message, session_id: null}
+    Backend->>Backend: 验证Token，获取user_id
+    Backend->>Backend: 加载工具配置
+    Backend->>Backend: 创建新会话（关联user_id和tool_id）
+    Backend->>Backend: 基于第一条消息自动命名会话
+    Backend->>DB: 保存会话到数据库
+    Backend->>AI: 调用 AI（传入 system_prompt + 用户消息）
+    AI-->>Backend: 返回 AI 回复（Markdown 格式）
+    Backend->>Backend: 解析回复中的代码块
+    Backend->>Backend: 生成 artifacts 列表
+    Backend->>DB: 保存用户消息和AI回复到数据库
+    Backend-->>Frontend: 返回 {session_id, reply, artifacts}
+    Frontend->>Frontend: 渲染 Markdown 消息
+    Frontend->>Frontend: 在代码块上添加预览按钮（根据language标识）
+    Note over Frontend: 欢迎语消失，显示聊天记录
+```
+
+### 8.3 后续对话流程（继续会话）
+```mermaid
+sequenceDiagram
+    participant User as 用户
+    participant Frontend as 前端
+    participant Backend as 后端
+    participant AI as AI 服务
+    participant DB as 数据库
 
     User->>Frontend: 输入消息并发送
-    Frontend->>Frontend: 从本地存储读取历史消息
-    Frontend->>Backend: POST /api/v1/sessions/{session_id}/chat<br/>(携带Authorization Header，包含history)
+    Frontend->>Backend: POST /api/v1/tools/{tool_id}/chat<br/>{message, session_id, history}
     Backend->>Backend: 验证Token，获取user_id
     Backend->>Backend: 验证会话是否属于当前用户
+    Backend->>DB: 读取会话历史（如果history为空）
     Backend->>AI: 调用 AI（传入历史消息 + 用户消息）
     AI-->>Backend: 返回 AI 回复（Markdown 格式）
     Backend->>Backend: 解析回复中的代码块
     Backend->>Backend: 生成 artifacts 列表
-    Backend-->>Frontend: 返回 reply + artifacts
+    Backend->>DB: 保存用户消息和AI回复到数据库
+    Backend->>DB: 更新会话的updated_at时间戳
+    Backend-->>Frontend: 返回 {session_id, reply, artifacts}
     Frontend->>Frontend: 渲染 Markdown 消息
     Frontend->>Frontend: 在代码块上添加预览按钮
-    Frontend->>Frontend: 更新本地存储（添加新消息）
     User->>Frontend: 点击代码块预览按钮
-    Frontend->>Frontend: 更新右侧预览区（根据 artifact.type 渲染）
+    Frontend->>Frontend: 开启侧边预览栏，显示预览内容
+```
+
+### 8.4 历史对话列表流程
+```mermaid
+sequenceDiagram
+    participant User as 用户
+    participant Frontend as 前端
+    participant Backend as 后端
+    participant DB as 数据库
+
+    User->>Frontend: 切换工具或进入工具
+    Frontend->>Backend: GET /api/v1/tools/{tool_id}/conversations<br/>(携带Authorization Header)
+    Backend->>Backend: 验证Token，获取user_id
+    Backend->>DB: 查询当前用户在当前工具下的所有会话
+    Backend->>Backend: 按updated_at倒序排列
+    Backend-->>Frontend: 返回会话列表 {session_id, title, updated_at}
+    Frontend->>Frontend: 展示历史对话列表
+    User->>Frontend: 点击某个对话项
+    Frontend->>Backend: GET /api/v1/sessions/{session_id}
+    Backend->>Backend: 验证会话是否属于当前用户
+    Backend->>DB: 读取会话的完整消息历史
+    Backend-->>Frontend: 返回会话详情和消息列表
+    Frontend->>Frontend: 展示聊天记录
 ```
 
 ---
 
 ---
 
-**文档版本**: v1.1  
-**最后更新**: 2026-01-02  
+**文档版本**: v2.0  
+**最后更新**: 2026-01-03  
+**更新说明**:
+- v2.0: 
+  - 术语统一：将"Agent"统一为"工具（Tool）"
+  - 接口重构：采用一个接口方案，`session_id` 作为可选参数
+  - 会话创建机制：从"自动创建"改为"延迟创建"（用户发送第一条消息后创建）
+  - 欢迎语机制：从"AI自动触发"改为"配置化展示"（工具配置中的 `welcome_message` 字段）
+  - 删除工具配置中的 `ui_config` 和 `capabilities` 字段
+  - 新增历史对话列表、会话详情、编辑会话、删除会话接口
+  - 更新数据流设计，反映新的接口和流程
+
 **设计依据**: 
-- `docs/requirements/product_spec.md`
+- `docs/requirements/product_spec.md` (v4.0)
 - `docs/requirements/ai_prompt_wizard_spec.md`
 - `docs/requirements/ui_interaction_guide.md`
 - `docs/requirements/acceptance_scenarios.md`
-- `docs/requirements/user_auth_spec.md`
 

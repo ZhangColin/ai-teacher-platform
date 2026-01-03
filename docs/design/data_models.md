@@ -8,43 +8,51 @@
 
 ### 1.1 限界上下文识别
 - **用户认证上下文**: 负责用户身份验证、Token 管理和用户信息管理
-- **Agent 管理上下文**: 负责 Agent 配置的加载、验证和管理
-- **会话管理上下文**: 负责会话的创建、消息的透传和 AI 服务调用
+- **工具管理上下文**: 负责工具配置的加载、验证和管理
+- **会话管理上下文**: 负责会话的创建、消息的存储和 AI 服务调用
 - **成果物上下文**: 负责成果物的识别、解析和展示
 
 ### 1.2 核心实体关系
 ```mermaid
 classDiagram
-    class Agent {
-        +str agent_id
+    class Tool {
+        +str tool_id
         +str name
         +str description
         +str system_prompt
-        +UIConfig ui_config
+        +str category
+        +str icon
+        +bool visible
+        +str type
+        +str welcome_message
         +load_config()
         +validate_config()
     }
     
-    class AgentSession {
+    class Session {
         +str session_id
         +str user_id
-        +str agent_id
+        +str tool_id
+        +str title
         +datetime created_at
-        +create_welcome_message()
+        +datetime updated_at
     }
     
     class Message {
+        +str message_id
+        +str session_id
         +str role
         +str content
-        +datetime timestamp
-        +List~Artifact~ artifacts
+        +datetime created_at
     }
     
     class Artifact {
+        +str artifact_id
+        +str message_id
         +str type
         +str content
         +str language
-        +datetime timestamp
+        +datetime created_at
     }
     
     class User {
@@ -58,9 +66,9 @@ classDiagram
         +verify_password()
     }
     
-    User "1" --> "*" AgentSession : 拥有
-    Agent "1" --> "*" AgentSession : 拥有
-    AgentSession "1" --> "*" Message : 包含（前端维护）
+    User "1" --> "*" Session : 拥有
+    Tool "1" --> "*" Session : 拥有
+    Session "1" --> "*" Message : 包含
     Message "1" --> "*" Artifact : 包含
 ```
 
@@ -115,59 +123,64 @@ class User(BaseModel):
 
 ---
 
-### 2.2 Agent（聚合根）
-Agent 是系统的核心实体，代表一个可配置的 AI 智能体。
+### 2.2 Tool（聚合根）
+Tool 是系统的核心实体，代表一个可配置的 AI 工具。
 
 ```python
-class Agent(BaseModel):
-    """Agent 配置实体（聚合根）"""
-    agent_id: str = Field(..., description="Agent 唯一标识符")
-    name: str = Field(..., description="功能名称")
-    description: Optional[str] = Field(None, description="功能描述")
-    system_prompt: str = Field(..., description="系统提示词，定义 Agent 的业务逻辑")
-    ui_config: UIConfig = Field(..., description="UI 配置")
-    capabilities: List[str] = Field(
-        default_factory=list,
-        description="Agent 能力列表（如 ['export_text', 'preview_html']）"
-    )
+class Tool(BaseModel):
+    """工具配置实体（聚合根）"""
+    tool_id: str = Field(..., description="工具唯一标识符")
+    name: str = Field(..., description="工具名称")
+    description: Optional[str] = Field(None, description="工具描述")
+    system_prompt: str = Field(..., description="系统提示词，定义工具的业务逻辑")
+    category: str = Field(..., description="分类名称")
+    icon: Optional[str] = Field(None, description="图标标识（可选）")
+    visible: bool = Field(True, description="是否在工具选择器中显示")
+    type: Literal["normal", "placeholder"] = Field("normal", description="工具类型")
+    welcome_message: str = Field(..., description="欢迎语（配置化展示）")
     
     @classmethod
-    def load_from_config(cls, config_path: str) -> "Agent":
-        """从配置文件加载 Agent"""
+    def load_from_config(cls, config_path: str) -> "Tool":
+        """从配置文件加载工具"""
         pass
     
     def validate(self) -> bool:
-        """验证 Agent 配置是否完整有效"""
+        """验证工具配置是否完整有效"""
         pass
 ```
 
 **业务规则**：
-- Agent 配置必须包含 `agent_id`、`name`、`system_prompt`、`ui_config`
-- 如果配置加载失败，该 Agent 不应出现在系统中
+- 工具配置必须包含 `tool_id`、`name`、`system_prompt`、`welcome_message`、`category`
+- 如果配置加载失败，该工具不应出现在系统中
+- `visible` 字段默认为 `true`，如果未指定则显示
+- `type` 字段默认为 `"normal"`，占位工具标记为 `"placeholder"`
 
 ---
 
-### 2.3 AgentSession（聚合根）
-AgentSession 代表一个用户与特定 Agent 的对话会话。
+### 2.3 Session（聚合根）
+Session 代表一个用户与特定工具的对话会话。
 
 ```python
-class AgentSession(BaseModel):
-    """Agent 会话实体（聚合根）"""
+class Session(BaseModel):
+    """会话实体（聚合根）"""
     session_id: str = Field(..., description="会话 UUID")
     user_id: str = Field(..., description="关联的用户ID（UUID）")
-    agent_id: str = Field(..., description="关联的 Agent 标识")
+    tool_id: str = Field(..., description="关联的工具标识")
+    title: str = Field(..., description="会话标题（自动生成）")
     created_at: datetime = Field(default_factory=datetime.now, description="会话创建时间")
+    updated_at: datetime = Field(default_factory=datetime.now, description="最后更新时间")
     
-    def create_welcome_message(self, agent: Agent) -> Message:
-        """创建欢迎消息（自动触发 AI 生成）"""
+    def generate_title(self, first_message: str) -> str:
+        """基于第一条用户消息生成会话标题"""
         pass
 ```
 
 **业务规则**：
-- 每个用户与每个 Agent 拥有独立的会话空间，互不干扰
-- 会话创建时自动触发欢迎语生成
-- MVP 阶段：会话历史由前端维护，后端不存储
+- 每个用户与每个工具拥有独立的会话空间，互不干扰
+- 会话创建时机：用户发送第一条消息时自动创建
+- 会话命名：基于第一条用户消息的前 N 个字符自动命名（具体长度由 UI 决定，保证美观）
 - 会话必须关联用户ID，从 JWT Token 中获取
+- 每次有新消息时，更新 `updated_at` 时间戳
 
 ---
 
@@ -177,13 +190,11 @@ Message 代表会话中的一条消息，可以是用户消息或 AI 回复。
 ```python
 class Message(BaseModel):
     """消息实体"""
+    message_id: str = Field(..., description="消息 UUID")
+    session_id: str = Field(..., description="关联的会话ID")
     role: Literal["user", "assistant"] = Field(..., description="消息角色")
     content: str = Field(..., description="消息内容（Markdown 格式）")
-    timestamp: datetime = Field(default_factory=datetime.now, description="消息时间戳")
-    artifacts: List[Artifact] = Field(
-        default_factory=list,
-        description="消息中包含的成果物列表"
-    )
+    created_at: datetime = Field(default_factory=datetime.now, description="消息创建时间")
     
     def extract_artifacts(self) -> List[Artifact]:
         """从消息内容中提取成果物（代码块）"""
@@ -191,78 +202,65 @@ class Message(BaseModel):
 ```
 
 **业务规则**：
-- MVP 阶段：消息历史由前端维护（localStorage），后端不存储
-- AI 回复中的代码块会被自动解析为 Artifact
+- 消息存储在数据库中，关联到会话
+- AI 回复中的代码块会被自动解析为 Artifact，存储在独立的 artifacts 表中
 - 普通文本不触发预览，只有代码块才会被识别为成果物
+- 消息按 `created_at` 正序排列（最早的在最前面）
 
 ---
 
-### 2.5 Artifact（值对象）
-Artifact 代表从消息中提取的可预览成果物，是一个不可变的值对象。
+### 2.5 Artifact（实体）
+Artifact 代表从消息中提取的可预览成果物。
 
 ```python
 class Artifact(BaseModel):
-    """成果物值对象（不可变）"""
-    type: str = Field(..., description="成果物类型（由代码块语言标识决定）")
+    """成果物实体"""
+    artifact_id: str = Field(..., description="成果物 UUID")
+    message_id: str = Field(..., description="关联的消息ID")
+    type: str = Field(..., description="成果物类型（由代码块语言标识决定，如 'markdown', 'html', 'svg'）")
     content: str = Field(..., description="代码块中的原始内容")
-    language: str = Field(..., description="代码块的语言标识")
-    timestamp: datetime = Field(default_factory=datetime.now, description="成果物生成时间")
-    
-    class Config:
-        frozen = True  # 值对象不可变
+    language: str = Field(..., description="代码块的语言标识（如 'markdown', 'html', 'svg'）")
+    created_at: datetime = Field(default_factory=datetime.now, description="成果物生成时间")
 ```
 
 **业务规则**：
-- Artifact 是不可变的值对象，修改应返回新对象
-- 类型由代码块的语言标识决定（markdown → markdown, html → html）
+- Artifact 存储在独立的表中，关联到消息
+- 类型由代码块的语言标识决定（markdown → markdown, html → html, svg → svg）
 - 只有代码块格式的内容才会被识别为成果物
+- 预览按钮的显示逻辑：代码块的语言标识为 `markdown`、`html`、`svg` 时，前端自动显示预览按钮
+- 大文本内容不支持查询，未来可能不使用数据库存储
 
 ---
 
-## 3. 值对象与配置
+## 3. 数据存储
 
-### 3.1 UIConfig（值对象）
-UI 配置信息，决定前端如何展示 Agent。
-
-```python
-class UIConfig(BaseModel):
-    """UI 配置值对象"""
-    show_preview: bool = Field(..., description="是否开启侧边预览栏")
-    preview_types: List[str] = Field(
-        default_factory=list,
-        description="支持的预览类型列表（如 ['markdown', 'html', 'svg']）"
-    )
-    
-    class Config:
-        frozen = True
-```
-
----
-
-## 4. 数据存储（MVP 阶段）
-
-### 4.1 Agent 配置存储
-- **存储位置**: `configs/agents/` 目录
+### 3.1 工具配置存储
+- **存储位置**: `configs/tools/` 目录
 - **存储格式**: YAML 配置文件
-- **文件命名**: `{agent_id}.yaml`
+- **文件命名**: `{tool_id}.yaml`
 
-**配置文件示例** (`configs/agents/prompt_wizard.yaml`):
+**配置文件示例** (`configs/tools/prompt_wizard.yaml`):
 ```yaml
-agent_id: prompt_wizard
+tool_id: prompt_wizard
 name: AI 提示词向导
 description: 通过六步引导法，帮助您打造专家级提示词
+category: "智能体"
+icon: "command-line"
+visible: true
+type: "normal"
 system_prompt: |
   ## 核心使命
   你是一名深谙大模型底层的"提示词"架构师...
-ui_config:
-  show_preview: true
-  preview_types:
-    - markdown
-capabilities:
-  - export_text
+welcome_message: "你好！我是你的提示词向导。请告诉我你想让 AI 帮你完成什么任务，我将引导你打造一个专家级的提示词。"
 ```
 
-### 4.2 用户数据存储
+**配置加载逻辑**：
+- 后端启动时加载所有工具配置文件
+- 按 `category` 字段聚合，生成分类结构
+- 如果多个工具使用相同的 `category` 名称，自动归为一类
+- 只返回 `visible=true` 的工具
+
+### 3.2 用户数据存储
 - **存储位置**: 数据库（MySQL，根据项目配置）
 - **存储表**: `users` 表
 - **字段定义**:
@@ -280,16 +278,103 @@ capabilities:
 - `email`: 唯一索引（如果提供，用于登录验证和邮箱唯一性检查）
 - `phone`: 唯一索引（如果提供，用于登录验证和手机号唯一性检查）
 
-### 4.3 会话数据存储
-- **MVP 阶段**: 后端仅维护内存中的会话标识，不持久化消息历史
-- **前端职责**: 前端负责会话数据的本地存储（localStorage）和恢复
-- **未来扩展**: 如需跨设备同步，后端可扩展持久化存储
+### 3.3 会话数据存储
+- **存储位置**: 数据库（MySQL）
+- **存储表**: `sessions` 表
+- **字段定义**:
+  - `session_id` (CHAR(36), Primary Key) - UUID格式
+  - `user_id` (CHAR(36), Not Null) - 用户ID，外键关联 users 表
+  - `tool_id` (VARCHAR(50), Not Null) - 工具ID
+  - `title` (VARCHAR(200), Not Null) - 会话标题（自动生成）
+  - `created_at` (DATETIME, Not Null) - 创建时间
+  - `updated_at` (DATETIME, Not Null) - 最后更新时间
+
+**索引**：
+- `user_id`: 索引（用于查询用户的所有会话）
+- `tool_id`: 索引（用于查询工具的所有会话）
+- `(user_id, tool_id)`: 联合索引（用于查询用户在某工具下的所有会话）
+- `updated_at`: 索引（用于排序）
+
+**SQL 建表语句**：
+```sql
+CREATE TABLE sessions (
+    session_id CHAR(36) PRIMARY KEY,
+    user_id CHAR(36) NOT NULL,
+    tool_id VARCHAR(50) NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    INDEX idx_user_tool (user_id, tool_id),
+    INDEX idx_updated_at (updated_at),
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+```
+
+### 3.4 消息数据存储
+- **存储位置**: 数据库（MySQL）
+- **存储表**: `messages` 表
+- **字段定义**:
+  - `message_id` (CHAR(36), Primary Key) - UUID格式
+  - `session_id` (CHAR(36), Not Null) - 会话ID，外键关联 sessions 表
+  - `role` (ENUM('user', 'assistant'), Not Null) - 消息角色
+  - `content` (TEXT, Not Null) - 消息内容（Markdown 格式）
+  - `created_at` (DATETIME, Not Null) - 创建时间
+
+**索引**：
+- `session_id`: 索引（用于查询会话的所有消息）
+- `created_at`: 索引（用于排序）
+
+**SQL 建表语句**：
+```sql
+CREATE TABLE messages (
+    message_id CHAR(36) PRIMARY KEY,
+    session_id CHAR(36) NOT NULL,
+    role ENUM('user', 'assistant') NOT NULL,
+    content TEXT NOT NULL,
+    created_at DATETIME NOT NULL,
+    INDEX idx_session (session_id),
+    INDEX idx_created_at (created_at),
+    FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE CASCADE
+);
+```
+
+### 3.5 成果物数据存储
+- **存储位置**: 数据库（MySQL）
+- **存储表**: `artifacts` 表
+- **字段定义**:
+  - `artifact_id` (CHAR(36), Primary Key) - UUID格式
+  - `message_id` (CHAR(36), Not Null) - 消息ID，外键关联 messages 表
+  - `type` (VARCHAR(50), Not Null) - 成果物类型（如 'markdown', 'html', 'svg'）
+  - `content` (TEXT, Not Null) - 代码块中的原始内容
+  - `language` (VARCHAR(50), Not Null) - 代码块的语言标识
+  - `created_at` (DATETIME, Not Null) - 创建时间
+
+**索引**：
+- `message_id`: 索引（用于查询消息的所有成果物）
+
+**SQL 建表语句**：
+```sql
+CREATE TABLE artifacts (
+    artifact_id CHAR(36) PRIMARY KEY,
+    message_id CHAR(36) NOT NULL,
+    type VARCHAR(50) NOT NULL,
+    content TEXT NOT NULL,
+    language VARCHAR(50) NOT NULL,
+    created_at DATETIME NOT NULL,
+    INDEX idx_message (message_id),
+    FOREIGN KEY (message_id) REFERENCES messages(message_id) ON DELETE CASCADE
+);
+```
+
+**注意**：
+- 大文本内容不支持查询，未来可能不使用数据库存储
+- 当前阶段使用数据库存储，便于关联查询和展示
 
 ---
 
-## 5. 领域服务（可选）
+## 4. 领域服务（可选）
 
-### 5.1 ArtifactParser（领域服务）
+### 4.1 ArtifactParser（领域服务）
 负责从消息内容中解析成果物。
 
 ```python
@@ -309,29 +394,41 @@ class ArtifactParser:
 
 ---
 
-## 6. 演进式设计说明
+## 5. 演进式设计说明
 
-### 6.1 当前迭代设计
-- **简单设计**: Agent 配置使用文件存储，会话消息历史由前端维护
-- **清晰边界**: 明确区分 Agent、Session、Message、Artifact 的职责
+### 5.1 当前迭代设计
+- **工具配置**: 使用文件存储（YAML 配置文件）
+- **会话持久化**: 使用数据库存储，支持跨设备同步
+- **消息存储**: 使用数据库存储，关联到会话
+- **成果物存储**: 使用数据库存储，关联到消息
+- **清晰边界**: 明确区分 Tool、Session、Message、Artifact 的职责
 - **可扩展性**: 保持代码整洁，便于未来重构
 
-### 6.2 未来扩展方向
+### 5.2 未来扩展方向
 - **用户注册**: 扩展用户注册功能，支持用户自主注册
 - **个人设置**: 扩展个人资料编辑、头像上传、密码修改等功能
 - **权限控制**: 扩展角色和权限体系，支持不同用户角色的功能权限
-- **会话持久化**: 如需跨设备同步，可扩展数据库存储，关联用户ID
 - **多租户支持**: 基于用户体系，支持多用户隔离
 - **成果物管理**: 可扩展成果物的版本管理、分类、搜索等功能
+- **成果物存储优化**: 如果大文本内容查询需求增加，可考虑使用对象存储或文件系统
 
 ---
 
-**文档版本**: v1.1  
-**最后更新**: 2026-01-02  
+**文档版本**: v2.0  
+**最后更新**: 2026-01-03  
+**更新说明**:
+- v2.0: 
+  - 术语统一：将"Agent"统一为"工具（Tool）"
+  - 工具配置简化：删除 `ui_config` 和 `capabilities` 字段，新增 `category`、`icon`、`visible`、`type`、`welcome_message` 字段
+  - 会话实体更新：添加 `title` 和 `updated_at` 字段
+  - 消息实体更新：添加 `message_id` 和 `session_id` 字段，删除 `artifacts` 字段
+  - 成果物实体更新：从值对象改为实体，添加 `artifact_id` 和 `message_id` 字段
+  - 数据存储更新：会话、消息、成果物均使用数据库存储，提供完整的 SQL 建表语句
+  - 删除 UIConfig 值对象
+
 **设计依据**: 
-- `docs/requirements/product_spec.md`
+- `docs/requirements/product_spec.md` (v4.0)
 - `docs/requirements/ai_prompt_wizard_spec.md`
 - `docs/requirements/ui_interaction_guide.md`
 - `docs/requirements/acceptance_scenarios.md`
-- `docs/requirements/user_auth_spec.md`
 
