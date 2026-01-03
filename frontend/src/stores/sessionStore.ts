@@ -50,42 +50,65 @@ export const useSessionStore = defineStore('session', () => {
     }
     messages.value.push(userMessage)
 
+    // 创建 AI 回复消息占位符（用于流式输出）
+    const assistantMessage: Message = {
+      role: 'assistant',
+      content: '',
+      artifacts: [],
+    }
+    messages.value.push(assistantMessage)
+
     try {
-      console.log('发送消息:', { toolId: toolId.value, sessionId: sessionId.value, content })
+      console.log('发送消息（流式）:', { toolId: toolId.value, sessionId: sessionId.value, content })
       
-      // 使用新接口，session_id 可选
-      const response = await ApiService.chat(toolId.value, {
-        message: content,
-        session_id: sessionId.value || null, // 如果有会话ID则继续会话，没有则创建新会话
-        history: messages.value.slice(0, -1).map(msg => ({
-          role: msg.role,
-          content: msg.content,
-        })), // 不包含刚添加的用户消息
-      })
-
-      console.log('收到回复:', response)
-
-      // 更新会话ID（首次调用会返回新创建的session_id）
-      if (response.session_id) {
-        sessionId.value = response.session_id
-        console.log('会话ID已更新:', response.session_id)
-      }
+      // 使用流式接口
+      console.log('开始流式请求...')
+      await ApiService.chatStream(
+        toolId.value,
+        {
+          message: content,
+          session_id: sessionId.value || null, // 如果有会话ID则继续会话，没有则创建新会话
+          history: messages.value.slice(0, -2).map(msg => ({
+            role: msg.role,
+            content: msg.content,
+          })), // 不包含刚添加的用户消息和AI占位符
+        },
+        (data) => {
+          console.log('收到流式数据:', data.type, data.content ? `内容长度: ${data.content.length}` : '')
+          if (data.type === 'session_id' && data.session_id) {
+            // 更新会话ID
+            sessionId.value = data.session_id
+            console.log('会话ID已更新:', data.session_id)
+          } else if (data.type === 'content' && data.content) {
+            // 追加内容块
+            assistantMessage.content += data.content
+            console.log('内容已追加，当前总长度:', assistantMessage.content.length)
+            // 触发滚动事件（每收到内容就滚动）
+            window.dispatchEvent(new CustomEvent('message-updated'))
+          } else if (data.type === 'done') {
+            // 流式输出完成，更新 artifacts
+            assistantMessage.artifacts = data.artifacts || []
+            console.log('流式输出完成，总长度:', assistantMessage.content.length, 'artifacts:', assistantMessage.artifacts.length)
+          } else if (data.type === 'error') {
+            // 错误处理
+            console.error('流式输出错误:', data.error)
+            throw new Error(data.error || '流式输出失败')
+          }
+        }
+      )
 
       // 更新用户消息状态（移除 pending）
-      const lastMessage = messages.value[messages.value.length - 1]
-      if (lastMessage && lastMessage.role === 'user') {
-        lastMessage.pending = false
+      const lastUserMessage = messages.value[messages.value.length - 2]
+      if (lastUserMessage && lastUserMessage.role === 'user') {
+        lastUserMessage.pending = false
       }
-
-      // 添加 AI 回复
-      const assistantMessage: Message = {
-        role: 'assistant',
-        content: response.reply,
-        artifacts: response.artifacts || [],
-      }
-      messages.value.push(assistantMessage)
     } catch (err) {
       console.error('发送消息失败:', err)
+      // 移除 AI 占位符消息
+      const aiMessageIndex = messages.value.findIndex(msg => msg === assistantMessage)
+      if (aiMessageIndex !== -1) {
+        messages.value.splice(aiMessageIndex, 1)
+      }
       // 更新用户消息状态（标记为错误）
       const lastMessage = messages.value[messages.value.length - 1]
       if (lastMessage && lastMessage.role === 'user') {

@@ -1,8 +1,13 @@
 """AI 教师平台后端主应用"""
 import sys
+import json
+import logging
 from pathlib import Path
 from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
+logger = logging.getLogger(__name__)
 
 # 添加项目根目录到路径，以便访问配置目录
 project_root = Path(__file__).parent.parent.parent
@@ -493,5 +498,124 @@ async def chat(
         session_id=session_id,
         reply=reply,
         artifacts=artifacts
+    )
+
+
+@app.post("/api/v1/tools/{tool_id}/chat/stream")
+async def chat_stream(
+    tool_id: str,
+    request: ChatRequest,
+    current_user: UserInfo = Depends(get_current_user)
+):
+    """向指定工具发送消息，获取 AI 流式回复。如果 session_id 不存在，自动创建新会话。"""
+    # 验证工具是否存在
+    tool = tool_service.get_tool_by_id(tool_id)
+    if not tool:
+        raise HTTPException(status_code=404, detail=f"Tool '{tool_id}' not found")
+    
+    # 处理会话：如果 session_id 不存在，创建新会话
+    session_id = request.session_id
+    session = None
+    
+    if session_id:
+        # 验证会话是否存在且属于当前用户
+        session = session_service.get_session_by_id(session_id, user_id=current_user.user_id)
+        if not session:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Session '{session_id}' not found"
+            )
+    else:
+        # 创建新会话（基于第一条消息自动生成标题）
+        session = session_service.create_session(
+            user_id=current_user.user_id,
+            tool_id=tool_id,
+            first_message=request.message
+        )
+        session_id = session.session_id
+    
+    # 获取历史消息
+    history_list = []
+    if request.history:
+        # 使用请求中提供的历史消息
+        for msg in request.history:
+            if msg.role not in ["user", "assistant"]:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"无效的消息角色: {msg.role}，必须是 'user' 或 'assistant'"
+                )
+            history_list.append({
+                "role": msg.role,
+                "content": msg.content
+            })
+    else:
+        # 从数据库读取历史消息
+        messages = session_service.get_messages_by_session(session_id, user_id=current_user.user_id)
+        for msg in messages:
+            history_list.append({
+                "role": msg.role,
+                "content": msg.content
+            })
+    
+    # 保存用户消息到数据库
+    session_service.add_message(
+        session_id=session_id,
+        role="user",
+        content=request.message,
+        user_id=current_user.user_id
+    )
+    
+    # 流式生成回复
+    async def generate_stream():
+        full_reply = ""
+        try:
+            # 先发送 session_id
+            yield f"data: {json.dumps({'type': 'session_id', 'session_id': session_id})}\n\n"
+            
+            # 流式接收 AI 回复
+            async for chunk in ai_service.chat_stream(
+                system_prompt=tool.system_prompt,
+                history=history_list,
+                user_message=request.message
+            ):
+                full_reply += chunk
+                # 发送内容块
+                yield f"data: {json.dumps({'type': 'content', 'content': chunk})}\n\n"
+            
+            # 保存完整回复到数据库
+            session_service.add_message(
+                session_id=session_id,
+                role="assistant",
+                content=full_reply,
+                user_id=current_user.user_id
+            )
+            
+            # 解析成果物
+            artifacts = artifact_parser.parse_from_markdown(full_reply)
+            
+            # 发送完成信号和成果物（转换为字典格式以便序列化）
+            artifacts_dict = [
+                {
+                    'type': a.type,
+                    'content': a.content,
+                    'language': a.language,
+                    'timestamp': a.timestamp.isoformat() if a.timestamp else None
+                }
+                for a in artifacts
+            ]
+            yield f"data: {json.dumps({'type': 'done', 'artifacts': artifacts_dict})}\n\n"
+            
+        except Exception as e:
+            logger.error(f"流式对话异常: {e}", exc_info=True)
+            yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
+    
+    return StreamingResponse(
+        generate_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"  # 禁用 Nginx 缓冲
+        }
     )
 

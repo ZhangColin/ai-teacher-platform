@@ -1,11 +1,15 @@
 <template>
   <div class="chat-input">
     <textarea
+      ref="textareaRef"
       v-model="inputText"
       class="input-textarea"
       placeholder="输入消息..."
       rows="1"
       @keydown="handleKeyDown"
+      @input="handleInput"
+      @compositionstart="handleCompositionStart"
+      @compositionend="handleCompositionEnd"
     ></textarea>
     <button class="send-button" :disabled="!inputText.trim()" @click="handleSend">
       发送
@@ -14,27 +18,97 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, nextTick, watch } from 'vue'
 
 const emit = defineEmits<{
   send: [content: string]
 }>()
 
 const inputText = ref('')
+const isComposing = ref(false) // 标记是否正在使用输入法
+const textareaRef = ref<HTMLTextAreaElement | null>(null)
+
+function handleCompositionStart() {
+  // 输入法开始输入
+  isComposing.value = true
+  console.log('输入法开始输入')
+}
+
+function handleCompositionEnd() {
+  // 输入法结束输入，延迟一小段时间确保状态更新
+  setTimeout(() => {
+    isComposing.value = false
+    console.log('输入法结束输入')
+  }, 0)
+}
 
 function handleKeyDown(event: KeyboardEvent) {
+  // 如果正在使用输入法，不处理 Enter 键
+  if (isComposing.value) {
+    console.log('输入法正在输入，忽略 Enter 键')
+    return
+  }
+  
   // Enter发送，Shift+Enter换行
   if (event.key === 'Enter' && !event.shiftKey) {
     event.preventDefault()
-    handleSend()
+    // 再次检查输入法状态（防止异步问题）
+    if (!isComposing.value) {
+      handleSend()
+    } else {
+      console.log('输入法状态检查：正在输入，取消发送')
+    }
   }
   // Shift+Enter 允许默认行为（换行）
 }
 
+/**
+ * 调整输入框高度
+ */
+async function adjustTextareaHeight() {
+  await nextTick()
+  if (textareaRef.value) {
+    textareaRef.value.style.height = 'auto'
+    const scrollHeight = textareaRef.value.scrollHeight
+    // 限制最大高度为 200px
+    const maxHeight = 200
+    if (scrollHeight <= maxHeight) {
+      textareaRef.value.style.height = `${scrollHeight}px`
+    } else {
+      textareaRef.value.style.height = `${maxHeight}px`
+      textareaRef.value.style.overflowY = 'auto'
+    }
+  }
+}
+
+/**
+ * 处理输入事件（自动调整高度）
+ */
+async function handleInput() {
+  await adjustTextareaHeight()
+}
+
+// 监听输入文本变化，自动调整高度
+watch(inputText, () => {
+  adjustTextareaHeight()
+})
+
 function handleSend() {
-  if (inputText.value.trim()) {
-    emit('send', inputText.value.trim())
+  const trimmedText = inputText.value.trim()
+  if (trimmedText) {
+    console.log('发送消息:', trimmedText)
+    const textToSend = trimmedText
+    // 先发送，再清空输入框
+    emit('send', textToSend)
+    // 清空输入框
     inputText.value = ''
+    // 重置输入框高度
+    if (textareaRef.value) {
+      textareaRef.value.style.height = 'auto'
+    }
+    console.log('消息已发送，输入框已清空')
+  } else {
+    console.log('消息为空，不发送')
   }
 }
 </script>
@@ -50,6 +124,7 @@ function handleSend() {
   font-family: inherit;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   border-color: theme('colors.gray.300');
+  overflow-y: hidden; /* 初始状态隐藏滚动条，自动调整高度 */
 }
 
 .input-textarea:hover {

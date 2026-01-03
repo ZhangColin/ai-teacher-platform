@@ -1,7 +1,8 @@
 """AI 服务：调用 LLM API"""
 import os
 import logging
-from typing import Optional, Tuple, List, Dict
+import asyncio
+from typing import Optional, Tuple, List, Dict, AsyncGenerator
 from dotenv import load_dotenv
 from openai import OpenAI
 
@@ -83,7 +84,7 @@ class AIService:
     
     async def chat(self, system_prompt: str, history: List[Dict[str, str]], user_message: str) -> str:
         """
-        进行对话
+        进行对话（非流式）
         
         Args:
             system_prompt: Agent 的系统提示词
@@ -122,4 +123,61 @@ class AIService:
         except Exception as e:
             logger.error(f"AI 服务调用异常（对话）: {e}", exc_info=True)
             return "抱歉，当前服务暂时不可用，请稍后重试。"
+    
+    async def chat_stream(self, system_prompt: str, history: List[Dict[str, str]], user_message: str) -> AsyncGenerator[str, None]:
+        """
+        进行对话（流式输出）
+        
+        Args:
+            system_prompt: Agent 的系统提示词
+            history: 历史消息列表（格式：[{"role": "user/assistant", "content": "..."}, ...]）
+            user_message: 用户当前消息
+            
+        Yields:
+            str: AI 生成的回复片段（逐块返回）
+        """
+        # 无客户端时的模拟返回
+        if not self.client:
+            mock_reply = f"Mock 回复：收到你的消息「{user_message}」"
+            # 模拟流式输出
+            for char in mock_reply:
+                yield char
+                await asyncio.sleep(0.05)  # 模拟延迟
+            return
+        
+        try:
+            # 构建消息链：System Prompt + History + Current Input
+            messages = [{"role": "system", "content": system_prompt}]
+            
+            # 添加历史消息
+            for msg in history:
+                messages.append({"role": msg["role"], "content": msg["content"]})
+            
+            # 添加当前用户消息
+            messages.append({"role": "user", "content": user_message})
+            
+            # 记录系统提示词（用于调试）
+            logger.info(f"流式对话请求 - 系统提示词长度: {len(system_prompt)} 字符, 历史消息数: {len(history)}, 用户消息: {user_message[:50]}...")
+            
+            # 使用流式输出（同步调用，需要在异步函数中处理）
+            # 注意：OpenAI 客户端的流式调用是同步的，需要在异步上下文中处理
+            stream = self.client.chat.completions.create(
+                model=self.model_name,
+                messages=messages,
+                temperature=0.7,
+                stream=True  # 启用流式输出
+            )
+            
+            # 逐块返回内容（在异步上下文中处理同步流）
+            for chunk in stream:
+                if chunk.choices and len(chunk.choices) > 0:
+                    delta = chunk.choices[0].delta
+                    if delta and delta.content:
+                        yield delta.content
+                        # 让出控制权，允许其他协程运行，确保流式数据及时发送
+                        await asyncio.sleep(0.001)  # 很小的延迟，确保流式效果
+                    
+        except Exception as e:
+            logger.error(f"AI 服务调用异常（流式对话）: {e}", exc_info=True)
+            yield "抱歉，当前服务暂时不可用，请稍后重试。"
 

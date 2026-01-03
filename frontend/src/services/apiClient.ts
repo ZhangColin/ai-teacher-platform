@@ -132,6 +132,92 @@ export class ApiService {
   }
 
   /**
+   * 发送消息（流式接口，支持延迟创建会话）
+   * @param toolId 工具唯一标识符
+   * @param request 对话请求（包含 session_id 可选）
+   * @param onChunk 接收数据块的回调函数
+   */
+  static async chatStream(
+    toolId: string,
+    request: ChatRequest,
+    onChunk: (data: { type: string; session_id?: string; content?: string; artifacts?: any[]; error?: string }) => void
+  ): Promise<void> {
+    const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token')
+    if (!token) {
+      throw new Error('未登录')
+    }
+
+    const response = await fetch(`/api/v1/tools/${toolId}/chat/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(request)
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: '请求失败' }))
+      throw new Error(error.detail || '请求失败')
+    }
+
+    const reader = response.body?.getReader()
+    if (!reader) {
+      throw new Error('无法读取响应流')
+    }
+
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || '' // 保留最后一个不完整的行
+
+        for (const line of lines) {
+          const trimmedLine = line.trim()
+          if (trimmedLine.startsWith('data: ')) {
+            try {
+              const jsonStr = trimmedLine.slice(6).trim()
+              if (jsonStr) {
+                const data = JSON.parse(jsonStr)
+                console.log('收到流式数据块:', data.type, data.content?.substring(0, 20) || '')
+                onChunk(data)
+              }
+            } catch (e) {
+              console.error('解析 SSE 数据失败:', e, trimmedLine)
+            }
+          } else if (trimmedLine === '') {
+            // 空行，跳过
+            continue
+          }
+        }
+      }
+
+      // 处理最后一行
+      const trimmedBuffer = buffer.trim()
+      if (trimmedBuffer.startsWith('data: ')) {
+        try {
+          const jsonStr = trimmedBuffer.slice(6).trim()
+          if (jsonStr) {
+            const data = JSON.parse(jsonStr)
+            console.log('收到流式数据块（最后）:', data.type)
+            onChunk(data)
+          }
+        } catch (e) {
+          console.error('解析 SSE 数据失败:', e, trimmedBuffer)
+        }
+      }
+    } finally {
+      reader.releaseLock()
+    }
+  }
+
+  /**
    * 获取历史对话列表
    * @param toolId 工具唯一标识符
    */

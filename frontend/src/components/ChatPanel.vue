@@ -8,17 +8,22 @@
       </div>
       
       <!-- 消息列表 -->
-      <div 
-        v-for="(message, index) in sessionStore.messages" 
-        :key="`${message.role}-${index}-${message.content.slice(0, 10)}`" 
-        :class="['message-item', message.role]"
-      >
-        <div class="message-role">{{ message.role === 'user' ? '你' : 'AI' }}</div>
-        <div class="message-content">{{ message.content }}</div>
-        <button v-if="message.role === 'assistant' && message.artifacts && message.artifacts.length > 0" class="preview-btn" @click="handlePreview(message.artifacts[0])">
-          预览
-        </button>
-      </div>
+      <template v-for="(message, index) in sessionStore.messages" :key="`${message.role}-${index}-${message.content.slice(0, 10)}`">
+        <!-- 用户消息：显示在聊天框里 -->
+        <div v-if="message.role === 'user'" class="user-message">
+          <div class="user-message-content">{{ message.content }}</div>
+        </div>
+        
+        <!-- AI 消息：直接渲染 Markdown，充分利用页面 -->
+        <div v-else class="assistant-message">
+          <div 
+            :key="`markdown-${index}-${message.content.length}`"
+            class="markdown-content prose prose-slate max-w-none"
+            v-html="renderMarkdown(message.content, message.artifacts || [])"
+            @click="handleMarkdownClick"
+          ></div>
+        </div>
+      </template>
       
       <!-- 加载指示器 -->
       <div v-if="sessionStore.loading" class="loading-indicator">
@@ -38,10 +43,11 @@
 </template>
 
 <script setup lang="ts">
-import { watch, nextTick } from 'vue'
+import { watch, nextTick, onUnmounted } from 'vue'
 import WelcomeMessage from './WelcomeMessage.vue'
 import ChatInput from './ChatInput.vue'
 import { useSessionStore } from '../stores/sessionStore'
+import { renderMarkdown } from '../utils/markdownRenderer'
 import type { Artifact } from '../types'
 
 const props = defineProps<{
@@ -69,11 +75,39 @@ watch(() => props.sessionId, async (newSessionId) => {
   if (newSessionId) {
     try {
       await sessionStore.restoreSession(newSessionId)
+      // 恢复会话后，滚动到底部
+      await nextTick()
+      scrollToBottom()
     } catch (err) {
       console.error('恢复会话失败:', err)
     }
   }
 }, { immediate: true })
+
+// 监听消息变化，自动滚动到底部
+watch(() => sessionStore.messages.length, async () => {
+  await nextTick()
+  scrollToBottom()
+})
+
+// 监听 loading 状态，显示加载提示时也滚动
+watch(() => sessionStore.loading, async (isLoading) => {
+  if (isLoading) {
+    await nextTick()
+    scrollToBottom()
+  }
+})
+
+// 监听消息更新事件（流式输出时触发）
+const handleMessageUpdated = () => {
+  scrollToBottom()
+}
+window.addEventListener('message-updated', handleMessageUpdated)
+
+// 组件卸载时清理事件监听
+onUnmounted(() => {
+  window.removeEventListener('message-updated', handleMessageUpdated)
+})
 
 async function handleSendMessage(content: string) {
   if (!props.toolId) {
@@ -95,17 +129,37 @@ async function handleSendMessage(content: string) {
 }
 
 /**
- * 滚动到底部
+ * 滚动到底部（平滑滚动）
  */
 function scrollToBottom() {
-  const messagesArea = document.querySelector('.messages-area')
+  const messagesArea = document.querySelector('.messages-area') as HTMLElement
   if (messagesArea) {
-    messagesArea.scrollTop = messagesArea.scrollHeight
+    // 使用 requestAnimationFrame 确保 DOM 更新完成
+    requestAnimationFrame(() => {
+      messagesArea.scrollTo({
+        top: messagesArea.scrollHeight,
+        behavior: 'smooth'
+      })
+    })
   }
 }
 
-function handlePreview(artifact: Artifact) {
-  emit('preview', artifact)
+/**
+ * 处理 Markdown 内容中的预览按钮点击
+ */
+function handleMarkdownClick(event: Event) {
+  const target = event.target as HTMLElement
+  if (target.classList.contains('preview-button')) {
+    const artifactData = target.getAttribute('data-artifact-content')
+    if (artifactData) {
+      try {
+        const artifact: Artifact = JSON.parse(artifactData)
+        emit('preview', artifact)
+      } catch (error) {
+        console.error('解析 artifact 数据失败:', error)
+      }
+    }
+  }
 }
 </script>
 
@@ -125,63 +179,117 @@ function handlePreview(artifact: Artifact) {
   min-height: 0;
 }
 
-.message-item {
-  @apply flex flex-col gap-2 max-w-full;
+/* 用户消息：显示在聊天框里，右侧对齐 */
+.user-message {
+  @apply flex justify-end mb-6;
 }
 
-.message-item.user {
-  @apply items-end;
-}
-
-.message-item.assistant {
-  @apply items-start;
-}
-
-.message-role {
-  @apply text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1 px-1;
-}
-
-.message-content {
-  @apply text-sm leading-relaxed break-words px-4 py-3 rounded-2xl max-w-[85%];
-  /* 层级3：交互层 - 明显的阴影和背景 */
-}
-
-.message-item.user .message-content {
-  @apply bg-primary-500 text-white;
+.user-message-content {
+  @apply text-sm leading-relaxed break-words px-4 py-3 rounded-2xl max-w-[85%] bg-primary-500 text-white;
   /* 层级3：交互层 - 主色背景，明显阴影 */
   box-shadow: 0 2px 8px theme('colors.primary.500 / 0.3'), 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-.message-item.assistant .message-content {
-  @apply bg-white text-gray-900;
-  /* 层级2：内容层 - 白色背景，更柔和的边框和阴影 */
-  border: 1px solid theme('colors.gray.200');
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
-  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+/* AI 消息：直接渲染 Markdown，充分利用页面宽度 */
+.assistant-message {
+  @apply w-full mb-8;
 }
 
-.message-item.assistant .message-content:hover {
-  border-color: theme('colors.gray.300');
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.06);
+.markdown-content {
+  @apply w-full;
+  /* 使用 Tailwind Typography 插件样式 */
 }
 
-.preview-btn {
-  @apply px-3.5 py-1.5 bg-white text-gray-700 border border-gray-300 rounded-md text-xs font-medium cursor-pointer transition-all duration-200 self-start;
-  /* 层级3：交互层 - 白色背景，轻微阴影，更柔和的边框 */
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  border-color: theme('colors.gray.300');
+/* Markdown 内容样式优化 */
+.markdown-content :deep(h1),
+.markdown-content :deep(h2),
+.markdown-content :deep(h3),
+.markdown-content :deep(h4),
+.markdown-content :deep(h5),
+.markdown-content :deep(h6) {
+  @apply font-bold text-gray-900 mt-6 mb-4;
 }
 
-.preview-btn:hover {
-  @apply bg-gray-50;
-  border-color: theme('colors.gray.400');
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  transform: translateY(-1px);
+.markdown-content :deep(h1) {
+  @apply text-3xl;
 }
 
-.preview-btn:active {
-  transform: translateY(0);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+.markdown-content :deep(h2) {
+  @apply text-2xl;
+}
+
+.markdown-content :deep(h3) {
+  @apply text-xl;
+}
+
+.markdown-content :deep(p) {
+  @apply text-gray-700 leading-7 mb-4;
+}
+
+.markdown-content :deep(ul),
+.markdown-content :deep(ol) {
+  @apply mb-4 pl-6;
+}
+
+.markdown-content :deep(li) {
+  @apply mb-2 text-gray-700;
+}
+
+.markdown-content :deep(blockquote) {
+  @apply border-l-4 border-gray-300 pl-4 italic text-gray-600 my-4;
+}
+
+.markdown-content :deep(code) {
+  @apply bg-gray-100 text-gray-800 px-1.5 py-0.5 rounded text-sm font-mono;
+}
+
+.markdown-content :deep(pre) {
+  @apply bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto my-4;
+}
+
+.markdown-content :deep(pre code) {
+  @apply bg-transparent text-gray-100 p-0;
+}
+
+.markdown-content :deep(a) {
+  @apply text-primary-600 hover:text-primary-700 underline;
+}
+
+.markdown-content :deep(table) {
+  @apply w-full border-collapse my-4;
+}
+
+.markdown-content :deep(th),
+.markdown-content :deep(td) {
+  @apply border border-gray-300 px-4 py-2 text-left;
+}
+
+.markdown-content :deep(th) {
+  @apply bg-gray-100 font-semibold;
+}
+
+.markdown-content :deep(img) {
+  @apply max-w-full h-auto rounded-lg my-4;
+}
+
+/* 代码块预览按钮样式 */
+.markdown-content :deep(.code-block-wrapper) {
+  @apply relative my-4;
+}
+
+.markdown-content :deep(.preview-button) {
+  @apply absolute top-2 right-2 px-3 py-1.5 bg-primary-500 text-white border-none rounded text-sm font-medium cursor-pointer transition-all duration-200 z-10;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.markdown-content :deep(.preview-button:hover) {
+  @apply bg-primary-600;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.markdown-content :deep(.preview-button:active) {
+  @apply bg-primary-700;
+  transform: translateY(1px);
 }
 
 .loading-indicator {
