@@ -106,13 +106,13 @@
 
 | ID | 任务描述 | 状态 | 优先级 |
 |:---|:---|:---|:---|
-| conversation-1 | 实现获取历史对话列表API（GET /api/v1/tools/{tool_id}/conversations）：按用户+工具维度查询，按更新时间倒序 | pending | P0 |
-| conversation-2 | 实现历史对话列表组件（ConversationList.vue）：展示对话列表，支持点击切换对话 | pending | P0 |
-| conversation-3 | 实现编辑会话标题API（PATCH /api/v1/sessions/{session_id}）：更新会话标题 | pending | P0 |
-| conversation-4 | 实现删除会话API（DELETE /api/v1/sessions/{session_id}）：级联删除会话和消息 | pending | P0 |
-| conversation-5 | 实现对话列表编辑功能：内联编辑标题（实时保存），删除对话（二次确认） | pending | P0 |
-| conversation-6 | 实现工具切换联动：切换工具时自动切换对话列表 | pending | P0 |
-| conversation-7 | 实现新建对话功能：点击"新建对话"按钮，切换到新建对话状态（显示欢迎语） | pending | P0 |
+| conversation-1 | 实现获取历史对话列表API（GET /api/v1/tools/{tool_id}/conversations）：按用户+工具维度查询，按更新时间倒序 | completed | P0 |
+| conversation-2 | 实现历史对话列表组件（ConversationList.vue）：展示对话列表，支持点击切换对话 | completed | P0 |
+| conversation-3 | 实现编辑会话标题API（PATCH /api/v1/sessions/{session_id}）：更新会话标题 | completed | P0 |
+| conversation-4 | 实现删除会话API（DELETE /api/v1/sessions/{session_id}）：级联删除会话和消息 | completed | P0 |
+| conversation-5 | 实现对话列表编辑功能：内联编辑标题（实时保存），删除对话（二次确认） | completed | P0 |
+| conversation-6 | 实现工具切换联动：切换工具时自动切换对话列表 | completed | P0 |
+| conversation-7 | 实现新建对话功能：点击"新建对话"按钮，切换到新建对话状态（显示欢迎语） | completed | P0 |
 
 #### 会话管理模块
 
