@@ -64,22 +64,22 @@
 
 | ID | 任务描述 | 状态 | 优先级 |
 |:---|:---|:---|:---|
-| auth-enhance-1 | 数据库迁移：添加 nickname 字段，username 改为唯一索引，email 改为可选 | pending | P0 |
-| auth-enhance-2 | 更新后端数据模型：UserModel 添加 nickname 字段，username 添加唯一索引，email 改为可选 | pending | P0 |
-| auth-enhance-3 | 更新后端领域模型：User 添加 nickname 字段，username 必填且唯一，email 改为可选，更新 create 方法 | pending | P0 |
-| auth-enhance-4 | 更新 UserService：添加 get_user_by_username 方法，更新 create_user 支持 nickname，email 改为可选 | pending | P0 |
-| auth-enhance-5 | 更新登录 API：支持用户名登录，账号判断优先级（手机号 > 邮箱 > 用户名） | pending | P0 |
-| auth-enhance-6 | 更新创建用户 API：username 必填且唯一，nickname 可选，email 改为可选，更新验证逻辑 | pending | P0 |
-| auth-enhance-7 | 更新前端类型定义：UserInfo、UserListItem、CreateUserRequest 添加 nickname 字段，email 改为可选 | pending | P0 |
-| auth-enhance-8 | 更新登录页面：支持用户名登录，更新验证规则（用户名、邮箱、手机号） | pending | P0 |
-| auth-enhance-9 | 更新用户列表页面：显示昵称字段（如未填写则显示用户名） | pending | P0 |
-| auth-enhance-10 | 更新创建用户表单：添加昵称输入框，username 必填且唯一，email 改为可选 | pending | P0 |
-| auth-enhance-11 | 更新所有测试用例：适配用户名登录和昵称字段 | pending | P0 |
-| auth-enhance-12 | 更新 Header 组件：显示昵称（如未填写则显示用户名） | pending | P0 |
+| auth-enhance-1 | 数据库迁移：添加 nickname 字段，username 改为唯一索引，email 改为可选 | completed | P0 |
+| auth-enhance-2 | 更新后端数据模型：UserModel 添加 nickname 字段，username 添加唯一索引，email 改为可选 | completed | P0 |
+| auth-enhance-3 | 更新后端领域模型：User 添加 nickname 字段，username 必填且唯一，email 改为可选，更新 create 方法 | completed | P0 |
+| auth-enhance-4 | 更新 UserService：添加 get_user_by_username 方法，更新 create_user 支持 nickname，email 改为可选 | completed | P0 |
+| auth-enhance-5 | 更新登录 API：支持用户名登录，账号判断优先级（手机号 > 邮箱 > 用户名） | completed | P0 |
+| auth-enhance-6 | 更新创建用户 API：username 必填且唯一，nickname 可选，email 改为可选，更新验证逻辑 | completed | P0 |
+| auth-enhance-7 | 更新前端类型定义：UserInfo、UserListItem、CreateUserRequest 添加 nickname 字段，email 改为可选 | completed | P0 |
+| auth-enhance-8 | 更新登录页面：支持用户名登录，更新验证规则（用户名、邮箱、手机号） | completed | P0 |
+| auth-enhance-9 | 更新用户列表页面：显示昵称字段（如未填写则显示用户名） | completed | P0 |
+| auth-enhance-10 | 更新创建用户表单：添加昵称输入框，username 必填且唯一，email 改为可选 | completed | P0 |
+| auth-enhance-11 | 更新所有测试用例：适配用户名登录和昵称字段 | completed | P0 |
+| auth-enhance-12 | 更新 Header 组件：显示昵称（如未填写则显示用户名） | completed | P0 |
 
 ---
 
-**最后更新**: 2026-01-03（添加用户登录功能增强任务）
+**最后更新**: 2026-01-03（用户登录功能增强任务已完成）
 
 ---
 
