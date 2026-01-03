@@ -1,7 +1,7 @@
 /** 前端类型定义 - 与后端 Model 对应 */
 
 /**
- * Agent 列表项（用于 API 响应）
+ * Agent 列表项（用于 API 响应）- 已废弃，保留以保持向后兼容
  */
 export interface AgentListItem {
   agent_id: string
@@ -11,10 +11,40 @@ export interface AgentListItem {
 }
 
 /**
- * Agent 列表响应
+ * Agent 列表响应 - 已废弃，保留以保持向后兼容
  */
 export interface AgentListResponse {
   agents: AgentListItem[]
+}
+
+/**
+ * 工具列表项（用于 API 响应）
+ */
+export interface ToolListItem {
+  tool_id: string // 工具唯一标识符
+  name: string // 工具名称
+  description?: string // 工具描述
+  icon?: string // 图标标识（可选）
+  category: string // 分类名称
+  visible: boolean // 是否在工具选择器中显示
+  type: 'normal' | 'placeholder' // 工具类型
+  welcome_message?: string // 欢迎语（可选，用于占位工具）
+}
+
+/**
+ * 分类组（用于 API 响应）
+ */
+export interface CategoryGroup {
+  name: string // 分类名称
+  icon?: string // 分类图标（可选）
+  tools: ToolListItem[] // 该分类下的工具列表
+}
+
+/**
+ * 工具列表响应
+ */
+export interface ToolListResponse {
+  categories: CategoryGroup[] // 按分类组织的工具列表
 }
 
 /**

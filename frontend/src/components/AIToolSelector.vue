@@ -1,32 +1,51 @@
 <template>
   <div class="tool-selector" :class="{ collapsed: isCollapsed }">
     <div v-if="!isCollapsed" class="tool-selector-content">
+      <!-- 加载状态 -->
+      <div v-if="loading" class="loading-state">
+        <div class="loading-spinner"></div>
+        <span class="loading-text">加载工具列表...</span>
+      </div>
+      
+      <!-- 错误状态 -->
+      <div v-else-if="error" class="error-state">
+        <span class="error-text">{{ error }}</span>
+      </div>
+      
       <!-- 工具列表 -->
-      <div class="tool-list">
+      <div v-else class="tool-list">
         <!-- 所有工具都按分类组织 -->
         <div
-          v-for="category in tools"
-          :key="category.id"
+          v-for="category in categories"
+          :key="category.name"
           class="tool-category"
         >
           <div class="category-header">
-            <div class="category-icon">
-              <component :is="category.icon" class="w-5 h-5" />
+            <div v-if="category.icon" class="category-icon">
+              <component :is="getIconComponent(category.icon)" class="w-5 h-5" />
             </div>
-            <span class="category-name">{{ category.label }}</span>
+            <span class="category-name">{{ category.name }}</span>
           </div>
           <div class="category-tools">
             <div
-              v-for="tool in category.children || []"
-              :key="tool.id"
-              :class="['tool-card', { active: activeToolId === tool.id }]"
-              @click="handleToolClick(tool.id)"
+              v-for="tool in category.tools"
+              :key="tool.tool_id"
+              :class="['tool-card', { active: activeToolId === tool.tool_id }]"
+              @click="handleToolClick(tool)"
             >
               <div class="tool-icon">
-                <component :is="tool.icon" class="w-5 h-5" />
+                <component 
+                  v-if="tool.icon" 
+                  :is="getIconComponent(tool.icon)" 
+                  class="w-5 h-5" 
+                />
+                <CommandLineIcon v-else class="w-5 h-5" />
               </div>
               <div class="tool-info">
-                <div class="tool-name">{{ tool.label }}</div>
+                <div class="tool-name">{{ tool.name }}</div>
+                <div v-if="tool.description" class="tool-description">
+                  {{ tool.description }}
+                </div>
               </div>
             </div>
           </div>
@@ -37,7 +56,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, onMounted, watch } from 'vue'
+import { ApiService } from '../services/apiClient'
+import type { CategoryGroup, ToolListItem } from '../types'
 import {
   DocumentTextIcon,
   PhotoIcon,
@@ -45,70 +66,81 @@ import {
   SparklesIcon,
   CommandLineIcon,
   BeakerIcon,
+  CubeIcon,
+  CodeBracketIcon,
+  PaintBrushIcon,
+  AcademicCapIcon,
+  BriefcaseIcon,
+  UserGroupIcon,
+  ChartBarIcon,
+  Cog6ToothIcon,
 } from '@heroicons/vue/24/outline'
-
-interface ToolItem {
-  id: string
-  label: string
-  description?: string
-  icon: any
-  children?: ToolItem[]
-}
 
 const props = defineProps<{
   collapsed?: boolean
 }>()
 
 const emit = defineEmits<{
-  'tool-change': [toolId: string]
+  'tool-change': [tool: ToolListItem]
   'collapse-change': [collapsed: boolean]
 }>()
 
-// 工具数据（写死，后续从API获取）- 所有工具都按分类组织
-const tools: ToolItem[] = [
-  {
-    id: 'content-gen',
-    label: '内容生成',
-    icon: SparklesIcon,
-    children: [
-      {
-        id: 'text-gen',
-        label: '文生文',
-        icon: DocumentTextIcon,
-      },
-      {
-        id: 'image-gen',
-        label: '文生图',
-        icon: PhotoIcon,
-      },
-      {
-        id: 'video-gen',
-        label: '文生视频',
-        icon: VideoCameraIcon,
-      },
-    ],
-  },
-  {
-    id: 'agents',
-    label: '智能体',
-    icon: SparklesIcon,
-    children: [
-      {
-        id: 'prompt-wizard',
-        label: '提示词向导',
-        icon: CommandLineIcon,
-      },
-      {
-        id: 'lyar',
-        label: 'Lyar',
-        icon: BeakerIcon,
-      },
-    ],
-  },
-]
-
-const activeToolId = ref<string | null>('prompt-wizard')
+const categories = ref<CategoryGroup[]>([])
+const loading = ref(false)
+const error = ref<string | null>(null)
+const activeToolId = ref<string | null>(null)
 const isCollapsed = ref(props.collapsed ?? false)
+
+// 图标名称到组件的映射
+const iconMap: Record<string, any> = {
+  'document-text': DocumentTextIcon,
+  'photo': PhotoIcon,
+  'video-camera': VideoCameraIcon,
+  'sparkles': SparklesIcon,
+  'command-line': CommandLineIcon,
+  'beaker': BeakerIcon,
+  'cube': CubeIcon,
+  'code-bracket': CodeBracketIcon,
+  'paint-brush': PaintBrushIcon,
+  'academic-cap': AcademicCapIcon,
+  'briefcase': BriefcaseIcon,
+  'user-group': UserGroupIcon,
+  'chart-bar': ChartBarIcon,
+  'cog-6-tooth': Cog6ToothIcon,
+}
+
+function getIconComponent(iconName: string) {
+  return iconMap[iconName] || CommandLineIcon
+}
+
+// 从 API 加载工具列表
+async function loadTools() {
+  loading.value = true
+  error.value = null
+  
+  try {
+    const response = await ApiService.getTools()
+    categories.value = response.categories
+    
+    // 如果有工具，默认选中第一个（包括占位工具）
+    if (categories.value.length > 0 && categories.value[0].tools.length > 0) {
+      const firstTool = categories.value[0].tools[0]
+      activeToolId.value = firstTool.tool_id
+      emit('tool-change', firstTool)
+    }
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : '加载工具列表失败'
+    console.error('加载工具列表失败:', err)
+  } finally {
+    loading.value = false
+  }
+}
+
+function handleToolClick(tool: ToolListItem) {
+  // 占位工具也触发 tool-change 事件，让父组件处理显示敬请期待页面
+  activeToolId.value = tool.tool_id
+  emit('tool-change', tool)
+}
 
 // 同步外部传入的 collapsed 状态
 watch(() => props.collapsed, (newVal) => {
@@ -117,15 +149,9 @@ watch(() => props.collapsed, (newVal) => {
   }
 })
 
-function handleToolClick(toolId: string) {
-  activeToolId.value = toolId
-  emit('tool-change', toolId)
-}
-
-function toggleCollapse() {
-  isCollapsed.value = !isCollapsed.value
-  emit('collapse-change', isCollapsed.value)
-}
+onMounted(() => {
+  loadTools()
+})
 </script>
 
 <style scoped>
@@ -146,11 +172,26 @@ function toggleCollapse() {
   overflow-y: auto;
 }
 
+.loading-state,
+.error-state {
+  @apply flex flex-col items-center justify-center py-8;
+}
+
+.loading-spinner {
+  @apply w-8 h-8 border-4 border-gray-200 border-t-primary-500 rounded-full animate-spin mb-2;
+}
+
+.loading-text {
+  @apply text-sm text-gray-500;
+}
+
+.error-text {
+  @apply text-sm text-red-500;
+}
+
 .tool-list {
   @apply flex flex-col gap-4;
 }
-
-/* 工具分类 */
 
 /* 工具分类 */
 .tool-category {
@@ -218,6 +259,10 @@ function toggleCollapse() {
   @apply text-sm font-medium text-gray-900;
 }
 
+.tool-description {
+  @apply text-xs text-gray-500 mt-0.5 line-clamp-1;
+}
+
 .tool-card.active .tool-name {
   @apply text-primary-700;
 }
@@ -253,4 +298,3 @@ function toggleCollapse() {
   }
 }
 </style>
-

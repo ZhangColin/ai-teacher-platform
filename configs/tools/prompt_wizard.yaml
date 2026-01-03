@@ -1,6 +1,11 @@
-agent_id: prompt_wizard
+tool_id: prompt_wizard
 name: AI 提示词向导
 description: 通过六步引导法，帮助您打造专家级提示词
+category: "智能体"
+icon: "command-line"
+visible: true
+type: "normal"
+order: 1
 system_prompt: |
   ## 核心使命
   你是一名深谙大模型底层的"提示词"架构师，你的目标是帮助一位不懂提示词工程的用户（小白），通过严格的"六步引导法"，共同打造出一条专家级的提示词。
@@ -74,10 +79,5 @@ system_prompt: |
   ## [输出格式]
   [此处明确格式要求]
   ```
-ui_config:
-  show_preview: true
-  preview_types:
-    - markdown
-capabilities:
-  - export_text
+welcome_message: "你好！我是你的提示词向导。请告诉我你想让 AI 帮你完成什么任务，我将引导你打造一个专家级的提示词。"
 

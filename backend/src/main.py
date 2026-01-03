@@ -9,6 +9,7 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from src.services.agent_service import AgentService
+from src.services.tool_service import ToolService
 from src.services.session_service import SessionService
 from src.services.ai_service import AIService
 from src.services.artifact_parser import ArtifactParser
@@ -18,13 +19,15 @@ from src.models import (
     AgentListResponse, AgentListItem, SessionInitResponse,
     ChatRequest, ChatResponse, Message,
     LoginRequest, LoginResponse, UserInfo, UserInfoResponse,
-    CreateUserRequest, CreateUserResponse, UserListResponse, UserListItem
+    CreateUserRequest, CreateUserResponse, UserListResponse, UserListItem,
+    ToolListResponse, ToolListItem, CategoryGroup
 )
 
 app = FastAPI(title="AI Teacher Platform Backend")
 
 # 初始化服务
 agent_service = AgentService(config_dir=str(project_root / "configs" / "agents"))
+tool_service = ToolService(config_dir=str(project_root / "configs" / "tools"))
 session_service = SessionService()
 ai_service = AIService()
 artifact_parser = ArtifactParser()
@@ -80,7 +83,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 
 @app.get("/api/v1/agents", response_model=AgentListResponse)
 async def get_agents():
-    """获取所有已配置的 Agent 列表"""
+    """获取所有已配置的 Agent 列表（已废弃，请使用 GET /api/v1/tools）"""
     agents = agent_service.load_all_agents()
     
     # 转换为 API 响应格式
@@ -95,6 +98,43 @@ async def get_agents():
     ]
     
     return AgentListResponse(agents=agent_items)
+
+
+@app.get("/api/v1/tools", response_model=ToolListResponse)
+async def get_tools(current_user: UserInfo = Depends(get_current_user)):
+    """获取所有已配置的工具列表，按分类组织"""
+    # 加载所有工具（只返回 visible=true 的工具）
+    tools = tool_service.load_all_tools()
+    
+    # 按 category 聚合
+    category_groups = tool_service.group_by_category(tools)
+    
+    # 转换为 API 响应格式
+    categories = []
+    for group in category_groups:
+        tool_items = [
+            ToolListItem(
+                tool_id=tool.tool_id,
+                name=tool.name,
+                description=tool.description,
+                icon=tool.icon,
+                category=tool.category,
+                visible=tool.visible,
+                type=tool.type,
+                welcome_message=tool.welcome_message
+            )
+            for tool in group['tools']
+        ]
+        
+        categories.append(
+            CategoryGroup(
+                name=group['name'],
+                icon=group['icon'],
+                tools=tool_items
+            )
+        )
+    
+    return ToolListResponse(categories=categories)
 
 
 @app.post("/api/v1/agents/{agent_id}/sessions", response_model=SessionInitResponse)

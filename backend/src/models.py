@@ -6,8 +6,31 @@ from typing import List, Optional, Literal
 from pydantic import BaseModel, Field, ConfigDict
 
 
+class Tool(BaseModel):
+    """工具配置实体（聚合根）"""
+    tool_id: str = Field(..., description="工具唯一标识符")
+    name: str = Field(..., description="工具名称")
+    description: Optional[str] = Field(None, description="工具描述")
+    system_prompt: str = Field(..., description="系统提示词，定义工具的业务逻辑")
+    category: str = Field(..., description="分类名称")
+    icon: Optional[str] = Field(None, description="图标标识（可选）")
+    visible: bool = Field(True, description="是否在工具选择器中显示")
+    type: Literal["normal", "placeholder"] = Field("normal", description="工具类型")
+    welcome_message: str = Field(..., description="欢迎语（配置化展示）")
+    order: int = Field(999, description="排序顺序（数字越小越靠前，默认999）")
+    
+    def validate(self) -> bool:
+        """验证工具配置是否完整有效"""
+        if not self.tool_id or not self.name or not self.system_prompt:
+            return False
+        if not self.category or not self.welcome_message:
+            return False
+        return True
+
+
+# 保留 Agent 类以保持向后兼容（后续可以删除）
 class UIConfig(BaseModel):
-    """UI 配置值对象（不可变）"""
+    """UI 配置值对象（不可变）- 已废弃，保留以保持向后兼容"""
     model_config = ConfigDict(frozen=True)
     
     show_preview: bool = Field(..., description="是否开启侧边预览栏")
@@ -18,7 +41,7 @@ class UIConfig(BaseModel):
 
 
 class Agent(BaseModel):
-    """Agent 配置实体（聚合根）"""
+    """Agent 配置实体（聚合根）- 已废弃，保留以保持向后兼容，请使用 Tool"""
     agent_id: str = Field(..., description="Agent 唯一标识符")
     name: str = Field(..., description="功能名称")
     description: Optional[str] = Field(None, description="功能描述")
@@ -39,7 +62,7 @@ class Agent(BaseModel):
 
 
 class AgentListItem(BaseModel):
-    """Agent 列表项（用于 API 响应）"""
+    """Agent 列表项（用于 API 响应）- 已废弃，保留以保持向后兼容"""
     agent_id: str = Field(..., description="Agent 唯一标识符")
     name: str = Field(..., description="功能名称")
     description: Optional[str] = Field(None, description="功能描述")
@@ -47,8 +70,32 @@ class AgentListItem(BaseModel):
 
 
 class AgentListResponse(BaseModel):
-    """Agent 列表响应"""
+    """Agent 列表响应 - 已废弃，保留以保持向后兼容"""
     agents: List[AgentListItem] = Field(..., description="Agent 列表")
+
+
+class ToolListItem(BaseModel):
+    """工具列表项（用于 API 响应）"""
+    tool_id: str = Field(..., description="工具唯一标识符")
+    name: str = Field(..., description="工具名称")
+    description: Optional[str] = Field(None, description="工具描述")
+    icon: Optional[str] = Field(None, description="图标标识（可选）")
+    category: str = Field(..., description="分类名称")
+    visible: bool = Field(True, description="是否在工具选择器中显示")
+    type: Literal["normal", "placeholder"] = Field("normal", description="工具类型")
+    welcome_message: Optional[str] = Field(None, description="欢迎语（可选，用于占位工具）")
+
+
+class CategoryGroup(BaseModel):
+    """分类组（用于 API 响应）"""
+    name: str = Field(..., description="分类名称")
+    icon: Optional[str] = Field(None, description="分类图标（可选）")
+    tools: List[ToolListItem] = Field(..., description="该分类下的工具列表")
+
+
+class ToolListResponse(BaseModel):
+    """工具列表响应"""
+    categories: List[CategoryGroup] = Field(..., description="按分类组织的工具列表")
 
 
 class Artifact(BaseModel):

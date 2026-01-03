@@ -1,0 +1,12 @@
+tool_id: text_gen
+name: 文生文
+description: 通过文本输入生成文本内容
+category: "内容生成"
+icon: "document-text"
+visible: true
+type: "placeholder"
+order: 1
+system_prompt: |
+  这是一个占位工具，功能正在开发中。
+welcome_message: "敬请期待：文生文功能即将上线！"
+

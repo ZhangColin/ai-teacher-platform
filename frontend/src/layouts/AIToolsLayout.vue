@@ -19,8 +19,15 @@
       <ChevronRightIcon v-else class="w-4 h-4" />
     </button>
     
-    <!-- 右侧：聊天区域 -->
-    <ChatArea class="chat-area" />
+    <!-- 右侧：聊天区域或敬请期待页面 -->
+    <ChatArea v-if="currentTool && currentTool.type === 'normal'" class="chat-area" />
+    <ComingSoon 
+      v-else-if="currentTool && currentTool.type === 'placeholder'"
+      :tool-name="currentTool.name"
+      :welcome-message="currentTool.welcome_message"
+      :icon="currentTool.icon"
+      class="chat-area"
+    />
   </div>
 </template>
 
@@ -29,8 +36,11 @@ import { ref } from 'vue'
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/vue/24/outline'
 import AIToolSelector from '../components/AIToolSelector.vue'
 import ChatArea from '../components/ChatArea.vue'
+import ComingSoon from '../components/ComingSoon.vue'
+import type { ToolListItem } from '../types'
 
 const sidebarCollapsed = ref(false)
+const currentTool = ref<ToolListItem | null>(null)
 
 function handleSidebarCollapse(collapsed: boolean) {
   sidebarCollapsed.value = collapsed
@@ -40,9 +50,9 @@ function toggleSidebar() {
   sidebarCollapsed.value = !sidebarCollapsed.value
 }
 
-function handleToolChange(toolId: string) {
-  // 工具切换逻辑（后续实现）
-  console.log('切换到工具:', toolId)
+function handleToolChange(tool: ToolListItem) {
+  currentTool.value = tool
+  console.log('切换到工具:', tool.tool_id, '类型:', tool.type)
 }
 </script>
 

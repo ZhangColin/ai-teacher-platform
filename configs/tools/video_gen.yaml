@@ -1,0 +1,12 @@
+tool_id: video_gen
+name: 文生视频
+description: 通过文本描述生成视频内容
+category: "内容生成"
+icon: "video-camera"
+visible: true
+type: "placeholder"
+order: 4
+system_prompt: |
+  这是一个占位工具，功能正在开发中。
+welcome_message: "敬请期待：文生视频功能即将上线！"
+

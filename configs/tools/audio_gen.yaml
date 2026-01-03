@@ -1,0 +1,12 @@
+tool_id: audio_gen
+name: 文生音频
+description: 通过文本描述生成音频内容
+category: "内容生成"
+icon: "sparkles"
+visible: true
+type: "placeholder"
+order: 3
+system_prompt: |
+  这是一个占位工具，功能正在开发中。
+welcome_message: "敬请期待：文生音频功能即将上线！"
+

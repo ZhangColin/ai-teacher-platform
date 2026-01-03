@@ -2,6 +2,7 @@
 import axios, { type AxiosInstance, type AxiosError } from 'axios'
 import type {
   AgentListResponse,
+  ToolListResponse,
   SessionInitResponse,
   ChatRequest,
   ChatResponse,
@@ -84,10 +85,18 @@ apiClient.interceptors.response.use(
  */
 export class ApiService {
   /**
-   * 获取 Agent 列表
+   * 获取 Agent 列表（已废弃，请使用 getTools）
    */
   static async getAgents(): Promise<AgentListResponse> {
     const response = await apiClient.get<AgentListResponse>('/agents')
+    return response.data
+  }
+
+  /**
+   * 获取工具列表（按分类组织）
+   */
+  static async getTools(): Promise<ToolListResponse> {
+    const response = await apiClient.get<ToolListResponse>('/tools')
     return response.data
   }
 
