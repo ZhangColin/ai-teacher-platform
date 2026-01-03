@@ -1,4 +1,6 @@
 """Domain models for Agent platform."""
+import uuid
+import bcrypt
 from datetime import datetime
 from typing import List, Optional, Literal
 from pydantic import BaseModel, Field, ConfigDict
@@ -97,4 +99,103 @@ class ChatResponse(BaseModel):
         default_factory=list,
         description="从回复中解析出的成果物列表（代码块内容）"
     )
+
+
+class User(BaseModel):
+    """用户实体（聚合根）"""
+    user_id: str = Field(..., description="用户唯一标识（UUID）")
+    username: str = Field(..., description="用户名（必填，用于登录，必须唯一）", min_length=1, max_length=50)
+    nickname: Optional[str] = Field(None, description="用户昵称（可选，用于显示，如未填写则使用用户名）")
+    email: Optional[str] = Field(None, description="用户邮箱（可选，用于登录）", pattern=r'^[^@]+@[^@]+\.[^@]+$')
+    phone: Optional[str] = Field(None, description="用户手机号（可选，用于登录）", pattern=r'^1[3-9]\d{9}$')
+    password_hash: str = Field(..., description="密码哈希值（bcrypt加密）")
+    avatar: Optional[str] = Field(None, description="用户头像URL（可选，默认头像）")
+    created_at: datetime = Field(default_factory=datetime.now, description="用户创建时间")
+    
+    def verify_password(self, password: str) -> bool:
+        """验证密码是否正确"""
+        return bcrypt.checkpw(password.encode('utf-8'), self.password_hash.encode('utf-8'))
+    
+    @classmethod
+    def create(cls, username: str, password: str, nickname: Optional[str] = None, email: Optional[str] = None, phone: Optional[str] = None, avatar: Optional[str] = None) -> "User":
+        """创建新用户（密码自动加密）"""
+        # 生成UUID
+        user_id = str(uuid.uuid4())
+        
+        # 使用bcrypt加密密码
+        password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        
+        return cls(
+            user_id=user_id,
+            username=username,
+            nickname=nickname,
+            email=email,
+            phone=phone,
+            password_hash=password_hash,
+            avatar=avatar,
+            created_at=datetime.now()
+        )
+
+
+class UserInfo(BaseModel):
+    """用户信息（用于API响应，不包含密码）"""
+    user_id: str = Field(..., description="用户唯一标识（UUID）")
+    username: str = Field(..., description="用户名（用于登录）")
+    nickname: Optional[str] = Field(None, description="用户昵称（可选，用于显示，如未填写则使用用户名）")
+    email: Optional[str] = Field(None, description="用户邮箱（可选，用于登录）")
+    phone: Optional[str] = Field(None, description="用户手机号（可选，用于登录）")
+    avatar: Optional[str] = Field(None, description="用户头像URL（可选，默认头像）")
+
+
+class LoginRequest(BaseModel):
+    """登录请求"""
+    account: str = Field(..., description="用户账号（邮箱或手机号）")
+    password: str = Field(..., description="用户密码", min_length=6)
+    remember_me: bool = Field(default=False, description="是否记住我（影响Token有效期）")
+
+
+class LoginResponse(BaseModel):
+    """登录响应"""
+    token: str = Field(..., description="JWT Token，用于后续请求的身份验证")
+    user: UserInfo = Field(..., description="用户基本信息")
+    expires_in: int = Field(..., description="Token有效期（秒），如：604800（7天）或86400（24小时）")
+
+
+class UserInfoResponse(BaseModel):
+    """获取当前用户信息响应"""
+    user: UserInfo = Field(..., description="用户基本信息")
+
+
+class CreateUserRequest(BaseModel):
+    """创建用户请求"""
+    username: str = Field(..., description="用户名（必填，用于登录，必须唯一）", min_length=1, max_length=50)
+    nickname: Optional[str] = Field(None, description="用户昵称（可选，用于显示，如未填写则使用用户名）")
+    email: Optional[str] = Field(None, description="用户邮箱（可选，用于登录）", pattern=r'^[^@]+@[^@]+\.[^@]+$')
+    phone: Optional[str] = Field(None, description="用户手机号（可选，用于登录）", pattern=r'^1[3-9]\d{9}$')
+    password: str = Field(..., description="用户密码", min_length=6)
+    avatar: Optional[str] = Field(None, description="用户头像URL（可选，默认使用系统默认头像）")
+
+
+class CreateUserResponse(BaseModel):
+    """创建用户响应"""
+    user: UserInfo = Field(..., description="新创建的用户信息")
+
+
+class UserListItem(BaseModel):
+    """用户列表项"""
+    user_id: str = Field(..., description="用户唯一标识（UUID）")
+    username: str = Field(..., description="用户名（用于登录）")
+    nickname: Optional[str] = Field(None, description="用户昵称（可选，用于显示，如未填写则使用用户名）")
+    email: Optional[str] = Field(None, description="用户邮箱（可选，用于登录）")
+    phone: Optional[str] = Field(None, description="用户手机号（可选，用于登录）")
+    avatar: Optional[str] = Field(None, description="用户头像URL")
+    created_at: datetime = Field(..., description="用户创建时间")
+
+
+class UserListResponse(BaseModel):
+    """用户列表响应"""
+    users: List[UserListItem] = Field(..., description="用户列表")
+    total: int = Field(..., description="用户总数")
+    page: int = Field(..., description="当前页码")
+    page_size: int = Field(..., description="每页数量")
 

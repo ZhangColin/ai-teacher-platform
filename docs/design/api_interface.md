@@ -8,13 +8,305 @@
 - **Base Path**: `/api/v1`
 - **API 前缀**: 所有接口统一使用 `/api` 前缀
 - **协议标准**: RESTful API，JSON 格式
-- **认证方式**: MVP 阶段暂不需要认证
+- **认证方式**: JWT Token 认证（Bearer Token）
+  - Token 通过 HTTP Header 传递：`Authorization: Bearer <token>`
+  - Token 有效期：
+    - 勾选"记住我"：7 天（604800 秒）
+    - 未勾选"记住我"：24 小时（86400 秒）
+  - Token Payload 结构：
+    ```python
+    {
+      "user_id": str,  # 用户唯一标识（UUID）
+      "exp": int,      # Token过期时间戳（Unix timestamp）
+      "iat": int       # Token签发时间戳（Unix timestamp）
+    }
+    ```
+  - Token 签名算法：HS256（使用后端配置的密钥）
+  - 认证失败返回：`401 Unauthorized`
 
 ---
 
-## 2. 核心接口清单
+## 2. 用户认证接口
 
-### 2.1 获取 Agent 列表
+### 2.1 用户登录
+用户通过用户名、邮箱或手机号和密码登录平台，获取访问 Token。
+
+- **Endpoint**: `POST /api/v1/auth/login`
+- **Description**: 验证用户账号（用户名、邮箱或手机号）和密码，返回 JWT Token 和用户信息。
+- **认证要求**: 无需认证（公开接口）
+
+- **Request Body**:
+```python
+class LoginRequest(BaseModel):
+    account: str = Field(..., description="用户账号（用户名、邮箱或手机号）")
+    password: str = Field(..., description="用户密码", min_length=6)
+    remember_me: bool = Field(default=False, description="是否记住我（影响Token有效期）")
+```
+
+**账号格式说明**：
+- **用户名格式**：1-50个字符，字母、数字、下划线、中文字符（如：zhangsan、张三）
+- **邮箱格式**：`^[^@]+@[^@]+\.[^@]+$`（如：user@example.com）
+- **手机号格式**：`^1[3-9]\d{9}$`（11位数字，以1开头，如：13800138000）
+- 系统根据输入格式自动判断是用户名、邮箱还是手机号（优先级：手机号 > 邮箱 > 用户名）
+
+- **Response Structure**:
+```python
+class LoginResponse(BaseModel):
+    token: str = Field(..., description="JWT Token，用于后续请求的身份验证")
+    user: UserInfo = Field(..., description="用户基本信息")
+    expires_in: int = Field(..., description="Token有效期（秒），如：604800（7天）或86400（24小时）")
+
+class UserInfo(BaseModel):
+    user_id: str = Field(..., description="用户唯一标识（UUID）")
+    username: str = Field(..., description="用户名（用于登录）")
+    nickname: Optional[str] = Field(None, description="用户昵称（可选，用于显示，如未填写则使用用户名）")
+    email: Optional[str] = Field(None, description="用户邮箱（可选，用于登录）")
+    phone: Optional[str] = Field(None, description="用户手机号（可选，用于登录）")
+    avatar: Optional[str] = Field(None, description="用户头像URL（可选，默认头像）")
+```
+
+**业务规则**：
+- 账号格式验证：
+  - 用户名格式：1-50个字符，字母、数字、下划线、中文字符
+  - 邮箱格式：`^[^@]+@[^@]+\.[^@]+$`
+  - 手机号格式：`^1[3-9]\d{9}$`
+  - 系统根据输入格式自动判断是用户名、邮箱还是手机号（优先级：手机号 > 邮箱 > 用户名）
+- 密码验证：最小长度6位
+- 登录验证失败时，统一返回错误提示"账号或密码错误"（不区分具体错误原因，安全考虑）
+- Token 有效期根据 `remember_me` 参数决定：
+  - `remember_me=True`：7 天（604800 秒）
+  - `remember_me=False`：24 小时（86400 秒）
+- 密码使用 bcrypt 加密存储，验证时使用 bcrypt 比对
+
+**Example Request** (用户名登录):
+```json
+{
+  "account": "zhangsan",
+  "password": "password123",
+  "remember_me": true
+}
+```
+
+**Example Request** (邮箱登录):
+```json
+{
+  "account": "user@example.com",
+  "password": "password123",
+  "remember_me": true
+}
+```
+
+**Example Request** (手机号登录):
+```json
+{
+  "account": "13800138000",
+  "password": "password123",
+  "remember_me": true
+}
+```
+
+**Example Response**:
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "user_id": "550e8400-e29b-41d4-a716-446655440000",
+    "username": "张三",
+    "email": "user@example.com",
+    "phone": "13800138000",
+    "avatar": null
+  },
+  "expires_in": 604800
+}
+```
+
+**错误响应**：
+- `400 Bad Request`: 账号格式错误（既不是用户名、邮箱也不是手机号）、密码长度不足
+- `401 Unauthorized`: 账号或密码错误（统一提示，不区分具体错误）
+
+---
+
+### 2.2 获取当前用户信息
+获取当前登录用户的基本信息。
+
+- **Endpoint**: `GET /api/v1/auth/me`
+- **Description**: 根据 Token 获取当前登录用户的信息。
+- **认证要求**: 需要认证（Bearer Token）
+
+- **Response Structure**:
+```python
+class UserInfoResponse(BaseModel):
+    user: UserInfo = Field(..., description="用户基本信息")
+```
+
+**业务规则**：
+- 从 JWT Token 中解析用户ID，查询用户信息
+- 如果 Token 无效或过期，返回 `401 Unauthorized`
+- 如果用户不存在，返回 `404 Not Found`
+
+**Example Response**:
+```json
+{
+  "user": {
+    "user_id": "550e8400-e29b-41d4-a716-446655440000",
+    "username": "张三",
+    "email": "user@example.com",
+    "avatar": null
+  }
+}
+```
+
+**错误响应**：
+- `401 Unauthorized`: Token 无效或过期
+- `404 Not Found`: 用户不存在
+
+**前端使用说明**：
+- 前端可以通过调用此接口验证 Token 是否有效
+- 页面加载时，如果存在 Token，可以调用此接口验证登录状态
+- 如果返回 `401`，说明 Token 已过期，前端应清除 Token 并跳转到登录页
+- 如果返回 `200`，说明用户已登录，可以继续访问平台功能
+
+---
+
+### 2.3 退出登录（当前迭代说明）
+
+**当前迭代处理方式**：
+- 当前迭代不需要后端退出登录 API
+- 前端直接清除 Token 存储（localStorage 或 sessionStorage）即可
+- 清除后跳转到登录页
+
+**后续迭代**：
+- 后续迭代可添加 `POST /api/v1/auth/logout` 接口
+- 用于服务端 Token 黑名单管理（如需要）
+
+---
+
+## 3. 临时用户管理接口
+
+### 3.1 获取用户列表
+获取所有用户列表（临时管理功能，内部使用）。
+
+- **Endpoint**: `GET /api/v1/admin/users`
+- **Description**: 返回所有用户列表，用于临时管理页面。
+- **认证要求**: 需要认证（Bearer Token）
+
+- **Query Parameters**:
+  - `page` (int, optional): 页码，默认 1
+  - `page_size` (int, optional): 每页数量，默认 20
+
+- **Response Structure**:
+```python
+class UserListItem(BaseModel):
+    user_id: str = Field(..., description="用户唯一标识（UUID）")
+    username: str = Field(..., description="用户名")
+    email: str = Field(..., description="用户邮箱")
+    phone: Optional[str] = Field(None, description="用户手机号（可选）")
+    avatar: Optional[str] = Field(None, description="用户头像URL")
+    created_at: datetime = Field(..., description="用户创建时间")
+
+class UserListResponse(BaseModel):
+    users: List[UserListItem] = Field(..., description="用户列表")
+    total: int = Field(..., description="用户总数")
+    page: int = Field(..., description="当前页码")
+    page_size: int = Field(..., description="每页数量")
+```
+
+**业务规则**：
+- 需要登录后才能访问
+- 当前迭代：所有登录用户都可以访问（后续迭代可添加权限控制）
+- 按创建时间倒序排列
+
+**Example Response**:
+```json
+{
+  "users": [
+    {
+      "user_id": "550e8400-e29b-41d4-a716-446655440000",
+      "username": "张三",
+      "email": "user@example.com",
+      "phone": "13800138000",
+      "avatar": null,
+      "created_at": "2026-01-02T10:00:00Z"
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "page_size": 20
+}
+```
+
+**错误响应**：
+- `401 Unauthorized`: 未登录或 Token 无效
+
+---
+
+### 3.2 创建用户
+创建新用户（临时管理功能，内部使用）。
+
+- **Endpoint**: `POST /api/v1/admin/users`
+- **Description**: 创建新用户，用于临时管理页面。
+- **认证要求**: 需要认证（Bearer Token）
+
+- **Request Body**:
+```python
+class CreateUserRequest(BaseModel):
+    username: str = Field(..., description="用户名", min_length=1, max_length=50)
+    email: str = Field(..., description="用户邮箱", regex=r'^[^@]+@[^@]+\.[^@]+$')
+    password: str = Field(..., description="用户密码", min_length=6)
+    avatar: Optional[str] = Field(None, description="用户头像URL（可选，默认使用系统默认头像）")
+```
+
+- **Response Structure**:
+```python
+class CreateUserResponse(BaseModel):
+    user: UserInfo = Field(..., description="新创建的用户信息")
+```
+
+**业务规则**：
+- 需要登录后才能访问
+- 用户名必须唯一，如果已存在返回错误
+- 邮箱必须唯一（如果提供），如果已存在返回错误
+- 手机号必须唯一（如果提供），如果已存在返回错误
+- 用户名、邮箱、手机号至少填写一个（用于登录）
+- 密码使用 bcrypt 加密存储
+- 如果未提供头像，使用系统默认头像
+- 如果未提供昵称，使用用户名作为显示名称
+- 用户ID使用UUID生成
+
+**Example Request**:
+```json
+{
+  "username": "lisi",
+  "nickname": "李四",
+  "email": "lisi@example.com",
+  "phone": "13800138000",
+  "password": "password123",
+  "avatar": null
+}
+```
+
+**Example Response**:
+```json
+{
+  "user": {
+    "user_id": "660e8400-e29b-41d4-a716-446655440001",
+    "username": "李四",
+    "email": "lisi@example.com",
+    "avatar": null
+  }
+}
+```
+
+**错误响应**：
+- `400 Bad Request`: 邮箱格式错误、密码长度不足、用户名格式错误
+- `409 Conflict`: 邮箱已存在
+- `401 Unauthorized`: 未登录或 Token 无效
+
+---
+
+## 4. Agent 相关接口（需要认证）
+
+### 4.1 获取 Agent 列表
 获取所有已配置的 Agent 列表，用于前端导航展示。
 
 - **Endpoint**: `GET /api/v1/agents`
@@ -51,7 +343,11 @@ class AgentListResponse(BaseModel):
 
 ---
 
-### 2.2 开启 Agent 会话
+**认证要求**: 需要认证（Bearer Token）
+
+---
+
+### 4.2 开启 Agent 会话
 根据 Agent 唯一标识初始化一个交互环境，并自动触发 AI 生成欢迎语。
 
 - **Endpoint**: `POST /api/v1/agents/{agent_id}/sessions`
@@ -79,10 +375,12 @@ class UIConfig(BaseModel):
 ```
 
 **业务规则**：
+- 会话创建时，从 JWT Token 中获取用户ID，关联到会话
 - 会话创建后，系统自动调用 AI，传入 Agent 的 `system_prompt`，生成欢迎语
 - 如果欢迎语中包含代码块，后端需要解析并返回 `artifacts` 列表
 - 前端收到响应后，直接展示 `welcome_message` 和 `artifacts`，无需再次调用 AI
 - 如果 Agent 不存在，返回 404 错误
+- 如果未认证，返回 401 错误
 
 **Example Response**:
 ```json
@@ -99,7 +397,11 @@ class UIConfig(BaseModel):
 
 ---
 
-### 2.3 通用对话交互
+**认证要求**: 需要认证（Bearer Token）
+
+---
+
+### 4.3 通用对话交互
 这是系统最核心的接口，负责透传消息并解析 AI 返回的结构化状态。
 
 - **Endpoint**: `POST /api/v1/sessions/{session_id}/chat`
@@ -121,13 +423,18 @@ class ChatRequest(BaseModel):
     )
 ```
 
+**认证要求**: 需要认证（Bearer Token）
+
 **业务规则**：
 - MVP 阶段：前端必须传递 `history`，后端仅透传给 AI 服务，不存储
 - 未来扩展：前端可以不传递 `history`，后端从数据库读取会话历史
+- 后端从 JWT Token 中获取用户ID，验证会话是否属于当前用户
 - 后端解析 `reply` 中的 Markdown 代码块，生成 `artifacts` 列表
 - 前端展示 `reply` 的完整内容（支持 Markdown 渲染）
 - 前端根据 `artifacts` 列表，在代码块上提供预览按钮
 - 如果会话不存在，返回 404 错误
+- 如果会话不属于当前用户，返回 403 Forbidden
+- 如果未认证，返回 401 错误
 
 **响应方式**：
 - **MVP 阶段**：一次性返回完整回复（简化实现，快速验证架构）
@@ -219,8 +526,11 @@ class ErrorResponse(BaseModel):
 ### 4.2 常见错误场景
 
 **标准错误码**：
-- `404 Not Found`: Agent 不存在、会话不存在
+- `401 Unauthorized`: 未登录、Token 无效或过期
+- `403 Forbidden`: 权限不足（如访问其他用户的会话）
+- `404 Not Found`: Agent 不存在、会话不存在、用户不存在
 - `400 Bad Request`: 请求参数错误
+- `409 Conflict`: 资源冲突（如邮箱已存在）
 - `500 Internal Server Error`: 服务器内部错误
 - `503 Service Unavailable`: AI 服务暂时不可用
 
@@ -243,9 +553,57 @@ class ErrorResponse(BaseModel):
 
 ---
 
-## 5. 数据流设计
+## 5. 认证流程设计
 
-### 5.1 Agent 初始化流程
+### 5.1 用户登录流程
+```mermaid
+sequenceDiagram
+    participant User as 用户
+    participant Frontend as 前端
+    participant Backend as 后端
+    participant DB as 数据库
+
+    User->>Frontend: 输入邮箱和密码，点击登录
+    Frontend->>Backend: POST /api/v1/auth/login<br/>{email, password, remember_me}
+    Backend->>Backend: 验证邮箱格式和密码长度
+    Backend->>DB: 根据邮箱查询用户
+    DB-->>Backend: 返回用户信息（含password_hash）
+    Backend->>Backend: 使用bcrypt验证密码
+    alt 密码正确
+        Backend->>Backend: 生成JWT Token（包含user_id）
+        Backend-->>Frontend: 返回{token, user, expires_in}
+        Frontend->>Frontend: 根据remember_me选择存储方式<br/>(localStorage或sessionStorage)
+        Frontend->>Frontend: 跳转到原访问页面或首页
+    else 密码错误或用户不存在
+        Backend-->>Frontend: 返回401 "账号或密码错误"
+    end
+```
+
+### 5.2 认证Token验证流程
+```mermaid
+sequenceDiagram
+    participant Frontend as 前端
+    participant Backend as 后端
+
+    Frontend->>Backend: 请求（携带Authorization Header）
+    Backend->>Backend: 从Header提取Token
+    Backend->>Backend: 验证JWT Token（签名、有效期）
+    alt Token有效
+        Backend->>Backend: 从Token解析user_id
+        Backend->>Backend: 继续处理业务逻辑
+        Backend-->>Frontend: 返回业务数据
+    else Token无效或过期
+        Backend-->>Frontend: 返回401 Unauthorized
+        Frontend->>Frontend: 清除本地Token
+        Frontend->>Frontend: 跳转到登录页
+    end
+```
+
+---
+
+## 6. 数据流设计
+
+### 6.1 Agent 初始化流程
 ```mermaid
 sequenceDiagram
     participant User as 用户
@@ -254,17 +612,20 @@ sequenceDiagram
     participant AI as AI 服务
 
     User->>Frontend: 点击 Agent 入口
-    Frontend->>Backend: POST /api/v1/agents/{agent_id}/sessions
+    Frontend->>Frontend: 检查登录状态（从localStorage/sessionStorage读取Token）
+    Frontend->>Backend: POST /api/v1/agents/{agent_id}/sessions<br/>(携带Authorization Header)
+    Backend->>Backend: 验证Token，获取user_id
     Backend->>Backend: 加载 Agent 配置
     Backend->>AI: 调用 AI（传入 system_prompt）
     AI-->>Backend: 返回欢迎语
+    Backend->>Backend: 创建会话（关联user_id和agent_id）
     Backend->>Backend: 解析欢迎语中的代码块
     Backend-->>Frontend: 返回 session_id + welcome_message + artifacts
     Frontend->>Frontend: 展示欢迎语和预览按钮
     Frontend->>Frontend: 保存会话到本地存储
 ```
 
-### 5.2 对话交互流程
+### 6.2 对话交互流程
 ```mermaid
 sequenceDiagram
     participant User as 用户
@@ -274,7 +635,9 @@ sequenceDiagram
 
     User->>Frontend: 输入消息并发送
     Frontend->>Frontend: 从本地存储读取历史消息
-    Frontend->>Backend: POST /api/v1/sessions/{session_id}/chat<br/>(包含 history)
+    Frontend->>Backend: POST /api/v1/sessions/{session_id}/chat<br/>(携带Authorization Header，包含history)
+    Backend->>Backend: 验证Token，获取user_id
+    Backend->>Backend: 验证会话是否属于当前用户
     Backend->>AI: 调用 AI（传入历史消息 + 用户消息）
     AI-->>Backend: 返回 AI 回复（Markdown 格式）
     Backend->>Backend: 解析回复中的代码块
@@ -289,11 +652,14 @@ sequenceDiagram
 
 ---
 
-**文档版本**: v1.0  
-**最后更新**: 2026-01-01  
+---
+
+**文档版本**: v1.1  
+**最后更新**: 2026-01-02  
 **设计依据**: 
 - `docs/requirements/product_spec.md`
 - `docs/requirements/ai_prompt_wizard_spec.md`
 - `docs/requirements/ui_interaction_guide.md`
 - `docs/requirements/acceptance_scenarios.md`
+- `docs/requirements/user_auth_spec.md`
 

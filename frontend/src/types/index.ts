@@ -73,3 +73,75 @@ export interface ChatResponse {
   artifacts: Artifact[] // 从回复中解析出的成果物列表（代码块内容）
 }
 
+/**
+ * 用户信息（用于API响应，不包含密码）
+ */
+export interface UserInfo {
+  user_id: string // 用户唯一标识（UUID）
+  username: string // 用户名（用于登录）
+  nickname?: string // 用户昵称（可选，用于显示，如未填写则使用用户名）
+  email?: string // 用户邮箱（可选，用于登录）
+  phone?: string // 用户手机号（可选，用于登录）
+  avatar?: string // 用户头像URL（可选，默认头像）
+}
+
+/**
+ * 登录请求
+ */
+export interface LoginRequest {
+  account: string // 用户账号（用户名、邮箱或手机号）
+  password: string // 用户密码
+  remember_me: boolean // 是否记住我（影响Token有效期）
+}
+
+/**
+ * 登录响应
+ */
+export interface LoginResponse {
+  token: string // JWT Token，用于后续请求的身份验证
+  user: UserInfo // 用户基本信息
+  expires_in: number // Token有效期（秒），如：604800（7天）或86400（24小时）
+}
+
+/**
+ * 用户列表项
+ */
+export interface UserListItem {
+  user_id: string // 用户唯一标识（UUID）
+  username: string // 用户名（用于登录）
+  nickname?: string // 用户昵称（可选，用于显示，如未填写则使用用户名）
+  email?: string // 用户邮箱（可选，用于登录）
+  phone?: string // 用户手机号（可选，用于登录）
+  avatar?: string // 用户头像URL
+  created_at: string // 用户创建时间（ISO 8601 格式）
+}
+
+/**
+ * 用户列表响应
+ */
+export interface UserListResponse {
+  users: UserListItem[] // 用户列表
+  total: number // 用户总数
+  page: number // 当前页码
+  page_size: number // 每页数量
+}
+
+/**
+ * 创建用户请求
+ */
+export interface CreateUserRequest {
+  username: string // 用户名（必填，用于登录，必须唯一）
+  nickname?: string // 用户昵称（可选，用于显示，如未填写则使用用户名）
+  email?: string // 用户邮箱（可选，用于登录）
+  phone?: string // 用户手机号（可选，用于登录）
+  password: string // 用户密码
+  avatar?: string // 用户头像URL（可选）
+}
+
+/**
+ * 创建用户响应
+ */
+export interface CreateUserResponse {
+  user: UserInfo // 新创建的用户信息
+}
+

@@ -1,27 +1,87 @@
 <template>
-  <div class="user-info">
-    <div class="user-avatar">
+  <div v-if="authStore.isAuthenticated && authStore.user" class="user-info">
+    <div class="user-avatar" @click="toggleDropdown">
       <span class="avatar-text">{{ userInitial }}</span>
     </div>
-    <span class="user-name">{{ user.name }}</span>
+    <span class="user-name">{{ displayName }}</span>
+    
+    <!-- 下拉菜单 -->
+    <div v-if="showDropdown" class="dropdown-menu">
+      <div class="dropdown-item user-info-item">
+        <div class="user-info-name">{{ displayName }}</div>
+        <div v-if="authStore.user.email" class="user-info-email">{{ authStore.user.email }}</div>
+      </div>
+      <div class="dropdown-divider"></div>
+      <button @click="handleLogout" class="dropdown-item logout-button">
+        退出
+      </button>
+    </div>
+  </div>
+  <div v-else class="user-info">
+    <span class="user-name">未登录</span>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/authStore'
 
-// 写死的用户数据
-const user = {
-  name: '用户',
-  avatar: '', // 当前不使用头像URL
+const router = useRouter()
+const authStore = useAuthStore()
+const showDropdown = ref(false)
+
+// 显示名称：优先使用昵称，如未填写则使用用户名
+const displayName = computed(() => {
+  if (authStore.user) {
+    return authStore.user.nickname || authStore.user.username
+  }
+  return ''
+})
+
+const userInitial = computed(() => {
+  if (authStore.user) {
+    // 优先使用昵称的首字母，如未填写则使用用户名的首字母
+    const name = authStore.user.nickname || authStore.user.username
+    if (name) {
+      return name.charAt(0).toUpperCase()
+    }
+  }
+  return 'U'
+})
+
+// 切换下拉菜单
+function toggleDropdown() {
+  showDropdown.value = !showDropdown.value
 }
 
-const userInitial = computed(() => user.name.charAt(0))
+// 点击外部关闭下拉菜单
+function handleClickOutside(event: MouseEvent) {
+  const target = event.target as HTMLElement
+  if (!target.closest('.user-info')) {
+    showDropdown.value = false
+  }
+}
+
+// 登出
+function handleLogout() {
+  authStore.logout()
+  showDropdown.value = false
+  router.push('/login')
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
 </script>
 
 <style scoped>
 .user-info {
-  @apply flex items-center gap-3;
+  @apply flex items-center gap-3 relative;
 }
 
 .user-avatar {
@@ -64,6 +124,35 @@ const userInitial = computed(() => user.name.charAt(0))
   }
 }
 
+/* 下拉菜单 */
+.dropdown-menu {
+  @apply absolute top-full right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50;
+}
+
+.dropdown-item {
+  @apply block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors;
+}
+
+.user-info-item {
+  @apply cursor-default;
+}
+
+.user-info-name {
+  @apply font-medium text-gray-900;
+}
+
+.user-info-email {
+  @apply text-xs text-gray-500 mt-1;
+}
+
+.dropdown-divider {
+  @apply border-t border-gray-200 my-1;
+}
+
+.logout-button {
+  @apply text-error-600 hover:bg-error-50 cursor-pointer;
+}
+
 /* 移动端响应式（<768px） */
 @media (max-width: 767px) {
   .user-name {
@@ -77,6 +166,10 @@ const userInitial = computed(() => user.name.charAt(0))
   
   .avatar-text {
     font-size: 12px;
+  }
+  
+  .dropdown-menu {
+    @apply right-0 w-48;
   }
 }
 </style>

@@ -5,6 +5,12 @@ import type {
   SessionInitResponse,
   ChatRequest,
   ChatResponse,
+  LoginRequest,
+  LoginResponse,
+  UserListResponse,
+  CreateUserRequest,
+  CreateUserResponse,
+  UserInfo,
 } from '../types'
 
 /**
@@ -32,7 +38,11 @@ const apiClient: AxiosInstance = axios.create({
  */
 apiClient.interceptors.request.use(
   (config) => {
-    // 可以在这里添加认证 token 等
+    // 添加认证 token
+    const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token')
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
     return config
   },
   (error) => {
@@ -47,12 +57,17 @@ apiClient.interceptors.response.use(
   (response) => {
     return response
   },
-  (error: AxiosError<ApiErrorResponse>) => {
+  (error: AxiosError<ApiErrorResponse | { detail?: string }>) => {
     // 统一错误处理
     if (error.response) {
       // 服务器返回了错误响应
       const errorData = error.response.data
-      const errorMessage = errorData?.error_message || error.message || '请求失败'
+      // FastAPI默认错误格式是 { detail: string }，也支持自定义格式 { error_message: string }
+      const errorMessage = 
+        (errorData as { detail?: string })?.detail ||
+        (errorData as ApiErrorResponse)?.error_message ||
+        error.message ||
+        '请求失败'
       return Promise.reject(new Error(errorMessage))
     } else if (error.request) {
       // 请求已发出但没有收到响应
@@ -100,6 +115,44 @@ export class ApiService {
       `/sessions/${sessionId}/chat`,
       request
     )
+    return response.data
+  }
+
+  /**
+   * 用户登录
+   * @param request 登录请求
+   */
+  static async login(request: LoginRequest): Promise<LoginResponse> {
+    const response = await apiClient.post<LoginResponse>('/auth/login', request)
+    return response.data
+  }
+
+  /**
+   * 获取当前用户信息
+   */
+  static async getCurrentUser(): Promise<{ user: UserInfo }> {
+    const response = await apiClient.get<{ user: UserInfo }>('/auth/me')
+    return response.data
+  }
+
+  /**
+   * 获取用户列表
+   * @param page 页码（可选，默认1）
+   * @param pageSize 每页数量（可选，默认20）
+   */
+  static async getUserList(page: number = 1, pageSize: number = 20): Promise<UserListResponse> {
+    const response = await apiClient.get<UserListResponse>('/admin/users', {
+      params: { page, page_size: pageSize },
+    })
+    return response.data
+  }
+
+  /**
+   * 创建用户
+   * @param request 创建用户请求
+   */
+  static async createUser(request: CreateUserRequest): Promise<CreateUserResponse> {
+    const response = await apiClient.post<CreateUserResponse>('/admin/users', request)
     return response.data
   }
 }
