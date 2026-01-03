@@ -1,107 +1,111 @@
 <template>
   <div class="chat-panel">
-    <!-- 欢迎语区域（仅在没有消息时显示） -->
-    <div v-if="messages.length === 0" class="welcome-area">
-      <WelcomeMessage />
-    </div>
-    
-    <!-- 对话内容区域 -->
-    <div v-if="messages.length > 0" class="messages-area">
+    <!-- 消息内容区域（包含欢迎语和消息，可滚动） -->
+    <div class="messages-area">
+      <!-- 欢迎语（仅在没有消息时显示） -->
+      <div v-if="sessionStore.messages.length === 0" class="welcome-area">
+        <WelcomeMessage :welcome-message="welcomeMessage" />
+      </div>
+      
+      <!-- 消息列表 -->
       <div 
-        v-for="message in messages" 
-        :key="message.id" 
+        v-for="(message, index) in sessionStore.messages" 
+        :key="`${message.role}-${index}-${message.content.slice(0, 10)}`" 
         :class="['message-item', message.role]"
       >
         <div class="message-role">{{ message.role === 'user' ? '你' : 'AI' }}</div>
         <div class="message-content">{{ message.content }}</div>
-        <button v-if="message.role === 'assistant'" class="preview-btn" @click="handlePreview">
+        <button v-if="message.role === 'assistant' && message.artifacts && message.artifacts.length > 0" class="preview-btn" @click="handlePreview(message.artifacts[0])">
           预览
         </button>
       </div>
+      
+      <!-- 加载指示器 -->
+      <div v-if="sessionStore.loading" class="loading-indicator">
+        <div class="loading-dots">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      </div>
     </div>
     
-    <!-- 输入框区域 -->
+    <!-- 输入框区域（固定在底部） -->
     <div class="input-area">
-      <ChatInput @send="handleSendMessage" />
+      <ChatInput @send="handleSendMessage" :disabled="sessionStore.loading" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { watch, nextTick } from 'vue'
 import WelcomeMessage from './WelcomeMessage.vue'
 import ChatInput from './ChatInput.vue'
+import { useSessionStore } from '../stores/sessionStore'
+import type { Artifact } from '../types'
 
 const props = defineProps<{
-  conversationId?: string
+  toolId?: string
+  welcomeMessage?: string
+  sessionId?: string
 }>()
 
 const emit = defineEmits<{
   send: [content: string]
-  preview: []
+  preview: [artifact: Artifact]
 }>()
 
-// 写死的对话数据（根据conversationId切换）
-const conversationMessages: Record<string, Array<{ id: string; role: string; content: string }>> = {
-  'conv-1': [
-    {
-      id: 'msg-1',
-      role: 'assistant',
-      content: '你好！我是AI助手，可以帮助你处理各种任务。',
-    },
-    {
-      id: 'msg-2',
-      role: 'user',
-      content: '请帮我优化一下提示词',
-    },
-  ],
-  'conv-2': [
-    {
-      id: 'msg-3',
-      role: 'assistant',
-      content: '关于产品设计，我们可以从用户体验的角度来思考...',
-    },
-  ],
-  'conv-3': [
-    {
-      id: 'msg-4',
-      role: 'assistant',
-      content: '前端架构的选择需要考虑多个因素...',
-    },
-  ],
-  'conv-4': [
-    {
-      id: 'msg-5',
-      role: 'assistant',
-      content: '代码重构是一个渐进的过程...',
-    },
-  ],
-}
+const sessionStore = useSessionStore()
 
-const messages = ref<Array<{ id: string; role: string; content: string }>>(
-  conversationMessages[props.conversationId || 'conv-1'] || []
-)
-
-// 监听对话切换
-watch(() => props.conversationId, (newId) => {
-  if (newId) {
-    messages.value = conversationMessages[newId] || []
+// 初始化工具
+watch(() => props.toolId, (newToolId) => {
+  if (newToolId) {
+    sessionStore.initTool(newToolId)
   }
 }, { immediate: true })
 
-function handleSendMessage(content: string) {
-  // 添加用户消息
-  messages.value.push({
-    id: `msg-${Date.now()}`,
-    role: 'user',
-    content,
-  })
-  emit('send', content)
-  // 当前迭代不添加AI回复，后续实现
+// 恢复会话
+watch(() => props.sessionId, async (newSessionId) => {
+  if (newSessionId) {
+    try {
+      await sessionStore.restoreSession(newSessionId)
+    } catch (err) {
+      console.error('恢复会话失败:', err)
+    }
+  }
+}, { immediate: true })
+
+async function handleSendMessage(content: string) {
+  if (!props.toolId) {
+    console.error('工具ID未设置，无法发送消息')
+    return
+  }
+  
+  try {
+    await sessionStore.sendMessage(content)
+    emit('send', content)
+    
+    // 发送成功后，滚动到底部
+    await nextTick()
+    scrollToBottom()
+  } catch (err) {
+    console.error('发送消息失败:', err)
+    // 错误已经在 sessionStore 中处理，这里只记录日志
+  }
 }
 
-function handlePreview() {
-  emit('preview')
+/**
+ * 滚动到底部
+ */
+function scrollToBottom() {
+  const messagesArea = document.querySelector('.messages-area')
+  if (messagesArea) {
+    messagesArea.scrollTop = messagesArea.scrollHeight
+  }
+}
+
+function handlePreview(artifact: Artifact) {
+  emit('preview', artifact)
 }
 </script>
 
@@ -110,13 +114,15 @@ function handlePreview() {
   @apply flex flex-col h-full overflow-hidden bg-white;
 }
 
-.welcome-area {
-  @apply py-16 px-6 flex-shrink-0; /* 从py-12(48px)增加到py-16(64px)，更大气 */
-}
-
 .messages-area {
   @apply flex-1 overflow-y-auto px-6 py-8 flex flex-col gap-8; /* 从py-6(24px)增加到py-8(32px)，gap从6增加到8 */
   scroll-behavior: smooth;
+  min-height: 0; /* 确保 flex 子元素可以正确收缩 */
+}
+
+.welcome-area {
+  @apply flex-1 flex items-center justify-center; /* 欢迎语居中显示 */
+  min-height: 0;
 }
 
 .message-item {
@@ -176,6 +182,26 @@ function handlePreview() {
 .preview-btn:active {
   transform: translateY(0);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.loading-indicator {
+  @apply flex items-center justify-center py-4;
+}
+
+.loading-dots {
+  @apply flex gap-2;
+}
+
+.loading-dots span {
+  @apply w-2 h-2 bg-gray-400 rounded-full animate-pulse;
+}
+
+.loading-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.loading-dots span:nth-child(3) {
+  animation-delay: 0.4s;
 }
 
 .input-area {

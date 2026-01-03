@@ -108,14 +108,55 @@ class Artifact(BaseModel):
     timestamp: datetime = Field(default_factory=datetime.now, description="成果物生成时间")
 
 
+class Session(BaseModel):
+    """会话实体（聚合根）"""
+    session_id: str = Field(..., description="会话 UUID")
+    user_id: str = Field(..., description="关联的用户ID（UUID）")
+    tool_id: str = Field(..., description="关联的工具标识")
+    title: str = Field(..., description="会话标题（自动生成）")
+    created_at: datetime = Field(default_factory=datetime.now, description="会话创建时间")
+    updated_at: datetime = Field(default_factory=datetime.now, description="最后更新时间")
+    
+    def generate_title(self, first_message: str, max_length: int = 50) -> str:
+        """
+        基于第一条用户消息生成会话标题
+        
+        Args:
+            first_message: 第一条用户消息内容
+            max_length: 标题最大长度（默认50）
+            
+        Returns:
+            生成的会话标题
+        """
+        # 去除首尾空白
+        title = first_message.strip()
+        
+        # 如果超过最大长度，截断并添加省略号
+        if len(title) > max_length:
+            title = title[:max_length].rstrip() + "..."
+        
+        # 如果为空，使用默认标题
+        if not title:
+            title = "新对话"
+        
+        return title
+    
+    def update_timestamp(self):
+        """更新会话的最后更新时间"""
+        self.updated_at = datetime.now()
+
+
 class Message(BaseModel):
     """消息实体"""
+    message_id: Optional[str] = Field(None, description="消息 UUID（可选，用于数据库存储）")
+    session_id: Optional[str] = Field(None, description="关联的会话ID（可选，用于数据库存储）")
     role: Literal["user", "assistant"] = Field(..., description="消息角色")
     content: str = Field(..., description="消息内容（Markdown 格式）")
-    timestamp: datetime = Field(default_factory=datetime.now, description="消息时间戳")
+    created_at: Optional[datetime] = Field(None, description="消息创建时间（可选，用于数据库存储）")
+    timestamp: Optional[datetime] = Field(None, description="消息时间戳（API 响应使用，兼容前端）")
     artifacts: List[Artifact] = Field(
         default_factory=list,
-        description="消息中包含的成果物列表"
+        description="消息中包含的成果物列表（从 content 中解析）"
     )
 
 
@@ -133,14 +174,16 @@ class SessionInitResponse(BaseModel):
 class ChatRequest(BaseModel):
     """对话请求"""
     message: str = Field(..., description="用户输入的消息", min_length=1)
+    session_id: Optional[str] = Field(None, description="会话 UUID（可选）。如果有则继续会话，没有则创建新会话")
     history: Optional[List[Message]] = Field(
         None,
-        description="历史消息列表（可选）。如果提供，后端使用该历史；如果不提供，后端从数据库读取（未来扩展）"
+        description="历史消息列表（可选）。如果提供，后端使用该历史；如果不提供，后端从数据库读取"
     )
 
 
 class ChatResponse(BaseModel):
     """对话响应"""
+    session_id: str = Field(..., description="会话 UUID。首次调用返回新创建的session_id，后续调用返回原session_id")
     reply: str = Field(..., description="AI 的文本回复内容（完整 Markdown 文本）")
     artifacts: List[Artifact] = Field(
         default_factory=list,
@@ -245,4 +288,37 @@ class UserListResponse(BaseModel):
     total: int = Field(..., description="用户总数")
     page: int = Field(..., description="当前页码")
     page_size: int = Field(..., description="每页数量")
+
+
+class ConversationListItem(BaseModel):
+    """对话列表项（用于 API 响应）"""
+    session_id: str = Field(..., description="会话 UUID")
+    title: str = Field(..., description="会话标题")
+    updated_at: datetime = Field(..., description="最后更新时间")
+
+
+class ConversationListResponse(BaseModel):
+    """对话列表响应"""
+    conversations: List[ConversationListItem] = Field(..., description="对话列表")
+
+
+class UpdateSessionRequest(BaseModel):
+    """更新会话请求"""
+    title: str = Field(..., description="新的会话标题", min_length=1, max_length=200)
+
+
+class UpdateSessionResponse(BaseModel):
+    """更新会话响应"""
+    session_id: str = Field(..., description="会话 UUID")
+    title: str = Field(..., description="更新后的会话标题")
+
+
+class SessionDetailResponse(BaseModel):
+    """会话详情响应"""
+    session_id: str = Field(..., description="会话 UUID")
+    tool_id: str = Field(..., description="工具唯一标识符")
+    title: str = Field(..., description="会话标题")
+    created_at: datetime = Field(..., description="创建时间")
+    updated_at: datetime = Field(..., description="最后更新时间")
+    messages: List[Message] = Field(..., description="消息列表")
 

@@ -243,3 +243,41 @@ alembic upgrade head
 
 **注意**：两种方式都会检查用户是否已存在，不会重复创建。
 
+---
+
+## 5. 创建会话相关表
+
+### 5.1 使用 Alembic 迁移（推荐）
+
+运行以下命令创建 sessions、messages、artifacts 表：
+
+```bash
+cd backend
+source ai-teacher-platform-backend/bin/activate
+alembic upgrade head
+```
+
+### 5.2 手动执行 SQL（备选方案）
+
+如果 Alembic 迁移失败，可以手动执行 SQL 脚本：
+
+```bash
+mysql -u root -p ai_teacher_platform < backend/migrations/create_sessions_tables.sql
+```
+
+或者直接在 MySQL 客户端中执行 `backend/migrations/create_sessions_tables.sql` 文件中的 SQL 语句。
+
+### 5.3 验证表创建
+
+执行以下 SQL 验证表是否创建成功：
+
+```sql
+SHOW TABLES;
+-- 应该看到：users, sessions, messages, artifacts
+
+DESCRIBE sessions;
+DESCRIBE messages;
+DESCRIBE artifacts;
+```
+
+---

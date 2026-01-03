@@ -6,70 +6,131 @@
       </button>
     </div>
     <div class="conversation-items">
+      <!-- 加载状态 -->
+      <div v-if="loading" class="loading-state">
+        <div class="loading-spinner"></div>
+        <span class="loading-text">加载对话列表...</span>
+      </div>
+      
+      <!-- 错误状态 -->
+      <div v-else-if="error" class="error-state">
+        <span class="error-text">{{ error }}</span>
+      </div>
+      
+      <!-- 空状态 -->
+      <div v-else-if="conversations.length === 0" class="empty-state">
+        <span class="empty-text">暂无对话</span>
+      </div>
+      
+      <!-- 对话列表 -->
       <div
+        v-else
         v-for="conversation in conversations"
-        :key="conversation.id"
-        :class="['conversation-item', { active: currentConversationId === conversation.id }]"
-        @click="handleConversationClick(conversation.id)"
+        :key="conversation.session_id"
+        :class="['conversation-item', { active: currentConversationId === conversation.session_id }]"
+        @click="handleConversationClick(conversation.session_id)"
       >
         <div class="conversation-title">{{ conversation.title }}</div>
-        <div v-if="conversation.preview" class="conversation-preview">
-          {{ conversation.preview }}
-        </div>
+        <div class="conversation-time">{{ formatTime(conversation.updated_at) }}</div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch, onMounted } from 'vue'
+import { ApiService } from '../services/apiClient'
+import type { ConversationListItem } from '../types'
 
-interface ConversationItem {
-  id: string
-  title: string
-  preview?: string
-  timestamp?: number
-}
-
-const emit = defineEmits<{
-  'conversation-change': [conversationId: string]
+const props = defineProps<{
+  toolId?: string
 }>()
 
-// 写死的对话列表数据
-const conversations: ConversationItem[] = [
-  {
-    id: 'conv-1',
-    title: '提示词优化讨论',
-    preview: '如何优化AI提示词的效果？',
-  },
-  {
-    id: 'conv-2',
-    title: '产品设计思路',
-    preview: '关于新功能的用户体验设计...',
-  },
-  {
-    id: 'conv-3',
-    title: '技术方案讨论',
-    preview: '前端架构的选择和优化方向',
-  },
-  {
-    id: 'conv-4',
-    title: '代码重构计划',
-    preview: '如何重构现有代码结构...',
-  },
-]
+const emit = defineEmits<{
+  'conversation-change': [sessionId: string]
+  'new-conversation': []
+}>()
 
-const currentConversationId = ref<string>('conv-1')
+const conversations = ref<ConversationListItem[]>([])
+const currentConversationId = ref<string | null>(null)
+const loading = ref(false)
+const error = ref<string | null>(null)
 
-function handleConversationClick(conversationId: string) {
-  currentConversationId.value = conversationId
-  emit('conversation-change', conversationId)
+// 加载历史对话列表
+async function loadConversations() {
+  if (!props.toolId) {
+    conversations.value = []
+    return
+  }
+
+  loading.value = true
+  error.value = null
+
+  try {
+    const response = await ApiService.getConversations(props.toolId)
+    conversations.value = response.conversations
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : '加载对话列表失败'
+    console.error('加载对话列表失败:', err)
+  } finally {
+    loading.value = false
+  }
+}
+
+// 监听工具切换，重新加载对话列表
+watch(() => props.toolId, (newToolId) => {
+  if (newToolId) {
+    currentConversationId.value = null
+    loadConversations()
+  } else {
+    conversations.value = []
+  }
+}, { immediate: true })
+
+function handleConversationClick(sessionId: string) {
+  currentConversationId.value = sessionId
+  emit('conversation-change', sessionId)
 }
 
 function handleNewConversation() {
-  // 当前迭代仅占位，后续实现
-  console.log('新建对话')
+  currentConversationId.value = null
+  emit('new-conversation')
 }
+
+/**
+ * 格式化时间
+ */
+function formatTime(timestamp: string): string {
+  const date = new Date(timestamp)
+  const now = new Date()
+  const diff = now.getTime() - date.getTime()
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+  
+  if (days === 0) {
+    // 今天：显示时间
+    return date.toLocaleTimeString('zh-CN', {
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  } else if (days === 1) {
+    // 昨天
+    return '昨天'
+  } else if (days < 7) {
+    // 一周内：显示星期
+    return date.toLocaleDateString('zh-CN', { weekday: 'short' })
+  } else {
+    // 更早：显示日期
+    return date.toLocaleDateString('zh-CN', {
+      month: 'short',
+      day: 'numeric',
+    })
+  }
+}
+
+// 暴露刷新方法，供外部调用
+defineExpose({
+  refresh: loadConversations,
+})
 </script>
 
 <style scoped>
@@ -125,12 +186,29 @@ function handleNewConversation() {
   line-height: 1.4;
 }
 
-.conversation-preview {
-  @apply text-xs text-gray-500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.conversation-time {
+  @apply text-xs text-gray-400;
   line-height: 1.4;
+}
+
+.loading-state,
+.error-state,
+.empty-state {
+  @apply flex flex-col items-center justify-center py-8;
+}
+
+.loading-spinner {
+  @apply w-6 h-6 border-[3px] border-gray-200 border-t-primary-500 rounded-full animate-spin mb-2;
+}
+
+.loading-text,
+.error-text,
+.empty-text {
+  @apply text-sm text-gray-500;
+}
+
+.error-text {
+  @apply text-red-500;
 }
 
 /* 平板端响应式（768px - 1023px） */

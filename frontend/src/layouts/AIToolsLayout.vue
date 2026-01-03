@@ -20,7 +20,12 @@
     </button>
     
     <!-- 右侧：聊天区域或敬请期待页面 -->
-    <ChatArea v-if="currentTool && currentTool.type === 'normal'" class="chat-area" />
+    <ChatArea 
+      v-if="currentTool && currentTool.type === 'normal'" 
+      :tool-id="currentTool.tool_id"
+      :welcome-message="currentTool.welcome_message"
+      class="chat-area" 
+    />
     <ComingSoon 
       v-else-if="currentTool && currentTool.type === 'placeholder'"
       :tool-name="currentTool.name"

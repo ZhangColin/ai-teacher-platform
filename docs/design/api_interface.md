@@ -350,8 +350,8 @@ class ToolListResponse(BaseModel):
       "tools": [
         {
           "tool_id": "prompt_wizard",
-          "name": "AI 提示词向导",
-          "description": "通过六步引导法，帮助您打造专家级提示词",
+      "name": "AI 提示词向导",
+      "description": "通过六步引导法，帮助您打造专家级提示词",
           "icon": "command-line",
           "category": "智能体",
           "visible": true,
@@ -401,8 +401,8 @@ class ChatRequest(BaseModel):
 - **预览按钮显示**：代码块的语言标识为 `markdown`、`html`、`svg` 时，前端自动显示预览按钮
 - **错误处理**：
   - 如果工具不存在，返回 404 错误
-  - 如果会话不属于当前用户，返回 403 Forbidden
-  - 如果未认证，返回 401 错误
+- 如果会话不属于当前用户，返回 403 Forbidden
+- 如果未认证，返回 401 错误
 
 **响应方式**：
 - **MVP 阶段**：一次性返回完整回复（简化实现，快速验证架构）

@@ -118,13 +118,13 @@
 
 | ID | 任务描述 | 状态 | 优先级 |
 |:---|:---|:---|:---|
-| session-1 | 更新会话数据模型：添加 `title`、`updated_at` 字段，关联 `user_id` 和 `tool_id` | pending | P0 |
-| session-2 | 实现会话延迟创建机制：用户进入工具时不创建会话，发送第一条消息时才创建 | pending | P0 |
-| session-3 | 实现会话自动命名：基于第一条消息的前30-50个字符生成标题（前端决定长度） | pending | P0 |
-| session-4 | 实现获取会话详情API（GET /api/v1/sessions/{session_id}）：返回完整消息历史 | pending | P0 |
-| session-5 | 更新对话交互API（POST /api/v1/tools/{tool_id}/chat）：支持 `session_id` 可选，首次调用自动创建会话 | pending | P0 |
-| session-6 | 实现欢迎语配置化展示：从工具配置读取 `welcome_message`，用户进入工具时展示 | pending | P0 |
-| session-7 | 实现会话恢复功能：刷新页面后，前端调用API恢复会话列表和当前会话 | pending | P0 |
+| session-1 | 更新会话数据模型：添加 `title`、`updated_at` 字段，关联 `user_id` 和 `tool_id` | completed | P0 |
+| session-2 | 实现会话延迟创建机制：用户进入工具时不创建会话，发送第一条消息时才创建 | completed | P0 |
+| session-3 | 实现会话自动命名：基于第一条消息的前30-50个字符生成标题（前端决定长度） | completed | P0 |
+| session-4 | 实现获取会话详情API（GET /api/v1/sessions/{session_id}）：返回完整消息历史 | completed | P0 |
+| session-5 | 更新对话交互API（POST /api/v1/tools/{tool_id}/chat）：支持 `session_id` 可选，首次调用自动创建会话 | completed | P0 |
+| session-6 | 实现欢迎语配置化展示：从工具配置读取 `welcome_message`，用户进入工具时展示 | completed | P0 |
+| session-7 | 实现会话恢复功能：刷新页面后，前端调用API恢复会话列表和当前会话 | completed | P0 |
 
 #### 预览功能模块（基础功能）
 

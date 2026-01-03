@@ -92,6 +92,7 @@ export interface SessionInitResponse {
  */
 export interface ChatRequest {
   message: string // 用户输入的消息
+  session_id?: string | null // 会话 UUID（可选，如果有则继续会话，没有则创建新会话）
   history?: Message[] // 历史消息列表（可选）
 }
 
@@ -99,8 +100,52 @@ export interface ChatRequest {
  * 对话响应
  */
 export interface ChatResponse {
+  session_id: string // 会话 UUID。首次调用返回新创建的session_id，后续调用返回原session_id
   reply: string // AI 的文本回复内容（完整 Markdown 文本）
   artifacts: Artifact[] // 从回复中解析出的成果物列表（代码块内容）
+}
+
+/**
+ * 历史对话列表项
+ */
+export interface ConversationListItem {
+  session_id: string // 会话 UUID
+  title: string // 会话标题
+  updated_at: string // 最后更新时间（ISO 8601 格式）
+}
+
+/**
+ * 历史对话列表响应
+ */
+export interface ConversationListResponse {
+  conversations: ConversationListItem[] // 对话列表
+}
+
+/**
+ * 会话详情响应
+ */
+export interface SessionDetailResponse {
+  session_id: string // 会话 UUID
+  tool_id: string // 工具唯一标识符
+  title: string // 会话标题
+  created_at: string // 创建时间（ISO 8601 格式）
+  updated_at: string // 最后更新时间（ISO 8601 格式）
+  messages: Message[] // 消息列表
+}
+
+/**
+ * 更新会话标题请求
+ */
+export interface UpdateSessionRequest {
+  title: string // 新的会话标题
+}
+
+/**
+ * 更新会话标题响应
+ */
+export interface UpdateSessionResponse {
+  session_id: string // 会话 UUID
+  title: string // 更新后的会话标题
 }
 
 /**

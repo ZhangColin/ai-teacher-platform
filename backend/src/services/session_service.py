@@ -1,8 +1,13 @@
-"""会话服务：管理 Agent 会话"""
+# -*- coding: utf-8 -*-
+"""会话服务：管理会话和消息"""
 import uuid
 from datetime import datetime
-from typing import Dict, Optional
-from ..models import Agent
+from typing import List, Optional
+from sqlalchemy.orm import Session
+from sqlalchemy import desc
+
+from ..models import Session as SessionDomain, Message as MessageDomain
+from ..db_models import SessionModel, MessageModel, MessageRole
 
 
 class SessionService:
@@ -10,48 +15,306 @@ class SessionService:
     
     def __init__(self):
         """初始化会话服务"""
-        # MVP 阶段：使用内存存储会话信息
-        # 未来扩展：可改为数据库存储
-        self.sessions: Dict[str, dict] = {}  # {session_id: {agent_id, created_at, ...}}
+        # 使用数据库的 get_db 函数
+        from ..database import get_db
+        self._get_db = get_db
     
-    def create_session(self, agent: Agent) -> str:
+    def create_session(
+        self, 
+        user_id: str, 
+        tool_id: str, 
+        title: Optional[str] = None,
+        first_message: Optional[str] = None
+    ) -> SessionDomain:
         """
         创建新会话
         
         Args:
-            agent: Agent 实例
+            user_id: 用户ID
+            tool_id: 工具ID
+            title: 会话标题（可选，如果不提供则基于 first_message 生成）
+            first_message: 第一条用户消息（可选，用于自动生成标题）
             
         Returns:
-            会话 ID (UUID)
+            Session 领域模型实例
         """
-        session_id = str(uuid.uuid4())
-        self.sessions[session_id] = {
-            "agent_id": agent.agent_id,
-            "created_at": datetime.now()
-        }
-        return session_id
+        db = next(self._get_db())
+        
+        try:
+            # 生成会话ID
+            session_id = str(uuid.uuid4())
+            
+            # 生成标题
+            if title is None:
+                if first_message:
+                    # 创建临时 Session 对象用于生成标题
+                    temp_session = SessionDomain(
+                        session_id=session_id,
+                        user_id=user_id,
+                        tool_id=tool_id,
+                        title=""
+                    )
+                    title = temp_session.generate_title(first_message)
+                else:
+                    title = "新对话"
+            
+            # 创建数据库模型
+            session_model = SessionModel(
+                session_id=session_id,
+                user_id=user_id,
+                tool_id=tool_id,
+                title=title,
+                created_at=datetime.now(),
+                updated_at=datetime.now()
+            )
+            
+            db.add(session_model)
+            db.commit()
+            db.refresh(session_model)
+            
+            # 转换为领域模型
+            return self._to_domain_model(session_model)
+            
+        finally:
+            db.close()
     
-    def get_session(self, session_id: str) -> Optional[dict]:
+    def get_session_by_id(self, session_id: str, user_id: Optional[str] = None) -> Optional[SessionDomain]:
         """
-        获取会话信息
+        根据ID获取会话
         
         Args:
-            session_id: 会话 ID
+            session_id: 会话ID
+            user_id: 用户ID（可选，如果提供则验证会话是否属于该用户）
             
         Returns:
-            会话信息字典，如果不存在返回 None
+            Session 领域模型实例，如果不存在或不属于用户则返回 None
         """
-        return self.sessions.get(session_id)
+        db = next(self._get_db())
+        
+        try:
+            query = db.query(SessionModel).filter(SessionModel.session_id == session_id)
+            
+            if user_id:
+                query = query.filter(SessionModel.user_id == user_id)
+            
+            session_model = query.first()
+            
+            if not session_model:
+                return None
+            
+            return self._to_domain_model(session_model)
+            
+        finally:
+            db.close()
     
-    def session_exists(self, session_id: str) -> bool:
+    def get_sessions_by_user_and_tool(
+        self, 
+        user_id: str, 
+        tool_id: str
+    ) -> List[SessionDomain]:
         """
-        检查会话是否存在
+        获取用户在某工具下的所有会话，按更新时间倒序
         
         Args:
-            session_id: 会话 ID
+            user_id: 用户ID
+            tool_id: 工具ID
             
         Returns:
-            是否存在
+            会话列表（按 updated_at 倒序）
         """
-        return session_id in self.sessions
-
+        db = next(self._get_db())
+        
+        try:
+            session_models = db.query(SessionModel).filter(
+                SessionModel.user_id == user_id,
+                SessionModel.tool_id == tool_id
+            ).order_by(desc(SessionModel.updated_at)).all()
+            
+            return [self._to_domain_model(sm) for sm in session_models]
+            
+        finally:
+            db.close()
+    
+    def update_session_title(self, session_id: str, new_title: str, user_id: Optional[str] = None) -> Optional[SessionDomain]:
+        """
+        更新会话标题
+        
+        Args:
+            session_id: 会话ID
+            new_title: 新标题
+            user_id: 用户ID（可选，如果提供则验证会话是否属于该用户）
+            
+        Returns:
+            更新后的 Session 领域模型实例，如果不存在或不属于用户则返回 None
+        """
+        db = next(self._get_db())
+        
+        try:
+            query = db.query(SessionModel).filter(SessionModel.session_id == session_id)
+            
+            if user_id:
+                query = query.filter(SessionModel.user_id == user_id)
+            
+            session_model = query.first()
+            
+            if not session_model:
+                return None
+            
+            # 更新标题和时间戳
+            session_model.title = new_title
+            session_model.updated_at = datetime.now()
+            
+            db.commit()
+            db.refresh(session_model)
+            
+            return self._to_domain_model(session_model)
+            
+        finally:
+            db.close()
+    
+    def delete_session(self, session_id: str, user_id: Optional[str] = None) -> bool:
+        """
+        删除会话（级联删除消息和成果物）
+        
+        Args:
+            session_id: 会话ID
+            user_id: 用户ID（可选，如果提供则验证会话是否属于该用户）
+            
+        Returns:
+            是否删除成功
+        """
+        db = next(self._get_db())
+        
+        try:
+            query = db.query(SessionModel).filter(SessionModel.session_id == session_id)
+            
+            if user_id:
+                query = query.filter(SessionModel.user_id == user_id)
+            
+            session_model = query.first()
+            
+            if not session_model:
+                return False
+            
+            db.delete(session_model)
+            db.commit()
+            
+            return True
+            
+        finally:
+            db.close()
+    
+    def add_message(
+        self,
+        session_id: str,
+        role: str,
+        content: str,
+        user_id: Optional[str] = None
+    ) -> MessageDomain:
+        """
+        添加消息到会话
+        
+        Args:
+            session_id: 会话ID
+            role: 消息角色（'user' 或 'assistant'）
+            content: 消息内容
+            user_id: 用户ID（可选，如果提供则验证会话是否属于该用户）
+            
+        Returns:
+            Message 领域模型实例
+        """
+        db = next(self._get_db())
+        
+        try:
+            # 验证会话存在且属于用户
+            query = db.query(SessionModel).filter(SessionModel.session_id == session_id)
+            if user_id:
+                query = query.filter(SessionModel.user_id == user_id)
+            
+            session_model = query.first()
+            if not session_model:
+                raise ValueError(f"Session '{session_id}' not found")
+            
+            # 创建消息
+            message_id = str(uuid.uuid4())
+            message_model = MessageModel(
+                message_id=message_id,
+                session_id=session_id,
+                role=MessageRole(role),
+                content=content,
+                created_at=datetime.now()
+            )
+            
+            db.add(message_model)
+            
+            # 更新会话的 updated_at
+            session_model.updated_at = datetime.now()
+            
+            db.commit()
+            db.refresh(message_model)
+            
+            # 转换为领域模型
+            return self._to_domain_model_message(message_model)
+            
+        finally:
+            db.close()
+    
+    def get_messages_by_session(
+        self,
+        session_id: str,
+        user_id: Optional[str] = None
+    ) -> List[MessageDomain]:
+        """
+        获取会话的所有消息，按创建时间正序
+        
+        Args:
+            session_id: 会话ID
+            user_id: 用户ID（可选，如果提供则验证会话是否属于该用户）
+            
+        Returns:
+            消息列表（按 created_at 正序）
+        """
+        db = next(self._get_db())
+        
+        try:
+            # 验证会话存在且属于用户
+            query = db.query(SessionModel).filter(SessionModel.session_id == session_id)
+            if user_id:
+                query = query.filter(SessionModel.user_id == user_id)
+            
+            session_model = query.first()
+            if not session_model:
+                return []
+            
+            # 获取消息
+            message_models = db.query(MessageModel).filter(
+                MessageModel.session_id == session_id
+            ).order_by(MessageModel.created_at).all()
+            
+            return [self._to_domain_model_message(mm) for mm in message_models]
+            
+        finally:
+            db.close()
+    
+    def _to_domain_model(self, session_model: SessionModel) -> SessionDomain:
+        """将数据库模型转换为领域模型"""
+        return SessionDomain(
+            session_id=session_model.session_id,
+            user_id=session_model.user_id,
+            tool_id=session_model.tool_id,
+            title=session_model.title,
+            created_at=session_model.created_at,
+            updated_at=session_model.updated_at
+        )
+    
+    def _to_domain_model_message(self, message_model: MessageModel) -> MessageDomain:
+        """将数据库模型转换为领域模型"""
+        return MessageDomain(
+            message_id=message_model.message_id,
+            session_id=message_model.session_id,
+            role=message_model.role.value,
+            content=message_model.content,
+            created_at=message_model.created_at,
+            timestamp=message_model.created_at,  # 兼容前端
+            artifacts=[]  # 成果物需要单独查询
+        )

@@ -6,9 +6,13 @@
 </template>
 
 <script setup lang="ts">
-// 写死的欢迎语数据
+const props = defineProps<{
+  welcomeMessage?: string
+}>()
+
+// 如果没有传入欢迎语，使用默认值
 const welcomeTitle = '欢迎使用 AI 工具平台'
-const welcomeText = '我是你的AI助手，可以帮助你处理各种任务。请告诉我你需要什么帮助？'
+const welcomeText = props.welcomeMessage || '我是你的AI助手，可以帮助你处理各种任务。请告诉我你需要什么帮助？'
 </script>
 
 <style scoped>
@@ -55,4 +59,3 @@ const welcomeText = '我是你的AI助手，可以帮助你处理各种任务。
   }
 }
 </style>
-

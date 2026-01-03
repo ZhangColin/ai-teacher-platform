@@ -6,6 +6,10 @@ import type {
   SessionInitResponse,
   ChatRequest,
   ChatResponse,
+  ConversationListResponse,
+  SessionDetailResponse,
+  UpdateSessionRequest,
+  UpdateSessionResponse,
   LoginRequest,
   LoginResponse,
   UserListResponse,
@@ -112,19 +116,65 @@ export class ApiService {
   }
 
   /**
-   * 发送消息
-   * @param sessionId 会话 UUID
-   * @param request 对话请求
+   * 发送消息（新接口，支持延迟创建会话）
+   * @param toolId 工具唯一标识符
+   * @param request 对话请求（包含 session_id 可选）
    */
   static async chat(
-    sessionId: string,
+    toolId: string,
     request: ChatRequest
   ): Promise<ChatResponse> {
     const response = await apiClient.post<ChatResponse>(
-      `/sessions/${sessionId}/chat`,
+      `/tools/${toolId}/chat`,
       request
     )
     return response.data
+  }
+
+  /**
+   * 获取历史对话列表
+   * @param toolId 工具唯一标识符
+   */
+  static async getConversations(toolId: string): Promise<ConversationListResponse> {
+    const response = await apiClient.get<ConversationListResponse>(
+      `/tools/${toolId}/conversations`
+    )
+    return response.data
+  }
+
+  /**
+   * 获取会话详情
+   * @param sessionId 会话 UUID
+   */
+  static async getSessionDetail(sessionId: string): Promise<SessionDetailResponse> {
+    const response = await apiClient.get<SessionDetailResponse>(
+      `/sessions/${sessionId}`
+    )
+    return response.data
+  }
+
+  /**
+   * 更新会话标题
+   * @param sessionId 会话 UUID
+   * @param request 更新请求
+   */
+  static async updateSessionTitle(
+    sessionId: string,
+    request: UpdateSessionRequest
+  ): Promise<UpdateSessionResponse> {
+    const response = await apiClient.patch<UpdateSessionResponse>(
+      `/sessions/${sessionId}`,
+      request
+    )
+    return response.data
+  }
+
+  /**
+   * 删除会话
+   * @param sessionId 会话 UUID
+   */
+  static async deleteSession(sessionId: string): Promise<void> {
+    await apiClient.delete(`/sessions/${sessionId}`)
   }
 
   /**

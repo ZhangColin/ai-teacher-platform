@@ -17,7 +17,7 @@ load_dotenv()
 
 # 导入数据库配置和模型
 from src.database import Base, DATABASE_URL
-from src.db_models import UserModel  # 导入所有模型以确保它们被注册到Base
+from src.db_models import UserModel, SessionModel, MessageModel, ArtifactModel  # 导入所有模型以确保它们被注册到Base
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
