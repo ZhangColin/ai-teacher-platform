@@ -95,11 +95,12 @@
 
 | ID | 任务描述 | 状态 | 优先级 |
 |:---|:---|:---|:---|
-| tool-1 | 更新工具配置模型：添加 `visible`、`type`、`category`、`icon`、`welcome_message` 字段 | pending | P0 |
-| tool-2 | 实现工具配置加载服务：支持按 `category` 聚合生成分类结构，只返回 `visible=true` 的工具 | pending | P0 |
-| tool-3 | 实现获取工具列表API（GET /api/v1/tools）：返回按分类组织的工具列表，包含图标和分类信息 | pending | P0 |
-| tool-4 | 实现工具选择器组件（AIToolSelector.vue）：从API加载工具列表，按分类展示，支持工具切换 | pending | P0 |
-| tool-5 | 实现占位工具处理：点击占位工具显示"敬请期待"页面 | pending | P0 |
+| tool-1 | 更新工具配置模型：添加 `visible`、`type`、`category`、`icon`、`welcome_message`、`order` 字段 | completed | P0 |
+| tool-2 | 实现工具配置加载服务：支持按 `category` 聚合生成分类结构，只返回 `visible=true` 的工具，支持排序 | completed | P0 |
+| tool-3 | 实现获取工具列表API（GET /api/v1/tools）：返回按分类组织的工具列表，包含图标和分类信息 | completed | P0 |
+| tool-4 | 实现工具选择器组件（AIToolSelector.vue）：从API加载工具列表，按分类展示，支持工具切换 | completed | P0 |
+| tool-5 | 实现占位工具处理：点击占位工具显示"敬请期待"页面 | completed | P0 |
+| tool-6 | 实现分类和工具的顺序控制（通过 categories.yaml 和工具配置的 order 字段） | completed | P0 |
 
 #### 历史对话列表模块
 
