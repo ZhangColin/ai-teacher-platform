@@ -130,12 +130,12 @@
 
 | ID | 任务描述 | 状态 | 优先级 |
 |:---|:---|:---|:---|
-| preview-1 | 实现代码块识别和预览按钮：识别 markdown/html/svg 代码块，显示预览按钮 | pending | P0 |
-| preview-2 | 实现预览界面布局：点击预览按钮后左右分屏，左侧聊天区域，右侧预览区域 | pending | P0 |
-| preview-3 | 实现Markdown预览：预览区渲染Markdown内容 | pending | P0 |
-| preview-4 | 实现HTML预览：预览区使用iframe sandbox安全执行HTML内容 | pending | P0 |
-| preview-5 | 实现SVG预览：预览区渲染SVG内容 | pending | P0 |
-| preview-6 | 实现预览区域关闭功能：手动关闭预览区域，恢复单栏布局 | pending | P0 |
+| preview-1 | 实现代码块识别和预览按钮：识别 markdown/html/svg 代码块，显示预览按钮 | completed | P0 |
+| preview-2 | 实现预览界面布局：点击预览按钮后左右分屏，左侧聊天区域，右侧预览区域 | completed | P0 |
+| preview-3 | 实现Markdown预览：预览区渲染Markdown内容 | completed | P0 |
+| preview-4 | 实现HTML预览：预览区使用iframe sandbox安全执行HTML内容 | completed | P0 |
+| preview-5 | 实现SVG预览：预览区渲染SVG内容 | completed | P0 |
+| preview-6 | 实现预览区域关闭功能：手动关闭预览区域，恢复单栏布局 | completed | P0 |
 
 #### 预览功能模块（增强功能 - 低优先级）
 
@@ -163,8 +163,8 @@
 
 | ID | 任务描述 | 状态 | 优先级 |
 |:---|:---|:---|:---|
-| prompt-wizard-1 | 创建提示词向导工具配置（configs/tools/prompt_wizard.yaml）：包含完整的系统提示词和配置 | pending | P0 |
-| prompt-wizard-2 | 测试提示词向导工具：验证六步引导流程正常工作 | pending | P0 |
+| prompt-wizard-1 | 创建提示词向导工具配置（configs/tools/prompt_wizard.yaml）：包含完整的系统提示词和配置 | completed | P0 |
+| prompt-wizard-2 | 测试提示词向导工具：验证六步引导流程正常工作 | completed | P0 |
 
 ---
 

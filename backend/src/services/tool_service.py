@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """工具服务：加载和管理工具配置"""
 import yaml
 import logging

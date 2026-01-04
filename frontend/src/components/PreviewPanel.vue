@@ -1,5 +1,9 @@
 <template>
   <div class="preview-panel" data-testid="preview-panel">
+    <div class="preview-header">
+      <span class="preview-title">预览</span>
+      <button class="preview-close" @click="handleClose" title="关闭预览">×</button>
+    </div>
     <div v-if="!artifact" class="preview-empty">
       <p>点击代码块上的"预览"按钮查看内容</p>
     </div>
@@ -9,25 +13,23 @@
       <p class="error-hint">请尝试点击其他代码块进行预览</p>
     </div>
     <div v-else class="preview-content">
-      <!-- HTML 预览 -->
+      <!-- HTML 预览 - 使用严格的 sandbox 安全策略 -->
       <iframe
         v-if="artifact.type === 'html'"
         ref="htmlIframeRef"
-        :srcdoc="artifact.content"
-        sandbox="allow-scripts allow-same-origin"
+        :srcdoc="sanitizedHtmlContent"
+        sandbox="allow-scripts"
         class="preview-iframe"
         @load="handleIframeLoad"
+        @error="handleIframeError"
       ></iframe>
 
-      <!-- SVG 预览 -->
-      <iframe
+      <!-- SVG 预览 - 直接渲染 SVG 内容 -->
+      <div
         v-else-if="artifact.type === 'svg'"
-        ref="svgIframeRef"
-        :srcdoc="artifact.content"
-        sandbox="allow-scripts allow-same-origin"
-        class="preview-iframe"
-        @load="handleIframeLoad"
-      ></iframe>
+        class="preview-svg"
+        v-html="sanitizedSvgContent"
+      ></div>
 
       <!-- Markdown 预览 -->
       <div
@@ -51,9 +53,16 @@ const props = defineProps<{
   artifact: Artifact | null
 }>()
 
+const emit = defineEmits<{
+  close: []
+}>()
+
+function handleClose() {
+  emit('close')
+}
+
 const previewError = ref<string | null>(null)
 const htmlIframeRef = ref<HTMLIFrameElement | null>(null)
-const svgIframeRef = ref<HTMLIFrameElement | null>(null)
 
 // 创建 markdown-it 实例（仅用于预览，不添加预览按钮）
 const md = new MarkdownIt({
@@ -79,21 +88,92 @@ const renderedMarkdown = computed(() => {
 })
 
 /**
+ * 清理和处理 HTML 内容
+ * 确保 HTML 在安全的 sandbox 环境中执行
+ */
+const sanitizedHtmlContent = computed(() => {
+  if (props.artifact?.type === 'html') {
+    try {
+      previewError.value = null
+      let content = props.artifact.content.trim()
+      
+      // 如果不是完整的 HTML 文档，包装成完整文档
+      if (!content.toLowerCase().includes('<!doctype') && !content.toLowerCase().includes('<html')) {
+        content = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { margin: 16px; font-family: system-ui, -apple-system, sans-serif; }
+  </style>
+</head>
+<body>
+${content}
+</body>
+</html>`
+      }
+      
+      return content
+    } catch (error) {
+      previewError.value = 'HTML 内容处理失败'
+      return ''
+    }
+  }
+  return ''
+})
+
+/**
+ * 清理和处理 SVG 内容
+ * 确保 SVG 安全渲染
+ */
+const sanitizedSvgContent = computed(() => {
+  if (props.artifact?.type === 'svg') {
+    try {
+      previewError.value = null
+      let content = props.artifact.content.trim()
+      
+      // 确保内容是有效的 SVG
+      if (!content.toLowerCase().includes('<svg')) {
+        previewError.value = '无效的 SVG 内容'
+        return ''
+      }
+      
+      // 移除潜在的危险脚本标签
+      content = content.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+      
+      return content
+    } catch (error) {
+      previewError.value = 'SVG 内容处理失败'
+      return ''
+    }
+  }
+  return ''
+})
+
+/**
  * 处理 iframe 加载
  */
-function handleIframeLoad(event: Event) {
-  const iframe = event.target as HTMLIFrameElement
+function handleIframeLoad() {
   // 检查 iframe 内容是否加载成功
   try {
-    // 尝试访问 iframe 内容，如果失败说明有错误
-    if (iframe.contentDocument) {
-      // 内容加载成功
-      previewError.value = null
-    }
+    // 注意：由于使用了 sandbox（没有 allow-same-origin），
+    // 我们无法访问 iframe.contentDocument，这是正常的安全限制
+    // 如果 load 事件触发，说明内容已成功加载
+    previewError.value = null
+    console.log('HTML 预览加载成功')
   } catch (error) {
-    // 跨域或其他错误
+    console.error('HTML 预览加载出错:', error)
     previewError.value = '预览内容加载失败，可能是内容格式错误'
   }
+}
+
+/**
+ * 处理 iframe 错误
+ */
+function handleIframeError(event: Event) {
+  console.error('HTML 预览错误:', event)
+  previewError.value = 'HTML 预览加载失败'
 }
 
 /**
@@ -114,16 +194,25 @@ watch(
       return
     }
 
-    // 对于 HTML 和 SVG，等待 iframe 加载后检查
-    if (newArtifact.type === 'html' || newArtifact.type === 'svg') {
+    // 对于 HTML，等待 iframe 加载后检查
+    if (newArtifact.type === 'html') {
       await nextTick()
       // 设置超时检查，如果 2 秒后 iframe 还没加载，可能有问题
       setTimeout(() => {
-        const iframe = newArtifact.type === 'html' ? htmlIframeRef.value : svgIframeRef.value
-        if (iframe && !iframe.contentDocument) {
-          previewError.value = '预览内容加载超时，请检查内容格式'
+        if (htmlIframeRef.value && previewError.value === null) {
+          // 如果 2 秒后没有错误，说明加载正常
+          console.log('HTML 预览超时检查：正常')
         }
       }, 2000)
+    }
+    
+    // 对于 SVG，直接渲染，无需额外检查
+    if (newArtifact.type === 'svg') {
+      await nextTick()
+      // SVG 内容已通过 v-html 渲染，检查是否有错误
+      if (!previewError.value) {
+        console.log('SVG 预览渲染成功')
+      }
     }
   },
   { immediate: true }
@@ -132,10 +221,26 @@ watch(
 
 <style scoped>
 .preview-panel {
-  height: 100%;
-  overflow: auto;
-  background-color: white;
+  @apply flex flex-col h-full bg-white overflow-hidden;
   border-left: 1px solid #e5e7eb;
+}
+
+.preview-header {
+  @apply flex items-center justify-between px-4 py-3 border-b border-gray-200 flex-shrink-0;
+}
+
+.preview-title {
+  @apply text-sm font-semibold text-gray-900;
+}
+
+.preview-close {
+  @apply w-6 h-6 flex items-center justify-center text-gray-400 hover:text-gray-600 cursor-pointer transition-colors duration-200;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.preview-close:hover {
+  @apply bg-gray-100 rounded;
 }
 
 .preview-empty {
@@ -145,7 +250,7 @@ watch(
   height: 100%;
   color: #6b7280;
   text-align: center;
-  padding: 2rem;
+  padding: 2rem 2rem 2rem 2rem; /* 确保右侧内边距充足 */
 }
 
 .preview-error {
@@ -169,19 +274,50 @@ watch(
 }
 
 .preview-content {
-  height: 100%;
-  overflow: auto;
+  @apply flex-1;
+  box-sizing: border-box;
+  max-width: 100%;
+  width: 100%;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  overflow-y: auto;
+  overflow-x: hidden; /* 防止水平溢出 */
 }
 
 .preview-iframe {
   width: 100%;
   height: 100%;
   border: none;
+  box-sizing: border-box;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.preview-svg {
+  @apply p-6 flex items-center justify-center;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  overflow: auto;
+}
+
+.preview-svg :deep(svg) {
+  max-width: 100%;
+  max-height: 100%;
+  height: auto;
+  display: block;
+  margin: 0 auto;
 }
 
 .preview-markdown {
-  padding: 1.5rem;
+  padding: 1.5rem 2rem 1.5rem 1.5rem; /* 右侧增加到 2rem，防止文字贴边 */
   line-height: 1.6;
+  max-width: 100%;
+  width: 100%;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  box-sizing: border-box;
+  overflow-x: hidden; /* 防止水平溢出 */
 }
 
 .preview-markdown :deep(h1),
@@ -210,6 +346,8 @@ watch(
   border-radius: 0.5rem;
   overflow-x: auto;
   margin-bottom: 1rem;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .preview-markdown :deep(pre code) {
@@ -219,13 +357,18 @@ watch(
 }
 
 .preview-code {
-  padding: 1.5rem;
+  padding: 1.5rem 2rem 1.5rem 1.5rem; /* 右侧增加到 2rem */
   background-color: #1f2937;
   color: #f9fafb;
   overflow-x: auto;
   margin: 0;
   font-size: 0.875rem;
   line-height: 1.5;
+  max-width: 100%;
+  box-sizing: border-box;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: pre-wrap; /* 允许代码换行 */
 }
 
 .preview-error {

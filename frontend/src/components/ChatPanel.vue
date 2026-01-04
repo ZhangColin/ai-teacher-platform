@@ -14,18 +14,40 @@
       <!-- 消息列表 -->
       <template v-for="(message, index) in sessionStore.messages" :key="`${message.role}-${index}-${message.content.slice(0, 10)}`">
         <!-- 用户消息：显示在聊天框里 -->
-        <div v-if="message.role === 'user'" class="user-message">
-          <div class="user-message-content">{{ message.content }}</div>
-        </div>
-        
+        <div v-if="message.role === 'user'" class="user-message-wrapper">
+          <div class="user-message">
+            <div class="user-message-content">{{ message.content }}</div>
+          </div>
+          <!-- 消息工具栏 -->
+          <div class="message-toolbar">
+            <button 
+              class="toolbar-button" 
+              @click="copyMessage(message.content)"
+              title="复制消息"
+            >
+              <DocumentDuplicateIcon class="w-4 h-4" />
+            </button>
+          </div>
+    </div>
+    
         <!-- AI 消息：直接渲染 Markdown，充分利用页面 -->
-        <div v-else class="assistant-message">
-          <div 
+        <div v-else class="assistant-message-wrapper">
+      <div 
             :key="`markdown-${index}-${message.content.length}`"
             class="markdown-content prose prose-slate max-w-none"
             v-html="renderMarkdown(message.content, message.artifacts || [])"
             @click="handleMarkdownClick"
           ></div>
+          <!-- AI 消息工具栏：显示在消息下方 -->
+          <div class="assistant-message-toolbar">
+            <button 
+              class="assistant-toolbar-button" 
+              @click="copyMessage(message.content)"
+              title="复制消息"
+            >
+              <DocumentDuplicateIcon class="w-4 h-4" />
+        </button>
+          </div>
         </div>
       </template>
       
@@ -50,6 +72,16 @@
       </div>
     </div>
     
+    <!-- 复制成功提示 -->
+    <Transition name="toast">
+      <div v-if="showCopyToast" class="copy-toast">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+        </svg>
+        <span>已复制到剪贴板</span>
+      </div>
+    </Transition>
+    
     <!-- 输入框区域（固定在底部） -->
     <div 
       class="input-area" 
@@ -62,7 +94,8 @@
 </template>
 
 <script setup lang="ts">
-import { watch, nextTick, onUnmounted } from 'vue'
+import { ref, watch, nextTick, onUnmounted } from 'vue'
+import { DocumentDuplicateIcon } from '@heroicons/vue/24/outline'
 import WelcomeMessage from './WelcomeMessage.vue'
 import ChatInput from './ChatInput.vue'
 import { useSessionStore } from '../stores/sessionStore'
@@ -137,7 +170,7 @@ async function handleSendMessage(content: string) {
   
   try {
     await sessionStore.sendMessage(content)
-    emit('send', content)
+  emit('send', content)
     
     // 发送成功后，滚动到底部
     await nextTick()
@@ -190,21 +223,126 @@ function scrollToBottom() {
 }
 
 /**
- * 处理 Markdown 内容中的预览按钮点击
+ * 处理 Markdown 内容中的预览按钮和复制按钮点击
  */
 function handleMarkdownClick(event: Event) {
   const target = event.target as HTMLElement
-  if (target.classList.contains('preview-button')) {
-    const artifactData = target.getAttribute('data-artifact-content')
+  
+  // 处理预览按钮点击 - 使用 closest 查找最近的按钮元素（更健壮）
+  const previewButton = target.classList.contains('preview-button') 
+    ? target 
+    : target.closest('.preview-button') as HTMLElement
+  
+  if (previewButton) {
+    event.preventDefault()
+    event.stopPropagation()
+    
+    const artifactData = previewButton.getAttribute('data-artifact-content')
     if (artifactData) {
       try {
         const artifact: Artifact = JSON.parse(artifactData)
+        
+        // 添加视觉反馈
+        previewButton.style.opacity = '0.6'
+        setTimeout(() => {
+          previewButton.style.opacity = '1'
+        }, 150)
+        
         emit('preview', artifact)
       } catch (error) {
         console.error('解析 artifact 数据失败:', error)
       }
     }
+    return
   }
+  
+  // 处理代码块复制按钮点击
+  if (target.classList.contains('copy-code-button') || target.closest('.copy-code-button')) {
+    event.preventDefault()
+    event.stopPropagation()
+    
+    const button = target.classList.contains('copy-code-button') ? target : target.closest('.copy-code-button') as HTMLElement
+    const codeContent = button.getAttribute('data-code-content')
+    if (codeContent) {
+      copyToClipboard(unescapeHtml(codeContent))
+    }
+    return
+  }
+}
+
+/**
+ * 复制消息内容到剪贴板
+ */
+async function copyMessage(content: string) {
+  await copyToClipboard(content)
+}
+
+// 复制成功提示状态
+const showCopyToast = ref(false)
+const copyToastTimer = ref<number | null>(null)
+
+/**
+ * 复制文本到剪贴板
+ */
+async function copyToClipboard(text: string) {
+  try {
+    await navigator.clipboard.writeText(text)
+    showCopySuccessToast()
+  } catch (err) {
+    console.error('复制失败:', err)
+    // 降级方案：使用传统方法
+    const textarea = document.createElement('textarea')
+    textarea.value = text
+    textarea.style.position = 'fixed'
+    textarea.style.opacity = '0'
+    document.body.appendChild(textarea)
+    textarea.select()
+    try {
+      document.execCommand('copy')
+      showCopySuccessToast()
+    } catch (e) {
+      console.error('复制失败:', e)
+    }
+    document.body.removeChild(textarea)
+  }
+}
+
+/**
+ * 显示复制成功提示
+ */
+function showCopySuccessToast() {
+  showCopyToast.value = true
+  // 清除之前的定时器
+  if (copyToastTimer.value) {
+    clearTimeout(copyToastTimer.value)
+  }
+  // 2秒后自动隐藏
+  copyToastTimer.value = window.setTimeout(() => {
+    showCopyToast.value = false
+    copyToastTimer.value = null
+  }, 2000)
+}
+
+// 组件卸载时清理定时器
+onUnmounted(() => {
+  if (copyToastTimer.value) {
+    clearTimeout(copyToastTimer.value)
+  }
+})
+
+/**
+ * 反转义 HTML（用于提取代码块原始内容）
+ */
+function unescapeHtml(text: string): string {
+  const map: Record<string, string> = {
+    '&amp;': '&',
+    '&lt;': '<',
+    '&gt;': '>',
+    '&quot;': '"',
+    '&#039;': "'",
+    '&nbsp;': ' ',
+  }
+  return text.replace(/&(?:amp|lt|gt|quot|#039|nbsp);/g, (m) => map[m] || m)
 }
 </script>
 
@@ -231,8 +369,12 @@ function handleMarkdownClick(event: Event) {
 }
 
 /* 用户消息：显示在聊天框里，右侧对齐 - 参考 DeepSeek 样式 */
+.user-message-wrapper {
+  @apply flex justify-end mb-8 relative;
+}
+
 .user-message {
-  @apply flex justify-end mb-6;
+  @apply flex justify-end;
 }
 
 .user-message-content {
@@ -244,8 +386,12 @@ function handleMarkdownClick(event: Event) {
 }
 
 /* AI 消息：直接渲染 Markdown，充分利用页面宽度 */
+.assistant-message-wrapper {
+  @apply w-full mb-8 relative;
+}
+
 .assistant-message {
-  @apply w-full mb-8;
+  @apply w-full;
 }
 
 .markdown-content {
@@ -325,24 +471,101 @@ function handleMarkdownClick(event: Event) {
   @apply max-w-full h-auto rounded-lg my-4;
 }
 
-/* 代码块预览按钮样式 */
+/* 代码块样式 */
 .markdown-content :deep(.code-block-wrapper) {
   @apply relative my-4;
+  position: relative;
 }
 
-.markdown-content :deep(.preview-button) {
-  @apply absolute top-2 right-2 px-3 py-1.5 bg-primary-500 text-white border-none rounded text-sm font-medium cursor-pointer transition-all duration-200 z-10;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+.markdown-content :deep(.code-block-wrapper pre) {
+  @apply relative;
+  margin: 0; /* 移除默认 margin，由 wrapper 控制 */
 }
 
-.markdown-content :deep(.preview-button:hover) {
-  @apply bg-primary-600;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+/* 代码块操作按钮组 */
+.markdown-content :deep(.code-block-actions) {
+  @apply absolute top-2 right-2 flex gap-1.5 opacity-70 transition-opacity duration-200 z-10;
 }
 
-.markdown-content :deep(.preview-button:active) {
-  @apply bg-primary-700;
-  transform: translateY(1px);
+.markdown-content :deep(.code-block-wrapper:hover .code-block-actions) {
+  opacity: 1;
+}
+
+.markdown-content :deep(.preview-button),
+.markdown-content :deep(.copy-code-button) {
+  @apply w-7 h-7 flex items-center justify-center text-gray-300 hover:text-gray-100 hover:bg-gray-700 rounded cursor-pointer transition-all duration-150;
+  background-color: rgba(31, 41, 55, 0.7); /* 与代码块背景色匹配，提高初始可见度 */
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.1); /* 添加边框增加可见度 */
+}
+
+.markdown-content :deep(.preview-button:hover),
+.markdown-content :deep(.copy-code-button:hover) {
+  background-color: rgba(31, 41, 55, 0.9);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.markdown-content :deep(.preview-button:active),
+.markdown-content :deep(.copy-code-button:active) {
+  transform: scale(0.95) translateY(0);
+  background-color: rgba(31, 41, 55, 1);
+}
+
+/* 用户消息工具栏样式（保留原有hover效果） */
+.user-message-wrapper {
+  @apply relative;
+  position: relative;
+}
+
+.user-message-wrapper .message-toolbar {
+  @apply absolute -bottom-8 right-0 flex gap-1 opacity-60 transition-opacity duration-200 z-10;
+}
+
+.user-message-wrapper:hover .message-toolbar {
+  opacity: 1;
+}
+
+.toolbar-button {
+  @apply w-7 h-7 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded border border-gray-200 bg-white cursor-pointer transition-all duration-200;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.toolbar-button:hover {
+  @apply bg-gray-50 border-gray-300;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.toolbar-button:active {
+  @apply scale-95;
+}
+
+/* AI 消息工具栏样式：显示在消息下方，低调风格 */
+.assistant-message-wrapper {
+  @apply relative;
+  position: relative;
+}
+
+.assistant-message-toolbar {
+  @apply flex justify-start mt-2 mb-1 opacity-60 transition-opacity duration-200;
+}
+
+.assistant-message-wrapper:hover .assistant-message-toolbar {
+  opacity: 1;
+}
+
+.assistant-toolbar-button {
+  @apply w-6 h-6 flex items-center justify-center text-gray-400 hover:text-gray-600 rounded cursor-pointer transition-all duration-200;
+  background: transparent;
+  border: none;
+}
+
+.assistant-toolbar-button:hover {
+  @apply bg-gray-100;
+}
+
+.assistant-toolbar-button:active {
+  @apply scale-95;
 }
 
 /* 加载指示器 - 参考 DeepSeek 样式 */
@@ -373,7 +596,7 @@ function handleMarkdownClick(event: Event) {
 
 @keyframes typing {
   0%, 60%, 100% {
-    transform: translateY(0);
+  transform: translateY(0);
     opacity: 0.7;
   }
   30% {
@@ -419,6 +642,31 @@ function handleMarkdownClick(event: Event) {
 
 .error-retry-btn:active {
   @apply scale-[0.98];
+}
+
+/* 复制成功提示 */
+.copy-toast {
+  @apply fixed bottom-6 left-1/2 transform -translate-x-1/2 flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg shadow-lg z-50;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 20px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.toast-enter-active {
+  animation: slideUp 0.3s ease-out;
+}
+
+.toast-leave-active {
+  animation: slideUp 0.3s ease-out reverse;
 }
 
 .input-area {
