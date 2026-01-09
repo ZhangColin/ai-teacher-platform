@@ -2,7 +2,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { NavigationModule } from '../types/navigation'
-import api from '../api/client'
+import api from '../services/apiClient'
 
 export const useNavigationStore = defineStore('navigation', () => {
   // 状态
