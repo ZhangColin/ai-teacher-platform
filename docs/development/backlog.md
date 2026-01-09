@@ -266,3 +266,27 @@ configs/tools/teaching_researcher/
 - 更新部署文档（optional）
 
 **最后更新**: 2026-01-09（多工具集架构扩展核心功能全部完成 🎊）
+
+---
+
+## 当前迭代：常用工具模块开发
+
+**需求来源**: `docs/requirements/common_tools_spec.md` (v1.0)  
+**架构设计**: `docs/design/api_interface.md` (v3.0), `docs/design/data_models.md` (v4.0)  
+**创建时间**: 2026-01-09
+
+### 任务列表
+
+| ID | 任务描述 | 状态 | 优先级 |
+|:---|:---|:---|:---|
+| common-tools-1 | 后端-完成常用工具数据库设计与实现（表结构、ORM模型、Pydantic模型、初始化数据） | pending | P0 |
+| common-tools-2 | 后端-实现获取工具分类列表功能（含Service、API、测试） | pending | P0 |
+| common-tools-3 | 后端-实现获取工具详情功能（含Service、API、测试） | pending | P0 |
+| common-tools-4 | 前端-实现工具卡片页（含类型定义、API客户端、路由、页面、测试） | pending | P0 |
+| common-tools-5 | 前端-实现Markdown编辑器工具（含CodeMirror集成、编辑预览、下载、测试） | pending | P0 |
+| common-tools-6 | 前端-实现HTML工具运行器（含沙箱运行、全屏功能、测试） | pending | P0 |
+| common-tools-7 | 集成验证-端到端测试完整流程（从卡片页到工具使用） | pending | P0 |
+
+---
+
+**最后更新**: 2026-01-09（添加常用工具模块开发任务）
