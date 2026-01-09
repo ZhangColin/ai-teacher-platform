@@ -48,6 +48,11 @@ const routes: RouteRecordRaw[] = [
       },
     ],
   },
+  {
+    path: '/works',
+    name: 'works',
+    component: () => import('../layouts/WorksLayout.vue'),
+  },
   // 保留原有路由（后续处理）
   {
     path: '/agents',

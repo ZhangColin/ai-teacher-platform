@@ -2,10 +2,6 @@
   <div class="markdown-editor-view">
     <!-- 顶部工具条 -->
     <div class="toolbar">
-      <button class="toolbar-btn back-btn" @click="handleBack">
-        <ArrowLeftIcon class="w-5 h-5" />
-        <span>返回</span>
-      </button>
       <div class="toolbar-title">
         <DocumentTextIcon class="w-5 h-5 text-blue-600" />
         <span>Markdown 编辑器</span>
@@ -14,6 +10,10 @@
         <button class="toolbar-btn" @click="handleClear" title="清空内容">
           <TrashIcon class="w-4 h-4" />
           <span>清空</span>
+        </button>
+        <button class="toolbar-btn back-btn" @click="handleBack">
+          <ArrowLeftIcon class="w-5 h-5" />
+          <span>返回</span>
         </button>
       </div>
     </div>

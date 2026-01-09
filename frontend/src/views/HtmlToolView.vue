@@ -23,10 +23,6 @@
     <div v-else class="tool-runner">
       <!-- 顶部工具条 -->
       <div class="toolbar">
-        <button class="toolbar-btn back-btn" @click="goBack">
-          <ArrowLeftIcon class="w-5 h-5" />
-          <span>返回</span>
-        </button>
         <div class="toolbar-title">
           <CodeBracketIcon class="w-5 h-5 text-purple-600" />
           <span>{{ toolDetail?.name }}</span>
@@ -49,6 +45,10 @@
           >
             <ArrowsPointingInIcon class="w-4 h-4" />
             <span>退出全屏</span>
+          </button>
+          <button class="toolbar-btn back-btn" @click="goBack">
+            <ArrowLeftIcon class="w-5 h-5" />
+            <span>返回</span>
           </button>
         </div>
       </div>
