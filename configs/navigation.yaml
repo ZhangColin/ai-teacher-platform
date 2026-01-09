@@ -16,16 +16,16 @@ modules:
     icon: "academic-cap"                        # 图标标识（可选）
     order: 2                                    # 排序顺序
 
-  # 常用工具模块（独立页面类型）- 暂未实现，仅作示例
-  # - name: "常用工具"
-  #   type: "page"
-  #   page_path: "/common-tools"     # 前端路由路径
-  #   icon: "cog-6-tooth"
-  #   order: 3
+  # 常用工具模块（独立页面类型）
+  - name: "常用工具"
+    type: "page"
+    page_path: "/common-tools"     # 前端路由路径
+    icon: "cog-6-tooth"
+    order: 3
 
-  # 作品展示模块（独立页面类型）- 暂未实现，仅作示例
-  # - name: "作品展示"
-  #   type: "page"
-  #   page_path: "/works"
-  #   icon: "photo"
-  #   order: 4
+  # 作品展示模块（独立页面类型）
+  - name: "作品展示"
+    type: "page"
+    page_path: "/works"
+    icon: "photo"
+    order: 4
