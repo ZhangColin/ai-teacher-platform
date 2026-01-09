@@ -22,11 +22,13 @@
     <div v-else class="tools-container">
       <!-- 按分类显示工具 -->
       <div v-for="category in categories" :key="category.id" class="category-section">
-        <!-- 分类标题 - 精简设计 -->
+        <!-- 分类标题 - 美化设计 -->
         <div class="category-header">
-          <component :is="getIconComponent(category.icon)" class="w-4 h-4 text-gray-500" />
-          <span class="category-name">{{ category.name }}</span>
-          <div class="category-divider"></div>
+          <div class="category-icon-bg">
+            <component :is="getIconComponent(category.icon)" class="w-4 h-4" />
+          </div>
+          <h2 class="category-name">{{ category.name }}</h2>
+          <span class="category-count">{{ category.tools.length }}</span>
         </div>
 
         <!-- 工具卡片列表 - 网格布局 -->
@@ -184,19 +186,23 @@ onMounted(() => {
 
 /* 分类区域 */
 .category-section {
-  @apply mb-8;
+  @apply mb-10;
 }
 
 .category-header {
-  @apply flex items-center gap-2 mb-3 px-1;
+  @apply flex items-center gap-3 mb-4 pb-3 border-b border-gray-200;
+}
+
+.category-icon-bg {
+  @apply w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white shadow-sm;
 }
 
 .category-name {
-  @apply text-xs font-medium text-gray-500 uppercase tracking-wider;
+  @apply text-lg font-semibold text-gray-900 flex-1;
 }
 
-.category-divider {
-  @apply flex-1 h-px bg-gray-200;
+.category-count {
+  @apply px-2.5 py-1 bg-blue-50 text-blue-600 text-sm font-medium rounded-full;
 }
 
 /* 工具网格 - 响应式列数 */
