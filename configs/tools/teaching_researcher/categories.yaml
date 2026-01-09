@@ -1,47 +1,23 @@
 # 教研员工具集 - 分类配置
-# 说明：按功能和学科组织教研员工具
+# 说明：按科目组织教研员工具，每个科目下包含不同学段的教研员
 
 categories:
   - name: "备课评课"
     icon: "academic-cap"
     order: 1
   
-  - name: "小学语文"
+  - name: "语文教研"
     icon: "book-open"
     order: 2
   
-  - name: "小学英语"
-    icon: "language"
+  - name: "数学教研"
+    icon: "calculator"
     order: 3
   
-  - name: "初中语文"
-    icon: "document-text"
+  - name: "英语教研"
+    icon: "language"
     order: 4
   
-  - name: "初中数学"
-    icon: "calculator"
-    order: 5
-  
-  - name: "初中英语"
-    icon: "chat-bubble-left-right"
-    order: 6
-  
-  - name: "初中物理"
+  - name: "物理教研"
     icon: "beaker"
-    order: 7
-  
-  - name: "高中语文"
-    icon: "pencil-square"
-    order: 8
-  
-  - name: "高中数学"
-    icon: "chart-bar"
-    order: 9
-  
-  - name: "高中英语"
-    icon: "globe-alt"
-    order: 10
-  
-  - name: "高中物理"
-    icon: "light-bulb"
-    order: 11
+    order: 5
