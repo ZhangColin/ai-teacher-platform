@@ -150,6 +150,9 @@
 | preview-enhance-7 | 实现SVG全屏预览功能：点击全屏按钮，使用浏览器全屏API或全屏覆盖层 | pending | P2 |
 | preview-enhance-8 | 实现SVG下载功能：下载SVG文件 | pending | P2 |
 | preview-enhance-9 | 实现SVG截图功能：使用html2canvas或其他方案截图SVG内容 | pending | P2 |
+| preview-enhance-10 | （可选）WPS兼容性：提供图片格式数学公式选项，或在UI中提示推荐使用Word打开 | pending | P3 |
+
+> **说明**: preview-enhance-10 是可选任务。当前 Word 导出功能在 Microsoft Word 中显示完全正常，WPS Office 由于对 OMML 格式支持不完整导致显示异常。这是 WPS 的兼容性问题，可以通过 UI 提示或提供替代格式来改进用户体验。
 
 #### 界面交互模块
 

@@ -141,15 +141,18 @@ EOF
 
 **测试 $ 语法**:
 ```bash
-pandoc test_dollar.md -o test_dollar.docx --from=markdown+tex_math_double_backslash --to=docx --standalone --mathml
+pandoc test_dollar.md -o test_dollar.docx --from=markdown+tex_math_dollars+tex_math_double_backslash --to=docx --standalone
 ```
 
 **测试 LaTeX 原生语法**:
 ```bash
-pandoc test_latex.md -o test_latex.docx --from=markdown+tex_math_double_backslash --to=docx --standalone --mathml
+pandoc test_latex.md -o test_latex.docx --from=markdown+tex_math_dollars+tex_math_double_backslash --to=docx --standalone
 ```
 
-> **注意**: `--from=markdown+tex_math_double_backslash` 参数同时支持两种数学公式语法。
+> **注意**: 
+> - `--from=markdown+tex_math_dollars+tex_math_double_backslash` 参数同时支持两种数学公式语法
+> - 不使用 `--mathml` 参数，让 pandoc 使用默认的 OMML (Office Math) 格式
+> - OMML 是 Word 原生的数学公式格式，渲染效果比 MathML 更好
 
 ### 3. 验证结果
 
@@ -184,9 +187,12 @@ pandoc test_latex.md -o test_latex.docx --from=markdown+tex_math_double_backslas
 
 **症状**: Word 文档中数学公式显示为 `$E=mc^2$` 而不是渲染后的公式
 
-**原因**: 未使用 `--mathml` 参数
+**原因**: Markdown 源文件中的公式语法不正确，或 pandoc 参数配置有误
 
-**解决方案**: 确保后端代码中包含 `--mathml` 参数（已在代码中配置）
+**解决方案**: 
+1. 确保使用正确的公式语法：`$$E=mc^2$$` 或 `\(E=mc^2\)`
+2. 确保 pandoc 参数包含 `--from=markdown+tex_math_dollars+tex_math_double_backslash`
+3. 使用默认的 OMML 格式（不要添加 `--mathml` 参数）
 
 ### 问题3：转换超时
 
@@ -232,6 +238,33 @@ pandoc test_latex.md -o test_latex.docx --from=markdown+tex_math_double_backslas
 
 ---
 
-**文档版本**: v1.0  
+## 已知限制
+
+### WPS Office 兼容性问题
+
+**症状**: 使用 WPS Office 打开导出的 Word 文档时，数学公式显示不正确（上标、分数、根号等显示异常）
+
+**原因**: 
+- 我们使用的 OMML (Office Math Markup Language) 是微软 Word 的原生数学公式格式
+- WPS Office 对 OMML 格式的支持不完整，导致复杂公式无法正确渲染
+- 这是 WPS 的兼容性问题，不是我们代码的问题
+
+**验证**: 
+- ✅ 使用 **Microsoft Word** 打开：公式显示**完全正常**
+- ❌ 使用 **WPS Office** 打开：公式显示**异常**
+
+**解决方案**:
+- **推荐**: 使用 Microsoft Word 打开导出的文档
+- **替代方案**: 如果必须使用 WPS，建议在导出页面添加提示或使用在线文档预览
+
+**技术说明**:
+- pandoc 生成的 OMML 格式完全符合 Microsoft Office 标准
+- 文档内部 XML 结构经过验证是正确的
+- 这是行业标准做法，大多数 Markdown 转 Word 工具都采用此方案
+
+---
+
+**文档版本**: v1.1  
 **创建日期**: 2026-01-09  
+**最后更新**: 2026-01-09  
 **维护者**: DevOps Team

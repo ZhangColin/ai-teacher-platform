@@ -94,13 +94,14 @@ class ConversionService:
                         str(input_file),
                         "-o", str(output_file),
                         # 支持多种数学公式语法：
-                        # - $...$ 和 $$...$$ (Markdown 扩展)
-                        # - \(...\) 和 \[...\] (LaTeX 原生)
-                        "--from=markdown+tex_math_double_backslash",
+                        # - tex_math_dollars: 支持 $...$ 和 $$...$$ (Markdown 扩展语法)
+                        # - tex_math_double_backslash: 支持 \(...\) 和 \[...\] (LaTeX 原生语法)
+                        "--from=markdown+tex_math_dollars+tex_math_double_backslash",
                         "--to=docx",
-                        "--standalone",
-                        # 支持数学公式（关键配置）
-                        "--mathml"
+                        "--standalone"
+                        # 注意：不使用 --mathml 参数
+                        # pandoc 默认使用 OMML (Office Math Markup Language)，这是 Word 原生格式
+                        # OMML 比 MathML 更适合 Word，能更好地渲染复杂公式
                     ],
                     capture_output=True,
                     text=True,
