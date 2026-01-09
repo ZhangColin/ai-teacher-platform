@@ -380,7 +380,7 @@ class CommonTool(BaseModel):
     name: str = Field(..., description="工具名称（如：Markdown编辑器）", min_length=1, max_length=100)
     description: str = Field(..., description="工具描述（一句话说明工具功能）", min_length=1, max_length=200)
     category_id: str = Field(..., description="所属分类ID（关联ToolCategory）")
-    type: Literal["built-in", "html"] = Field(..., description="工具类型：'built-in'（内置工具）或 'html'（HTML工具）")
+    type: Literal["built_in", "html"] = Field(..., description="工具类型：'built_in'（内置工具）或 'html'（HTML工具）")
     icon: Optional[str] = Field(None, description="图标标识（heroicons名称，如：'document-text'）")
     html_path: Optional[str] = Field(None, description="HTML文件路径（仅type='html'时必填，相对于static目录）")
     order: int = Field(default=0, description="排序顺序（数字越小越靠前）")
@@ -394,7 +394,7 @@ class CommonTool(BaseModel):
     
     def is_built_in_tool(self) -> bool:
         """判断是否为内置工具"""
-        return self.type == "built-in"
+        return self.type == "built_in"
     
     def get_frontend_route(self) -> str:
         """获取前端路由路径（用于内置工具跳转）"""
@@ -406,7 +406,7 @@ class CommonTool(BaseModel):
         if self.type == "html" and not self.html_path:
             return False
         # 内置工具不应有html_path
-        if self.type == "built-in" and self.html_path:
+        if self.type == "built_in" and self.html_path:
             return False
         return True
 
@@ -416,7 +416,7 @@ class CommonToolListItem(BaseModel):
     id: str = Field(..., description="工具ID")
     name: str = Field(..., description="工具名称")
     description: str = Field(..., description="工具描述")
-    type: Literal["built-in", "html"] = Field(..., description="工具类型：'built-in' 或 'html'")
+    type: Literal["built_in", "html"] = Field(..., description="工具类型：'built_in' 或 'html'")
     icon: Optional[str] = Field(None, description="图标标识")
     order: int = Field(..., description="排序顺序")
 
@@ -442,7 +442,7 @@ class CommonToolDetail(BaseModel):
     description: str = Field(..., description="工具描述")
     category_id: str = Field(..., description="所属分类ID")
     category_name: str = Field(..., description="所属分类名称")
-    type: Literal["built-in", "html"] = Field(..., description="工具类型：'built-in' 或 'html'")
+    type: Literal["built_in", "html"] = Field(..., description="工具类型：'built_in' 或 'html'")
     icon: Optional[str] = Field(None, description="图标标识")
     order: int = Field(..., description="排序顺序")
     html_url: Optional[str] = Field(None, description="HTML文件访问URL（仅type='html'时有值）")

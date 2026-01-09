@@ -229,7 +229,7 @@ export interface CommonToolListItem {
   id: string // 工具ID
   name: string // 工具名称
   description: string // 工具描述
-  type: 'built-in' | 'html' // 工具类型
+  type: 'built_in' | 'html' // 工具类型
   icon?: string // 图标（可选）
   order: number // 排序字段
 }
@@ -261,7 +261,7 @@ export interface CommonToolDetail {
   description: string // 工具描述
   category_id: string // 分类ID
   category_name: string // 分类名称
-  type: 'built-in' | 'html' // 工具类型
+  type: 'built_in' | 'html' // 工具类型
   icon?: string // 图标（可选）
   order: number // 排序字段
   html_url?: string // HTML工具访问URL（仅HTML工具）

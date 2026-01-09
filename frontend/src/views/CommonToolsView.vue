@@ -117,7 +117,7 @@ const loadCategories = async () => {
  * 导航到工具页面
  */
 const navigateToTool = (tool: CommonToolListItem) => {
-  if (tool.type === 'built-in') {
+  if (tool.type === 'built_in') {
     // 内置工具：导航到对应的路由
     router.push(`/common-tools/${tool.id}`)
   } else if (tool.type === 'html') {
