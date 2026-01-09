@@ -40,13 +40,12 @@ const routes: RouteRecordRaw[] = [
         name: 'markdown-editor',
         component: () => import('../views/MarkdownEditorView.vue'),
       },
-      // HTML工具路由将在后续任务中添加
-      // {
-      //   path: 'html/:toolId',
-      //   name: 'common-tool-html',
-      //   component: () => import('../views/CommonToolHtmlView.vue'),
-      //   props: true,
-      // },
+      {
+        path: 'html/:toolId',
+        name: 'html-tool',
+        component: () => import('../views/HtmlToolView.vue'),
+        props: true,
+      },
     ],
   },
   // 保留原有路由（后续处理）
