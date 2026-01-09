@@ -30,6 +30,20 @@
           </svg>
           <span>{{ isDownloadingWord ? '转换中...' : '下载 Word' }}</span>
         </button>
+        <button 
+          v-if="artifact?.type === 'markdown'"
+          class="preview-action-btn" 
+          @click="handleDownloadPDF" 
+          title="下载 PDF"
+          :disabled="isDownloadingPDF"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span>{{ isDownloadingPDF ? '生成中...' : '下载 PDF' }}</span>
+        </button>
         <button class="preview-close" @click="handleClose" title="关闭预览">×</button>
       </div>
     </div>
@@ -65,7 +79,7 @@
         v-else-if="artifact.type === 'markdown'"
         class="preview-markdown"
       >
-        <div class="markdown-content" v-html="renderedMarkdown"></div>
+        <div ref="markdownContentRef" class="markdown-content" v-html="renderedMarkdown"></div>
       </div>
 
       <!-- 其他类型：显示原始内容 -->
@@ -79,6 +93,8 @@ import { computed, watch, ref, nextTick } from 'vue'
 import MarkdownIt from 'markdown-it'
 // @ts-ignore - @traptitech/markdown-it-katex 没有类型定义
 import markdownItKatex from '@traptitech/markdown-it-katex'
+// @ts-ignore - html2pdf.js 没有类型定义
+import html2pdf from 'html2pdf.js'
 import type { Artifact } from '../types'
 
 const props = defineProps<{
@@ -205,9 +221,88 @@ async function handleDownloadWord() {
   }
 }
 
+/**
+ * 下载 PDF 文件（纯前端方案，使用 html2pdf.js）
+ */
+async function handleDownloadPDF() {
+  if (!props.artifact || props.artifact.type !== 'markdown') {
+    return
+  }
+
+  if (isDownloadingPDF.value) {
+    return // 防止重复点击
+  }
+
+  try {
+    isDownloadingPDF.value = true
+    previewError.value = null
+
+    // 等待 DOM 完全渲染，包括 KaTeX 公式
+    await nextTick()
+    // 等待 KaTeX 完成渲染
+    await new Promise(resolve => setTimeout(resolve, 500))
+
+    // 获取预览面板中已渲染的 Markdown 内容 DOM
+    const element = markdownContentRef.value
+    if (!element) {
+      throw new Error('预览内容未找到')
+    }
+
+    // 生成文件名
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')
+    const filename = `markdown_${timestamp[0]}_${timestamp[1].split('-').slice(0, 3).join('')}.pdf`
+
+    // 配置 html2pdf 选项
+    const opt = {
+      margin: [10, 10, 10, 10], // [top, left, bottom, right] in mm
+      filename: filename,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { 
+        scale: 3, // 提高到3倍，改善渲染质量
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        scrollY: -window.scrollY, // 重要：抵消滚动偏移
+        scrollX: -window.scrollX,
+        windowWidth: element.scrollWidth,
+        windowHeight: element.scrollHeight,
+        onclone: (clonedDoc: Document) => {
+          // 在克隆的文档上调整样式，确保与预览一致
+          const clonedElement = clonedDoc.querySelector('.markdown-content') as HTMLElement
+          if (clonedElement) {
+            // 确保所有元素使用与预览相同的渲染方式
+            clonedElement.style.transform = 'translateZ(0)' // 强制硬件加速
+            clonedElement.style.webkitFontSmoothing = 'antialiased'
+          }
+        }
+      },
+      jsPDF: { 
+        unit: 'mm', 
+        format: 'a4', 
+        orientation: 'portrait',
+        compress: true
+      },
+      pagebreak: { 
+        mode: ['avoid-all', 'css', 'legacy']
+      }
+    }
+
+    // 生成并下载 PDF
+    await html2pdf().set(opt).from(element).save()
+
+  } catch (error) {
+    console.error('下载 PDF 失败:', error)
+    previewError.value = error instanceof Error ? error.message : '生成 PDF 失败，请稍后重试'
+  } finally {
+    isDownloadingPDF.value = false
+  }
+}
+
 const previewError = ref<string | null>(null)
 const htmlIframeRef = ref<HTMLIFrameElement | null>(null)
+const markdownContentRef = ref<HTMLDivElement | null>(null)
 const isDownloadingWord = ref<boolean>(false)
+const isDownloadingPDF = ref<boolean>(false)
 
 // 创建 markdown-it 实例（仅用于预览，不添加预览按钮）
 const md = new MarkdownIt({
@@ -510,13 +605,13 @@ watch(
 .markdown-content :deep(h1) {
   font-size: 2em;
   border-bottom: 1px solid #e5e7eb;
-  padding-bottom: 0.3em;
+  padding-bottom: 0.6em; /* 增加间距，让分隔线往下 */
 }
 
 .markdown-content :deep(h2) {
   font-size: 1.5em;
   border-bottom: 1px solid #e5e7eb;
-  padding-bottom: 0.3em;
+  padding-bottom: 0.6em; /* 增加间距，让分隔线往下 */
 }
 
 .markdown-content :deep(h3) {
@@ -597,11 +692,57 @@ watch(
   font-weight: 600;
 }
 
-/* KaTeX 公式样式 - 关键：不干预 KaTeX 内部元素 */
+/* KaTeX 公式样式 - 确保完整显示 */
 .markdown-content :deep(.katex-display) {
   margin: 1.5em 0;
   overflow-x: auto;
   overflow-y: hidden;
+  line-height: 2.2 !important; /* 足够的行高，确保分数线、根号显示完整 */
+  padding: 0.5em 0; /* 上下内边距，防止裁剪 */
+  display: block !important;
+}
+
+.markdown-content :deep(.katex) {
+  line-height: 1.8 !important; /* 行内公式行高 */
+}
+
+/* PDF 生成优化：确保完整显示 */
+.markdown-content :deep(.katex-display) {
+  page-break-inside: avoid;
+  overflow: visible !important;
+}
+
+.markdown-content :deep(.katex) {
+  page-break-inside: avoid;
+  overflow: visible !important;
+}
+
+/* 微调：让分数线、根号等往下移动 */
+.markdown-content :deep(.katex .frac-line) {
+  transform: translateY(4px); /* 分数线往下4px */
+}
+
+.markdown-content :deep(.katex .sqrt-line) {
+  transform: translateY(4px); /* 根号线往下4px */
+}
+
+.markdown-content :deep(.katex .sqrt .hide-tail) {
+  transform: translateY(4px); /* 根号顶部往下4px */
+}
+
+.markdown-content :deep(.katex-display > .katex) {
+  transform: translateY(4px); /* 整个公式块往下4px */
+}
+
+.markdown-content :deep(h1),
+.markdown-content :deep(h2),
+.markdown-content :deep(h3) {
+  page-break-after: avoid; /* 避免标题后立即分页 */
+}
+
+.markdown-content :deep(p) {
+  orphans: 3; /* 段落至少3行才分页 */
+  widows: 3; /* 段落末尾至少3行 */
 }
 
 .preview-code {

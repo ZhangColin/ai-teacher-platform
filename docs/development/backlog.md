@@ -143,7 +143,7 @@
 |:---|:---|:---|:---|
 | preview-enhance-1 | 实现Markdown下载功能：下载为Markdown格式文件 | completed | P2 |
 | preview-enhance-2 | 实现Markdown转Word下载功能：将Markdown内容转换为Word文档并下载 | completed | P2 |
-| preview-enhance-3 | 实现Markdown转PDF下载功能：将Markdown内容转换为PDF文件并下载 | pending | P2 |
+| preview-enhance-3 | 实现Markdown转PDF下载功能：将Markdown内容转换为PDF文件并下载 | completed | P2 |
 | preview-enhance-4 | 实现HTML全屏预览功能：点击全屏按钮，使用浏览器全屏API或全屏覆盖层 | pending | P2 |
 | preview-enhance-5 | 实现HTML下载功能：下载HTML文件 | pending | P2 |
 | preview-enhance-6 | 实现HTML截图功能：使用html2canvas或其他方案截图HTML内容 | pending | P2 |
