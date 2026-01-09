@@ -17,6 +17,7 @@ import type {
   CreateUserResponse,
   UserInfo,
 } from '../types'
+import type { NavigationModuleListResponse } from '../types/navigation'
 
 /**
  * API 错误响应格式
@@ -93,6 +94,14 @@ export class ApiService {
    */
   static async getAgents(): Promise<AgentListResponse> {
     const response = await apiClient.get<AgentListResponse>('/agents')
+    return response.data
+  }
+
+  /**
+   * 获取导航模块列表
+   */
+  static async getNavigationModules(): Promise<NavigationModuleListResponse> {
+    const response = await apiClient.get<NavigationModuleListResponse>('/navigation')
     return response.data
   }
 
