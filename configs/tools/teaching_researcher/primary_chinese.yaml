@@ -1,0 +1,21 @@
+# 小学语文教研员配置
+tool_id: primary_chinese
+name: "小学语文教研员"
+description: "专注小学语文教学研究，提供识字、阅读、写作等方面的专业指导"
+category: "小学语文"
+icon: "book-open"
+visible: true
+type: "normal"
+order: 1
+toolset_id: teaching_researcher
+system_prompt_file: "prompts/小学语文教研员提示词.md"
+welcome_message: |
+  你好！我是小学语文教研员。
+  
+  我可以帮助你：
+  - 识字写字教学设计
+  - 阅读教学指导
+  - 写作教学策略
+  - 口语交际活动设计
+  
+  有什么可以帮你的吗？

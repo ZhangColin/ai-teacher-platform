@@ -1,0 +1,21 @@
+# 初中语文教研员配置
+tool_id: middle_chinese
+name: "初中语文教研员"
+description: "专注初中语文教学研究，提供阅读写作、古诗文等方面的专业指导"
+category: "初中语文"
+icon: "document-text"
+visible: true
+type: "normal"
+order: 1
+toolset_id: teaching_researcher
+system_prompt_file: "prompts/初中语文教研员提示词.md"
+welcome_message: |
+  你好！我是初中语文教研员。
+  
+  我可以帮助你：
+  - 现代文阅读教学
+  - 古诗文鉴赏指导
+  - 写作教学设计
+  - 综合性学习活动
+  
+  有什么可以帮你的吗？

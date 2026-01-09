@@ -1,0 +1,21 @@
+# 高中物理教研员配置
+tool_id: high_physics
+name: "高中物理教研员"
+description: "专注高中物理教学研究，提供力学、电磁学、光学等方面的专业指导"
+category: "高中物理"
+icon: "light-bulb"
+visible: true
+type: "normal"
+order: 1
+toolset_id: teaching_researcher
+system_prompt_file: "prompts/高中物理教研员提示词.md"
+welcome_message: |
+  你好！我是高中物理教研员。
+  
+  我可以帮助你：
+  - 力学系统教学
+  - 电磁学概念理解
+  - 物理实验设计
+  - 物理建模思维培养
+  
+  有什么可以帮你的吗？

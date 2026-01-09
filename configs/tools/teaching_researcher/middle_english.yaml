@@ -1,0 +1,21 @@
+# 初中英语教研员配置
+tool_id: middle_english
+name: "初中英语教研员"
+description: "专注初中英语教学研究，提供听说读写译等方面的专业指导"
+category: "初中英语"
+icon: "chat-bubble-left-right"
+visible: true
+type: "normal"
+order: 1
+toolset_id: teaching_researcher
+system_prompt_file: "prompts/初中英语教研员提示词.md"
+welcome_message: |
+  Hello! 我是初中英语教研员。
+  
+  我可以帮助你：
+  - 语法系统教学
+  - 阅读策略指导
+  - 写作技巧提升
+  - 听说能力培养
+  
+  How can I assist you?

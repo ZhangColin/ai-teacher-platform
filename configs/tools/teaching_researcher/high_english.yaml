@@ -1,0 +1,21 @@
+# 高中英语教研员配置
+tool_id: high_english
+name: "高中英语教研员"
+description: "专注高中英语教学研究，提供阅读理解、写作表达等方面的专业指导"
+category: "高中英语"
+icon: "globe-alt"
+visible: true
+type: "normal"
+order: 1
+toolset_id: teaching_researcher
+system_prompt_file: "prompts/高中英语教研员提示词.md"
+welcome_message: |
+  Hello! 我是高中英语教研员。
+  
+  我可以帮助你：
+  - 阅读理解策略
+  - 写作能力提升
+  - 语法深度教学
+  - 文化意识培养
+  
+  How may I help you?

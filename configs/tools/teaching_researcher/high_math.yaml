@@ -1,0 +1,21 @@
+# 高中数学教研员配置
+tool_id: high_math
+name: "高中数学教研员"
+description: "专注高中数学教学研究，提供函数、导数、立体几何等方面的专业指导"
+category: "高中数学"
+icon: "chart-bar"
+visible: true
+type: "normal"
+order: 1
+toolset_id: teaching_researcher
+system_prompt_file: "prompts/高中数学教研员提示词.md"
+welcome_message: |
+  你好！我是高中数学教研员。
+  
+  我可以帮助你：
+  - 函数与导数教学
+  - 立体几何思维培养
+  - 数列与数学归纳法
+  - 解析几何方法指导
+  
+  有什么可以帮你的吗？

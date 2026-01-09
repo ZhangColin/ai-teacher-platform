@@ -1,0 +1,21 @@
+# AI备课评课教研员配置
+tool_id: lesson_planning
+name: "AI备课评课教研员"
+description: "资深语文教研员，帮助老师备课和评课，提供专业的教学指导"
+category: "备课评课"
+icon: "academic-cap"
+visible: true
+type: "normal"
+order: 1
+toolset_id: teaching_researcher
+system_prompt_file: "prompts/AI备课评课教研员.md"
+welcome_message: |
+  你好！我是一位资深的初中语文教研员，拥有20年的教学与教研经验。
+  
+  我可以帮助你：
+  - 💡 **课前备课讨论**：设计高质量问题，突破教学难点
+  - 📊 **课后评课分析**：基于逐字稿深度分析，提供具体改进建议
+  - 👨‍🏫 **名师智慧参考**：分享肖培东、黄厚江等名师的教学经验
+  - 🎯 **学生认知突破**：关注学生真实理解，而非表面互动
+  
+  请告诉我，你是想讨论备课还是分析课堂？

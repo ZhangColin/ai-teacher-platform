@@ -1,0 +1,21 @@
+# 初中物理教研员配置
+tool_id: middle_physics
+name: "初中物理教研员"
+description: "专注初中物理教学研究，提供力学、电学、光学等方面的专业指导"
+category: "初中物理"
+icon: "beaker"
+visible: true
+type: "normal"
+order: 1
+toolset_id: teaching_researcher
+system_prompt_file: "prompts/初中物理教研员提示词.md"
+welcome_message: |
+  你好！我是初中物理教研员。
+  
+  我可以帮助你：
+  - 物理概念理解
+  - 实验教学设计
+  - 问题解决策略
+  - 生活物理应用
+  
+  有什么可以帮你的吗？
