@@ -173,3 +173,75 @@
 
 **最后更新**: 2026-01-03（添加工具管理和会话功能开发任务）
 
+---
+
+## 当前迭代：多工具集架构扩展（教研员模块）
+
+**需求来源**: `docs/requirements/teaching_researcher_spec.md`  
+**架构设计**: `docs/design/multi_toolset_architecture.md`, `docs/design/api_interface.md` (v3.0), `docs/design/data_models.md` (v3.0)  
+**创建时间**: 2026-01-09
+
+### 架构目标
+
+**核心原则**: 低侵入式扩展，配置驱动，组件复用
+
+- 支持多个工具集模块（AI工具、教研员等）共享同一套UI和功能逻辑
+- 通过配置文件定义导航结构，无需为新模块重新开发
+- 支持大型系统提示词文件化管理
+
+### 任务列表
+
+#### 阶段1：后端基础扩展（支持多工具集）
+
+| ID | 任务描述 | 状态 | 优先级 |
+|:---|:---|:---|:---|
+| multi-toolset-1.1 | 扩展数据模型：Tool 添加 `toolset_id`（默认"ai_tools"）、`system_prompt_file`（可选）字段 | pending | P0 |
+| multi-toolset-1.2 | 创建配置加载器（`config_loader.py`）：支持加载 `navigation.yaml`，支持从文件读取系统提示词 | pending | P0 |
+| multi-toolset-1.3 | 新增导航API端点：`GET /api/v1/navigation` - 返回顶部导航模块配置 | pending | P0 |
+| multi-toolset-1.4 | 新增工具集API端点：`GET /api/v1/toolsets/{toolset_id}/tools` - 返回指定工具集的工具列表（按分类组织） | pending | P0 |
+| multi-toolset-1.5 | 更新 `ToolService`：支持按 `toolset_id` 过滤工具，支持加载工具集目录结构 | pending | P0 |
+| multi-toolset-1.6 | 编写单元测试：测试配置加载器、新API端点、系统提示词文件加载 | pending | P1 |
+
+#### 阶段2：前端基础扩展（配置驱动）
+
+| ID | 任务描述 | 状态 | 优先级 |
+|:---|:---|:---|:---|
+| multi-toolset-2.1 | 创建导航状态管理（`stores/navigationStore.ts`）：缓存导航配置，支持模块切换 | pending | P0 |
+| multi-toolset-2.2 | 更新类型定义（`types/navigation.ts`）：定义 `NavigationModule`、`ModuleType` 等类型 | pending | P0 |
+| multi-toolset-2.3 | 更新 `MainLayout.vue`：从硬编码改为配置驱动，根据导航配置动态加载模块组件 | pending | P0 |
+| multi-toolset-2.4 | 创建 `ToolsetModuleLayout.vue`：复用 `AIToolsLayout` 逻辑，参数化 `toolset_id` | pending | P0 |
+| multi-toolset-2.5 | 更新 `Header.vue`：从导航配置动态生成顶部模块切换按钮 | pending | P0 |
+| multi-toolset-2.6 | 测试现有AI工具模块：确保重构后现有功能不受影响 | pending | P1 |
+
+#### 阶段3：教研员模块配置（首个应用）
+
+| ID | 任务描述 | 状态 | 优先级 |
+|:---|:---|:---|:---|
+| multi-toolset-3.1 | 创建导航配置文件 `configs/navigation.yaml`：定义"AI工具"和"教研员"两个模块 | pending | P0 |
+| multi-toolset-3.2 | 迁移现有工具配置：将现有工具移到 `configs/tools/ai_tools/` 目录，添加 `toolset_id: ai_tools` | pending | P0 |
+| multi-toolset-3.3 | 创建教研员工具集目录结构 `configs/tools/teaching_researcher/`（由用户提供配置和提示词文件） | pending | P0 |
+| multi-toolset-3.4 | 端到端测试：验证AI工具和教研员两个模块都能正常工作，数据隔离正确 | pending | P1 |
+| multi-toolset-3.5 | 更新部署文档：记录新的配置文件结构和系统提示词文件管理方式 | pending | P2 |
+
+---
+
+### 教研员配置目录结构（用户提供）
+
+完成 `multi-toolset-3.2` 后，需要用户提供以下配置文件：
+
+```
+configs/tools/teaching_researcher/
+├── prompts/                      # 系统提示词文件目录
+│   ├── chinese_teacher.md        # 语文教研员提示词（用户提供）
+│   ├── math_teacher.md           # 数学教研员提示词（用户提供）
+│   └── ...
+├── chinese_teacher.yaml          # 语文教研员工具配置（用户提供）
+├── math_teacher.yaml             # 数学教研员工具配置（用户提供）
+└── categories.yaml               # 分类配置（用户提供）
+```
+
+**配置示例**将在 `multi-toolset-3.2` 完成后提供。
+
+---
+
+**最后更新**: 2026-01-09（添加多工具集架构扩展任务）
