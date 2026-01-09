@@ -99,8 +99,8 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 
 
 @app.get("/api/v1/navigation", response_model=NavigationResponse)
-async def get_navigation(current_user: UserInfo = Depends(get_current_user)):
-    """获取顶部导航模块配置"""
+async def get_navigation():
+    """获取顶部导航模块配置（公开接口，无需认证）"""
     modules = config_loader.load_navigation()
     return NavigationResponse(modules=modules)
 
