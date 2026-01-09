@@ -21,6 +21,7 @@ from src.services.artifact_parser import ArtifactParser
 from src.services.user_service import UserService
 from src.services.auth_service import AuthService
 from src.services.conversion_service import ConversionService
+from src.services.common_tool_service import CommonToolService
 from src.config_loader import ConfigLoader
 from src.models import (
     AgentListResponse, AgentListItem, SessionInitResponse,
@@ -32,7 +33,8 @@ from src.models import (
     SessionDetailResponse, Session,
     UpdateSessionRequest, UpdateSessionResponse,
     MarkdownToWordRequest,
-    NavigationModule, NavigationResponse
+    NavigationModule, NavigationResponse,
+    CommonToolCategoryResponse, CommonToolDetail
 )
 
 app = FastAPI(title="AI Teacher Platform Backend")
@@ -50,6 +52,7 @@ artifact_parser = ArtifactParser()
 user_service = UserService()
 auth_service = AuthService()
 conversion_service = ConversionService()
+common_tool_service = CommonToolService()
 
 # HTTP Bearer Token 安全方案
 security = HTTPBearer()
@@ -725,5 +728,73 @@ async def convert_markdown_to_word(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="文档转换失败，请稍后重试"
+        )
+
+
+# ==================== 常用工具模块 API ====================
+
+@app.get("/api/v1/common-tools/categories", response_model=CommonToolCategoryResponse)
+async def get_common_tool_categories(current_user: UserInfo = Depends(get_current_user)):
+    """
+    获取所有工具分类及其下的工具列表
+    
+    Returns:
+        CommonToolCategoryResponse: 分类列表，每个分类包含该分类下的工具列表
+        
+    Notes:
+        - 只返回 visible=True 的工具
+        - 分类按 order 字段升序排列
+        - 每个分类下的工具按 order 字段升序排列
+        - 如果某个分类下没有可见工具，则不返回该分类
+    """
+    try:
+        result = common_tool_service.get_categories_with_tools()
+        return result
+    except Exception as e:
+        logger.error(f"获取工具分类列表失败: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="获取工具分类列表失败"
+        )
+
+
+@app.get("/api/v1/common-tools/tools/{tool_id}", response_model=CommonToolDetail)
+async def get_common_tool_detail(
+    tool_id: str,
+    current_user: UserInfo = Depends(get_current_user)
+):
+    """
+    获取指定工具的详细信息
+    
+    Args:
+        tool_id: 工具ID
+        
+    Returns:
+        CommonToolDetail: 工具详情（包括分类信息、HTML访问URL等）
+        
+    Raises:
+        HTTPException: 工具不存在或不可见时返回404
+        
+    Notes:
+        - 只能查询 visible=True 的工具
+        - HTML工具的 html_path 会被转换为完整的访问URL
+    """
+    try:
+        result = common_tool_service.get_tool_detail(tool_id)
+        
+        if result is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="工具不存在或已下线"
+            )
+        
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"获取工具详情失败: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="获取工具详情失败"
         )
 
