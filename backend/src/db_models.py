@@ -1,7 +1,7 @@
 """SQLAlchemy ORM 数据模型"""
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, DateTime, Text, Enum, ForeignKey, Index
+from sqlalchemy import Column, String, DateTime, Text, Enum, ForeignKey, Index, Integer, Boolean
 from sqlalchemy.dialects.mysql import CHAR
 from sqlalchemy.orm import relationship
 from .database import Base
@@ -80,4 +80,50 @@ class ArtifactModel(Base):
     
     # 关系
     message = relationship("MessageModel", back_populates="artifacts")
+
+
+class CommonToolType(enum.Enum):
+    """常用工具类型枚举"""
+    built_in = "built-in"
+    html = "html"
+
+
+class ToolCategoryModel(Base):
+    """工具分类数据库模型（SQLAlchemy ORM）"""
+    __tablename__ = "tool_categories"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(50), nullable=False, unique=True)
+    icon = Column(String(50), nullable=True)
+    order = Column(Integer, nullable=False, default=0, index=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
+    updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
+    
+    # 关系
+    tools = relationship("CommonToolModel", back_populates="category", cascade="all, delete-orphan")
+
+
+class CommonToolModel(Base):
+    """常用工具数据库模型（SQLAlchemy ORM）"""
+    __tablename__ = "common_tools"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(100), nullable=False)
+    description = Column(String(200), nullable=False)
+    category_id = Column(String(36), ForeignKey("tool_categories.id", ondelete="RESTRICT"), nullable=False, index=True)
+    type = Column(Enum(CommonToolType), nullable=False)
+    icon = Column(String(50), nullable=True)
+    html_path = Column(String(255), nullable=True)
+    order = Column(Integer, nullable=False, default=0)
+    visible = Column(Boolean, nullable=False, default=True, index=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
+    updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
+    
+    # 关系
+    category = relationship("ToolCategoryModel", back_populates="tools")
+    
+    # 联合索引（按分类和排序查询）
+    __table_args__ = (
+        Index("idx_category_order", "category_id", "order"),
+    )
 

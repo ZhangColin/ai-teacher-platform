@@ -361,3 +361,90 @@ class MarkdownToWordRequest(BaseModel):
     content: str = Field(..., description="Markdown内容", min_length=1)
     filename: Optional[str] = Field(None, description="生成的文件名（不含扩展名），默认使用时间戳")
 
+
+# ==================== 常用工具模块 ====================
+
+class ToolCategory(BaseModel):
+    """工具分类实体（聚合根）"""
+    id: str = Field(..., description="分类唯一标识（UUID）")
+    name: str = Field(..., description="分类名称（如：文档工具）", min_length=1, max_length=50)
+    icon: Optional[str] = Field(None, description="分类图标（heroicons名称，可选）")
+    order: int = Field(default=0, description="排序顺序（数字越小越靠前）")
+    created_at: datetime = Field(default_factory=datetime.now, description="创建时间")
+    updated_at: datetime = Field(default_factory=datetime.now, description="更新时间")
+
+
+class CommonTool(BaseModel):
+    """常用工具实体（聚合根）"""
+    id: str = Field(..., description="工具唯一标识（UUID）")
+    name: str = Field(..., description="工具名称（如：Markdown编辑器）", min_length=1, max_length=100)
+    description: str = Field(..., description="工具描述（一句话说明工具功能）", min_length=1, max_length=200)
+    category_id: str = Field(..., description="所属分类ID（关联ToolCategory）")
+    type: Literal["built-in", "html"] = Field(..., description="工具类型：'built-in'（内置工具）或 'html'（HTML工具）")
+    icon: Optional[str] = Field(None, description="图标标识（heroicons名称，如：'document-text'）")
+    html_path: Optional[str] = Field(None, description="HTML文件路径（仅type='html'时必填，相对于static目录）")
+    order: int = Field(default=0, description="排序顺序（数字越小越靠前）")
+    visible: bool = Field(default=True, description="是否可见（用于后台控制工具上下线）")
+    created_at: datetime = Field(default_factory=datetime.now, description="创建时间")
+    updated_at: datetime = Field(default_factory=datetime.now, description="更新时间")
+    
+    def is_html_tool(self) -> bool:
+        """判断是否为HTML工具"""
+        return self.type == "html"
+    
+    def is_built_in_tool(self) -> bool:
+        """判断是否为内置工具"""
+        return self.type == "built-in"
+    
+    def get_frontend_route(self) -> str:
+        """获取前端路由路径（用于内置工具跳转）"""
+        return f"/common-tools/tool/{self.id}"
+    
+    def validate(self) -> bool:
+        """验证工具配置是否完整有效"""
+        # HTML工具必须有html_path
+        if self.type == "html" and not self.html_path:
+            return False
+        # 内置工具不应有html_path
+        if self.type == "built-in" and self.html_path:
+            return False
+        return True
+
+
+class CommonToolListItem(BaseModel):
+    """工具列表项（用于API响应）"""
+    id: str = Field(..., description="工具ID")
+    name: str = Field(..., description="工具名称")
+    description: str = Field(..., description="工具描述")
+    type: Literal["built-in", "html"] = Field(..., description="工具类型：'built-in' 或 'html'")
+    icon: Optional[str] = Field(None, description="图标标识")
+    order: int = Field(..., description="排序顺序")
+
+
+class ToolCategoryGroup(BaseModel):
+    """工具分类组（用于API响应）"""
+    id: str = Field(..., description="分类ID")
+    name: str = Field(..., description="分类名称")
+    icon: Optional[str] = Field(None, description="分类图标")
+    order: int = Field(..., description="分类排序")
+    tools: List[CommonToolListItem] = Field(..., description="该分类下的工具列表")
+
+
+class CommonToolCategoryResponse(BaseModel):
+    """工具分类响应（用于API响应）"""
+    categories: List[ToolCategoryGroup] = Field(..., description="分类列表（按order排序）")
+
+
+class CommonToolDetail(BaseModel):
+    """工具详情（用于API响应）"""
+    id: str = Field(..., description="工具ID")
+    name: str = Field(..., description="工具名称")
+    description: str = Field(..., description="工具描述")
+    category_id: str = Field(..., description="所属分类ID")
+    category_name: str = Field(..., description="所属分类名称")
+    type: Literal["built-in", "html"] = Field(..., description="工具类型：'built-in' 或 'html'")
+    icon: Optional[str] = Field(None, description="图标标识")
+    order: int = Field(..., description="排序顺序")
+    html_url: Optional[str] = Field(None, description="HTML文件访问URL（仅type='html'时有值）")
+    created_at: datetime = Field(..., description="创建时间")
+
