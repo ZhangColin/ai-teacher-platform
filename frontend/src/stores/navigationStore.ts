@@ -10,6 +10,7 @@ export const useNavigationStore = defineStore('navigation', () => {
   const loading = ref(false)
   const error = ref<string | null>(null)
   const currentModuleId = ref<string>('ai-tools') // 默认值
+  const isLoaded = ref(false) // 标记是否已加载
 
   // 计算属性
   const currentModule = computed(() => {
@@ -39,13 +40,19 @@ export const useNavigationStore = defineStore('navigation', () => {
   }
 
   // Actions
-  async function loadNavigation() {
+  async function loadNavigation(force = false) {
+    // 如果已经加载过且不强制刷新，直接返回
+    if (isLoaded.value && !force) {
+      return
+    }
+
     loading.value = true
     error.value = null
 
     try {
       const response = await ApiService.getNavigationModules()
       modules.value = response.modules || []
+      isLoaded.value = true
     } catch (err: any) {
       console.error('加载导航配置失败:', err)
       error.value = err.message || '加载导航配置失败'
@@ -60,6 +67,7 @@ export const useNavigationStore = defineStore('navigation', () => {
           order: 1
         }
       ]
+      isLoaded.value = true
     } finally {
       loading.value = false
     }
@@ -85,6 +93,7 @@ export const useNavigationStore = defineStore('navigation', () => {
     loading,
     error,
     currentModuleId,
+    isLoaded,
     
     // Getters
     currentModule,
