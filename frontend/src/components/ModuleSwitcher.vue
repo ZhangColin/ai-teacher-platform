@@ -36,10 +36,10 @@ const currentModule = computed(() => {
     return route.params.moduleId as string
   }
   
-  // 如果是独立页面路由，根据 path 匹配模块
+  // 如果是独立页面路由，根据 path 匹配模块（包括子路径）
   const currentPath = route.path
   const module = modules.value.find(m => 
-    m.type === 'page' && m.page_path === currentPath
+    m.type === 'page' && m.page_path && currentPath.startsWith(m.page_path)
   )
   
   if (module) {

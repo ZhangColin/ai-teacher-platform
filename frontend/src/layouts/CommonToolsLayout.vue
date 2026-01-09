@@ -1,16 +1,43 @@
 <template>
   <div class="common-tools-layout">
-    <router-view />
+    <!-- 顶部导航栏 -->
+    <Header />
+    
+    <!-- 主内容区 -->
+    <main class="main-content">
+      <router-view />
+    </main>
   </div>
 </template>
 
 <script setup lang="ts">
-// 常用工具模块布局 - 简单容器
+import Header from '../components/Header.vue'
 </script>
 
 <style scoped>
 .common-tools-layout {
-  @apply flex flex-col h-full overflow-hidden bg-gray-50;
+  @apply flex flex-col;
+  height: 100%;
+}
+
+.main-content {
+  @apply flex-1 flex flex-col overflow-hidden;
+  height: calc(100vh - 72px);
+  min-height: 0;
+}
+
+/* 平板端响应式（768px - 1023px） */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .main-content {
+    height: calc(100vh - 64px);
+  }
+}
+
+/* 移动端响应式（<768px） */
+@media (max-width: 767px) {
+  .main-content {
+    height: calc(100vh - 56px);
+  }
 }
 </style>
 
