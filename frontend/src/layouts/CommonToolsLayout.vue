@@ -11,7 +11,16 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted } from 'vue'
+import { useNavigationStore } from '../stores/navigationStore'
 import Header from '../components/Header.vue'
+
+const navigationStore = useNavigationStore()
+
+// 页面加载时获取导航配置
+onMounted(() => {
+  navigationStore.loadNavigation()
+})
 </script>
 
 <style scoped>
