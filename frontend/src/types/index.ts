@@ -220,3 +220,51 @@ export interface CreateUserResponse {
   user: UserInfo // 新创建的用户信息
 }
 
+// ==================== 常用工具模块 ====================
+
+/**
+ * 常用工具列表项（用于工具卡片页）
+ */
+export interface CommonToolListItem {
+  id: string // 工具ID
+  name: string // 工具名称
+  description: string // 工具描述
+  type: 'built-in' | 'html' // 工具类型
+  icon?: string // 图标（可选）
+  order: number // 排序字段
+}
+
+/**
+ * 工具分类组（包含分类信息和工具列表）
+ */
+export interface ToolCategoryGroup {
+  id: string // 分类ID
+  name: string // 分类名称
+  icon?: string // 分类图标（可选）
+  order: number // 排序字段
+  tools: CommonToolListItem[] // 该分类下的工具列表
+}
+
+/**
+ * 常用工具分类响应
+ */
+export interface CommonToolCategoryResponse {
+  categories: ToolCategoryGroup[] // 分类列表
+}
+
+/**
+ * 常用工具详情
+ */
+export interface CommonToolDetail {
+  id: string // 工具ID
+  name: string // 工具名称
+  description: string // 工具描述
+  category_id: string // 分类ID
+  category_name: string // 分类名称
+  type: 'built-in' | 'html' // 工具类型
+  icon?: string // 图标（可选）
+  order: number // 排序字段
+  html_url?: string // HTML工具访问URL（仅HTML工具）
+  created_at: string // 创建时间（ISO 8601格式）
+}
+

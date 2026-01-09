@@ -16,6 +16,8 @@ import type {
   CreateUserRequest,
   CreateUserResponse,
   UserInfo,
+  CommonToolCategoryResponse,
+  CommonToolDetail,
 } from '../types'
 import type { NavigationResponse } from '../types/navigation'
 
@@ -316,6 +318,25 @@ export class ApiService {
    */
   static async createUser(request: CreateUserRequest): Promise<CreateUserResponse> {
     const response = await apiClient.post<CreateUserResponse>('/admin/users', request)
+    return response.data
+  }
+
+  // ==================== 常用工具模块 ====================
+
+  /**
+   * 获取常用工具分类列表（包含每个分类下的工具列表）
+   */
+  static async getCommonToolCategories(): Promise<CommonToolCategoryResponse> {
+    const response = await apiClient.get<CommonToolCategoryResponse>('/common-tools/categories')
+    return response.data
+  }
+
+  /**
+   * 获取常用工具详情
+   * @param toolId 工具ID
+   */
+  static async getCommonToolDetail(toolId: string): Promise<CommonToolDetail> {
+    const response = await apiClient.get<CommonToolDetail>(`/common-tools/tools/${toolId}`)
     return response.data
   }
 }

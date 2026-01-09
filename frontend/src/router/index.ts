@@ -25,6 +25,32 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../layouts/MainLayout.vue'),
     props: true,
   },
+  {
+    path: '/common-tools',
+    name: 'common-tools',
+    component: () => import('../layouts/CommonToolsLayout.vue'),
+    children: [
+      {
+        path: '',
+        name: 'common-tools-home',
+        component: () => import('../views/CommonToolsView.vue'),
+      },
+      // 内置工具路由将在后续任务中添加
+      // {
+      //   path: ':toolId',
+      //   name: 'common-tool-detail',
+      //   component: () => import('../views/CommonToolDetailView.vue'),
+      //   props: true,
+      // },
+      // HTML工具路由将在后续任务中添加
+      // {
+      //   path: 'html/:toolId',
+      //   name: 'common-tool-html',
+      //   component: () => import('../views/CommonToolHtmlView.vue'),
+      //   props: true,
+      // },
+    ],
+  },
   // 保留原有路由（后续处理）
   {
     path: '/agents',
