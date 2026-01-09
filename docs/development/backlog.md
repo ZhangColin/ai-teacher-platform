@@ -280,8 +280,8 @@ configs/tools/teaching_researcher/
 | ID | 任务描述 | 状态 | 优先级 |
 |:---|:---|:---|:---|
 | common-tools-1 | 后端-完成常用工具数据库设计与实现（表结构、ORM模型、Pydantic模型、初始化数据） | completed | P0 |
-| common-tools-2 | 后端-实现获取工具分类列表功能（含Service、API、测试） | pending | P0 |
-| common-tools-3 | 后端-实现获取工具详情功能（含Service、API、测试） | pending | P0 |
+| common-tools-2 | 后端-实现获取工具分类列表功能（含Service、API、测试） | completed | P0 |
+| common-tools-3 | 后端-实现获取工具详情功能（含Service、API、测试） | completed | P0 |
 | common-tools-4 | 前端-实现工具卡片页（含类型定义、API客户端、路由、页面、测试） | pending | P0 |
 | common-tools-5 | 前端-实现Markdown编辑器工具（含CodeMirror集成、编辑预览、下载、测试） | pending | P0 |
 | common-tools-6 | 前端-实现HTML工具运行器（含沙箱运行、全屏功能、测试） | pending | P0 |
