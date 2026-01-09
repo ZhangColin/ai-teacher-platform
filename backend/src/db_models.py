@@ -84,7 +84,7 @@ class ArtifactModel(Base):
 
 class CommonToolType(enum.Enum):
     """常用工具类型枚举"""
-    built_in = "built-in"
+    built_in = "built_in"
     html = "html"
 
 
