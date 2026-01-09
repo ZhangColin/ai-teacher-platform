@@ -53,7 +53,7 @@
         />
         <!-- 显示模式 -->
         <div v-else class="conversation-content" @click="handleConversationClick(conversation.session_id)">
-          <div class="conversation-title">{{ conversation.title }}</div>
+        <div class="conversation-title">{{ conversation.title }}</div>
           <div class="conversation-time">{{ formatTime(conversation.updated_at) }}</div>
         </div>
         <!-- 操作按钮（hover 时显示） -->
@@ -239,7 +239,7 @@ async function handleConfirmDelete() {
     if (currentConversationId.value === sessionId) {
       currentConversationId.value = null
       emit('new-conversation')
-    }
+}
     deletingSession.value = null
   } catch (err) {
     console.error('删除会话失败:', err)

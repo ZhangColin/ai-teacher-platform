@@ -66,7 +66,7 @@ export const useSessionStore = defineStore('session', () => {
       await ApiService.chatStream(
         toolId.value,
         {
-          message: content,
+        message: content,
           session_id: sessionId.value || null, // 如果有会话ID则继续会话，没有则创建新会话
           history: messages.value.slice(0, -2).map(msg => ({
             role: msg.role,

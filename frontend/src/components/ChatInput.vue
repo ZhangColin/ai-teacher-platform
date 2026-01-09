@@ -54,7 +54,7 @@ function handleKeyDown(event: KeyboardEvent) {
     event.preventDefault()
     // 再次检查输入法状态（防止异步问题）
     if (!isComposing.value) {
-      handleSend()
+    handleSend()
     } else {
       console.log('输入法状态检查：正在输入，取消发送')
     }
