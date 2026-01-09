@@ -304,19 +304,176 @@ class CreateUserResponse(BaseModel):
 
 ---
 
-## 4. 工具相关接口（需要认证）
+## 4. 导航与工具相关接口（需要认证）
 
-### 4.1 获取工具列表
-获取所有已配置的工具列表，按分类组织，用于前端工具选择器展示。
+### 4.1 获取导航配置
+获取顶部导航模块配置列表，用于前端渲染导航栏和配置路由。
+
+- **Endpoint**: `GET /api/v1/navigation`
+- **Description**: 返回所有导航模块配置，包括工具集模块和独立页面模块。
+- **认证要求**: 需要认证（Bearer Token）
+
+- **Response Structure**:
+```python
+class NavigationModule(BaseModel):
+    module_id: str = Field(..., description="模块唯一标识符")
+    name: str = Field(..., description="模块显示名称")
+    type: Literal["toolset", "page"] = Field(..., description="模块类型：toolset（工具集）或 page（独立页面）")
+    route_path: str = Field(..., description="前端路由路径")
+    icon: Optional[str] = Field(None, description="图标标识")
+    order: int = Field(..., description="显示顺序")
+    config_source: Optional[str] = Field(None, description="工具配置目录路径（toolset类型专用）")
+    page_component: Optional[str] = Field(None, description="页面组件名称（page类型专用）")
+
+class NavigationResponse(BaseModel):
+    modules: List[NavigationModule] = Field(..., description="导航模块列表")
+```
+
+**业务规则**：
+- 按 `order` 字段升序排列
+- 只返回配置正确的模块（验证通过的）
+- `toolset` 类型模块必须有 `config_source` 字段
+- `page` 类型模块必须有 `page_component` 字段
+
+**Example Response**:
+```json
+{
+  "modules": [
+    {
+      "module_id": "ai_tools",
+      "name": "AI工具",
+      "type": "toolset",
+      "route_path": "/ai-tools",
+      "config_source": "configs/tools/ai_tools/",
+      "icon": "sparkles",
+      "order": 1
+    },
+    {
+      "module_id": "teaching_researcher",
+      "name": "教研员",
+      "type": "toolset",
+      "route_path": "/teaching-researcher",
+      "config_source": "configs/tools/teaching_researcher/",
+      "icon": "user-group",
+      "order": 2
+    },
+    {
+      "module_id": "utility_tools",
+      "name": "常用工具",
+      "type": "page",
+      "route_path": "/utility-tools",
+      "page_component": "UtilityToolsPage",
+      "icon": "wrench",
+      "order": 3
+    }
+  ]
+}
+```
+
+---
+
+### 4.2 获取工具集的工具列表
+获取指定工具集的所有工具列表，按分类组织，用于前端工具选择器展示。
+
+- **Endpoint**: `GET /api/v1/toolsets/{toolset_id}/tools`
+- **Description**: 返回指定工具集的所有工具列表，按分类组织。
+- **认证要求**: 需要认证（Bearer Token）
+
+- **Path Parameters**:
+  - `toolset_id` (str, required): 工具集ID（与导航配置的 `module_id` 对应）
+
+- **Response Structure**:
+```python
+class ToolListItem(BaseModel):
+    tool_id: str = Field(..., description="工具唯一标识符")
+    toolset_id: str = Field(..., description="所属工具集ID")
+    name: str = Field(..., description="工具名称")
+    description: Optional[str] = Field(None, description="工具描述")
+    icon: Optional[str] = Field(None, description="图标标识（可选）")
+    category: str = Field(..., description="分类名称")
+    visible: bool = Field(True, description="是否在工具选择器中显示")
+    type: Literal["normal", "placeholder"] = Field("normal", description="工具类型")
+    order: int = Field(0, description="排序")
+
+class CategoryGroup(BaseModel):
+    name: str = Field(..., description="分类名称")
+    icon: Optional[str] = Field(None, description="分类图标（可选）")
+    tools: List[ToolListItem] = Field(..., description="该分类下的工具列表")
+
+class ToolsetToolsResponse(BaseModel):
+    toolset_id: str = Field(..., description="工具集ID")
+    toolset_name: str = Field(..., description="工具集名称")
+    categories: List[CategoryGroup] = Field(..., description="按分类组织的工具列表")
+```
+
+**业务规则**：
+- 只返回该工具集下的工具（`toolset_id` 匹配）
+- 只返回 `visible=true` 的工具
+- 只返回成功加载的工具
+- 按 `category` 字段聚合，生成分类结构
+- 每个分类内的工具按 `order` 升序排列
+
+**Example Response**:
+```json
+{
+  "toolset_id": "teaching_researcher",
+  "toolset_name": "教研员",
+  "categories": [
+    {
+      "name": "语文",
+      "icon": "book-open",
+      "tools": [
+        {
+          "tool_id": "chinese_researcher_1",
+          "toolset_id": "teaching_researcher",
+          "name": "王老师 - 小学语文教研员",
+          "description": "专注于小学语文阅读与写作教学",
+          "icon": "book-open",
+          "category": "语文",
+          "visible": true,
+          "type": "normal",
+          "order": 1
+        }
+      ]
+    },
+    {
+      "name": "数学",
+      "icon": "calculator",
+      "tools": [
+        {
+          "tool_id": "math_researcher_1",
+          "toolset_id": "teaching_researcher",
+          "name": "李老师 - 小学数学教研员",
+          "description": "专注于小学数学思维培养",
+          "icon": "calculator",
+          "category": "数学",
+          "visible": true,
+          "type": "normal",
+          "order": 1
+        }
+      ]
+    }
+  ]
+}
+```
+
+**错误响应**：
+- `404 Not Found`: 工具集不存在
+
+---
+
+### 4.3 获取所有工具列表（兼容接口）
+获取所有已配置的工具列表，按分类组织。保留此接口用于向后兼容和某些需要获取所有工具的场景（如搜索、管理后台）。
 
 - **Endpoint**: `GET /api/v1/tools`
-- **Description**: 返回所有已配置的工具列表，按分类组织。
+- **Description**: 返回所有工具集的所有工具列表，按分类组织。
 - **认证要求**: 需要认证（Bearer Token）
 
 - **Response Structure**:
 ```python
 class ToolListItem(BaseModel):
     tool_id: str = Field(..., description="工具唯一标识符")
+    toolset_id: str = Field(..., description="所属工具集ID")  # 🆕 新增字段
     name: str = Field(..., description="工具名称")
     description: Optional[str] = Field(None, description="工具描述")
     icon: Optional[str] = Field(None, description="图标标识（可选）")
@@ -365,7 +522,7 @@ class ToolListResponse(BaseModel):
 
 ---
 
-### 4.2 通用对话交互
+### 4.4 通用对话交互
 这是系统最核心的接口，负责发送用户消息，获取 AI 回复，并解析成果物。首次调用时自动创建会话。
 
 - **Endpoint**: `POST /api/v1/tools/{tool_id}/chat`
@@ -463,7 +620,7 @@ class ChatResponse(BaseModel):
 
 ---
 
-### 4.3 获取历史对话列表
+### 4.5 获取历史对话列表
 获取当前用户在当前工具下的所有历史对话列表。
 
 - **Endpoint**: `GET /api/v1/tools/{tool_id}/conversations`
@@ -512,7 +669,7 @@ class ConversationListResponse(BaseModel):
 
 ---
 
-### 4.4 获取会话详情
+### 4.6 获取会话详情
 获取指定会话的完整消息历史。
 
 - **Endpoint**: `GET /api/v1/sessions/{session_id}`
@@ -565,7 +722,7 @@ class SessionDetailResponse(BaseModel):
 
 ---
 
-### 4.5 编辑会话标题
+### 4.7 编辑会话标题
 更新指定会话的标题。
 
 - **Endpoint**: `PATCH /api/v1/sessions/{session_id}`
@@ -615,7 +772,7 @@ class UpdateSessionResponse(BaseModel):
 
 ---
 
-### 4.6 删除会话
+### 4.8 删除会话
 删除指定会话及其所有消息。
 
 - **Endpoint**: `DELETE /api/v1/sessions/{session_id}`
@@ -863,9 +1020,15 @@ sequenceDiagram
 
 ---
 
-**文档版本**: v2.0  
-**最后更新**: 2026-01-03  
+**文档版本**: v3.0  
+**最后更新**: 2026-01-09  
 **更新说明**:
+- v3.0:
+  - 多工具集架构支持：新增导航配置接口、工具集工具列表接口
+  - 新增 `GET /api/v1/navigation` 接口，提供导航模块配置
+  - 新增 `GET /api/v1/toolsets/{toolset_id}/tools` 接口，按工具集获取工具列表
+  - 扩展 `ToolListItem` 模型，增加 `toolset_id` 字段
+  - 更新接口编号（原 4.2-4.6 调整为 4.4-4.8）
 - v2.0: 
   - 术语统一：将"Agent"统一为"工具（Tool）"
   - 接口重构：采用一个接口方案，`session_id` 作为可选参数

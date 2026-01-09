@@ -130,18 +130,25 @@ Tool 是系统的核心实体，代表一个可配置的 AI 工具。
 class Tool(BaseModel):
     """工具配置实体（聚合根）"""
     tool_id: str = Field(..., description="工具唯一标识符")
+    toolset_id: str = Field(..., description="所属工具集ID")  # 🆕 v3.0 新增
     name: str = Field(..., description="工具名称")
     description: Optional[str] = Field(None, description="工具描述")
-    system_prompt: str = Field(..., description="系统提示词，定义工具的业务逻辑")
+    system_prompt: Optional[str] = Field(None, description="系统提示词（定义工具的业务逻辑）")
+    system_prompt_file: Optional[str] = Field(None, description="系统提示词文件路径（相对于工具集目录）")  # 🆕 v3.0 新增
     category: str = Field(..., description="分类名称")
     icon: Optional[str] = Field(None, description="图标标识（可选）")
     visible: bool = Field(True, description="是否在工具选择器中显示")
     type: Literal["normal", "placeholder"] = Field("normal", description="工具类型")
     welcome_message: str = Field(..., description="欢迎语（配置化展示）")
+    order: int = Field(0, description="排序")  # 🆕 v3.0 新增
     
     @classmethod
-    def load_from_config(cls, config_path: str) -> "Tool":
+    def load_from_config(cls, config_path: str, config_source: str) -> "Tool":
         """从配置文件加载工具"""
+        pass
+    
+    def load_system_prompt(self, config_source: str) -> str:
+        """加载系统提示词（从文件或配置）"""  # 🆕 v3.0 新增
         pass
     
     def validate(self) -> bool:
@@ -149,15 +156,61 @@ class Tool(BaseModel):
         pass
 ```
 
+**字段说明（v3.0 新增）**：
+- `toolset_id`：标识工具所属的工具集，与导航配置中的 `module_id` 对应
+- `system_prompt_file`：系统提示词文件路径（相对于工具集目录），与 `system_prompt` 二选一，优先使用 `system_prompt_file`
+- `order`：工具在分类内的排序
+
 **业务规则**：
-- 工具配置必须包含 `tool_id`、`name`、`system_prompt`、`welcome_message`、`category`
+- 工具配置必须包含 `tool_id`、`toolset_id`、`name`、`welcome_message`、`category`
+- 系统提示词必须配置（`system_prompt` 或 `system_prompt_file` 二选一）
+- 如果配置了 `system_prompt_file`，加载时从文件读取内容并设置为 `system_prompt`
 - 如果配置加载失败，该工具不应出现在系统中
 - `visible` 字段默认为 `true`，如果未指定则显示
 - `type` 字段默认为 `"normal"`，占位工具标记为 `"placeholder"`
 
 ---
 
-### 2.3 Session（聚合根）
+### 2.3 NavigationModule（值对象）
+NavigationModule 是导航配置的核心实体，代表顶部导航的一个模块入口。
+
+```python
+class NavigationModule(BaseModel):
+    """导航模块配置（值对象）"""
+    module_id: str = Field(..., description="模块唯一标识符")
+    name: str = Field(..., description="模块显示名称")
+    type: Literal["toolset", "page"] = Field(..., description="模块类型")
+    route_path: str = Field(..., description="前端路由路径")
+    icon: Optional[str] = Field(None, description="图标标识")
+    order: int = Field(..., description="显示顺序")
+    
+    # 工具集类型专用字段
+    config_source: Optional[str] = Field(None, description="工具配置目录路径（toolset类型必填）")
+    
+    # 独立页面类型专用字段
+    page_component: Optional[str] = Field(None, description="页面组件名称（page类型必填）")
+    
+    @classmethod
+    def load_all_from_config(cls, config_path: str) -> List["NavigationModule"]:
+        """从配置文件加载所有导航模块"""
+        pass
+    
+    def validate(self) -> bool:
+        """验证配置完整性"""
+        pass
+```
+
+**业务规则**：
+- `type` 字段区分模块类型：`toolset`（工具集）或 `page`（独立页面）
+- `toolset` 类型模块必须配置 `config_source`
+- `page` 类型模块必须配置 `page_component`
+- 导航模块按 `order` 字段排序显示
+- `module_id` 必须唯一
+- `route_path` 必须以 `/` 开头
+
+---
+
+### 2.4 Session（聚合根）
 Session 代表一个用户与特定工具的对话会话。
 
 ```python
@@ -184,7 +237,7 @@ class Session(BaseModel):
 
 ---
 
-### 2.4 Message（实体）
+### 2.5 Message（实体）
 Message 代表会话中的一条消息，可以是用户消息或 AI 回复。
 
 ```python
@@ -209,7 +262,7 @@ class Message(BaseModel):
 
 ---
 
-### 2.5 Artifact（实体）
+### 2.6 Artifact（实体）
 Artifact 代表从消息中提取的可预览成果物。
 
 ```python
@@ -414,9 +467,14 @@ class ArtifactParser:
 
 ---
 
-**文档版本**: v2.0  
-**最后更新**: 2026-01-03  
+**文档版本**: v3.0  
+**最后更新**: 2026-01-09  
 **更新说明**:
+- v3.0:
+  - 多工具集架构支持：新增 NavigationModule 模型
+  - 扩展 Tool 模型：增加 `toolset_id`、`system_prompt_file`、`order` 字段
+  - 系统提示词文件化：支持从独立文件加载系统提示词
+  - 更新章节编号：插入 NavigationModule 后，Message 从 2.4 调整为 2.5，Artifact 从 2.5 调整为 2.6
 - v2.0: 
   - 术语统一：将"Agent"统一为"工具（Tool）"
   - 工具配置简化：删除 `ui_config` 和 `capabilities` 字段，新增 `category`、`icon`、`visible`、`type`、`welcome_message` 字段
@@ -427,6 +485,7 @@ class ArtifactParser:
   - 删除 UIConfig 值对象
 
 **设计依据**: 
+- `docs/requirements/teaching_researcher_spec.md` (v2.0)
 - `docs/requirements/product_spec.md` (v4.0)
 - `docs/requirements/ai_prompt_wizard_spec.md`
 - `docs/requirements/ui_interaction_guide.md`
