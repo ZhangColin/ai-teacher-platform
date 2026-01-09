@@ -21,12 +21,21 @@
     <!-- 编辑器容器 -->
     <div class="editor-container">
       <!-- 左侧：CodeMirror 编辑器 -->
-      <div class="editor-panel">
+      <div class="editor-panel" :style="{ width: `${editorWidth}%` }">
         <div ref="editorRef" class="editor-content"></div>
       </div>
 
+      <!-- 可拖动分隔条 -->
+      <div 
+        class="resizer" 
+        @mousedown="startResize"
+        @touchstart="startResize"
+      >
+        <div class="resizer-line"></div>
+      </div>
+
       <!-- 右侧：预览面板 -->
-      <div class="preview-container">
+      <div class="preview-container" :style="{ width: `${100 - editorWidth}%` }">
         <PreviewPanel :artifact="previewArtifact" @close="handleClosePreview" />
       </div>
     </div>
@@ -51,6 +60,10 @@ const router = useRouter()
 // 编辑器引用
 const editorRef = ref<HTMLElement | null>(null)
 let editorView: EditorView | null = null
+
+// 分隔条宽度（百分比）
+const editorWidth = ref(50)
+const isResizing = ref(false)
 
 // 编辑器内容
 const editorContent = ref(`# 欢迎使用 Markdown 编辑器
@@ -164,6 +177,61 @@ const handleClosePreview = () => {
   // Markdown编辑器中预览始终显示，不关闭
 }
 
+/**
+ * 开始调整大小
+ */
+const startResize = (e: MouseEvent | TouchEvent) => {
+  isResizing.value = true
+  e.preventDefault()
+  
+  // 添加全局监听
+  document.addEventListener('mousemove', handleResize)
+  document.addEventListener('mouseup', stopResize)
+  document.addEventListener('touchmove', handleResize)
+  document.addEventListener('touchend', stopResize)
+  
+  // 添加样式防止文本选择
+  document.body.style.cursor = 'col-resize'
+  document.body.style.userSelect = 'none'
+}
+
+/**
+ * 调整大小中
+ */
+const handleResize = (e: MouseEvent | TouchEvent) => {
+  if (!isResizing.value) return
+  
+  // 获取容器宽度
+  const container = document.querySelector('.editor-container') as HTMLElement
+  if (!container) return
+  
+  const containerRect = container.getBoundingClientRect()
+  const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
+  
+  // 计算新宽度（百分比）
+  const newWidth = ((clientX - containerRect.left) / containerRect.width) * 100
+  
+  // 限制在 30% - 70% 之间
+  editorWidth.value = Math.max(30, Math.min(70, newWidth))
+}
+
+/**
+ * 停止调整大小
+ */
+const stopResize = () => {
+  isResizing.value = false
+  
+  // 移除全局监听
+  document.removeEventListener('mousemove', handleResize)
+  document.removeEventListener('mouseup', stopResize)
+  document.removeEventListener('touchmove', handleResize)
+  document.removeEventListener('touchend', stopResize)
+  
+  // 恢复样式
+  document.body.style.cursor = ''
+  document.body.style.userSelect = ''
+}
+
 // 组件挂载时初始化编辑器
 onMounted(() => {
   initEditor()
@@ -212,13 +280,28 @@ onBeforeUnmount(() => {
 
 /* 编辑器容器 */
 .editor-container {
-  @apply flex-1 flex overflow-hidden;
+  @apply flex-1 flex overflow-hidden relative;
 }
 
 /* 左侧编辑器 */
 .editor-panel {
-  @apply flex-1 flex flex-col border-r border-gray-300 bg-white;
-  min-width: 400px;
+  @apply flex flex-col border-r border-gray-200 bg-white;
+  min-width: 30%;
+  max-width: 70%;
+}
+
+/* 可拖动分隔条 */
+.resizer {
+  @apply flex-shrink-0 w-1 bg-gray-200 hover:bg-blue-400 cursor-col-resize relative transition-colors;
+  z-index: 10;
+}
+
+.resizer:hover .resizer-line {
+  @apply opacity-100;
+}
+
+.resizer-line {
+  @apply absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-1 h-12 bg-blue-500 rounded-full opacity-0 transition-opacity;
 }
 
 .editor-content {
@@ -247,12 +330,32 @@ onBeforeUnmount(() => {
 
 /* 右侧预览 */
 .preview-container {
-  @apply flex-1 flex flex-col;
-  min-width: 400px;
+  @apply flex flex-col bg-white;
+  min-width: 30%;
+  max-width: 70%;
 }
 
-/* 响应式 */
-@media (max-width: 1024px) {
+/* 平板端响应式（768px - 1023px） */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .toolbar-title {
+    @apply text-base;
+  }
+}
+
+/* 移动端响应式（<768px） */
+@media (max-width: 767px) {
+  .toolbar {
+    @apply px-4 py-2 gap-2;
+  }
+  
+  .toolbar-title {
+    @apply text-sm;
+  }
+  
+  .toolbar-btn span {
+    @apply hidden;
+  }
+  
   .editor-container {
     @apply flex-col;
   }
@@ -261,29 +364,17 @@ onBeforeUnmount(() => {
   .preview-container {
     @apply w-full;
     min-width: unset;
+    max-width: unset;
     height: 50%;
   }
 
   .editor-panel {
-    @apply border-r-0 border-b border-gray-300;
+    @apply border-r-0 border-b border-gray-200;
   }
-}
-
-@media (max-width: 768px) {
-  .editor-header {
-    @apply px-3 py-2;
-  }
-
-  .editor-title {
-    @apply text-xs;
-  }
-
-  .editor-action-btn {
-    @apply px-2 py-1 text-xs;
-  }
-
-  .editor-action-btn span {
+  
+  .resizer {
     @apply hidden;
   }
 }
+
 </style>

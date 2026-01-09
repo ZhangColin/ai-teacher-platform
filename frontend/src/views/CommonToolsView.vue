@@ -20,26 +20,16 @@
 
     <!-- 工具卡片 -->
     <div v-else class="tools-container">
-      <!-- 页面标题 -->
-      <div class="page-header">
-        <h1 class="page-title">常用工具</h1>
-        <p class="page-description">选择一个工具开始使用</p>
-      </div>
-
       <!-- 按分类显示工具 -->
       <div v-for="category in categories" :key="category.id" class="category-section">
-        <!-- 分类标题 -->
+        <!-- 分类标题 - 精简设计 -->
         <div class="category-header">
-          <div class="category-icon" v-if="category.icon">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath(category.icon)" />
-            </svg>
-          </div>
-          <h2 class="category-name">{{ category.name }}</h2>
-          <span class="category-count">{{ category.tools.length }}</span>
+          <component :is="getIconComponent(category.icon)" class="w-4 h-4 text-gray-500" />
+          <span class="category-name">{{ category.name }}</span>
+          <div class="category-divider"></div>
         </div>
 
-        <!-- 工具卡片列表 -->
+        <!-- 工具卡片列表 - 横向布局 -->
         <div class="tools-grid">
           <div
             v-for="tool in category.tools"
@@ -47,36 +37,33 @@
             class="tool-card"
             @click="navigateToTool(tool)"
           >
-            <!-- 工具图标 -->
-            <div class="tool-icon">
-              <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath(tool.icon || 'document-text')" />
-              </svg>
+            <!-- 工具图标 - 左侧 -->
+            <div class="tool-icon-wrapper">
+              <component :is="getIconComponent(tool.icon)" class="w-6 h-6" />
             </div>
 
-            <!-- 工具信息 -->
-            <div class="tool-info">
-              <h3 class="tool-name">{{ tool.name }}</h3>
+            <!-- 工具信息 - 右侧 -->
+            <div class="tool-content">
+              <div class="tool-header">
+                <h3 class="tool-name">{{ tool.name }}</h3>
+                <div class="tool-badge" :class="tool.type === 'html' ? 'badge-html' : 'badge-builtin'">
+                  {{ tool.type === 'html' ? 'HTML' : '内置' }}
+                </div>
+              </div>
               <p class="tool-description">{{ tool.description }}</p>
             </div>
 
-            <!-- 工具类型标签 -->
-            <div class="tool-badge" :class="tool.type === 'html' ? 'badge-html' : 'badge-builtin'">
-              {{ tool.type === 'html' ? 'HTML' : '内置' }}
-            </div>
+            <!-- 箭头指示器 -->
+            <ChevronRightIcon class="w-5 h-5 text-gray-400 tool-arrow" />
           </div>
         </div>
       </div>
 
       <!-- 空状态 -->
       <div v-if="categories.length === 0" class="empty-state">
-        <div class="empty-icon">
-          <svg class="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-          </svg>
-        </div>
+        <WrenchIcon class="w-16 h-16 text-gray-300" />
         <h3 class="empty-title">暂无工具</h3>
-        <p class="empty-description">目前还没有可用的工具，请稍后再试</p>
+        <p class="empty-description">目前还没有可用的工具</p>
       </div>
     </div>
   </div>
@@ -85,10 +72,35 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import {
+  ChevronRightIcon,
+  WrenchIcon,
+  DocumentTextIcon,
+  ChartBarIcon,
+  CodeBracketIcon,
+  TableCellsIcon,
+} from '@heroicons/vue/24/outline'
 import { ApiService } from '../services/apiClient'
 import type { ToolCategoryGroup, CommonToolListItem } from '../types'
 
 const router = useRouter()
+
+// 图标映射
+const iconComponents: Record<string, any> = {
+  'document-text': DocumentTextIcon,
+  'chart-bar': ChartBarIcon,
+  'code-bracket': CodeBracketIcon,
+  'table-cells': TableCellsIcon,
+  'wrench': WrenchIcon,
+}
+
+/**
+ * 获取图标组件
+ */
+function getIconComponent(iconName?: string) {
+  if (!iconName) return WrenchIcon
+  return iconComponents[iconName] || WrenchIcon
+}
 
 // 状态
 const loading = ref(true)
@@ -124,19 +136,6 @@ const navigateToTool = (tool: CommonToolListItem) => {
     // HTML工具：导航到HTML工具运行器
     router.push(`/common-tools/html/${tool.id}`)
   }
-}
-
-/**
- * 获取图标路径（简化版，实际应该使用图标库）
- */
-const getIconPath = (iconName: string): string => {
-  const iconPaths: Record<string, string> = {
-    'document-text': 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
-    'chart-bar': 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
-    'code': 'M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4',
-    'template': 'M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z',
-  }
-  return iconPaths[iconName] || iconPaths['document-text']
 }
 
 // 组件挂载时加载数据
@@ -187,74 +186,61 @@ onMounted(() => {
 
 /* 工具容器 */
 .tools-container {
-  @apply px-8 py-6;
-  max-width: 1280px;
+  @apply px-6 py-6;
+  max-width: 1400px;
   margin: 0 auto;
-}
-
-/* 页面标题 */
-.page-header {
-  @apply mb-8;
-}
-
-.page-title {
-  @apply text-3xl font-bold text-gray-900 mb-2;
-}
-
-.page-description {
-  @apply text-gray-600;
 }
 
 /* 分类区域 */
 .category-section {
-  @apply mb-10;
+  @apply mb-8;
 }
 
 .category-header {
-  @apply flex items-center gap-3 mb-4;
-}
-
-.category-icon {
-  @apply text-gray-600;
+  @apply flex items-center gap-2 mb-3 px-1;
 }
 
 .category-name {
-  @apply text-xl font-semibold text-gray-900;
+  @apply text-xs font-medium text-gray-500 uppercase tracking-wider;
 }
 
-.category-count {
-  @apply text-sm text-gray-500 bg-gray-200 px-2 py-1 rounded-full;
+.category-divider {
+  @apply flex-1 h-px bg-gray-200;
 }
 
-/* 工具网格 */
+/* 工具网格 - 响应式列数 */
 .tools-grid {
-  @apply grid gap-4;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  @apply grid gap-3;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
 }
 
-/* 工具卡片 */
+/* 工具卡片 - 横向布局 */
 .tool-card {
-  @apply relative bg-white rounded-lg p-6 shadow-sm hover:shadow-md transition-all cursor-pointer border border-gray-200 hover:border-blue-500;
+  @apply relative bg-white rounded-lg px-4 py-4 shadow-sm hover:shadow-md transition-all cursor-pointer border border-gray-200 hover:border-blue-400 hover:bg-blue-50/30 flex items-center gap-4 group;
 }
 
-.tool-icon {
-  @apply text-blue-600 mb-4;
+.tool-icon-wrapper {
+  @apply flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center text-blue-600 group-hover:from-blue-100 group-hover:to-blue-200 transition-all;
 }
 
-.tool-info {
-  @apply mb-4;
+.tool-content {
+  @apply flex-1 min-w-0;
+}
+
+.tool-header {
+  @apply flex items-center gap-2 mb-1;
 }
 
 .tool-name {
-  @apply text-lg font-semibold text-gray-900 mb-2;
+  @apply text-base font-semibold text-gray-900 truncate;
 }
 
 .tool-description {
-  @apply text-sm text-gray-600 line-clamp-2;
+  @apply text-sm text-gray-600 line-clamp-1;
 }
 
 .tool-badge {
-  @apply inline-block text-xs px-2 py-1 rounded-full font-medium;
+  @apply flex-shrink-0 text-xs px-2 py-0.5 rounded-md font-medium;
 }
 
 .badge-builtin {
@@ -263,6 +249,10 @@ onMounted(() => {
 
 .badge-html {
   @apply bg-purple-100 text-purple-700;
+}
+
+.tool-arrow {
+  @apply flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity;
 }
 
 /* 空状态 */
@@ -282,14 +272,21 @@ onMounted(() => {
   @apply text-gray-600;
 }
 
-/* 响应式 */
-@media (max-width: 768px) {
+/* 平板端响应式（768px - 1023px） */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .tools-grid {
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  }
+  
+  .tool-card {
+    @apply px-3 py-3;
+  }
+}
+
+/* 移动端响应式（<768px） */
+@media (max-width: 767px) {
   .tools-container {
     @apply px-4 py-4;
-  }
-
-  .page-title {
-    @apply text-2xl;
   }
 
   .tools-grid {
@@ -298,6 +295,22 @@ onMounted(() => {
 
   .category-section {
     @apply mb-6;
+  }
+  
+  .tool-card {
+    @apply px-3 py-3 gap-3;
+  }
+  
+  .tool-icon-wrapper {
+    @apply w-10 h-10;
+  }
+  
+  .tool-name {
+    @apply text-sm;
+  }
+  
+  .tool-description {
+    @apply text-xs;
   }
 }
 </style>
