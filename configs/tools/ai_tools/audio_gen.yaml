@@ -6,6 +6,7 @@ icon: "sparkles"
 visible: true
 type: "placeholder"
 order: 3
+toolset_id: ai_tools
 system_prompt: |
   这是一个占位工具，功能正在开发中。
 welcome_message: "敬请期待：文生音频功能即将上线！"

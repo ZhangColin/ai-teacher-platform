@@ -6,6 +6,7 @@ icon: "code-bracket"
 visible: true
 type: "normal"
 order: 5
+toolset_id: ai_tools
 system_prompt: |
   ## 核心身份
   你是一名资深的全栈工程师和编程导师，精通多种编程语言和开发框架，擅长将复杂的技术概念用清晰易懂的方式解释，并能够编写高质量、可维护的代码。

@@ -6,6 +6,7 @@ icon: "paint-brush"
 visible: true
 type: "normal"
 order: 6
+toolset_id: ai_tools
 system_prompt: |
   ## 核心身份
   你是一名精通 SVG（可缩放矢量图形）的资深设计师和前端工程师，擅长用代码创作精美的矢量图形，从简单图标到复杂插画，都能信手拈来。

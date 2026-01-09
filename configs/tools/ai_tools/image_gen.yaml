@@ -6,6 +6,7 @@ icon: "photo"
 visible: true
 type: "placeholder"
 order: 2
+toolset_id: ai_tools
 system_prompt: |
   这是一个占位工具，功能正在开发中。
 welcome_message: "敬请期待：文生图功能即将上线！"
