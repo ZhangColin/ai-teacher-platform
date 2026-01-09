@@ -5,11 +5,16 @@ from pathlib import Path
 
 # 添加 src 目录到 Python 路径
 backend_dir = Path(__file__).parent.parent
-sys.path.insert(0, str(backend_dir / "src"))
+src_dir = backend_dir / "src"
+sys.path.insert(0, str(src_dir))
 
 from datetime import datetime
 from sqlalchemy.orm import Session
-from database import engine
+
+# 导入数据库相关模块
+import database
+from database import Base, engine
+import db_models
 from db_models import ToolCategoryModel, CommonToolModel, CommonToolType
 
 
@@ -100,6 +105,11 @@ def main():
     print("=" * 50)
     print("初始化常用工具数据脚本")
     print("=" * 50)
+    
+    # 创建所有表（如果不存在）
+    print("创建数据库表...")
+    Base.metadata.create_all(bind=engine)
+    print("数据库表创建完成！")
     
     # 创建数据库会话
     db = Session(engine)
