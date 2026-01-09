@@ -35,13 +35,11 @@ const routes: RouteRecordRaw[] = [
         name: 'common-tools-home',
         component: () => import('../views/CommonToolsView.vue'),
       },
-      // 内置工具路由将在后续任务中添加
-      // {
-      //   path: ':toolId',
-      //   name: 'common-tool-detail',
-      //   component: () => import('../views/CommonToolDetailView.vue'),
-      //   props: true,
-      // },
+      {
+        path: 'markdown-editor',
+        name: 'markdown-editor',
+        component: () => import('../views/MarkdownEditorView.vue'),
+      },
       // HTML工具路由将在后续任务中添加
       // {
       //   path: 'html/:toolId',
