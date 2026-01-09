@@ -5,25 +5,81 @@
     
     <!-- 主内容区 -->
     <main class="main-content">
-      <AIToolsLayout v-if="moduleId === 'ai-tools'" />
-      <CommonToolsLayout v-else-if="moduleId === 'common-tools'" />
-      <WorksLayout v-else-if="moduleId === 'works'" />
-      <AIToolsLayout v-else />
+      <!-- 根据导航配置动态渲染模块 -->
+      <component :is="currentComponent" v-bind="currentComponentProps" />
     </main>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { useNavigationStore } from '../stores/navigationStore'
 import Header from '../components/Header.vue'
 import AIToolsLayout from './AIToolsLayout.vue'
+import ToolsetModuleLayout from './ToolsetModuleLayout.vue'
 import CommonToolsLayout from './CommonToolsLayout.vue'
 import WorksLayout from './WorksLayout.vue'
 
 const route = useRoute()
+const navigationStore = useNavigationStore()
 
 const moduleId = computed(() => route.params.moduleId as string)
+
+// 根据 moduleId 找到对应的导航模块
+const currentModule = computed(() => {
+  return navigationStore.modules.find(m => 
+    navigationStore.getModuleId(m) === moduleId.value
+  )
+})
+
+// 根据模块类型动态选择组件
+const currentComponent = computed(() => {
+  if (!currentModule.value) {
+    // 兜底：使用 AIToolsLayout
+    return AIToolsLayout
+  }
+
+  if (currentModule.value.type === 'toolset') {
+    // 工具集模块：使用 ToolsetModuleLayout
+    return ToolsetModuleLayout
+  } else if (currentModule.value.type === 'page') {
+    // 独立页面模块：根据 page_path 选择组件
+    if (moduleId.value === 'common-tools') {
+      return CommonToolsLayout
+    } else if (moduleId.value === 'works') {
+      return WorksLayout
+    }
+  }
+
+  // 兜底：使用 AIToolsLayout
+  return AIToolsLayout
+})
+
+// 根据模块类型传递不同的 props
+const currentComponentProps = computed(() => {
+  if (!currentModule.value) {
+    return {}
+  }
+
+  if (currentModule.value.type === 'toolset') {
+    // 工具集模块：传递 toolsetId
+    const toolsetId = navigationStore.getToolsetId(currentModule.value)
+    return toolsetId ? { toolsetId } : {}
+  }
+
+  return {}
+})
+
+// 页面加载时获取导航配置
+onMounted(() => {
+  navigationStore.loadNavigation()
+})
+
+// 监听路由变化，更新当前模块
+watch(moduleId, (newId) => {
+  navigationStore.setCurrentModule(newId)
+}, { immediate: true })
 </script>
 
 <style scoped>

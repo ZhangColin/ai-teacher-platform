@@ -78,6 +78,7 @@ import {
 
 const props = defineProps<{
   collapsed?: boolean
+  toolsetId?: string  // 工具集ID（可选），如果指定则只加载该工具集的工具
 }>()
 
 const emit = defineEmits<{
@@ -119,7 +120,11 @@ async function loadTools() {
   error.value = null
   
   try {
-    const response = await ApiService.getTools()
+    // 根据是否有 toolsetId 决定调用哪个 API
+    const response = props.toolsetId
+      ? await ApiService.getToolsetTools(props.toolsetId)
+      : await ApiService.getTools()
+    
     categories.value = response.categories
     
     // 如果有工具，默认选中第一个（包括占位工具）
@@ -135,6 +140,11 @@ async function loadTools() {
     loading.value = false
   }
 }
+
+// 监听 toolsetId 变化，重新加载工具
+watch(() => props.toolsetId, () => {
+  loadTools()
+})
 
 function handleToolClick(tool: ToolListItem) {
   // 占位工具也触发 tool-change 事件，让父组件处理显示敬请期待页面

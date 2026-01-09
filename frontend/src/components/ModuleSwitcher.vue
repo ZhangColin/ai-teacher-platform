@@ -1,10 +1,17 @@
 <template>
   <div class="module-switcher">
+    <!-- 加载状态 -->
+    <div v-if="navigationStore.loading" class="loading-placeholder">
+      <div class="skeleton-button" v-for="i in 3" :key="i"></div>
+    </div>
+    
+    <!-- 模块按钮 -->
     <button
+      v-else
       v-for="module in modules"
-      :key="module.id"
-      :class="['module-button', { active: currentModule === module.id }]"
-      @click="handleModuleClick(module.id)"
+      :key="getModuleId(module)"
+      :class="['module-button', { active: currentModule === getModuleId(module) }]"
+      @click="handleModuleClick(getModuleId(module))"
     >
       {{ module.name }}
     </button>
@@ -12,20 +19,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useNavigationStore } from '../stores/navigationStore'
 
 const route = useRoute()
 const router = useRouter()
+const navigationStore = useNavigationStore()
 
-// 写死的模块数据
-const modules = [
-  { id: 'ai-tools', name: 'AI工具' },
-  { id: 'common-tools', name: '常用工具' },
-  { id: 'works', name: '作品展示' },
-]
+// 从导航配置获取模块列表
+const modules = computed(() => navigationStore.modules)
 
 const currentModule = computed(() => route.params.moduleId as string || 'ai-tools')
+
+function getModuleId(module: any) {
+  return navigationStore.getModuleId(module)
+}
 
 function handleModuleClick(moduleId: string) {
   router.push(`/modules/${moduleId}`)
@@ -55,6 +64,15 @@ function handleModuleClick(moduleId: string) {
 
 .module-button:active {
   transform: translateY(0);
+}
+
+/* 加载占位符 */
+.loading-placeholder {
+  @apply flex gap-1;
+}
+
+.skeleton-button {
+  @apply w-20 h-8 bg-gray-200 rounded-lg animate-pulse;
 }
 
 /* 平板端响应式（768px - 1023px） */

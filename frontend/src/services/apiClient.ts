@@ -105,6 +105,15 @@ export class ApiService {
   }
 
   /**
+   * 获取指定工具集的工具列表（按分类组织）
+   * @param toolsetId 工具集ID
+   */
+  static async getToolsetTools(toolsetId: string): Promise<ToolListResponse> {
+    const response = await apiClient.get<ToolListResponse>(`/toolsets/${toolsetId}/tools`)
+    return response.data
+  }
+
+  /**
    * 创建会话
    * @param agentId Agent 唯一标识符
    */
