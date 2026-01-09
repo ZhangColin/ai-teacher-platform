@@ -29,24 +29,24 @@
           <div class="category-divider"></div>
         </div>
 
-        <!-- 工具卡片列表 - 横向布局 -->
-        <div class="tools-list">
+        <!-- 工具卡片列表 - 网格布局 -->
+        <div class="tools-grid">
           <div
             v-for="tool in category.tools"
             :key="tool.id"
             class="tool-card"
             @click="navigateToTool(tool)"
           >
-            <!-- 工具图标 -->
-            <div class="tool-icon-wrapper">
-              <component :is="getIconComponent(tool.icon)" class="w-6 h-6" />
+            <!-- 左侧：图标+标题 -->
+            <div class="tool-header">
+              <div class="tool-icon-wrapper">
+                <component :is="getIconComponent(tool.icon)" class="w-6 h-6" />
+              </div>
+              <h3 class="tool-name">{{ tool.name }}</h3>
             </div>
 
-            <!-- 工具信息 -->
-            <div class="tool-content">
-              <h3 class="tool-name">{{ tool.name }}</h3>
-              <p class="tool-description">{{ tool.description }}</p>
-            </div>
+            <!-- 下方：描述 -->
+            <p class="tool-description">{{ tool.description }}</p>
           </div>
         </div>
       </div>
@@ -175,10 +175,10 @@ onMounted(() => {
   @apply mt-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors;
 }
 
-/* 工具容器 */
+/* 工具容器 - 充分利用宽度 */
 .tools-container {
-  @apply px-6 py-6;
-  max-width: 1400px;
+  @apply px-8 py-6;
+  max-width: 100%;
   margin: 0 auto;
 }
 
@@ -199,30 +199,32 @@ onMounted(() => {
   @apply flex-1 h-px bg-gray-200;
 }
 
-/* 工具列表 - 充分利用宽度 */
-.tools-list {
-  @apply flex flex-col gap-2;
+/* 工具网格 - 响应式列数 */
+.tools-grid {
+  @apply grid gap-4;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
 }
 
-/* 工具卡片 - 横向布局 */
+/* 工具卡片 */
 .tool-card {
-  @apply relative bg-white rounded-lg px-4 py-3.5 shadow-sm hover:shadow-md transition-all cursor-pointer border border-gray-200 hover:border-blue-400 hover:bg-blue-50/30 flex items-center gap-3 group;
+  @apply relative bg-white rounded-lg p-5 shadow-sm hover:shadow-md transition-all cursor-pointer border border-gray-200 hover:border-blue-400 hover:bg-blue-50/30 group;
+}
+
+/* 卡片头部：图标+标题横向排列 */
+.tool-header {
+  @apply flex items-center gap-3 mb-3;
 }
 
 .tool-icon-wrapper {
-  @apply flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center text-blue-600 group-hover:from-blue-100 group-hover:to-blue-200 transition-all;
-}
-
-.tool-content {
-  @apply flex-1 min-w-0 flex items-center gap-4;
+  @apply flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center text-blue-600 group-hover:from-blue-100 group-hover:to-blue-200 transition-all;
 }
 
 .tool-name {
-  @apply text-base font-semibold text-gray-900 flex-shrink-0;
+  @apply text-base font-semibold text-gray-900;
 }
 
 .tool-description {
-  @apply text-sm text-gray-600 flex-1 truncate;
+  @apply text-sm text-gray-600 line-clamp-2;
 }
 
 /* 空状态 */
@@ -244,8 +246,16 @@ onMounted(() => {
 
 /* 平板端响应式（768px - 1023px） */
 @media (min-width: 768px) and (max-width: 1023px) {
+  .tools-container {
+    @apply px-6;
+  }
+  
+  .tools-grid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  }
+  
   .tool-card {
-    @apply px-3 py-3;
+    @apply p-4;
   }
 }
 
@@ -255,20 +265,20 @@ onMounted(() => {
     @apply px-4 py-4;
   }
 
+  .tools-grid {
+    grid-template-columns: 1fr;
+  }
+
   .category-section {
     @apply mb-6;
   }
   
   .tool-card {
-    @apply px-3 py-2.5 gap-2;
+    @apply p-4;
   }
   
   .tool-icon-wrapper {
-    @apply w-9 h-9;
-  }
-  
-  .tool-content {
-    @apply flex-col items-start gap-1;
+    @apply w-10 h-10;
   }
   
   .tool-name {
@@ -276,7 +286,7 @@ onMounted(() => {
   }
   
   .tool-description {
-    @apply text-xs;
+    @apply text-sm;
   }
 }
 </style>
