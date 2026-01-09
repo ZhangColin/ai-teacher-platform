@@ -30,31 +30,23 @@
         </div>
 
         <!-- 工具卡片列表 - 横向布局 -->
-        <div class="tools-grid">
+        <div class="tools-list">
           <div
             v-for="tool in category.tools"
             :key="tool.id"
             class="tool-card"
             @click="navigateToTool(tool)"
           >
-            <!-- 工具图标 - 左侧 -->
+            <!-- 工具图标 -->
             <div class="tool-icon-wrapper">
               <component :is="getIconComponent(tool.icon)" class="w-6 h-6" />
             </div>
 
-            <!-- 工具信息 - 右侧 -->
+            <!-- 工具信息 -->
             <div class="tool-content">
-              <div class="tool-header">
-                <h3 class="tool-name">{{ tool.name }}</h3>
-                <div class="tool-badge" :class="tool.type === 'html' ? 'badge-html' : 'badge-builtin'">
-                  {{ tool.type === 'html' ? 'HTML' : '内置' }}
-                </div>
-              </div>
+              <h3 class="tool-name">{{ tool.name }}</h3>
               <p class="tool-description">{{ tool.description }}</p>
             </div>
-
-            <!-- 箭头指示器 -->
-            <ChevronRightIcon class="w-5 h-5 text-gray-400 tool-arrow" />
           </div>
         </div>
       </div>
@@ -73,7 +65,6 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  ChevronRightIcon,
   WrenchIcon,
   DocumentTextIcon,
   ChartBarIcon,
@@ -208,51 +199,30 @@ onMounted(() => {
   @apply flex-1 h-px bg-gray-200;
 }
 
-/* 工具网格 - 响应式列数 */
-.tools-grid {
-  @apply grid gap-3;
-  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+/* 工具列表 - 充分利用宽度 */
+.tools-list {
+  @apply flex flex-col gap-2;
 }
 
 /* 工具卡片 - 横向布局 */
 .tool-card {
-  @apply relative bg-white rounded-lg px-4 py-4 shadow-sm hover:shadow-md transition-all cursor-pointer border border-gray-200 hover:border-blue-400 hover:bg-blue-50/30 flex items-center gap-4 group;
+  @apply relative bg-white rounded-lg px-4 py-3.5 shadow-sm hover:shadow-md transition-all cursor-pointer border border-gray-200 hover:border-blue-400 hover:bg-blue-50/30 flex items-center gap-3 group;
 }
 
 .tool-icon-wrapper {
-  @apply flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center text-blue-600 group-hover:from-blue-100 group-hover:to-blue-200 transition-all;
+  @apply flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center text-blue-600 group-hover:from-blue-100 group-hover:to-blue-200 transition-all;
 }
 
 .tool-content {
-  @apply flex-1 min-w-0;
-}
-
-.tool-header {
-  @apply flex items-center gap-2 mb-1;
+  @apply flex-1 min-w-0 flex items-center gap-4;
 }
 
 .tool-name {
-  @apply text-base font-semibold text-gray-900 truncate;
+  @apply text-base font-semibold text-gray-900 flex-shrink-0;
 }
 
 .tool-description {
-  @apply text-sm text-gray-600 line-clamp-1;
-}
-
-.tool-badge {
-  @apply flex-shrink-0 text-xs px-2 py-0.5 rounded-md font-medium;
-}
-
-.badge-builtin {
-  @apply bg-blue-100 text-blue-700;
-}
-
-.badge-html {
-  @apply bg-purple-100 text-purple-700;
-}
-
-.tool-arrow {
-  @apply flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity;
+  @apply text-sm text-gray-600 flex-1 truncate;
 }
 
 /* 空状态 */
@@ -274,10 +244,6 @@ onMounted(() => {
 
 /* 平板端响应式（768px - 1023px） */
 @media (min-width: 768px) and (max-width: 1023px) {
-  .tools-grid {
-    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  }
-  
   .tool-card {
     @apply px-3 py-3;
   }
@@ -289,20 +255,20 @@ onMounted(() => {
     @apply px-4 py-4;
   }
 
-  .tools-grid {
-    grid-template-columns: 1fr;
-  }
-
   .category-section {
     @apply mb-6;
   }
   
   .tool-card {
-    @apply px-3 py-3 gap-3;
+    @apply px-3 py-2.5 gap-2;
   }
   
   .tool-icon-wrapper {
-    @apply w-10 h-10;
+    @apply w-9 h-9;
+  }
+  
+  .tool-content {
+    @apply flex-col items-start gap-1;
   }
   
   .tool-name {
