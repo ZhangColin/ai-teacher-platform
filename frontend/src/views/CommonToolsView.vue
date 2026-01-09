@@ -207,7 +207,7 @@ onMounted(() => {
 
 /* 工具卡片 */
 .tool-card {
-  @apply relative bg-white rounded-lg p-5 shadow-sm hover:shadow-md transition-all cursor-pointer border border-gray-200 hover:border-blue-400 hover:bg-blue-50/30 group;
+  @apply relative bg-white rounded-lg p-5 shadow-sm hover:shadow-md transition-all cursor-pointer border border-gray-200 hover:border-blue-400 hover:bg-blue-50/30;
 }
 
 /* 卡片头部：图标+标题横向排列 */
@@ -216,7 +216,11 @@ onMounted(() => {
 }
 
 .tool-icon-wrapper {
-  @apply flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center text-blue-600 group-hover:from-blue-100 group-hover:to-blue-200 transition-all;
+  @apply flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center text-blue-600 transition-all;
+}
+
+.tool-card:hover .tool-icon-wrapper {
+  @apply from-blue-100 to-blue-200;
 }
 
 .tool-name {
