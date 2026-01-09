@@ -2,7 +2,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { NavigationModule } from '../types/navigation'
-import api from '../services/apiClient'
+import { ApiService } from '../services/apiClient'
 
 export const useNavigationStore = defineStore('navigation', () => {
   // 状态
@@ -44,8 +44,8 @@ export const useNavigationStore = defineStore('navigation', () => {
     error.value = null
 
     try {
-      const response = await api.get<{ modules: NavigationModule[] }>('/api/v1/navigation')
-      modules.value = response.data.modules || []
+      const response = await ApiService.getNavigationModules()
+      modules.value = response.modules || []
     } catch (err: any) {
       console.error('加载导航配置失败:', err)
       error.value = err.message || '加载导航配置失败'
