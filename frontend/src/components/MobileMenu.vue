@@ -38,12 +38,30 @@ const router = useRouter()
 
 // 写死的模块数据
 const modules = [
-  { id: 'ai-tools', name: 'AI工具' },
-  { id: 'common-tools', name: '常用工具' },
-  { id: 'works', name: '作品展示' },
+  { id: 'ai-tools', name: 'AI工具', type: 'toolset' },
+  { id: 'teaching-researcher', name: '教研员', type: 'toolset' },
+  { id: 'common-tools', name: '常用工具', type: 'page', path: '/common-tools' },
+  { id: 'works', name: '作品展示', type: 'page', path: '/works' },
 ]
 
-const currentModule = computed(() => route.params.moduleId as string || 'ai-tools')
+const currentModule = computed(() => {
+  // 如果是 /modules/:moduleId 路由
+  if (route.params.moduleId) {
+    return route.params.moduleId as string
+  }
+  
+  // 如果是独立页面路由，根据 path 匹配模块
+  const currentPath = route.path
+  const module = modules.find(m => m.type === 'page' && m.path === currentPath)
+  
+  if (module) {
+    return module.id
+  }
+  
+  // 默认返回 ai-tools
+  return 'ai-tools'
+})
+
 const isOpen = ref(false)
 
 function toggleMenu() {
@@ -55,7 +73,15 @@ function closeMenu() {
 }
 
 function handleModuleClick(moduleId: string) {
-  router.push(`/modules/${moduleId}`)
+  const module = modules.find(m => m.id === moduleId)
+  
+  if (module && module.type === 'page' && module.path) {
+    // page 类型模块：使用独立路径
+    router.push(module.path)
+  } else {
+    // toolset 类型模块：使用 /modules/:moduleId
+    router.push(`/modules/${moduleId}`)
+  }
   closeMenu()
 }
 </script>

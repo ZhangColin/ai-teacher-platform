@@ -30,14 +30,41 @@ const navigationStore = useNavigationStore()
 // 从导航配置获取模块列表
 const modules = computed(() => navigationStore.modules)
 
-const currentModule = computed(() => route.params.moduleId as string || 'ai-tools')
+const currentModule = computed(() => {
+  // 如果是 /modules/:moduleId 路由
+  if (route.params.moduleId) {
+    return route.params.moduleId as string
+  }
+  
+  // 如果是独立页面路由，根据 path 匹配模块
+  const currentPath = route.path
+  const module = modules.value.find(m => 
+    m.type === 'page' && m.page_path === currentPath
+  )
+  
+  if (module) {
+    return getModuleId(module)
+  }
+  
+  // 默认返回 ai-tools
+  return 'ai-tools'
+})
 
 function getModuleId(module: any) {
   return navigationStore.getModuleId(module)
 }
 
 function handleModuleClick(moduleId: string) {
-  router.push(`/modules/${moduleId}`)
+  // 查找对应的模块配置
+  const module = modules.value.find(m => getModuleId(m) === moduleId)
+  
+  if (module && module.type === 'page' && module.page_path) {
+    // page 类型模块：使用 page_path 直接路由
+    router.push(module.page_path)
+  } else {
+    // toolset 类型模块：使用 /modules/:moduleId 路由
+    router.push(`/modules/${moduleId}`)
+  }
 }
 </script>
 
