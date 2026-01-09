@@ -212,15 +212,16 @@
 | multi-toolset-2.4 | 创建 `ToolsetModuleLayout.vue`：复用 `AIToolsLayout` 逻辑，参数化 `toolset_id` | completed | P0 |
 | multi-toolset-2.5 | 更新 `Header.vue`：从导航配置动态生成顶部模块切换按钮 | completed | P0 |
 | multi-toolset-2.6 | 测试现有AI工具模块：确保重构后现有功能不受影响 | completed | P1 |
+| multi-toolset-2.7 | 修复欢迎词Markdown渲染和工具切换响应 | completed | P0 |
 
 #### 阶段3：教研员模块配置（首个应用）
 
 | ID | 任务描述 | 状态 | 优先级 |
 |:---|:---|:---|:---|
-| multi-toolset-3.1 | 创建导航配置文件 `configs/navigation.yaml`：定义"AI工具"和"教研员"两个模块 | completed | P0 |
+| multi-toolset-3.1 | 创建导航配置文件 `configs/navigation.yaml`：定义"AI工具"、"教研员"等4个顶部导航模块 | completed | P0 |
 | multi-toolset-3.2 | 迁移现有工具配置：将现有工具移到 `configs/tools/ai_tools/` 目录，添加 `toolset_id: ai_tools` | completed | P0 |
-| multi-toolset-3.3 | 创建教研员工具集目录结构 `configs/tools/teaching_researcher/`（含配置示例和说明文档） | completed | P0 |
-| multi-toolset-3.4 | 端到端测试：验证AI工具和教研员两个模块都能正常工作，数据隔离正确 | pending | P1 |
+| multi-toolset-3.3 | 创建教研员工具集：11个学科教研员工具配置和系统提示词文件，优化分类结构为5个科目 | completed | P0 |
+| multi-toolset-3.4 | 端到端测试：验证AI工具和教研员两个模块都能正常工作，数据隔离正确 | in_progress | P1 |
 | multi-toolset-3.5 | 更新部署文档：记录新的配置文件结构和系统提示词文件管理方式 | pending | P2 |
 
 ---
