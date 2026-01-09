@@ -2,7 +2,36 @@
   <div class="preview-panel" data-testid="preview-panel">
     <div class="preview-header">
       <span class="preview-title">预览</span>
-      <button class="preview-close" @click="handleClose" title="关闭预览">×</button>
+      <div class="preview-actions">
+        <button 
+          v-if="artifact?.type === 'markdown'"
+          class="preview-action-btn" 
+          @click="handleDownloadMarkdown" 
+          title="下载 Markdown"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span>下载 Markdown</span>
+        </button>
+        <button 
+          v-if="artifact?.type === 'markdown'"
+          class="preview-action-btn" 
+          @click="handleDownloadWord" 
+          title="下载 Word"
+          :disabled="isDownloadingWord"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span>{{ isDownloadingWord ? '转换中...' : '下载 Word' }}</span>
+        </button>
+        <button class="preview-close" @click="handleClose" title="关闭预览">×</button>
+      </div>
     </div>
     <div v-if="!artifact" class="preview-empty">
       <p>点击代码块上的"预览"按钮查看内容</p>
@@ -35,8 +64,9 @@
       <div
         v-else-if="artifact.type === 'markdown'"
         class="preview-markdown"
-        v-html="renderedMarkdown"
-      ></div>
+      >
+        <div class="markdown-content" v-html="renderedMarkdown"></div>
+      </div>
 
       <!-- 其他类型：显示原始内容 -->
       <pre v-else class="preview-code"><code>{{ artifact.content }}</code></pre>
@@ -47,6 +77,8 @@
 <script setup lang="ts">
 import { computed, watch, ref, nextTick } from 'vue'
 import MarkdownIt from 'markdown-it'
+// @ts-ignore - @traptitech/markdown-it-katex 没有类型定义
+import markdownItKatex from '@traptitech/markdown-it-katex'
 import type { Artifact } from '../types'
 
 const props = defineProps<{
@@ -61,14 +93,135 @@ function handleClose() {
   emit('close')
 }
 
+/**
+ * 下载 Markdown 文件
+ */
+function handleDownloadMarkdown() {
+  if (!props.artifact || props.artifact.type !== 'markdown') {
+    return
+  }
+
+  const content = props.artifact.content
+  
+  // 生成文件名：优先使用时间戳（因为当前没有会话标题信息）
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')
+  const filename = `markdown_${timestamp[0]}_${timestamp[1].split('-').slice(0, 3).join('')}.md`
+  
+  // 创建 Blob 对象（UTF-8 编码，支持中文）
+  const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' })
+  
+  // 创建下载链接并触发下载
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  
+  // 清理
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}
+
+/**
+ * 下载 Word 文件（调用后端 API 转换）
+ */
+async function handleDownloadWord() {
+  if (!props.artifact || props.artifact.type !== 'markdown') {
+    return
+  }
+
+  if (isDownloadingWord.value) {
+    return // 防止重复点击
+  }
+
+  try {
+    isDownloadingWord.value = true
+    previewError.value = null
+
+    const content = props.artifact.content
+    
+    // 生成文件名（不含扩展名）
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')
+    const filename = `markdown_${timestamp[0]}_${timestamp[1].split('-').slice(0, 3).join('')}`
+
+    // 调用后端 API
+    const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token')
+    if (!token) {
+      throw new Error('未登录，请先登录')
+    }
+
+    const response = await fetch('/api/v1/convert/markdown-to-word', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        content: content,
+        filename: filename
+      })
+    })
+
+    if (!response.ok) {
+      if (response.status === 503) {
+        throw new Error('文档转换服务暂时不可用，请稍后重试')
+      } else if (response.status === 401) {
+        throw new Error('登录已过期，请重新登录')
+      } else {
+        const errorData = await response.json().catch(() => ({ detail: '未知错误' }))
+        throw new Error(errorData.detail || '转换失败')
+      }
+    }
+
+    // 获取文件名（从响应头）
+    const contentDisposition = response.headers.get('Content-Disposition')
+    let downloadFilename = `${filename}.docx`
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/)
+      if (filenameMatch) {
+        downloadFilename = filenameMatch[1]
+      }
+    }
+
+    // 下载文件
+    const blob = await response.blob()
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = downloadFilename
+    document.body.appendChild(link)
+    link.click()
+    
+    // 清理
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+
+  } catch (error) {
+    console.error('下载 Word 失败:', error)
+    previewError.value = error instanceof Error ? error.message : '下载失败，请稍后重试'
+  } finally {
+    isDownloadingWord.value = false
+  }
+}
+
 const previewError = ref<string | null>(null)
 const htmlIframeRef = ref<HTMLIFrameElement | null>(null)
+const isDownloadingWord = ref<boolean>(false)
 
 // 创建 markdown-it 实例（仅用于预览，不添加预览按钮）
 const md = new MarkdownIt({
   html: false,
   linkify: true,
   typographer: true,
+})
+
+// 添加 KaTeX 插件支持数学公式渲染
+// @traptitech/markdown-it-katex 支持 $...$ (行内公式) 和 $$...$$ (块级公式)
+md.use(markdownItKatex, {
+  throwOnError: false,
+  errorColor: '#cc0000',
+  strict: false, // 宽松模式，避免公式解析错误
 })
 
 /**
@@ -80,6 +233,7 @@ const renderedMarkdown = computed(() => {
       previewError.value = null
       return md.render(props.artifact.content)
     } catch (error) {
+      console.error('Markdown 渲染错误:', error)
       previewError.value = 'Markdown 渲染失败'
       return ''
     }
@@ -233,6 +387,26 @@ watch(
   @apply text-sm font-semibold text-gray-900;
 }
 
+.preview-actions {
+  @apply flex items-center gap-2;
+}
+
+.preview-action-btn {
+  @apply flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded cursor-pointer transition-colors duration-200;
+}
+
+.preview-action-btn:disabled {
+  @apply opacity-50 cursor-not-allowed;
+}
+
+.preview-action-btn:disabled:hover {
+  @apply text-gray-700 bg-transparent;
+}
+
+.preview-action-btn svg {
+  @apply w-4 h-4;
+}
+
 .preview-close {
   @apply w-6 h-6 flex items-center justify-center text-gray-400 hover:text-gray-600 cursor-pointer transition-colors duration-200;
   font-size: 20px;
@@ -310,50 +484,124 @@ watch(
 }
 
 .preview-markdown {
-  padding: 1.5rem 2rem 1.5rem 1.5rem; /* 右侧增加到 2rem，防止文字贴边 */
-  line-height: 1.6;
-  max-width: 100%;
-  width: 100%;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-  box-sizing: border-box;
-  overflow-x: hidden; /* 防止水平溢出 */
+  @apply p-6 overflow-y-auto;
 }
 
-.preview-markdown :deep(h1),
-.preview-markdown :deep(h2),
-.preview-markdown :deep(h3) {
-  margin-top: 1.5rem;
-  margin-bottom: 0.75rem;
+/* Markdown 内容样式 - 不使用 prose，避免与 KaTeX 冲突 */
+.markdown-content {
+  font-size: 16px;
+  line-height: 1.6;
+  color: #374151;
+}
+
+.markdown-content :deep(h1),
+.markdown-content :deep(h2),
+.markdown-content :deep(h3),
+.markdown-content :deep(h4),
+.markdown-content :deep(h5),
+.markdown-content :deep(h6) {
+  font-weight: 600;
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  line-height: 1.25;
+  color: #111827;
+}
+
+.markdown-content :deep(h1) {
+  font-size: 2em;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 0.3em;
+}
+
+.markdown-content :deep(h2) {
+  font-size: 1.5em;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 0.3em;
+}
+
+.markdown-content :deep(h3) {
+  font-size: 1.25em;
+}
+
+.markdown-content :deep(h4) {
+  font-size: 1.1em;
+}
+
+.markdown-content :deep(p) {
+  margin-bottom: 1em;
+}
+
+.markdown-content :deep(ul),
+.markdown-content :deep(ol) {
+  margin-bottom: 1em;
+  padding-left: 2em;
+}
+
+.markdown-content :deep(li) {
+  margin-bottom: 0.25em;
+}
+
+.markdown-content :deep(code) {
+  background-color: #f3f4f6;
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+  font-size: 0.875em;
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.markdown-content :deep(pre) {
+  background-color: #1f2937;
+  color: #f9fafb;
+  padding: 1em;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin-bottom: 1em;
+}
+
+.markdown-content :deep(pre code) {
+  background-color: transparent;
+  padding: 0;
+}
+
+.markdown-content :deep(blockquote) {
+  border-left: 4px solid #e5e7eb;
+  padding-left: 1em;
+  margin: 1em 0;
+  color: #6b7280;
+}
+
+.markdown-content :deep(a) {
+  color: #3b82f6;
+  text-decoration: none;
+}
+
+.markdown-content :deep(a:hover) {
+  text-decoration: underline;
+}
+
+.markdown-content :deep(table) {
+  border-collapse: collapse;
+  width: 100%;
+  margin-bottom: 1em;
+}
+
+.markdown-content :deep(th),
+.markdown-content :deep(td) {
+  border: 1px solid #e5e7eb;
+  padding: 0.5em;
+  text-align: left;
+}
+
+.markdown-content :deep(th) {
+  background-color: #f3f4f6;
   font-weight: 600;
 }
 
-.preview-markdown :deep(p) {
-  margin-bottom: 1rem;
-}
-
-.preview-markdown :deep(code) {
-  background-color: #f3f4f6;
-  padding: 0.125rem 0.25rem;
-  border-radius: 0.25rem;
-  font-size: 0.875em;
-}
-
-.preview-markdown :deep(pre) {
-  background-color: #1f2937;
-  color: #f9fafb;
-  padding: 1rem;
-  border-radius: 0.5rem;
+/* KaTeX 公式样式 - 关键：不干预 KaTeX 内部元素 */
+.markdown-content :deep(.katex-display) {
+  margin: 1.5em 0;
   overflow-x: auto;
-  margin-bottom: 1rem;
-  max-width: 100%;
-  box-sizing: border-box;
-}
-
-.preview-markdown :deep(pre code) {
-  background-color: transparent;
-  color: inherit;
-  padding: 0;
+  overflow-y: hidden;
 }
 
 .preview-code {

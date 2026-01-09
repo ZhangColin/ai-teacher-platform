@@ -322,3 +322,9 @@ class SessionDetailResponse(BaseModel):
     updated_at: datetime = Field(..., description="最后更新时间")
     messages: List[Message] = Field(..., description="消息列表")
 
+
+class MarkdownToWordRequest(BaseModel):
+    """Markdown转Word请求"""
+    content: str = Field(..., description="Markdown内容", min_length=1)
+    filename: Optional[str] = Field(None, description="生成的文件名（不含扩展名），默认使用时间戳")
+

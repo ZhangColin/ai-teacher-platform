@@ -20,6 +20,7 @@ from src.services.ai_service import AIService
 from src.services.artifact_parser import ArtifactParser
 from src.services.user_service import UserService
 from src.services.auth_service import AuthService
+from src.services.conversion_service import ConversionService
 from src.models import (
     AgentListResponse, AgentListItem, SessionInitResponse,
     ChatRequest, ChatResponse, Message,
@@ -28,7 +29,8 @@ from src.models import (
     ToolListResponse, ToolListItem, CategoryGroup,
     ConversationListResponse, ConversationListItem,
     SessionDetailResponse, Session,
-    UpdateSessionRequest, UpdateSessionResponse
+    UpdateSessionRequest, UpdateSessionResponse,
+    MarkdownToWordRequest
 )
 
 app = FastAPI(title="AI Teacher Platform Backend")
@@ -41,6 +43,7 @@ ai_service = AIService()
 artifact_parser = ArtifactParser()
 user_service = UserService()
 auth_service = AuthService()
+conversion_service = ConversionService()
 
 # HTTP Bearer Token 安全方案
 security = HTTPBearer()
@@ -618,4 +621,54 @@ async def chat_stream(
             "X-Accel-Buffering": "no"  # 禁用 Nginx 缓冲
         }
     )
+
+
+@app.post("/api/v1/convert/markdown-to-word")
+async def convert_markdown_to_word(
+    request: MarkdownToWordRequest,
+    current_user: UserInfo = Depends(get_current_user)
+):
+    """
+    将 Markdown 内容转换为 Word 文档并下载
+    
+    - **content**: Markdown 内容（必填）
+    - **filename**: 文件名（可选，不含扩展名）
+    
+    Returns:
+        Word 文档文件（application/vnd.openxmlformats-officedocument.wordprocessingml.document）
+    """
+    try:
+        # 调用转换服务
+        word_content, filename = conversion_service.markdown_to_word(
+            markdown_content=request.content,
+            filename=request.filename
+        )
+        
+        # 返回 Word 文件
+        from fastapi.responses import Response
+        return Response(
+            content=word_content,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"'
+            }
+        )
+        
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except RuntimeError as e:
+        # pandoc 不可用或转换失败
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"文档转换服务暂时不可用: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Markdown 转 Word 失败: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="文档转换失败，请稍后重试"
+        )
 
