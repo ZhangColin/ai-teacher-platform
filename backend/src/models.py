@@ -2,8 +2,35 @@
 import uuid
 import bcrypt
 from datetime import datetime
-from typing import List, Optional, Literal
+from typing import List, Optional, Literal, Union
 from pydantic import BaseModel, Field, ConfigDict
+
+
+class NavigationModule(BaseModel):
+    """导航模块配置（用于顶部导航栏）"""
+    name: str = Field(..., description="模块显示名称")
+    type: Literal["toolset", "page"] = Field(..., description="模块类型：toolset=工具集模块，page=独立页面")
+    config_source: Optional[str] = Field(None, description="配置来源（type=toolset时使用，工具集配置目录路径，如：tools/ai_tools）")
+    page_path: Optional[str] = Field(None, description="页面路径（type=page时使用，前端路由路径，如：/common-tools）")
+    icon: Optional[str] = Field(None, description="图标标识（可选）")
+    order: int = Field(999, description="排序顺序（数字越小越靠前，默认999）")
+    
+    def validate(self) -> bool:
+        """验证导航模块配置是否有效"""
+        if not self.name or not self.type:
+            return False
+        # toolset 类型必须有 config_source
+        if self.type == "toolset" and not self.config_source:
+            return False
+        # page 类型必须有 page_path
+        if self.type == "page" and not self.page_path:
+            return False
+        return True
+
+
+class NavigationResponse(BaseModel):
+    """导航配置响应"""
+    modules: List[NavigationModule] = Field(..., description="导航模块列表")
 
 
 class Tool(BaseModel):
@@ -11,19 +38,24 @@ class Tool(BaseModel):
     tool_id: str = Field(..., description="工具唯一标识符")
     name: str = Field(..., description="工具名称")
     description: Optional[str] = Field(None, description="工具描述")
-    system_prompt: str = Field(..., description="系统提示词，定义工具的业务逻辑")
+    system_prompt: Optional[str] = Field(None, description="系统提示词，定义工具的业务逻辑（如使用system_prompt_file则可选）")
     category: str = Field(..., description="分类名称")
     icon: Optional[str] = Field(None, description="图标标识（可选）")
     visible: bool = Field(True, description="是否在工具选择器中显示")
     type: Literal["normal", "placeholder"] = Field("normal", description="工具类型")
     welcome_message: str = Field(..., description="欢迎语（配置化展示）")
     order: int = Field(999, description="排序顺序（数字越小越靠前，默认999）")
+    toolset_id: str = Field("ai_tools", description="所属工具集ID（默认ai_tools，保持向后兼容）")
+    system_prompt_file: Optional[str] = Field(None, description="系统提示词文件路径（相对于工具集配置目录），如果指定则从文件加载system_prompt")
     
     def validate(self) -> bool:
         """验证工具配置是否完整有效"""
-        if not self.tool_id or not self.name or not self.system_prompt:
+        if not self.tool_id or not self.name:
             return False
         if not self.category or not self.welcome_message:
+            return False
+        # system_prompt 和 system_prompt_file 至少有一个
+        if not self.system_prompt and not self.system_prompt_file:
             return False
         return True
 
@@ -84,6 +116,7 @@ class ToolListItem(BaseModel):
     visible: bool = Field(True, description="是否在工具选择器中显示")
     type: Literal["normal", "placeholder"] = Field("normal", description="工具类型")
     welcome_message: Optional[str] = Field(None, description="欢迎语（可选，用于占位工具）")
+    toolset_id: str = Field(..., description="所属工具集ID")
 
 
 class CategoryGroup(BaseModel):

@@ -21,6 +21,7 @@ from src.services.artifact_parser import ArtifactParser
 from src.services.user_service import UserService
 from src.services.auth_service import AuthService
 from src.services.conversion_service import ConversionService
+from src.config_loader import ConfigLoader
 from src.models import (
     AgentListResponse, AgentListItem, SessionInitResponse,
     ChatRequest, ChatResponse, Message,
@@ -30,14 +31,19 @@ from src.models import (
     ConversationListResponse, ConversationListItem,
     SessionDetailResponse, Session,
     UpdateSessionRequest, UpdateSessionResponse,
-    MarkdownToWordRequest
+    MarkdownToWordRequest,
+    NavigationModule, NavigationResponse
 )
 
 app = FastAPI(title="AI Teacher Platform Backend")
 
 # 初始化服务
+config_loader = ConfigLoader(config_root=str(project_root / "configs"))
 agent_service = AgentService(config_dir=str(project_root / "configs" / "agents"))
-tool_service = ToolService(config_dir=str(project_root / "configs" / "tools"))
+tool_service = ToolService(
+    config_dir=str(project_root / "configs" / "tools"),
+    config_loader=config_loader
+)
 session_service = SessionService()
 ai_service = AIService()
 artifact_parser = ArtifactParser()
@@ -92,6 +98,13 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     )
 
 
+@app.get("/api/v1/navigation", response_model=NavigationResponse)
+async def get_navigation(current_user: UserInfo = Depends(get_current_user)):
+    """获取顶部导航模块配置"""
+    modules = config_loader.load_navigation()
+    return NavigationResponse(modules=modules)
+
+
 @app.get("/api/v1/agents", response_model=AgentListResponse)
 async def get_agents():
     """获取所有已配置的 Agent 列表（已废弃，请使用 GET /api/v1/tools）"""
@@ -132,7 +145,49 @@ async def get_tools(current_user: UserInfo = Depends(get_current_user)):
                 category=tool.category,
                 visible=tool.visible,
                 type=tool.type,
-                welcome_message=tool.welcome_message
+                welcome_message=tool.welcome_message,
+                toolset_id=tool.toolset_id
+            )
+            for tool in group['tools']
+        ]
+        
+        categories.append(
+            CategoryGroup(
+                name=group['name'],
+                icon=group['icon'],
+                tools=tool_items
+            )
+        )
+    
+    return ToolListResponse(categories=categories)
+
+
+@app.get("/api/v1/toolsets/{toolset_id}/tools", response_model=ToolListResponse)
+async def get_toolset_tools(
+    toolset_id: str,
+    current_user: UserInfo = Depends(get_current_user)
+):
+    """获取指定工具集的工具列表，按分类组织"""
+    # 加载指定工具集的工具（只返回 visible=true 的工具）
+    tools = tool_service.load_tools_by_toolset(toolset_id)
+    
+    # 按 category 聚合
+    category_groups = tool_service.group_by_category(tools, toolset_id=toolset_id)
+    
+    # 转换为 API 响应格式
+    categories = []
+    for group in category_groups:
+        tool_items = [
+            ToolListItem(
+                tool_id=tool.tool_id,
+                name=tool.name,
+                description=tool.description,
+                icon=tool.icon,
+                category=tool.category,
+                visible=tool.visible,
+                type=tool.type,
+                welcome_message=tool.welcome_message,
+                toolset_id=tool.toolset_id
             )
             for tool in group['tools']
         ]
