@@ -8,9 +8,10 @@
 
 ### 1.1 限界上下文识别
 - **用户认证上下文**: 负责用户身份验证、Token 管理和用户信息管理
-- **工具管理上下文**: 负责工具配置的加载、验证和管理
+- **工具管理上下文**: 负责工具配置的加载、验证和管理（AI工具、教研员工具）
 - **会话管理上下文**: 负责会话的创建、消息的存储和 AI 服务调用
 - **成果物上下文**: 负责成果物的识别、解析和展示
+- **常用工具上下文**: 负责常用工具的管理、分类组织和工具运行（独立于会话的临时工具）
 
 ### 1.2 核心实体关系
 ```mermaid
@@ -285,6 +286,114 @@ class Artifact(BaseModel):
 
 ---
 
+### 2.7 CommonTool（聚合根）
+CommonTool 是常用工具上下文的核心实体，代表一个独立的实用工具（内置工具或HTML工具）。
+
+```python
+class CommonTool(BaseModel):
+    """常用工具实体（聚合根）"""
+    id: str = Field(..., description="工具唯一标识（UUID）")
+    name: str = Field(..., description="工具名称（如：Markdown编辑器）", min_length=1, max_length=100)
+    description: str = Field(..., description="工具描述（一句话说明工具功能）", min_length=1, max_length=200)
+    category_id: str = Field(..., description="所属分类ID（关联ToolCategory）")
+    type: str = Field(..., description="工具类型：'built-in'（内置工具）或 'html'（HTML工具）", pattern="^(built-in|html)$")
+    icon: Optional[str] = Field(None, description="图标标识（heroicons名称，如：'document-text'）")
+    html_path: Optional[str] = Field(None, description="HTML文件路径（仅type='html'时必填，相对于static目录）")
+    order: int = Field(default=0, description="排序顺序（数字越小越靠前）")
+    visible: bool = Field(default=True, description="是否可见（用于后台控制工具上下线）")
+    created_at: datetime = Field(default_factory=datetime.now, description="创建时间")
+    updated_at: datetime = Field(default_factory=datetime.now, description="更新时间")
+    
+    def is_html_tool(self) -> bool:
+        """判断是否为HTML工具"""
+        return self.type == "html"
+    
+    def is_built_in_tool(self) -> bool:
+        """判断是否为内置工具"""
+        return self.type == "built-in"
+    
+    def get_frontend_route(self) -> str:
+        """获取前端路由路径（用于内置工具跳转）"""
+        # 内置工具的路由由前端根据tool_id定义，如：/common-tools/tool/markdown-editor
+        return f"/common-tools/tool/{self.id}"
+```
+
+**业务约束**：
+- `type='html'` 时，`html_path` 必填
+- `type='built-in'` 时，`html_path` 必须为 `None`
+- `html_path` 格式示例：`common_tools/html/json-formatter/index.html`
+- 内置工具的路由由前端定义，后端不存储路由路径
+- `icon` 使用 heroicons 的图标名称，与AI工具保持一致
+
+**典型工具示例**：
+```python
+# 内置工具示例：Markdown编辑器
+CommonTool(
+    id="markdown-editor",
+    name="Markdown编辑器",
+    description="在线编辑Markdown文档，实时预览，支持导出Word/PDF",
+    category_id="document-tools",
+    type="built-in",
+    icon="document-text",
+    html_path=None,
+    order=1,
+    visible=True
+)
+
+# HTML工具示例：JSON格式化
+CommonTool(
+    id="json-formatter",
+    name="JSON格式化工具",
+    description="格式化和验证JSON字符串，语法高亮显示",
+    category_id="data-tools",
+    type="html",
+    icon="code-bracket",
+    html_path="common_tools/html/json-formatter/index.html",
+    order=2,
+    visible=True
+)
+```
+
+---
+
+### 2.8 ToolCategory（聚合根）
+ToolCategory 是常用工具的分类实体，用于组织和管理工具。
+
+```python
+class ToolCategory(BaseModel):
+    """工具分类实体（聚合根）"""
+    id: str = Field(..., description="分类唯一标识（UUID）")
+    name: str = Field(..., description="分类名称（如：文档工具）", min_length=1, max_length=50)
+    icon: Optional[str] = Field(None, description="分类图标（heroicons名称，可选）")
+    order: int = Field(default=0, description="排序顺序（数字越小越靠前）")
+    created_at: datetime = Field(default_factory=datetime.now, description="创建时间")
+    updated_at: datetime = Field(default_factory=datetime.now, description="更新时间")
+```
+
+**业务约束**：
+- 分类名称必须唯一
+- 删除分类前需检查是否有关联的工具
+- 分类按 `order` 字段排序展示
+
+**典型分类示例**：
+```python
+ToolCategory(
+    id="document-tools",
+    name="文档工具",
+    icon="document-text",
+    order=1
+)
+
+ToolCategory(
+    id="data-tools",
+    name="数据工具",
+    icon="chart-bar",
+    order=2
+)
+```
+
+---
+
 ## 3. 数据存储
 
 ### 3.1 工具配置存储
@@ -425,6 +534,68 @@ CREATE TABLE artifacts (
 
 ---
 
+### 3.6 常用工具数据存储
+
+#### 3.6.1 工具分类表（tool_categories）
+```sql
+CREATE TABLE tool_categories (
+    id VARCHAR(36) PRIMARY KEY COMMENT '分类ID（UUID）',
+    name VARCHAR(50) NOT NULL UNIQUE COMMENT '分类名称',
+    icon VARCHAR(50) COMMENT '分类图标（heroicons名称）',
+    `order` INT NOT NULL DEFAULT 0 COMMENT '排序顺序',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_order (`order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='常用工具分类表';
+```
+
+#### 3.6.2 常用工具表（common_tools）
+```sql
+CREATE TABLE common_tools (
+    id VARCHAR(36) PRIMARY KEY COMMENT '工具ID（UUID）',
+    name VARCHAR(100) NOT NULL COMMENT '工具名称',
+    description VARCHAR(200) NOT NULL COMMENT '工具描述',
+    category_id VARCHAR(36) NOT NULL COMMENT '所属分类ID',
+    type ENUM('built-in', 'html') NOT NULL COMMENT '工具类型',
+    icon VARCHAR(50) COMMENT '图标标识（heroicons名称）',
+    html_path VARCHAR(255) COMMENT 'HTML文件路径（相对于static目录）',
+    `order` INT NOT NULL DEFAULT 0 COMMENT '排序顺序',
+    visible BOOLEAN NOT NULL DEFAULT TRUE COMMENT '是否可见',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    FOREIGN KEY (category_id) REFERENCES tool_categories(id) ON DELETE RESTRICT,
+    INDEX idx_category_order (category_id, `order`),
+    INDEX idx_visible (visible)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='常用工具表';
+```
+
+**约束说明**：
+- `category_id` 外键约束：删除分类前必须先删除或移动该分类下的所有工具
+- `type='html'` 时，`html_path` 必填；`type='built-in'` 时，`html_path` 必须为 NULL
+- 通过应用层验证确保数据一致性
+
+**HTML文件存储规范**：
+- **存储目录**：`static/common_tools/html/{tool_id}/`
+- **主文件名**：`index.html`
+- **完整路径示例**：`static/common_tools/html/json-formatter/index.html`
+- **访问URL**：`/static/common_tools/html/json-formatter/index.html`
+- **支持资源**：可在同目录下放置CSS、JS、图片等资源文件
+
+**初始数据示例**：
+```sql
+-- 插入分类
+INSERT INTO tool_categories (id, name, icon, `order`) VALUES
+('doc-tools', '文档工具', 'document-text', 1),
+('data-tools', '数据工具', 'chart-bar', 2);
+
+-- 插入工具
+INSERT INTO common_tools (id, name, description, category_id, type, icon, html_path, `order`, visible) VALUES
+('markdown-editor', 'Markdown编辑器', '在线编辑Markdown文档，实时预览，支持导出Word/PDF', 'doc-tools', 'built-in', 'document-text', NULL, 1, TRUE),
+('json-formatter', 'JSON格式化工具', '格式化和验证JSON字符串，语法高亮显示', 'data-tools', 'html', 'code-bracket', 'common_tools/html/json-formatter/index.html', 2, TRUE);
+```
+
+---
+
 ## 4. 领域服务（可选）
 
 ### 4.1 ArtifactParser（领域服务）
@@ -467,9 +638,15 @@ class ArtifactParser:
 
 ---
 
-**文档版本**: v3.0  
+**文档版本**: v4.0  
 **最后更新**: 2026-01-09  
 **更新说明**:
+- v4.0:
+  - **常用工具模块**：新增 CommonTool（常用工具）和 ToolCategory（工具分类）实体
+  - **限界上下文扩展**：新增"常用工具上下文"
+  - **数据存储扩展**：新增 `tool_categories` 和 `common_tools` 表
+  - **章节调整**：新增 2.7 CommonTool、2.8 ToolCategory、3.6 常用工具数据存储
+  - **HTML文件存储规范**：定义HTML工具的文件存储路径和访问方式
 - v3.0:
   - 多工具集架构支持：新增 NavigationModule 模型
   - 扩展 Tool 模型：增加 `toolset_id`、`system_prompt_file`、`order` 字段
@@ -485,6 +662,7 @@ class ArtifactParser:
   - 删除 UIConfig 值对象
 
 **设计依据**: 
+- `docs/requirements/common_tools_spec.md` (v1.0) - 常用工具模块需求
 - `docs/requirements/teaching_researcher_spec.md` (v2.0)
 - `docs/requirements/product_spec.md` (v4.0)
 - `docs/requirements/ai_prompt_wizard_spec.md`

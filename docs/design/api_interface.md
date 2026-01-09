@@ -797,7 +797,176 @@ class UpdateSessionResponse(BaseModel):
 
 ---
 
-## 5. 成果物解析协议 (Artifacts Protocol)
+## 5. 常用工具接口（需要认证）
+
+### 5.1 获取工具分类列表
+获取所有可见的工具分类及其下的工具列表。
+
+- **Endpoint**: `GET /api/v1/common-tools/categories`
+- **Description**: 返回所有工具分类，每个分类包含该分类下的工具列表。如果某个分类下没有可见工具，则不返回该分类。
+- **认证要求**: 需要认证（Bearer Token）
+
+- **Request**: 无请求参数
+
+- **Response**: `200 OK`
+```python
+class CommonToolListItem(BaseModel):
+    """工具列表项"""
+    id: str = Field(..., description="工具ID")
+    name: str = Field(..., description="工具名称")
+    description: str = Field(..., description="工具描述")
+    type: str = Field(..., description="工具类型：'built-in' 或 'html'")
+    icon: Optional[str] = Field(None, description="图标标识")
+    order: int = Field(..., description="排序顺序")
+
+class ToolCategoryGroup(BaseModel):
+    """工具分类组"""
+    id: str = Field(..., description="分类ID")
+    name: str = Field(..., description="分类名称")
+    icon: Optional[str] = Field(None, description="分类图标")
+    order: int = Field(..., description="分类排序")
+    tools: List[CommonToolListItem] = Field(..., description="该分类下的工具列表")
+
+class CommonToolCategoryResponse(BaseModel):
+    """工具分类响应"""
+    categories: List[ToolCategoryGroup] = Field(..., description="分类列表（按order排序）")
+```
+
+**响应示例**：
+```json
+{
+  "categories": [
+    {
+      "id": "doc-tools",
+      "name": "文档工具",
+      "icon": "document-text",
+      "order": 1,
+      "tools": [
+        {
+          "id": "markdown-editor",
+          "name": "Markdown编辑器",
+          "description": "在线编辑Markdown文档，实时预览，支持导出Word/PDF",
+          "type": "built-in",
+          "icon": "document-text",
+          "order": 1
+        }
+      ]
+    },
+    {
+      "id": "data-tools",
+      "name": "数据工具",
+      "icon": "chart-bar",
+      "order": 2,
+      "tools": [
+        {
+          "id": "json-formatter",
+          "name": "JSON格式化工具",
+          "description": "格式化和验证JSON字符串，语法高亮显示",
+          "type": "html",
+          "icon": "code-bracket",
+          "order": 2
+        }
+      ]
+    }
+  ]
+}
+```
+
+**业务规则**：
+- 只返回 `visible=true` 的工具
+- 分类按 `order` 字段升序排序
+- 每个分类下的工具按 `order` 字段升序排序
+- 如果某个分类下没有可见工具，则不返回该分类
+- 前端根据 `type` 字段决定跳转逻辑：
+  - `type='built-in'`：跳转到 `/common-tools/tool/{id}`，前端根据 `id` 渲染对应的内置组件
+  - `type='html'`：跳转到 `/common-tools/tool/{id}`，前端加载HTML文件并在沙箱中运行
+
+**错误响应**：
+- `401 Unauthorized`: 未登录或 Token 无效
+- `200 OK` with `{"categories": []}`: 正常响应，但没有可见工具（所有工具不可见或数据库为空）
+
+---
+
+### 5.2 获取工具详情
+获取单个工具的详细信息（包括HTML文件路径）。
+
+- **Endpoint**: `GET /api/v1/common-tools/tools/{tool_id}`
+- **Description**: 返回指定工具的详细信息，用于工具详情页展示。
+- **认证要求**: 需要认证（Bearer Token）
+
+- **Path Parameters**:
+  - `tool_id` (string, required): 工具ID
+
+- **Response**: `200 OK`
+```python
+class CommonToolDetail(BaseModel):
+    """工具详情"""
+    id: str = Field(..., description="工具ID")
+    name: str = Field(..., description="工具名称")
+    description: str = Field(..., description="工具描述")
+    category_id: str = Field(..., description="所属分类ID")
+    category_name: str = Field(..., description="所属分类名称")
+    type: str = Field(..., description="工具类型：'built-in' 或 'html'")
+    icon: Optional[str] = Field(None, description="图标标识")
+    order: int = Field(..., description="排序顺序")
+    html_url: Optional[str] = Field(None, description="HTML文件访问URL（仅type='html'时有值）")
+    created_at: datetime = Field(..., description="创建时间")
+```
+
+**响应示例（内置工具）**：
+```json
+{
+  "id": "markdown-editor",
+  "name": "Markdown编辑器",
+  "description": "在线编辑Markdown文档，实时预览，支持导出Word/PDF",
+  "category_id": "doc-tools",
+  "category_name": "文档工具",
+  "type": "built-in",
+  "icon": "document-text",
+  "order": 1,
+  "html_url": null,
+  "created_at": "2026-01-09T10:00:00Z"
+}
+```
+
+**响应示例（HTML工具）**：
+```json
+{
+  "id": "json-formatter",
+  "name": "JSON格式化工具",
+  "description": "格式化和验证JSON字符串，语法高亮显示",
+  "category_id": "data-tools",
+  "category_name": "数据工具",
+  "type": "html",
+  "icon": "code-bracket",
+  "order": 2,
+  "html_url": "/static/common_tools/html/json-formatter/index.html",
+  "created_at": "2026-01-09T10:00:00Z"
+}
+```
+
+**错误响应**：
+- `404 Not Found`: 工具不存在或不可见
+```json
+{
+  "error_code": "TOOL_NOT_FOUND",
+  "error_message": "工具不存在或已下线"
+}
+```
+
+**业务规则**：
+- 只能查询 `visible=true` 的工具
+- `html_url` 由后端根据 `html_path` 生成完整的访问URL：
+  - 数据库存储：`html_path = "common_tools/html/{tool_id}/index.html"`（相对于static目录）
+  - 接口返回：`html_url = "/static/common_tools/html/{tool_id}/index.html"`（完整URL）
+  - 转换规则：`html_url = "/static/" + html_path`
+- 前端根据 `type` 字段决定渲染方式：
+  - `type='built-in'`：渲染内置组件（如Markdown编辑器）
+  - `type='html'`：使用iframe加载 `html_url`，并应用沙箱策略（`sandbox="allow-scripts"`）
+
+---
+
+## 6. 成果物解析协议 (Artifacts Protocol)
 
 ### 5.1 代码块识别规则
 系统从 AI 的 Markdown 回复中识别代码块，只有代码块中的内容才被视为可预览的成果物。
