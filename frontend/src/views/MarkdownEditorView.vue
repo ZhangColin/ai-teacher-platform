@@ -1,20 +1,27 @@
 <template>
   <div class="markdown-editor-view">
+    <!-- 顶部工具条 -->
+    <div class="toolbar">
+      <button class="toolbar-btn back-btn" @click="handleBack">
+        <ArrowLeftIcon class="w-5 h-5" />
+        <span>返回</span>
+      </button>
+      <div class="toolbar-title">
+        <DocumentTextIcon class="w-5 h-5 text-blue-600" />
+        <span>Markdown 编辑器</span>
+      </div>
+      <div class="toolbar-actions">
+        <button class="toolbar-btn" @click="handleClear" title="清空内容">
+          <TrashIcon class="w-4 h-4" />
+          <span>清空</span>
+        </button>
+      </div>
+    </div>
+
     <!-- 编辑器容器 -->
     <div class="editor-container">
       <!-- 左侧：CodeMirror 编辑器 -->
       <div class="editor-panel">
-        <div class="editor-header">
-          <span class="editor-title">Markdown 编辑器</span>
-          <div class="editor-actions">
-            <button class="editor-action-btn" @click="handleClear" title="清空内容">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-              <span>清空</span>
-            </button>
-          </div>
-        </div>
         <div ref="editorRef" class="editor-content"></div>
       </div>
 
@@ -28,14 +35,18 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { EditorView, keymap, lineNumbers, highlightActiveLineGutter, highlightActiveLine } from '@codemirror/view'
 import { EditorState } from '@codemirror/state'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { markdown } from '@codemirror/lang-markdown'
 import { oneDark } from '@codemirror/theme-one-dark'
 import { syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language'
+import { ArrowLeftIcon, DocumentTextIcon, TrashIcon } from '@heroicons/vue/24/outline'
 import PreviewPanel from '../components/PreviewPanel.vue'
 import type { Artifact } from '../types'
+
+const router = useRouter()
 
 // 编辑器引用
 const editorRef = ref<HTMLElement | null>(null)
@@ -125,6 +136,13 @@ const initEditor = () => {
 }
 
 /**
+ * 返回工具列表
+ */
+const handleBack = () => {
+  router.push('/common-tools')
+}
+
+/**
  * 清空编辑器内容
  */
 const handleClear = () => {
@@ -162,38 +180,45 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .markdown-editor-view {
-  @apply h-full w-full overflow-hidden;
+  @apply h-full w-full overflow-hidden flex flex-col;
   background-color: theme('colors.gray.50');
 }
 
+/* 顶部工具条 */
+.toolbar {
+  @apply flex items-center gap-4 px-6 py-3 bg-white border-b border-gray-200;
+  flex-shrink: 0;
+}
+
+.toolbar-btn {
+  @apply flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all;
+}
+
+.toolbar-btn:hover {
+  @apply shadow-sm;
+}
+
+.back-btn {
+  @apply text-gray-600 hover:text-gray-900;
+}
+
+.toolbar-title {
+  @apply flex items-center gap-2 text-lg font-semibold text-gray-900 flex-1;
+}
+
+.toolbar-actions {
+  @apply flex items-center gap-2;
+}
+
+/* 编辑器容器 */
 .editor-container {
-  @apply h-full flex;
+  @apply flex-1 flex overflow-hidden;
 }
 
 /* 左侧编辑器 */
 .editor-panel {
-  @apply flex-1 flex flex-col border-r border-gray-300;
+  @apply flex-1 flex flex-col border-r border-gray-300 bg-white;
   min-width: 400px;
-}
-
-.editor-header {
-  @apply flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200;
-}
-
-.editor-title {
-  @apply text-sm font-semibold text-gray-900;
-}
-
-.editor-actions {
-  @apply flex gap-2;
-}
-
-.editor-action-btn {
-  @apply flex items-center gap-1 px-3 py-1.5 text-sm text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors;
-}
-
-.editor-action-btn:hover {
-  @apply bg-gray-100;
 }
 
 .editor-content {

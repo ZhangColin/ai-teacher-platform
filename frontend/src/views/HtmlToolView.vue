@@ -21,38 +21,33 @@
 
     <!-- HTML工具运行器 -->
     <div v-else class="tool-runner">
-      <!-- 工具头部 -->
-      <div class="tool-header">
-        <div class="tool-info">
-          <button class="back-btn" @click="goBack" title="返回">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-            </svg>
-            <span>返回</span>
-          </button>
-          <h1 class="tool-name">{{ toolDetail?.name }}</h1>
+      <!-- 顶部工具条 -->
+      <div class="toolbar">
+        <button class="toolbar-btn back-btn" @click="goBack">
+          <ArrowLeftIcon class="w-5 h-5" />
+          <span>返回</span>
+        </button>
+        <div class="toolbar-title">
+          <CodeBracketIcon class="w-5 h-5 text-purple-600" />
+          <span>{{ toolDetail?.name }}</span>
         </div>
-        <div class="tool-actions">
+        <div class="toolbar-actions">
           <button 
             v-if="!isFullscreen"
-            class="action-btn" 
+            class="toolbar-btn" 
             @click="enterFullscreen"
             title="全屏"
           >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-            </svg>
+            <ArrowsPointingOutIcon class="w-4 h-4" />
             <span>全屏</span>
           </button>
           <button 
             v-else
-            class="action-btn" 
+            class="toolbar-btn" 
             @click="exitFullscreen"
             title="退出全屏"
           >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <ArrowsPointingInIcon class="w-4 h-4" />
             <span>退出全屏</span>
           </button>
         </div>
@@ -77,6 +72,12 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
+import { 
+  ArrowLeftIcon, 
+  CodeBracketIcon, 
+  ArrowsPointingOutIcon,
+  ArrowsPointingInIcon 
+} from '@heroicons/vue/24/outline'
 import { ApiService } from '../services/apiClient'
 import type { CommonToolDetail } from '../types'
 
@@ -253,28 +254,30 @@ onBeforeUnmount(() => {
   @apply flex flex-col h-full;
 }
 
-.tool-header {
-  @apply flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200;
+/* 顶部工具条 */
+.toolbar {
+  @apply flex items-center gap-4 px-6 py-3 bg-white border-b border-gray-200;
+  flex-shrink: 0;
 }
 
-.tool-info {
-  @apply flex items-center gap-4;
+.toolbar-btn {
+  @apply flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all;
+}
+
+.toolbar-btn:hover {
+  @apply shadow-sm;
 }
 
 .back-btn {
-  @apply flex items-center gap-1 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors;
+  @apply text-gray-600 hover:text-gray-900;
 }
 
-.tool-name {
-  @apply text-xl font-semibold text-gray-900;
+.toolbar-title {
+  @apply flex items-center gap-2 text-lg font-semibold text-gray-900 flex-1;
 }
 
-.tool-actions {
-  @apply flex gap-2;
-}
-
-.action-btn {
-  @apply flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors;
+.toolbar-actions {
+  @apply flex items-center gap-2;
 }
 
 .tool-content {
@@ -287,22 +290,20 @@ onBeforeUnmount(() => {
 
 /* 响应式 */
 @media (max-width: 768px) {
-  .tool-header {
-    @apply px-4 py-3;
+  .toolbar {
+    @apply px-4 py-2 gap-2;
   }
 
-  .tool-name {
-    @apply text-lg;
+  .toolbar-title {
+    @apply text-base;
   }
 
-  .action-btn span,
-  .back-btn span {
+  .toolbar-btn span {
     @apply hidden;
   }
 
-  .action-btn,
-  .back-btn {
-    @apply px-2 py-2;
+  .toolbar-btn {
+    @apply px-2 py-1.5;
   }
 }
 </style>
