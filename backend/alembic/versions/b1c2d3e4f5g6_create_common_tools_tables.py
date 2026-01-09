@@ -54,6 +54,58 @@ def upgrade() -> None:
     op.create_index('idx_category_id', 'common_tools', ['category_id'])
     op.create_index('idx_visible', 'common_tools', ['visible'])
     op.create_index('idx_category_order', 'common_tools', ['category_id', 'order'])
+    
+    # 插入初始数据
+    from datetime import datetime
+    now = datetime.now()
+    
+    # 插入工具分类
+    op.bulk_insert(
+        sa.table('tool_categories',
+            sa.column('id', sa.String),
+            sa.column('name', sa.String),
+            sa.column('icon', sa.String),
+            sa.column('order', sa.Integer),
+            sa.column('created_at', sa.DateTime),
+            sa.column('updated_at', sa.DateTime)
+        ),
+        [
+            {'id': 'doc-tools', 'name': '文档工具', 'icon': 'document-text', 'order': 1, 'created_at': now, 'updated_at': now},
+            {'id': 'data-tools', 'name': '数据工具', 'icon': 'chart-bar', 'order': 2, 'created_at': now, 'updated_at': now}
+        ]
+    )
+    
+    # 插入常用工具
+    op.bulk_insert(
+        sa.table('common_tools',
+            sa.column('id', sa.String),
+            sa.column('name', sa.String),
+            sa.column('description', sa.String),
+            sa.column('category_id', sa.String),
+            sa.column('type', sa.String),
+            sa.column('icon', sa.String),
+            sa.column('html_path', sa.String),
+            sa.column('order', sa.Integer),
+            sa.column('visible', sa.Boolean),
+            sa.column('created_at', sa.DateTime),
+            sa.column('updated_at', sa.DateTime)
+        ),
+        [
+            {
+                'id': 'markdown-editor',
+                'name': 'Markdown编辑器',
+                'description': '在线编辑Markdown文档，实时预览，支持导出Word/PDF',
+                'category_id': 'doc-tools',
+                'type': 'built-in',
+                'icon': 'document-text',
+                'html_path': None,
+                'order': 1,
+                'visible': True,
+                'created_at': now,
+                'updated_at': now
+            }
+        ]
+    )
 
 
 def downgrade() -> None:
