@@ -45,7 +45,19 @@ class AIService:
             logger.warning(f"未找到服务商 [{provider}] 的有效 Key，将使用 Mock 模式。")
             return None, "mock-model"
         
-        client = OpenAI(api_key=api_key, base_url=base_url)
+        # 从环境变量读取超时配置（秒），默认120秒
+        timeout_seconds = float(os.getenv("AI_REQUEST_TIMEOUT", "120"))
+        
+        # 创建客户端，配置超时时间
+        # timeout参数可以是单个数字（所有操作的超时时间）或httpx.Timeout对象（分别配置连接、读取等超时）
+        client = OpenAI(
+            api_key=api_key, 
+            base_url=base_url,
+            timeout=timeout_seconds,  # 设置超时时间
+            max_retries=2  # 失败后最多重试2次
+        )
+        
+        logger.info(f"AI 客户端初始化成功 - 服务商: {provider}, 模型: {model_name}, 超时: {timeout_seconds}秒")
         return client, model_name
     
     async def generate_welcome_message(self, system_prompt: str) -> str:
@@ -79,8 +91,14 @@ class AIService:
             logger.info(f"AI 返回的欢迎消息: {result[:100]}...")
             return result
         except Exception as e:
-            logger.error(f"AI 服务调用异常（生成欢迎消息）: {e}", exc_info=True)
-            return "欢迎使用 AI 助手！抱歉，当前服务暂时不可用，请稍后重试。"
+            error_type = type(e).__name__
+            logger.error(f"AI 服务调用异常（生成欢迎消息）- 错误类型: {error_type}: {e}", exc_info=True)
+            
+            # 根据错误类型返回友好提示
+            if "timeout" in str(e).lower() or "timed out" in str(e).lower():
+                return "⚠️ AI服务响应超时，请检查网络连接后重试。"
+            else:
+                return "欢迎使用 AI 助手！抱歉，当前服务暂时不可用，请稍后重试。"
     
     async def chat(self, system_prompt: str, history: List[Dict[str, str]], user_message: str) -> str:
         """
@@ -121,8 +139,16 @@ class AIService:
             logger.info(f"AI 返回的回复长度: {len(result)} 字符")
             return result
         except Exception as e:
-            logger.error(f"AI 服务调用异常（对话）: {e}", exc_info=True)
-            return "抱歉，当前服务暂时不可用，请稍后重试。"
+            error_type = type(e).__name__
+            logger.error(f"AI 服务调用异常（对话）- 错误类型: {error_type}: {e}", exc_info=True)
+            
+            # 根据错误类型返回友好提示
+            if "timeout" in str(e).lower() or "timed out" in str(e).lower():
+                return "⚠️ AI服务响应超时，可能是网络问题，请稍后重试。"
+            elif "connection" in str(e).lower():
+                return "⚠️ 无法连接到AI服务，请检查网络或API配置。"
+            else:
+                return f"⚠️ AI服务调用失败: {str(e)[:100]}"
     
     async def chat_stream(self, system_prompt: str, history: List[Dict[str, str]], user_message: str) -> AsyncGenerator[str, None]:
         """
@@ -178,6 +204,14 @@ class AIService:
                         await asyncio.sleep(0.001)  # 很小的延迟，确保流式效果
                     
         except Exception as e:
-            logger.error(f"AI 服务调用异常（流式对话）: {e}", exc_info=True)
-            yield "抱歉，当前服务暂时不可用，请稍后重试。"
+            error_type = type(e).__name__
+            logger.error(f"AI 服务调用异常（流式对话）- 错误类型: {error_type}: {e}", exc_info=True)
+            
+            # 根据不同错误类型给出更友好的提示
+            if "timeout" in str(e).lower() or "timed out" in str(e).lower():
+                yield "⚠️ AI服务响应超时，可能是网络问题。建议：\n1. 检查网络连接\n2. 如果使用代理，请确认代理设置正确\n3. 稍后重试"
+            elif "connection" in str(e).lower() or "connect" in str(e).lower():
+                yield "⚠️ 无法连接到AI服务，请检查：\n1. 网络是否正常\n2. API密钥是否正确\n3. 服务提供商是否可用"
+            else:
+                yield f"⚠️ AI服务调用失败: {str(e)[:100]}\n请稍后重试或联系管理员。"
 
