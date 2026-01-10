@@ -70,10 +70,9 @@ App.vue (根组件)
     │       ├── ConversationList.vue (历史对话列表)
     │       ├── ChatPanel.vue (当前对话区域)
     │       │   ├── WelcomeMessage.vue (欢迎语组件)
-    │       │   ├── MessageList.vue (消息列表)
-    │       │   ├── MessageItem.vue (消息项组件)
-    │       │   └── InputArea.vue (输入框组件)
-    │       └── PreviewPanel.vue (预览面板，可选)
+    │       │   ├── ChatInput.vue (输入框组件)
+    │       │   └── (消息直接在ChatPanel中渲染，使用markdownRenderer)
+    │       └── PreviewPanel.vue (预览面板，支持Markdown/HTML/SVG全屏预览)
     ├── CommonToolsLayout.vue (常用工具模块布局)
     │   ├── CategoryNav.vue (分类导航)
     │   └── ToolCardGrid.vue (工具卡片网格)
@@ -119,6 +118,22 @@ App.vue (根组件)
 - **职责**: 右侧聊天区域，包含历史对话列表和当前对话区域
 - **子组件**: ConversationList, ChatPanel, PreviewPanel
 - **状态**: 从 `uiFrameworkStore` 获取对话列表、当前对话、预览状态
+
+**ChatPanel.vue**
+- **职责**: 当前对话区域，展示欢迎语、用户/AI消息、输入框
+- **子组件**: WelcomeMessage, ChatInput
+- **消息渲染**: 使用 `markdownRenderer` 渲染AI消息，所有代码块自动生成复制和预览按钮
+- **事件**: 监听代码块预览按钮点击，通知父组件打开PreviewPanel
+
+**PreviewPanel.vue**
+- **职责**: 预览面板，展示代码块内容（Markdown/HTML/SVG）
+- **功能**:
+  - Markdown预览：渲染内容 + 下载(MD/Word/PDF)
+  - HTML预览：iframe沙箱渲染 + 模态框式全屏 + 下载HTML
+  - SVG预览：直接渲染(移除script标签) + 模态框式全屏 + 下载SVG
+  - 其他类型：显示原始代码
+- **全屏模式**: 模态框式全屏（预览区充满浏览器窗口，工具栏保持可见），而非浏览器全屏API
+- **状态**: 从 `sessionStore` 获取当前预览的artifact
 
 #### 3.2.3 其他模块组件
 

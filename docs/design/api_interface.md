@@ -973,12 +973,14 @@ class CommonToolDetail(BaseModel):
 
 **识别规则**：
 - 标准 Markdown 代码块格式：`` ```language\ncontent\n``` ``
-- 代码块的语言标识（language）决定是否显示预览按钮：
-  - `markdown` → 显示预览按钮，支持 Markdown 文本预览
-  - `html` → 显示预览按钮，支持 HTML 页面预览
-  - `svg` → 显示预览按钮，支持 SVG 图形预览
-  - 其他语言（如 `javascript`、`python` 等）→ 不显示预览按钮，仅作为代码展示
-- 预览按钮的显示逻辑由前端根据代码块的语言标识自动判断，无需后端配置
+- **所有代码块都显示复制和预览按钮**（不再根据语言类型判断是否显示按钮）
+- 智能类型检测：如果代码块未标注语言类型，前端自动检测内容特征（HTML/SVG/Markdown标签）
+- 预览行为根据内容类型区分（在PreviewPanel组件中处理）：
+  - `markdown` → Markdown渲染预览 + 下载功能(MD/Word/PDF)
+  - `html` → iframe沙箱渲染 + 模态框式全屏 + 下载HTML
+  - `svg` → 直接渲染(移除script标签) + 模态框式全屏 + 下载SVG
+  - 其他语言（如 `javascript`、`python` 等）→ 显示原始代码（语法高亮）
+- 全屏模式说明：全屏为模态框式全屏（预览区充满浏览器窗口，工具栏保持可见），而非浏览器全屏API
 
 **成果物数据结构**：
 ```python

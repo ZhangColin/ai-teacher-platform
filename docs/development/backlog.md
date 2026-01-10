@@ -139,18 +139,20 @@
 
 #### 预览功能模块（增强功能 - 低优先级）
 
-| ID | 任务描述 | 状态 | 优先级 |
-|:---|:---|:---|:---|
-| preview-enhance-1 | 实现Markdown下载功能：下载为Markdown格式文件 | completed | P2 |
-| preview-enhance-2 | 实现Markdown转Word下载功能：将Markdown内容转换为Word文档并下载 | completed | P2 |
-| preview-enhance-3 | 实现Markdown转PDF下载功能：将Markdown内容转换为PDF文件并下载 | completed | P2 |
-| preview-enhance-4 | 实现HTML全屏预览功能：点击全屏按钮，使用浏览器全屏API或全屏覆盖层 | completed | P2 |
-| preview-enhance-5 | 实现HTML下载功能：下载HTML文件 | completed | P2 |
-| preview-enhance-6 | 实现HTML截图功能：使用html2canvas或其他方案截图HTML内容 | pending | P3 |
-| preview-enhance-7 | 实现SVG全屏预览功能：点击全屏按钮，使用浏览器全屏API或全屏覆盖层 | completed | P2 |
-| preview-enhance-8 | 实现SVG下载功能：下载SVG文件 | completed | P2 |
-| preview-enhance-9 | 实现SVG截图功能：使用html2canvas或其他方案截图SVG内容 | pending | P3 |
-| preview-enhance-10 | （可选）WPS兼容性：提供图片格式数学公式选项，或在UI中提示推荐使用Word打开 | pending | P3 |
+| ID | 任务描述 | 状态 | 优先级 | 备注 |
+|:---|:---|:---|:---|:---|
+| preview-enhance-1 | 实现Markdown下载功能：下载为Markdown格式文件 | completed | P2 | |
+| preview-enhance-2 | 实现Markdown转Word下载功能：将Markdown内容转换为Word文档并下载 | completed | P2 | |
+| preview-enhance-3 | 实现Markdown转PDF下载功能：将Markdown内容转换为PDF文件并下载 | completed | P2 | |
+| preview-enhance-4 | 实现HTML全屏预览功能 | completed | P2 | 使用模态框式全屏(fixed+z-index)，而非浏览器全屏API，工具栏保持可见 |
+| preview-enhance-5 | 实现HTML下载功能：下载HTML文件 | completed | P2 | 使用Blob+URL.createObjectURL实现 |
+| preview-enhance-6 | 实现HTML截图功能：使用html2canvas或其他方案截图HTML内容 | pending | P3 | 暂缓实现 |
+| preview-enhance-7 | 实现SVG全屏预览功能 | completed | P2 | 使用模态框式全屏(fixed+z-index)，而非浏览器全屏API，工具栏保持可见 |
+| preview-enhance-8 | 实现SVG下载功能：下载SVG文件 | completed | P2 | 使用Blob+URL.createObjectURL实现 |
+| preview-enhance-9 | 实现SVG截图功能：使用html2canvas或其他方案截图SVG内容 | pending | P3 | 暂缓实现 |
+| preview-core-1 | 修复代码块按钮生成逻辑：为所有代码块生成复制和预览按钮 | completed | P0 | 移除markdownRenderer中的类型判断，统一生成按钮HTML，类型判断移至PreviewPanel |
+| cleanup-1 | 清理废弃组件：删除MessageItem.vue和MessageList.vue | completed | P1 | 避免代码架构混淆，保持代码清晰 |
+| preview-enhance-10 | （可选）WPS兼容性：提供图片格式数学公式选项，或在UI中提示推荐使用Word打开 | pending | P3 | |
 
 > **说明**: preview-enhance-10 是可选任务。当前 Word 导出功能在 Microsoft Word 中显示完全正常，WPS Office 由于对 OMML 格式支持不完整导致显示异常。这是 WPS 的兼容性问题，可以通过 UI 提示或提供替代格式来改进用户体验。
 
