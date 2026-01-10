@@ -1,5 +1,5 @@
 <template>
-  <div class="preview-panel" data-testid="preview-panel">
+  <div class="preview-panel" :class="{ 'is-fullscreen': isFullscreen }" data-testid="preview-panel">
     <div class="preview-header">
       <span class="preview-title">预览</span>
       <div class="preview-actions">
@@ -49,12 +49,15 @@
           v-if="artifact?.type === 'svg'"
           class="preview-action-btn" 
           @click="handleFullscreen" 
-          title="全屏预览"
+          :title="isFullscreen ? '退出全屏' : '全屏预览'"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg v-if="!isFullscreen" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
           </svg>
-          <span>全屏</span>
+          <svg v-else xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"></path>
+          </svg>
+          <span>{{ isFullscreen ? '退出全屏' : '全屏' }}</span>
         </button>
         <button 
           v-if="artifact?.type === 'svg'"
@@ -74,12 +77,15 @@
           v-if="artifact?.type === 'html'"
           class="preview-action-btn" 
           @click="handleFullscreen" 
-          title="全屏预览"
+          :title="isFullscreen ? '退出全屏' : '全屏预览'"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg v-if="!isFullscreen" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
           </svg>
-          <span>全屏</span>
+          <svg v-else xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"></path>
+          </svg>
+          <span>{{ isFullscreen ? '退出全屏' : '全屏' }}</span>
         </button>
         <button 
           v-if="artifact?.type === 'html'"
@@ -156,6 +162,7 @@ const emit = defineEmits<{
 }>()
 
 function handleClose() {
+  isFullscreen.value = false // 关闭时退出全屏
   emit('close')
 }
 
@@ -409,26 +416,11 @@ function handleDownloadHTML() {
 }
 
 /**
- * 全屏预览（HTML 和 SVG 通用）
+ * 切换全屏预览（HTML 和 SVG 通用）
+ * 实现模态框式的全屏，预览区域充满整个浏览器窗口，工具条保留
  */
 function handleFullscreen() {
-  // 获取预览内容区域
-  const previewContent = document.querySelector('.preview-content') as HTMLElement
-  if (!previewContent) {
-    return
-  }
-
-  // 检查浏览器是否支持全屏 API
-  if (!document.fullscreenEnabled) {
-    previewError.value = '您的浏览器不支持全屏功能'
-    return
-  }
-
-  // 进入全屏
-  previewContent.requestFullscreen().catch((error) => {
-    console.error('全屏失败:', error)
-    previewError.value = '全屏失败，请稍后重试'
-  })
+  isFullscreen.value = !isFullscreen.value
 }
 
 const previewError = ref<string | null>(null)
@@ -436,6 +428,7 @@ const htmlIframeRef = ref<HTMLIFrameElement | null>(null)
 const markdownContentRef = ref<HTMLDivElement | null>(null)
 const isDownloadingWord = ref<boolean>(false)
 const isDownloadingPDF = ref<boolean>(false)
+const isFullscreen = ref<boolean>(false)
 
 // 创建 markdown-it 实例（仅用于预览，不添加预览按钮）
 const md = new MarkdownIt({
@@ -565,6 +558,7 @@ watch(
   () => props.artifact,
   async (newArtifact) => {
     previewError.value = null
+    isFullscreen.value = false // 切换预览内容时退出全屏
     
     if (!newArtifact) {
       return
@@ -605,6 +599,13 @@ watch(
 .preview-panel {
   @apply flex flex-col h-full bg-white overflow-hidden;
   border-left: 1px solid #e5e7eb;
+}
+
+/* 全屏模式样式 */
+.preview-panel.is-fullscreen {
+  @apply fixed top-0 left-0 right-0 bottom-0;
+  z-index: 9999;
+  border-left: none;
 }
 
 .preview-header {
