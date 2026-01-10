@@ -224,33 +224,45 @@ onUnmounted(() => {
   font-size: 0.875em;
 }
 
+/* 代码块样式 - 直接复制自 ChatPanel.vue（已验证） */
 .markdown-content :deep(.code-block-wrapper) {
+  @apply relative my-4;
   position: relative;
-  margin: 1rem 0;
 }
 
-.markdown-content :deep(.preview-button) {
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
-  padding: 0.375rem 0.75rem;
-  background-color: #3b82f6;
-  color: white;
-  border: none;
-  border-radius: 0.25rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  z-index: 10;
+.markdown-content :deep(.code-block-wrapper pre) {
+  @apply relative;
+  margin: 0; /* 移除默认 margin，由 wrapper 控制 */
 }
 
-.markdown-content :deep(.preview-button:hover) {
-  background-color: #2563eb;
+/* 代码块操作按钮组 */
+.markdown-content :deep(.code-block-actions) {
+  @apply absolute top-2 right-2 flex gap-1.5 opacity-70 transition-opacity duration-200 z-10;
 }
 
-.markdown-content :deep(.preview-button:active) {
-  background-color: #1d4ed8;
+.markdown-content :deep(.code-block-wrapper:hover .code-block-actions) {
+  opacity: 1;
+}
+
+.markdown-content :deep(.preview-button),
+.markdown-content :deep(.copy-code-button) {
+  @apply w-7 h-7 flex items-center justify-center text-gray-300 hover:text-gray-100 hover:bg-gray-700 rounded cursor-pointer transition-all duration-150;
+  background-color: rgba(31, 41, 55, 0.7); /* 与代码块背景色匹配，提高初始可见度 */
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.1); /* 添加边框增加可见度 */
+}
+
+.markdown-content :deep(.preview-button:hover),
+.markdown-content :deep(.copy-code-button:hover) {
+  background-color: rgba(31, 41, 55, 0.9);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.markdown-content :deep(.preview-button:active),
+.markdown-content :deep(.copy-code-button:active) {
+  transform: scale(0.95) translateY(0);
+  background-color: rgba(31, 41, 55, 1);
 }
 
 .message-error {
