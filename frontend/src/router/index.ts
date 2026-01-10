@@ -81,14 +81,10 @@ router.beforeEach(async (to: RouteLocationNormalized, _from: RouteLocationNormal
 
   // 如果是登录页
   if (to.path === '/login') {
-    // 如果已登录，跳转到首页
+    // 如果已登录，直接跳转到首页（不验证token，让后续请求自动处理）
     if (authStore.isAuthenticated) {
-      // 验证Token是否有效
-      const isValid = await authStore.verifyToken()
-      if (isValid) {
-        next('/modules/ai-tools')
-        return
-      }
+      next('/modules/ai-tools')
+      return
     }
     next()
     return
@@ -110,17 +106,8 @@ router.beforeEach(async (to: RouteLocationNormalized, _from: RouteLocationNormal
     return
   }
 
-  // 已登录，验证Token是否有效
-  const isValid = await authStore.verifyToken()
-  if (!isValid) {
-    // Token无效，跳转到登录页
-    next({
-      path: '/login',
-      query: { redirect: to.fullPath },
-    })
-    return
-  }
-
+  // 已登录，直接放行（token验证交给API响应拦截器处理）
+  // 如果token无效，响应拦截器会自动清除并跳转到登录页
   next()
 })
 

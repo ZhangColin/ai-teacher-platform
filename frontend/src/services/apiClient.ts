@@ -46,10 +46,16 @@ const apiClient: AxiosInstance = axios.create({
  */
 apiClient.interceptors.request.use(
   (config) => {
-    // 添加认证 token
-    const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token')
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
+    // 公开接口（不需要token）
+    const publicEndpoints = ['/auth/login', '/auth/register']
+    const isPublicEndpoint = publicEndpoints.some(endpoint => config.url?.includes(endpoint))
+    
+    // 非公开接口才添加认证token
+    if (!isPublicEndpoint) {
+      const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token')
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`
+      }
     }
     return config
   },
@@ -68,7 +74,25 @@ apiClient.interceptors.response.use(
   (error: AxiosError<ApiErrorResponse | { detail?: string }>) => {
     // 统一错误处理
     if (error.response) {
-      // 服务器返回了错误响应
+      const status = error.response.status
+      
+      // 401 未授权：Token过期或无效，清除本地认证信息并跳转到登录页
+      if (status === 401) {
+        // 清除本地token
+        localStorage.removeItem('auth_token')
+        localStorage.removeItem('auth_user')
+        sessionStorage.removeItem('auth_token')
+        sessionStorage.removeItem('auth_user')
+        
+        // 如果不在登录页，跳转到登录页
+        if (window.location.pathname !== '/login') {
+          window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`
+        }
+        
+        return Promise.reject(new Error('登录已过期，请重新登录'))
+      }
+      
+      // 其他错误
       const errorData = error.response.data
       // FastAPI默认错误格式是 { detail: string }，也支持自定义格式 { error_message: string }
       const errorMessage = 
