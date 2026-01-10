@@ -966,9 +966,162 @@ class CommonToolDetail(BaseModel):
 
 ---
 
-## 6. 成果物解析协议 (Artifacts Protocol)
+## 6. 作品展示接口（需要认证）
 
-### 5.1 代码块识别规则
+### 6.1 获取作品分类列表
+获取所有可见的作品分类及其下的作品列表。
+
+- **Endpoint**: `GET /api/v1/works/categories`
+- **Description**: 返回所有作品分类，每个分类包含该分类下的作品列表。如果某个分类下没有可见作品，则不返回该分类。
+- **认证要求**: 需要认证（Bearer Token）
+
+- **Request**: 无请求参数
+
+- **Response**: `200 OK`
+```python
+class WorkListItem(BaseModel):
+    """作品列表项"""
+    id: str = Field(..., description="作品ID")
+    name: str = Field(..., description="作品名称")
+    description: str = Field(..., description="作品描述")
+    icon: Optional[str] = Field(None, description="图标标识")
+    order: int = Field(..., description="排序顺序")
+
+class WorkCategoryGroup(BaseModel):
+    """作品分类组"""
+    id: str = Field(..., description="分类ID")
+    name: str = Field(..., description="分类名称")
+    icon: Optional[str] = Field(None, description="分类图标")
+    order: int = Field(..., description="分类排序")
+    works: List[WorkListItem] = Field(..., description="该分类下的作品列表")
+
+class WorkCategoryResponse(BaseModel):
+    """作品分类响应"""
+    categories: List[WorkCategoryGroup] = Field(..., description="分类列表（按order排序）")
+```
+
+**响应示例**：
+```json
+{
+  "categories": [
+    {
+      "id": "creative-design",
+      "name": "创意设计",
+      "icon": "sparkles",
+      "order": 1,
+      "works": [
+        {
+          "id": "interactive-card",
+          "name": "交互式卡片",
+          "description": "一个精美的交互式卡片效果展示",
+          "icon": "star",
+          "order": 1
+        },
+        {
+          "id": "animated-button",
+          "name": "动画按钮集合",
+          "description": "多种创意动画按钮效果",
+          "icon": "cursor-arrow-rays",
+          "order": 2
+        }
+      ]
+    },
+    {
+      "id": "data-visualization",
+      "name": "数据可视化",
+      "icon": "chart-bar",
+      "order": 2,
+      "works": [
+        {
+          "id": "chart-demo",
+          "name": "图表演示",
+          "description": "各种图表的可视化展示",
+          "icon": "presentation-chart-line",
+          "order": 1
+        }
+      ]
+    }
+  ]
+}
+```
+
+**业务规则**：
+- 只返回 `visible=true` 的作品
+- 分类按 `order` 字段升序排序
+- 每个分类下的作品按 `order` 字段升序排序
+- 如果某个分类下没有可见作品，则不返回该分类
+- 所有作品均为HTML类型，点击后跳转到 `/works/{id}` 查看详情
+
+**错误响应**：
+- `401 Unauthorized`: 未登录或 Token 无效
+- `200 OK` with `{"categories": []}`: 正常响应，但没有可见作品（所有作品不可见或数据库为空）
+
+---
+
+### 6.2 获取作品详情
+获取单个作品的详细信息（包括HTML文件路径）。
+
+- **Endpoint**: `GET /api/v1/works/{work_id}`
+- **Description**: 返回指定作品的详细信息，用于作品详情页展示。
+- **认证要求**: 需要认证（Bearer Token）
+
+- **Path Parameters**:
+  - `work_id` (string, required): 作品ID
+
+- **Response**: `200 OK`
+```python
+class WorkDetail(BaseModel):
+    """作品详情"""
+    id: str = Field(..., description="作品ID")
+    name: str = Field(..., description="作品名称")
+    description: str = Field(..., description="作品描述")
+    category_id: str = Field(..., description="所属分类ID")
+    category_name: str = Field(..., description="所属分类名称")
+    icon: Optional[str] = Field(None, description="图标标识")
+    order: int = Field(..., description="排序顺序")
+    html_url: str = Field(..., description="HTML文件访问URL")
+    created_at: datetime = Field(..., description="创建时间")
+```
+
+**响应示例**：
+```json
+{
+  "id": "interactive-card",
+  "name": "交互式卡片",
+  "description": "一个精美的交互式卡片效果展示",
+  "category_id": "creative-design",
+  "category_name": "创意设计",
+  "icon": "star",
+  "order": 1,
+  "html_url": "/static/works/html/interactive-card/index.html",
+  "created_at": "2026-01-10T10:00:00Z"
+}
+```
+
+**错误响应**：
+- `404 Not Found`: 作品不存在或不可见
+```json
+{
+  "error_code": "WORK_NOT_FOUND",
+  "error_message": "作品不存在或已下线"
+}
+```
+
+**业务规则**：
+- 只能查询 `visible=true` 的作品
+- `html_url` 由后端根据 `html_path` 生成完整的访问URL：
+  - 数据库存储：`html_path = "works/html/{work_id}/index.html"`（相对于static目录）
+  - 接口返回：`html_url = "/static/works/html/{work_id}/index.html"`（完整URL）
+  - 转换规则：`html_url = "/static/" + html_path`
+- 前端使用iframe加载 `html_url`，并应用沙箱策略：
+  - 沙箱属性：`sandbox="allow-scripts allow-forms allow-popups allow-same-origin"`
+  - 与常用工具的HTML工具沙箱策略保持一致
+
+---
+
+## 7. 成果物解析协议 (Artifacts Protocol)
+
+### 7.1 代码块识别规则
 系统从 AI 的 Markdown 回复中识别代码块，只有代码块中的内容才被视为可预览的成果物。
 
 **识别规则**：
@@ -991,7 +1144,7 @@ class Artifact(BaseModel):
     timestamp: datetime = Field(..., description="成果物生成时间")
 ```
 
-### 5.2 成果物提取逻辑
+### 7.2 成果物提取逻辑
 - 后端解析 AI 回复的 Markdown 文本，提取所有代码块
 - 每个代码块生成一个 `Artifact` 对象
 - 如果 AI 回复中没有代码块，`artifacts` 列表为空
@@ -1000,9 +1153,9 @@ class Artifact(BaseModel):
 
 ---
 
-## 6. 错误处理
+## 8. 错误处理
 
-### 4.1 标准错误响应
+### 8.1 标准错误响应
 所有接口在发生错误时，应返回统一的错误格式：
 
 ```python
@@ -1012,7 +1165,7 @@ class ErrorResponse(BaseModel):
     details: Optional[dict] = Field(None, description="错误详情（可选）")
 ```
 
-### 4.2 常见错误场景
+### 8.2 常见错误场景
 
 **标准错误码**：
 - `401 Unauthorized`: 未登录、Token 无效或过期
@@ -1042,9 +1195,9 @@ class ErrorResponse(BaseModel):
 
 ---
 
-## 7. 认证流程设计
+## 9. 认证流程设计
 
-### 5.1 用户登录流程
+### 9.1 用户登录流程
 ```mermaid
 sequenceDiagram
     participant User as 用户
@@ -1068,7 +1221,7 @@ sequenceDiagram
     end
 ```
 
-### 5.2 认证Token验证流程
+### 9.2 认证Token验证流程
 ```mermaid
 sequenceDiagram
     participant Frontend as 前端
@@ -1090,9 +1243,9 @@ sequenceDiagram
 
 ---
 
-## 8. 数据流设计
+## 10. 数据流设计
 
-### 8.1 工具进入流程（显示欢迎语）
+### 10.1 工具进入流程（显示欢迎语）
 ```mermaid
 sequenceDiagram
     participant User as 用户
@@ -1110,7 +1263,7 @@ sequenceDiagram
     Note over Frontend: 此时尚未创建会话，仅显示欢迎语和输入框
 ```
 
-### 8.2 首次对话流程（创建会话）
+### 10.2 首次对话流程（创建会话）
 ```mermaid
 sequenceDiagram
     participant User as 用户
@@ -1137,7 +1290,7 @@ sequenceDiagram
     Note over Frontend: 欢迎语消失，显示聊天记录
 ```
 
-### 8.3 后续对话流程（继续会话）
+### 10.3 后续对话流程（继续会话）
 ```mermaid
 sequenceDiagram
     participant User as 用户
@@ -1164,7 +1317,7 @@ sequenceDiagram
     Frontend->>Frontend: 开启侧边预览栏，显示预览内容
 ```
 
-### 8.4 历史对话列表流程
+### 10.4 历史对话列表流程
 ```mermaid
 sequenceDiagram
     participant User as 用户
@@ -1191,9 +1344,14 @@ sequenceDiagram
 
 ---
 
-**文档版本**: v3.0  
-**最后更新**: 2026-01-09  
+**文档版本**: v3.1  
+**最后更新**: 2026-01-10  
 **更新说明**:
+- v3.1:
+  - **作品展示模块**：新增作品展示模块的API接口
+  - 新增 `GET /api/v1/works/categories` 接口，获取作品分类和作品列表
+  - 新增 `GET /api/v1/works/{work_id}` 接口，获取作品详情
+  - 更新章节编号：成果物解析协议从第6章调整为第7章，错误处理从第6章调整为第8章，认证流程从第7章调整为第9章，数据流设计从第8章调整为第10章
 - v3.0:
   - 多工具集架构支持：新增导航配置接口、工具集工具列表接口
   - 新增 `GET /api/v1/navigation` 接口，提供导航模块配置
@@ -1210,6 +1368,9 @@ sequenceDiagram
   - 更新数据流设计，反映新的接口和流程
 
 **设计依据**: 
+- `docs/requirements/works_display_spec.md` (v1.0) - 作品展示模块需求
+- `docs/requirements/common_tools_spec.md` (v1.0) - 常用工具模块需求
+- `docs/requirements/teaching_researcher_spec.md` (v2.0)
 - `docs/requirements/product_spec.md` (v4.0)
 - `docs/requirements/ai_prompt_wizard_spec.md`
 - `docs/requirements/ui_interaction_guide.md`

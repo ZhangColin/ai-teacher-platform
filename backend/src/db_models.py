@@ -127,3 +127,42 @@ class CommonToolModel(Base):
         Index("idx_category_order", "category_id", "order"),
     )
 
+
+class WorkCategoryModel(Base):
+    """作品分类数据库模型（SQLAlchemy ORM）"""
+    __tablename__ = "work_categories"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(50), nullable=False, unique=True)
+    icon = Column(String(50), nullable=True)
+    order = Column(Integer, nullable=False, default=0, index=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
+    updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
+    
+    # 关系
+    works = relationship("WorkModel", back_populates="category", cascade="all, delete-orphan")
+
+
+class WorkModel(Base):
+    """作品数据库模型（SQLAlchemy ORM）"""
+    __tablename__ = "works"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(100), nullable=False)
+    description = Column(String(200), nullable=False)
+    category_id = Column(String(36), ForeignKey("work_categories.id", ondelete="RESTRICT"), nullable=False, index=True)
+    icon = Column(String(50), nullable=True)
+    html_path = Column(String(255), nullable=False)
+    order = Column(Integer, nullable=False, default=0)
+    visible = Column(Boolean, nullable=False, default=True, index=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
+    updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
+    
+    # 关系
+    category = relationship("WorkCategoryModel", back_populates="works")
+    
+    # 联合索引（按分类和排序查询）
+    __table_args__ = (
+        Index("idx_category_order", "category_id", "order"),
+    )
+

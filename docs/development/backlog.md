@@ -292,3 +292,33 @@ configs/tools/teaching_researcher/
 ---
 
 **最后更新**: 2026-01-09（添加常用工具模块开发任务）
+
+---
+
+## 当前迭代：作品展示模块开发
+
+**需求来源**: `docs/requirements/works_display_spec.md` (v1.0)  
+**架构设计**: `docs/design/works_display_implementation_guide.md` (v1.0), `docs/design/api_interface.md` (v3.1), `docs/design/data_models.md` (v4.1)  
+**创建时间**: 2026-01-10
+
+### 模块概述
+
+作品展示模块是一个独立的HTML作品展示平台，功能与常用工具模块高度相似（分类+卡片+详情页+HTML沙箱），但采用独立的数据表、API、前端页面实现。
+
+### 任务列表
+
+| ID | 任务描述 | 状态 | 优先级 |
+|:---|:---|:---|:---|
+| works-1 | 基础设施准备（创建static目录结构、配置FastAPI静态文件服务、执行数据库迁移脚本） | completed | P0 |
+| works-2 | 后端-完成作品展示数据库设计与实现（ORM模型、Pydantic模型、验证迁移结果） | completed | P0 |
+| works-3 | 后端-实现获取作品分类列表功能（含Service、API、测试） | completed | P0 |
+| works-4 | 后端-实现获取作品详情功能（含Service、API、测试） | completed | P0 |
+| works-5 | 前端-实现作品卡片页（含类型定义、API客户端、Store、页面组件、路由配置） | completed | P0 |
+| works-6 | 前端-实现作品详情页（含页面组件、路由配置、HTML沙箱运行、全屏功能） | completed | P0 |
+| works-7 | 集成验证-端到端测试完整流程（从卡片页到作品详情页，验收标准逐项检查） | completed | P0 |
+
+---
+
+**最后更新**: 2026-01-10（添加作品展示模块开发任务）
+
+**实施说明**: 详细技术要点和实施步骤参考 `docs/design/works_display_implementation_guide.md`

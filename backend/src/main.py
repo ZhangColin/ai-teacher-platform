@@ -6,6 +6,7 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.staticfiles import StaticFiles
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +23,7 @@ from src.services.user_service import UserService
 from src.services.auth_service import AuthService
 from src.services.conversion_service import ConversionService
 from src.services.common_tool_service import CommonToolService
+from src.services.work_service import WorkService
 from src.config_loader import ConfigLoader
 from src.models import (
     AgentListResponse, AgentListItem, SessionInitResponse,
@@ -34,10 +36,18 @@ from src.models import (
     UpdateSessionRequest, UpdateSessionResponse,
     MarkdownToWordRequest,
     NavigationModule, NavigationResponse,
-    CommonToolCategoryResponse, CommonToolDetail
+    CommonToolCategoryResponse, CommonToolDetail,
+    WorkCategoryResponse, WorkDetail
 )
 
 app = FastAPI(title="AI Teacher Platform Backend")
+
+# 挂载静态文件目录
+static_dir = project_root / "backend" / "static"
+if static_dir.exists():
+    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+else:
+    logger.warning(f"静态文件目录不存在: {static_dir}")
 
 # 初始化服务
 config_loader = ConfigLoader(config_root=str(project_root / "configs"))
@@ -53,6 +63,7 @@ user_service = UserService()
 auth_service = AuthService()
 conversion_service = ConversionService()
 common_tool_service = CommonToolService()
+work_service = WorkService()
 
 # HTTP Bearer Token 安全方案
 security = HTTPBearer()
@@ -796,5 +807,73 @@ async def get_common_tool_detail(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取工具详情失败"
+        )
+
+
+# ==================== 作品展示模块 API ====================
+
+@app.get("/api/v1/works/categories", response_model=WorkCategoryResponse)
+async def get_work_categories(current_user: UserInfo = Depends(get_current_user)):
+    """
+    获取所有作品分类及其下的作品列表
+    
+    Returns:
+        WorkCategoryResponse: 分类列表，每个分类包含该分类下的作品列表
+        
+    Notes:
+        - 只返回 visible=True 的作品
+        - 分类按 order 字段升序排列
+        - 每个分类下的作品按 order 字段升序排列
+        - 如果某个分类下没有可见作品，则不返回该分类
+    """
+    try:
+        result = work_service.get_categories_with_works()
+        return result
+    except Exception as e:
+        logger.error(f"获取作品分类列表失败: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="获取作品分类列表失败"
+        )
+
+
+@app.get("/api/v1/works/{work_id}", response_model=WorkDetail)
+async def get_work_detail(
+    work_id: str,
+    current_user: UserInfo = Depends(get_current_user)
+):
+    """
+    获取指定作品的详细信息
+    
+    Args:
+        work_id: 作品ID
+        
+    Returns:
+        WorkDetail: 作品详情（包括分类信息、HTML访问URL等）
+        
+    Raises:
+        HTTPException: 作品不存在或不可见时返回404
+        
+    Notes:
+        - 只能查询 visible=True 的作品
+        - html_path 会被转换为完整的访问URL
+    """
+    try:
+        result = work_service.get_work_detail(work_id)
+        
+        if result is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="作品不存在或已下线"
+            )
+        
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"获取作品详情失败: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="获取作品详情失败"
         )
 

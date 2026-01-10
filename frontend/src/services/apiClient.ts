@@ -18,6 +18,8 @@ import type {
   UserInfo,
   CommonToolCategoryResponse,
   CommonToolDetail,
+  WorkCategoryResponse,
+  WorkDetail,
 } from '../types'
 import type { NavigationResponse } from '../types/navigation'
 
@@ -361,6 +363,25 @@ export class ApiService {
    */
   static async getCommonToolDetail(toolId: string): Promise<CommonToolDetail> {
     const response = await apiClient.get<CommonToolDetail>(`/common-tools/tools/${toolId}`)
+    return response.data
+  }
+
+  // ==================== 作品展示模块 ====================
+
+  /**
+   * 获取作品分类列表（包含每个分类下的作品列表）
+   */
+  static async getWorkCategories(): Promise<WorkCategoryResponse> {
+    const response = await apiClient.get<WorkCategoryResponse>('/works/categories')
+    return response.data
+  }
+
+  /**
+   * 获取作品详情
+   * @param workId 作品ID
+   */
+  static async getWorkDetail(workId: string): Promise<WorkDetail> {
+    const response = await apiClient.get<WorkDetail>(`/works/${workId}`)
     return response.data
   }
 }

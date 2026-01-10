@@ -268,3 +268,49 @@ export interface CommonToolDetail {
   created_at: string // 创建时间（ISO 8601格式）
 }
 
+// ==================== 作品展示模块 ====================
+
+/**
+ * 作品列表项（用于作品卡片页）
+ */
+export interface WorkListItem {
+  id: string // 作品ID
+  name: string // 作品名称
+  description: string // 作品描述
+  icon?: string // 图标（可选）
+  order: number // 排序字段
+}
+
+/**
+ * 作品分类组（包含分类信息和作品列表）
+ */
+export interface WorkCategoryGroup {
+  id: string // 分类ID
+  name: string // 分类名称
+  icon?: string // 分类图标（可选）
+  order: number // 排序字段
+  works: WorkListItem[] // 该分类下的作品列表
+}
+
+/**
+ * 作品分类响应
+ */
+export interface WorkCategoryResponse {
+  categories: WorkCategoryGroup[] // 分类列表
+}
+
+/**
+ * 作品详情
+ */
+export interface WorkDetail {
+  id: string // 作品ID
+  name: string // 作品名称
+  description: string // 作品描述
+  category_id: string // 分类ID
+  category_name: string // 分类名称
+  icon?: string // 图标（可选）
+  order: number // 排序字段
+  html_url: string // HTML文件访问URL
+  created_at: string // 创建时间（ISO 8601格式）
+}
+

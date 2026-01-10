@@ -448,3 +448,69 @@ class CommonToolDetail(BaseModel):
     html_url: Optional[str] = Field(None, description="HTML文件访问URL（仅type='html'时有值）")
     created_at: datetime = Field(..., description="创建时间")
 
+
+# ==================== 作品展示模块 ====================
+
+class WorkCategory(BaseModel):
+    """作品分类实体（聚合根）"""
+    id: str = Field(..., description="分类唯一标识（UUID）")
+    name: str = Field(..., description="分类名称", min_length=1, max_length=50)
+    icon: Optional[str] = Field(None, description="分类图标（heroicons名称，可选）")
+    order: int = Field(default=0, description="排序顺序（数字越小越靠前）")
+    created_at: datetime = Field(default_factory=datetime.now, description="创建时间")
+    updated_at: datetime = Field(default_factory=datetime.now, description="更新时间")
+
+
+class Work(BaseModel):
+    """作品实体（聚合根）"""
+    id: str = Field(..., description="作品唯一标识（UUID）")
+    name: str = Field(..., description="作品名称", min_length=1, max_length=100)
+    description: str = Field(..., description="作品描述", min_length=1, max_length=200)
+    category_id: str = Field(..., description="所属分类ID（关联WorkCategory）")
+    icon: Optional[str] = Field(None, description="图标标识（heroicons名称）")
+    html_path: str = Field(..., description="HTML文件路径（相对于static目录，必填）")
+    order: int = Field(default=0, description="排序顺序（数字越小越靠前）")
+    visible: bool = Field(default=True, description="是否可见（用于后台控制作品上下线）")
+    created_at: datetime = Field(default_factory=datetime.now, description="创建时间")
+    updated_at: datetime = Field(default_factory=datetime.now, description="更新时间")
+    
+    def get_html_url(self) -> str:
+        """获取HTML文件访问URL"""
+        return f"/static/{self.html_path}"
+
+
+class WorkListItem(BaseModel):
+    """作品列表项（用于API响应）"""
+    id: str = Field(..., description="作品ID")
+    name: str = Field(..., description="作品名称")
+    description: str = Field(..., description="作品描述")
+    icon: Optional[str] = Field(None, description="图标标识")
+    order: int = Field(..., description="排序顺序")
+
+
+class WorkCategoryGroup(BaseModel):
+    """作品分类组（用于API响应）"""
+    id: str = Field(..., description="分类ID")
+    name: str = Field(..., description="分类名称")
+    icon: Optional[str] = Field(None, description="分类图标")
+    order: int = Field(..., description="分类排序")
+    works: List[WorkListItem] = Field(..., description="该分类下的作品列表")
+
+
+class WorkCategoryResponse(BaseModel):
+    """作品分类响应（用于API响应）"""
+    categories: List[WorkCategoryGroup] = Field(..., description="分类列表（按order排序）")
+
+
+class WorkDetail(BaseModel):
+    """作品详情（用于API响应）"""
+    id: str = Field(..., description="作品ID")
+    name: str = Field(..., description="作品名称")
+    description: str = Field(..., description="作品描述")
+    category_id: str = Field(..., description="所属分类ID")
+    category_name: str = Field(..., description="所属分类名称")
+    icon: Optional[str] = Field(None, description="图标标识")
+    order: int = Field(..., description="排序顺序")
+    html_url: str = Field(..., description="HTML文件访问URL")
+    created_at: datetime = Field(..., description="创建时间")
+

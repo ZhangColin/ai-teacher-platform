@@ -52,6 +52,19 @@ const routes: RouteRecordRaw[] = [
     path: '/works',
     name: 'works',
     component: () => import('../layouts/WorksLayout.vue'),
+    children: [
+      {
+        path: '',
+        name: 'works-display',
+        component: () => import('../views/WorksDisplayPage.vue'),
+      },
+      {
+        path: ':workId',
+        name: 'work-detail',
+        component: () => import('../views/WorkDetailPage.vue'),
+        props: true,
+      },
+    ],
   },
   // 保留原有路由（后续处理）
   {

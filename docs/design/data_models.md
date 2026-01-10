@@ -12,6 +12,7 @@
 - **会话管理上下文**: 负责会话的创建、消息的存储和 AI 服务调用
 - **成果物上下文**: 负责成果物的识别、解析和展示
 - **常用工具上下文**: 负责常用工具的管理、分类组织和工具运行（独立于会话的临时工具）
+- **作品展示上下文**: 负责作品的管理、分类组织和作品展示（优秀HTML作品的集中展示平台）
 
 ### 1.2 核心实体关系
 ```mermaid
@@ -596,6 +597,168 @@ INSERT INTO common_tools (id, name, description, category_id, type, icon, html_p
 
 ---
 
+### 2.9 Work（聚合根）
+Work 是作品展示上下文的核心实体，代表一个HTML作品。
+
+```python
+class Work(BaseModel):
+    """作品实体（聚合根）"""
+    id: str = Field(..., description="作品唯一标识（UUID）")
+    name: str = Field(..., description="作品名称", min_length=1, max_length=100)
+    description: str = Field(..., description="作品描述", min_length=1, max_length=200)
+    category_id: str = Field(..., description="所属分类ID（关联WorkCategory）")
+    icon: Optional[str] = Field(None, description="图标标识（heroicons名称）")
+    html_path: str = Field(..., description="HTML文件路径（相对于static目录，必填）")
+    order: int = Field(default=0, description="排序顺序（数字越小越靠前）")
+    visible: bool = Field(default=True, description="是否可见（用于后台控制作品上下线）")
+    created_at: datetime = Field(default_factory=datetime.now, description="创建时间")
+    updated_at: datetime = Field(default_factory=datetime.now, description="更新时间")
+    
+    def get_html_url(self) -> str:
+        """获取HTML文件访问URL"""
+        # HTML文件的完整访问URL
+        return f"/static/{self.html_path}"
+```
+
+**业务约束**：
+- `html_path` 必填，格式示例：`works/html/{work_id}/index.html`
+- `icon` 使用 heroicons 的图标名称，与常用工具保持一致
+- 作品均为HTML类型，不区分内置和外部（与常用工具不同）
+
+**典型作品示例**：
+```python
+Work(
+    id="interactive-card",
+    name="交互式卡片",
+    description="一个精美的交互式卡片效果展示",
+    category_id="creative-design",
+    icon="star",
+    html_path="works/html/interactive-card/index.html",
+    order=1,
+    visible=True
+)
+```
+
+---
+
+### 2.10 WorkCategory（聚合根）
+WorkCategory 是作品分类实体，用于组织和管理作品。
+
+```python
+class WorkCategory(BaseModel):
+    """作品分类实体（聚合根）"""
+    id: str = Field(..., description="分类唯一标识（UUID）")
+    name: str = Field(..., description="分类名称", min_length=1, max_length=50)
+    icon: Optional[str] = Field(None, description="分类图标（heroicons名称，可选）")
+    order: int = Field(default=0, description="排序顺序（数字越小越靠前）")
+    created_at: datetime = Field(default_factory=datetime.now, description="创建时间")
+    updated_at: datetime = Field(default_factory=datetime.now, description="更新时间")
+```
+
+**业务约束**：
+- 分类名称必须唯一
+- 删除分类前需检查是否有关联的作品
+- 分类按 `order` 字段排序展示
+
+**典型分类示例**：
+```python
+WorkCategory(
+    id="creative-design",
+    name="创意设计",
+    icon="sparkles",
+    order=1
+)
+
+WorkCategory(
+    id="data-visualization",
+    name="数据可视化",
+    icon="chart-bar",
+    order=2
+)
+```
+
+---
+
+### 3.7 作品展示数据存储
+
+#### 3.7.1 作品分类表（work_categories）
+```sql
+CREATE TABLE work_categories (
+    id VARCHAR(36) PRIMARY KEY COMMENT '分类ID（UUID）',
+    name VARCHAR(50) NOT NULL UNIQUE COMMENT '分类名称',
+    icon VARCHAR(50) COMMENT '分类图标（heroicons名称）',
+    `order` INT NOT NULL DEFAULT 0 COMMENT '排序顺序',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_order (`order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='作品分类表';
+```
+
+#### 3.7.2 作品表（works）
+```sql
+CREATE TABLE works (
+    id VARCHAR(36) PRIMARY KEY COMMENT '作品ID（UUID）',
+    name VARCHAR(100) NOT NULL COMMENT '作品名称',
+    description VARCHAR(200) NOT NULL COMMENT '作品描述',
+    category_id VARCHAR(36) NOT NULL COMMENT '所属分类ID',
+    icon VARCHAR(50) COMMENT '图标标识（heroicons名称）',
+    html_path VARCHAR(255) NOT NULL COMMENT 'HTML文件路径（相对于static目录）',
+    `order` INT NOT NULL DEFAULT 0 COMMENT '排序顺序',
+    visible BOOLEAN NOT NULL DEFAULT TRUE COMMENT '是否可见',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    FOREIGN KEY (category_id) REFERENCES work_categories(id) ON DELETE RESTRICT,
+    INDEX idx_category_order (category_id, `order`),
+    INDEX idx_visible (visible)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='作品表';
+```
+
+**约束说明**：
+- `category_id` 外键约束：删除分类前必须先删除或移动该分类下的所有作品
+- `html_path` 必填，所有作品均为HTML类型
+- 通过应用层验证确保数据一致性
+
+**HTML文件存储规范**：
+- **存储目录**：`static/works/html/{work_id}/`
+- **主文件名**：`index.html`
+- **完整路径示例**：`static/works/html/interactive-card/index.html`
+- **访问URL**：`/static/works/html/interactive-card/index.html`
+- **支持资源**：可在同目录下放置CSS、JS、图片等资源文件
+
+**沙箱安全策略**：
+- 作品HTML在iframe沙箱中运行
+- 沙箱属性：`sandbox="allow-scripts allow-forms allow-popups allow-same-origin"`
+- 与常用工具的HTML工具沙箱策略保持一致
+- 安全隔离：防止XSS攻击，无法访问主站的Cookie、LocalStorage
+
+**初始数据示例**：
+```sql
+-- 插入分类
+INSERT INTO work_categories (id, name, icon, `order`) VALUES
+('creative-design', '创意设计', 'sparkles', 1),
+('data-visualization', '数据可视化', 'chart-bar', 2),
+('interactive-animation', '交互动画', 'cursor-arrow-rays', 3);
+
+-- 插入作品
+INSERT INTO works (id, name, description, category_id, icon, html_path, `order`, visible) VALUES
+('interactive-card', '交互式卡片', '一个精美的交互式卡片效果展示', 'creative-design', 'star', 'works/html/interactive-card/index.html', 1, TRUE),
+('animated-button', '动画按钮集合', '多种创意动画按钮效果', 'creative-design', 'cursor-arrow-rays', 'works/html/animated-button/index.html', 2, TRUE),
+('chart-demo', '图表演示', '各种图表的可视化展示', 'data-visualization', 'presentation-chart-line', 'works/html/chart-demo/index.html', 1, TRUE);
+```
+
+**与常用工具的对比**：
+| 特性 | 常用工具 | 作品展示 |
+|------|---------|---------|
+| 工具类型 | 内置工具 + HTML工具 | 仅HTML作品 |
+| 表名 | `common_tools` | `works` |
+| 分类表名 | `tool_categories` | `work_categories` |
+| HTML存储路径 | `static/common_tools/html/` | `static/works/html/` |
+| 业务定位 | 实用工具集合 | 优秀作品展示 |
+| 独立性 | 完全独立 | 完全独立 |
+| 后台管理 | 后续迭代共享后台 | 后续迭代共享后台 |
+
+---
+
 ## 4. 领域服务（可选）
 
 ### 4.1 ArtifactParser（领域服务）
@@ -638,9 +801,16 @@ class ArtifactParser:
 
 ---
 
-**文档版本**: v4.0  
-**最后更新**: 2026-01-09  
+**文档版本**: v4.1  
+**最后更新**: 2026-01-10  
 **更新说明**:
+- v4.1:
+  - **作品展示模块**：新增 Work（作品）和 WorkCategory（作品分类）实体
+  - **限界上下文扩展**：新增"作品展示上下文"
+  - **数据存储扩展**：新增 `work_categories` 和 `works` 表
+  - **章节调整**：新增 2.9 Work、2.10 WorkCategory、3.7 作品展示数据存储
+  - **HTML文件存储规范**：定义作品HTML文件的存储路径和访问方式
+  - **安全策略说明**：明确作品HTML的沙箱安全策略
 - v4.0:
   - **常用工具模块**：新增 CommonTool（常用工具）和 ToolCategory（工具分类）实体
   - **限界上下文扩展**：新增"常用工具上下文"
@@ -662,6 +832,7 @@ class ArtifactParser:
   - 删除 UIConfig 值对象
 
 **设计依据**: 
+- `docs/requirements/works_display_spec.md` (v1.0) - 作品展示模块需求
 - `docs/requirements/common_tools_spec.md` (v1.0) - 常用工具模块需求
 - `docs/requirements/teaching_researcher_spec.md` (v2.0)
 - `docs/requirements/product_spec.md` (v4.0)

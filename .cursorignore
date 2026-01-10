@@ -1,0 +1,22 @@
+# 依赖包
+node_modules/
+vendor/
+
+# 构建产物
+dist/
+build/
+out/
+.next/
+
+# 静态资源与大文件 (AI 读不懂图片，读大 JSON 也会卡死)
+*.svg
+*.png
+*.jpg
+*.lock
+*.json
+*.csv
+*.log
+
+# 临时文件
+.DS_Store
+tmp/

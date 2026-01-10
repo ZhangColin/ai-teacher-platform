@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图表演示</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: white;
+            font-size: 42px;
+            margin-bottom: 50px;
+            font-weight: 800;
+            letter-spacing: -1px;
+        }
+
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+        }
+
+        .chart-card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s ease;
+        }
+
+        .chart-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .chart-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .bar-chart {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-around;
+            height: 200px;
+            border-bottom: 2px solid #e2e8f0;
+            padding: 0 10px;
+        }
+
+        .bar {
+            width: 40px;
+            background: linear-gradient(to top, #667eea, #764ba2);
+            border-radius: 8px 8px 0 0;
+            position: relative;
+            transition: all 0.3s ease;
+            animation: barGrow 1s ease-out;
+        }
+
+        .bar:hover {
+            opacity: 0.8;
+            transform: scaleY(1.05);
+        }
+
+        .bar-label {
+            position: absolute;
+            bottom: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 12px;
+            color: #718096;
+            white-space: nowrap;
+        }
+
+        .line-chart {
+            height: 200px;
+            position: relative;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .line-chart svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .pie-chart {
+            width: 200px;
+            height: 200px;
+            margin: 0 auto;
+            border-radius: 50%;
+            background: conic-gradient(
+                #667eea 0deg 120deg,
+                #764ba2 120deg 240deg,
+                #f093fb 240deg 360deg
+            );
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+            animation: pieRotate 2s ease-out;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 15px;
+            background: #f7fafc;
+            border-radius: 10px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #718096;
+            margin-top: 5px;
+        }
+
+        @keyframes barGrow {
+            from {
+                height: 0;
+            }
+        }
+
+        @keyframes pieRotate {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 32px;
+            }
+            .chart-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 数据可视化演示</h1>
+        <div class="chart-grid">
+            <div class="chart-card">
+                <h3 class="chart-title">柱状图 - 月度数据</h3>
+                <div class="bar-chart">
+                    <div class="bar" style="height: 80%;">
+                        <span class="bar-label">1月</span>
+                    </div>
+                    <div class="bar" style="height: 60%;">
+                        <span class="bar-label">2月</span>
+                    </div>
+                    <div class="bar" style="height: 90%;">
+                        <span class="bar-label">3月</span>
+                    </div>
+                    <div class="bar" style="height: 70%;">
+                        <span class="bar-label">4月</span>
+                    </div>
+                    <div class="bar" style="height: 95%;">
+                        <span class="bar-label">5月</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <h3 class="chart-title">折线图 - 趋势分析</h3>
+                <div class="line-chart">
+                    <svg viewBox="0 0 300 200" preserveAspectRatio="none">
+                        <polyline
+                            points="0,150 75,120 150,80 225,100 300,40"
+                            fill="none"
+                            stroke="url(#lineGradient)"
+                            stroke-width="3"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        />
+                        <defs>
+                            <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <h3 class="chart-title">饼图 - 数据分布</h3>
+                <div class="pie-chart"></div>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value">33%</div>
+                        <div class="stat-label">类型 A</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">33%</div>
+                        <div class="stat-label">类型 B</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">34%</div>
+                        <div class="stat-label">类型 C</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
