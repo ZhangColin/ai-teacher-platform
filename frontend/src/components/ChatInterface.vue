@@ -25,6 +25,7 @@
     <PreviewPanel
       v-if="showPreview"
       :artifact="sessionStore.currentPreviewArtifact"
+      @close="handleClosePreview"
     />
   </div>
 </template>
@@ -137,6 +138,13 @@ function handleClearSession() {
  */
 function handlePreview(artifact: Artifact | null) {
   sessionStore.setPreviewArtifact(artifact)
+}
+
+/**
+ * 处理关闭预览
+ */
+function handleClosePreview() {
+  sessionStore.setPreviewArtifact(null)
 }
 
 /**

@@ -16,6 +16,7 @@ export const useSessionStore = defineStore('session', () => {
   // 计算属性
   const hasSession = computed(() => sessionId.value !== null)
   const messageCount = computed(() => messages.value.length)
+  const showPreview = computed(() => currentPreviewArtifact.value !== null)
 
   /**
    * 初始化工具（不创建会话，仅设置工具ID）
@@ -213,6 +214,7 @@ export const useSessionStore = defineStore('session', () => {
     // 计算属性
     hasSession,
     messageCount,
+    showPreview,
     // 方法
     initTool,
     sendMessage,

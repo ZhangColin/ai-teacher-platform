@@ -64,10 +64,20 @@ const renderedContent = computed(() => {
 })
 
 /**
- * 处理预览按钮点击
+ * 处理按钮点击（预览、复制）
  */
 function handlePreviewClick(event: Event) {
-  const target = event.target as HTMLElement
+  let target = event.target as HTMLElement
+  
+  // 如果点击的是按钮内的SVG或其他子元素，向上查找按钮元素
+  while (target && !target.classList.contains('preview-button') && !target.classList.contains('copy-code-button')) {
+    target = target.parentElement as HTMLElement
+    if (!target || target === contentRef.value) break
+  }
+  
+  if (!target) return
+  
+  // 处理预览按钮
   if (target.classList.contains('preview-button')) {
     const artifactData = target.getAttribute('data-artifact-content')
     if (artifactData) {
@@ -79,6 +89,40 @@ function handlePreviewClick(event: Event) {
       }
     }
   }
+  
+  // 处理复制代码按钮
+  if (target.classList.contains('copy-code-button')) {
+    const codeContent = target.getAttribute('data-code-content')
+    if (codeContent) {
+      // 反转义 HTML
+      const decodedContent = unescapeHtml(codeContent)
+      navigator.clipboard.writeText(decodedContent).then(() => {
+        // 显示复制成功提示
+        const originalHTML = target.innerHTML
+        target.innerHTML = '<span style="color: #10b981;">✓ 已复制</span>'
+        setTimeout(() => {
+          target.innerHTML = originalHTML
+        }, 2000)
+      }).catch((error) => {
+        console.error('复制失败:', error)
+      })
+    }
+  }
+}
+
+/**
+ * 反转义 HTML
+ */
+function unescapeHtml(text: string): string {
+  const map: Record<string, string> = {
+    '&amp;': '&',
+    '&lt;': '<',
+    '&gt;': '>',
+    '&quot;': '"',
+    '&#039;': "'",
+    '&nbsp;': ' ',
+  }
+  return text.replace(/&(?:amp|lt|gt|quot|#039|nbsp);/g, (m) => map[m] || m)
 }
 
 /**
