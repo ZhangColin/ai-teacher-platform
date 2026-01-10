@@ -229,28 +229,55 @@ onUnmounted(() => {
   margin: 1rem 0;
 }
 
-.markdown-content :deep(.preview-button) {
+.markdown-content :deep(.code-block-wrapper pre) {
+  position: relative;
+  margin: 0; /* 移除默认 margin，由 wrapper 控制 */
+}
+
+/* 代码块操作按钮组 */
+.markdown-content :deep(.code-block-actions) {
   position: absolute;
   top: 0.5rem;
   right: 0.5rem;
-  padding: 0.375rem 0.75rem;
-  background-color: #3b82f6;
-  color: white;
-  border: none;
-  border-radius: 0.25rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
+  display: flex;
+  gap: 0.375rem;
+  opacity: 0.7;
+  transition: opacity 0.2s;
   z-index: 10;
 }
 
-.markdown-content :deep(.preview-button:hover) {
-  background-color: #2563eb;
+.markdown-content :deep(.code-block-wrapper:hover .code-block-actions) {
+  opacity: 1;
 }
 
-.markdown-content :deep(.preview-button:active) {
-  background-color: #1d4ed8;
+.markdown-content :deep(.preview-button),
+.markdown-content :deep(.copy-code-button) {
+  width: 1.75rem;
+  height: 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #d1d5db;
+  background-color: rgba(31, 41, 55, 0.7);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.markdown-content :deep(.preview-button:hover),
+.markdown-content :deep(.copy-code-button:hover) {
+  color: #f9fafb;
+  background-color: rgba(31, 41, 55, 0.9);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.markdown-content :deep(.preview-button:active),
+.markdown-content :deep(.copy-code-button:active) {
+  transform: scale(0.95) translateY(0);
+  background-color: rgba(31, 41, 55, 1);
 }
 
 .message-error {
