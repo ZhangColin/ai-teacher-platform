@@ -206,7 +206,52 @@ onUnmounted(() => {
   word-break: break-word;
 }
 
-/* Markdown 样式已移至 /src/styles/markdown.css，所有组件共用 */
+.markdown-content {
+  word-break: break-word;
+}
+
+.markdown-content :deep(pre) {
+  background-color: rgba(0, 0, 0, 0.05);
+  padding: 0.75rem;
+  border-radius: 0.25rem;
+  overflow-x: auto;
+}
+
+.markdown-content :deep(code) {
+  background-color: rgba(0, 0, 0, 0.05);
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.125rem;
+  font-size: 0.875em;
+}
+
+.markdown-content :deep(.code-block-wrapper) {
+  position: relative;
+  margin: 1rem 0;
+}
+
+.markdown-content :deep(.preview-button) {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  padding: 0.375rem 0.75rem;
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  z-index: 10;
+}
+
+.markdown-content :deep(.preview-button:hover) {
+  background-color: #2563eb;
+}
+
+.markdown-content :deep(.preview-button:active) {
+  background-color: #1d4ed8;
+}
 
 .message-error {
   @apply flex items-center gap-3 p-3 rounded-md;

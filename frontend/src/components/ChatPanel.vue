@@ -394,9 +394,122 @@ function unescapeHtml(text: string): string {
   @apply w-full;
 }
 
-/* Markdown 样式已移至 /src/styles/markdown.css，所有组件共用 */
 .markdown-content {
   @apply w-full;
+  /* 使用 Tailwind Typography 插件样式 */
+}
+
+/* Markdown 内容样式优化 */
+.markdown-content :deep(h1),
+.markdown-content :deep(h2),
+.markdown-content :deep(h3),
+.markdown-content :deep(h4),
+.markdown-content :deep(h5),
+.markdown-content :deep(h6) {
+  @apply font-bold text-gray-900 mt-6 mb-4;
+}
+
+.markdown-content :deep(h1) {
+  @apply text-3xl;
+}
+
+.markdown-content :deep(h2) {
+  @apply text-2xl;
+}
+
+.markdown-content :deep(h3) {
+  @apply text-xl;
+}
+
+.markdown-content :deep(p) {
+  @apply text-gray-700 leading-7 mb-4;
+}
+
+.markdown-content :deep(ul),
+.markdown-content :deep(ol) {
+  @apply mb-4 pl-6;
+}
+
+.markdown-content :deep(li) {
+  @apply mb-2 text-gray-700;
+}
+
+.markdown-content :deep(blockquote) {
+  @apply border-l-4 border-gray-300 pl-4 italic text-gray-600 my-4;
+}
+
+.markdown-content :deep(code) {
+  @apply bg-gray-100 text-gray-800 px-1.5 py-0.5 rounded text-sm font-mono;
+}
+
+.markdown-content :deep(pre) {
+  @apply bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto my-4;
+}
+
+.markdown-content :deep(pre code) {
+  @apply bg-transparent text-gray-100 p-0;
+}
+
+.markdown-content :deep(a) {
+  @apply text-primary-600 hover:text-primary-700 underline;
+}
+
+.markdown-content :deep(table) {
+  @apply w-full border-collapse my-4;
+}
+
+.markdown-content :deep(th),
+.markdown-content :deep(td) {
+  @apply border border-gray-300 px-4 py-2 text-left;
+}
+
+.markdown-content :deep(th) {
+  @apply bg-gray-100 font-semibold;
+}
+
+.markdown-content :deep(img) {
+  @apply max-w-full h-auto rounded-lg my-4;
+}
+
+/* 代码块样式 */
+.markdown-content :deep(.code-block-wrapper) {
+  @apply relative my-4;
+  position: relative;
+}
+
+.markdown-content :deep(.code-block-wrapper pre) {
+  @apply relative;
+  margin: 0; /* 移除默认 margin，由 wrapper 控制 */
+}
+
+/* 代码块操作按钮组 */
+.markdown-content :deep(.code-block-actions) {
+  @apply absolute top-2 right-2 flex gap-1.5 opacity-70 transition-opacity duration-200 z-10;
+}
+
+.markdown-content :deep(.code-block-wrapper:hover .code-block-actions) {
+  opacity: 1;
+}
+
+.markdown-content :deep(.preview-button),
+.markdown-content :deep(.copy-code-button) {
+  @apply w-7 h-7 flex items-center justify-center text-gray-300 hover:text-gray-100 hover:bg-gray-700 rounded cursor-pointer transition-all duration-150;
+  background-color: rgba(31, 41, 55, 0.7); /* 与代码块背景色匹配，提高初始可见度 */
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.1); /* 添加边框增加可见度 */
+}
+
+.markdown-content :deep(.preview-button:hover),
+.markdown-content :deep(.copy-code-button:hover) {
+  background-color: rgba(31, 41, 55, 0.9);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.markdown-content :deep(.preview-button:active),
+.markdown-content :deep(.copy-code-button:active) {
+  transform: scale(0.95) translateY(0);
+  background-color: rgba(31, 41, 55, 1);
 }
 
 /* 用户消息工具栏样式（保留原有hover效果） */
