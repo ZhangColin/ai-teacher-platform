@@ -44,6 +44,56 @@
           </svg>
           <span>{{ isDownloadingPDF ? '生成中...' : '下载 PDF' }}</span>
         </button>
+        <!-- SVG 操作按钮 -->
+        <button 
+          v-if="artifact?.type === 'svg'"
+          class="preview-action-btn" 
+          @click="handleFullscreen" 
+          title="全屏预览"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+          </svg>
+          <span>全屏</span>
+        </button>
+        <button 
+          v-if="artifact?.type === 'svg'"
+          class="preview-action-btn" 
+          @click="handleDownloadSVG" 
+          title="下载 SVG"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span>下载 SVG</span>
+        </button>
+        <!-- HTML 操作按钮 -->
+        <button 
+          v-if="artifact?.type === 'html'"
+          class="preview-action-btn" 
+          @click="handleFullscreen" 
+          title="全屏预览"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+          </svg>
+          <span>全屏</span>
+        </button>
+        <button 
+          v-if="artifact?.type === 'html'"
+          class="preview-action-btn" 
+          @click="handleDownloadHTML" 
+          title="下载 HTML"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span>下载 HTML</span>
+        </button>
         <button class="preview-close" @click="handleClose" title="关闭预览">×</button>
       </div>
     </div>
@@ -296,6 +346,89 @@ async function handleDownloadPDF() {
   } finally {
     isDownloadingPDF.value = false
   }
+}
+
+/**
+ * 下载 SVG 文件
+ */
+function handleDownloadSVG() {
+  if (!props.artifact || props.artifact.type !== 'svg') {
+    return
+  }
+
+  const content = props.artifact.content
+  
+  // 生成文件名
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')
+  const filename = `svg_${timestamp[0]}_${timestamp[1].split('-').slice(0, 3).join('')}.svg`
+  
+  // 创建 Blob 对象（UTF-8 编码）
+  const blob = new Blob([content], { type: 'image/svg+xml;charset=utf-8' })
+  
+  // 创建下载链接并触发下载
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  
+  // 清理
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}
+
+/**
+ * 下载 HTML 文件
+ */
+function handleDownloadHTML() {
+  if (!props.artifact || props.artifact.type !== 'html') {
+    return
+  }
+
+  const content = props.artifact.content
+  
+  // 生成文件名
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')
+  const filename = `html_${timestamp[0]}_${timestamp[1].split('-').slice(0, 3).join('')}.html`
+  
+  // 创建 Blob 对象（UTF-8 编码）
+  const blob = new Blob([content], { type: 'text/html;charset=utf-8' })
+  
+  // 创建下载链接并触发下载
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  
+  // 清理
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}
+
+/**
+ * 全屏预览（HTML 和 SVG 通用）
+ */
+function handleFullscreen() {
+  // 获取预览内容区域
+  const previewContent = document.querySelector('.preview-content') as HTMLElement
+  if (!previewContent) {
+    return
+  }
+
+  // 检查浏览器是否支持全屏 API
+  if (!document.fullscreenEnabled) {
+    previewError.value = '您的浏览器不支持全屏功能'
+    return
+  }
+
+  // 进入全屏
+  previewContent.requestFullscreen().catch((error) => {
+    console.error('全屏失败:', error)
+    previewError.value = '全屏失败，请稍后重试'
+  })
 }
 
 const previewError = ref<string | null>(null)

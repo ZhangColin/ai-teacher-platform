@@ -16,9 +16,6 @@ export function renderMarkdown(content: string, artifacts: Artifact[] = []): str
   // 先渲染 Markdown
   let html = md.render(content)
 
-  // 可预览的类型：html, svg, markdown
-  const previewableTypes = ['html', 'svg', 'markdown']
-
   // 匹配所有代码块的正则表达式
   const codeBlockRegex = /<pre><code(?:\s+class="language-([^"]+)")?>([\s\S]*?)<\/code><\/pre>/gi
 
@@ -26,21 +23,16 @@ export function renderMarkdown(content: string, artifacts: Artifact[] = []): str
     // 获取语言标识（去除可能的空格）
     let lang = (language || '').trim().toLowerCase()
     
+    // 从 codeContent 中提取原始内容（去除 HTML 转义）
+    const rawContent = unescapeHtml(codeContent.trim())
+    
     // 如果没有语言标识，尝试智能识别
     if (!lang) {
-      const rawContent = unescapeHtml(codeContent.trim())
       lang = detectLanguageByContent(rawContent)
     }
     
-    // 判断是否为可预览类型
-    let artifactType = lang
-    if (!previewableTypes.includes(lang)) {
-      // 如果不是可预览类型，直接返回原代码块
-      return match
-    }
-
-    // 从 codeContent 中提取原始内容（去除 HTML 转义）
-    const rawContent = unescapeHtml(codeContent.trim())
+    // 所有代码块都使用相同的类型标识
+    let artifactType = lang || 'text'
     
     // 尝试从 artifacts 中查找匹配的 artifact
     let artifact: Artifact | null = null
