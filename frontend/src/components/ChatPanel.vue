@@ -16,7 +16,10 @@
         <!-- 用户消息：显示在聊天框里 -->
         <div v-if="message.role === 'user'" class="user-message-wrapper">
           <div class="user-message">
-            <div class="user-message-content">{{ message.content }}</div>
+            <div 
+              class="user-message-content" 
+              :class="{ 'user-message-short': isShortMessage(message.content) }"
+            >{{ message.content }}</div>
           </div>
           <!-- 消息工具栏 -->
           <div class="message-toolbar">
@@ -151,7 +154,7 @@ watch(() => sessionStore.loading, async (isLoading) => {
   }
 })
 
-// 监听消息更新事件（流式输出时触发）
+// 监听消息更新事件（收到完整回复后触发）
 const handleMessageUpdated = () => {
   scrollToBottom()
 }
@@ -166,6 +169,11 @@ async function handleSendMessage(content: string) {
   if (!props.toolId) {
     console.error('工具ID未设置，无法发送消息')
     return
+  }
+  
+  // 确保工具已初始化（防止 watch 还未执行的情况）
+  if (!sessionStore.toolId || sessionStore.toolId !== props.toolId) {
+    sessionStore.initTool(props.toolId)
   }
   
   try {
@@ -344,6 +352,26 @@ function unescapeHtml(text: string): string {
   }
   return text.replace(/&(?:amp|lt|gt|quot|#039|nbsp);/g, (m) => map[m] || m)
 }
+
+/**
+ * 判断消息是否很短（应该保持在一行）
+ * 中文字符按2个字符宽度计算，英文字符按1个字符宽度计算
+ */
+function isShortMessage(content: string): boolean {
+  if (!content) return false
+  // 计算实际显示宽度（粗略估算：中文2，英文1）
+  let displayWidth = 0
+  for (const char of content) {
+    // 中文字符、全角字符按2计算，其他按1计算
+    if (/[\u4e00-\u9fa5\u3000-\u303f\uff00-\uffef]/.test(char)) {
+      displayWidth += 2
+    } else {
+      displayWidth += 1
+    }
+  }
+  // 如果显示宽度小于30个字符单位，认为是短消息
+  return displayWidth < 30
+}
 </script>
 
 <style scoped>
@@ -375,14 +403,31 @@ function unescapeHtml(text: string): string {
 
 .user-message {
   @apply flex justify-end;
+  /* 确保子元素可以自适应宽度 */
+  min-width: 0;
 }
 
 .user-message-content {
-  @apply text-sm leading-relaxed break-words px-4 py-3 rounded-2xl max-w-[85%] bg-primary-500 text-white;
+  @apply text-sm leading-relaxed px-4 py-3 rounded-2xl bg-primary-500 text-white;
   /* 层级3：交互层 - 主色背景，明显阴影 */
   box-shadow: 0 2px 8px theme('colors.primary.500 / 0.3'), 0 1px 3px rgba(0, 0, 0, 0.1);
-  word-wrap: break-word;
+  /* 换行策略：短消息自适应宽度不换行，长消息超过合理宽度时才换行 */
+  word-break: normal;
   overflow-wrap: break-word;
+  white-space: normal;
+  /* 使用 fit-content 让短消息保持在一行 */
+  width: fit-content;
+  /* 最大宽度：使用 clamp，确保在移动端和桌面端都合理 */
+  max-width: clamp(200px, 85%, 600px);
+  display: inline-block;
+  /* 确保内容不会因为父容器 flex 布局而被压缩 */
+  flex-shrink: 0;
+}
+
+/* 短消息强制不换行 */
+.user-message-content.user-message-short {
+  white-space: nowrap;
+  max-width: none; /* 短消息移除最大宽度限制 */
 }
 
 /* AI 消息：直接渲染 Markdown，充分利用页面宽度 */

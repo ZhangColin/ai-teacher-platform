@@ -46,7 +46,7 @@
         </button>
         <!-- SVG 操作按钮 -->
         <button 
-          v-if="artifact?.type === 'svg'"
+          v-if="isSvgArtifact(artifact)"
           class="preview-action-btn" 
           @click="handleFullscreen" 
           :title="isFullscreen ? '退出全屏' : '全屏预览'"
@@ -60,7 +60,7 @@
           <span>{{ isFullscreen ? '退出全屏' : '全屏' }}</span>
         </button>
         <button 
-          v-if="artifact?.type === 'svg'"
+          v-if="isSvgArtifact(artifact)"
           class="preview-action-btn" 
           @click="handleDownloadSVG" 
           title="下载 SVG"
@@ -112,22 +112,22 @@
       <p class="error-hint">请尝试点击其他代码块进行预览</p>
     </div>
     <div v-else class="preview-content">
-      <!-- HTML 预览 - 使用严格的 sandbox 安全策略 -->
+      <!-- HTML 预览 - 使用 Blob URL 方式，避免 srcdoc 的转义问题 -->
       <iframe
         v-if="artifact.type === 'html'"
         ref="htmlIframeRef"
-        :srcdoc="sanitizedHtmlContent"
+        :src="htmlBlobUrl"
         sandbox="allow-scripts"
         class="preview-iframe"
         @load="handleIframeLoad"
         @error="handleIframeError"
       ></iframe>
 
-      <!-- SVG 预览 - 直接渲染 SVG 内容 -->
+      <!-- SVG 预览 - 直接渲染 SVG 内容（支持 svg 和 xml 类型） -->
       <div
-        v-else-if="artifact.type === 'svg'"
+        v-else-if="isSvgArtifact(artifact)"
+        ref="svgContainerRef"
         class="preview-svg"
-        v-html="sanitizedSvgContent"
       ></div>
 
       <!-- Markdown 预览 -->
@@ -145,7 +145,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch, ref, nextTick } from 'vue'
+import { computed, watch, ref, nextTick, onUnmounted } from 'vue'
 import MarkdownIt from 'markdown-it'
 // @ts-ignore - @traptitech/markdown-it-katex 没有类型定义
 import markdownItKatex from '@traptitech/markdown-it-katex'
@@ -359,7 +359,7 @@ async function handleDownloadPDF() {
  * 下载 SVG 文件
  */
 function handleDownloadSVG() {
-  if (!props.artifact || props.artifact.type !== 'svg') {
+  if (!isSvgArtifact(props.artifact)) {
     return
   }
 
@@ -426,9 +426,33 @@ function handleFullscreen() {
 const previewError = ref<string | null>(null)
 const htmlIframeRef = ref<HTMLIFrameElement | null>(null)
 const markdownContentRef = ref<HTMLDivElement | null>(null)
+const svgContainerRef = ref<HTMLElement | null>(null)
 const isDownloadingWord = ref<boolean>(false)
 const isDownloadingPDF = ref<boolean>(false)
 const isFullscreen = ref<boolean>(false)
+const htmlBlobUrlRef = ref<string | null>(null) // 存储当前的 Blob URL
+
+/**
+ * 转义 HTML 特殊字符
+ */
+function escapeHtml(text: string): string {
+  const map: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;',
+  }
+  return text.replace(/[&<>"']/g, (m) => map[m] || m)
+}
+
+/**
+ * 判断 artifact 是否是 SVG 内容
+ */
+function isSvgArtifact(artifact: typeof props.artifact): boolean {
+  if (!artifact) return false
+  return artifact.type === 'svg' || (artifact.type === 'xml' && artifact.content?.toLowerCase().includes('<svg'))
+}
 
 // 创建 markdown-it 实例（仅用于预览，不添加预览按钮）
 const md = new MarkdownIt({
@@ -466,10 +490,62 @@ const renderedMarkdown = computed(() => {
  * 清理和处理 HTML 内容
  * 确保 HTML 在安全的 sandbox 环境中执行
  */
-const sanitizedHtmlContent = computed(() => {
+/**
+ * 清理和处理 HTML 内容，生成 Blob URL
+ * 使用 Blob URL 方式可以避免 srcdoc 属性中的转义问题
+ */
+const htmlBlobUrl = computed(() => {
   if (props.artifact?.type === 'html') {
     try {
       previewError.value = null
+      
+      // 清理旧的 Blob URL
+      if (htmlBlobUrlRef.value) {
+        URL.revokeObjectURL(htmlBlobUrlRef.value)
+        htmlBlobUrlRef.value = null
+      }
+      
+      let content = props.artifact.content.trim()
+      
+      // 如果不是完整的 HTML 文档，包装成完整文档
+      if (!content.toLowerCase().includes('<!doctype') && !content.toLowerCase().includes('<html')) {
+        content = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { margin: 16px; font-family: system-ui, -apple-system, sans-serif; }
+  </style>
+</head>
+<body>
+${content}
+</body>
+</html>`
+      }
+      
+      // 创建 Blob 对象
+      const blob = new Blob([content], { type: 'text/html;charset=utf-8' })
+      // 生成 Blob URL
+      const blobUrl = URL.createObjectURL(blob)
+      htmlBlobUrlRef.value = blobUrl
+      
+      return blobUrl
+    } catch (error) {
+      previewError.value = 'HTML 内容处理失败'
+      console.error('HTML Blob URL 创建失败:', error)
+      return ''
+    }
+  }
+  return ''
+})
+
+/**
+ * 清理 HTML 内容（保留用于下载等功能）
+ */
+const sanitizedHtmlContent = computed(() => {
+  if (props.artifact?.type === 'html') {
+    try {
       let content = props.artifact.content.trim()
       
       // 如果不是完整的 HTML 文档，包装成完整文档
@@ -491,7 +567,6 @@ ${content}
       
       return content
     } catch (error) {
-      previewError.value = 'HTML 内容处理失败'
       return ''
     }
   }
@@ -503,13 +578,44 @@ ${content}
  * 确保 SVG 安全渲染
  */
 const sanitizedSvgContent = computed(() => {
-  if (props.artifact?.type === 'svg') {
+  if (isSvgArtifact(props.artifact) && props.artifact) {
     try {
       previewError.value = null
       let content = props.artifact.content.trim()
       
+      console.log('原始 SVG 内容（前100字符）:', content.substring(0, 100))
+      
+      // 如果内容被 HTML 转义了，先反转义
+      // 检查是否包含转义的 HTML 实体
+      if (content.includes('&lt;') || content.includes('&gt;') || content.includes('&amp;')) {
+        console.log('检测到 HTML 转义，开始反转义...')
+        // 创建临时 DOM 元素来反转义
+        const tempDiv = document.createElement('div')
+        tempDiv.innerHTML = content
+        content = tempDiv.textContent || tempDiv.innerText || content
+        console.log('反转义后（前100字符）:', content.substring(0, 100))
+      }
+      
+      // 如果内容被包裹在代码块标记中（```svg ... ```），移除它们
+      if (content.startsWith('```')) {
+        console.log('检测到代码块标记，移除...')
+        content = content.replace(/^```svg\s*/i, '').replace(/```\s*$/, '').trim()
+      }
+      
+      // 如果内容被包裹在 <pre><code> 中，提取 SVG 内容
+      const preCodeMatch = content.match(/<pre[^>]*><code[^>]*>([\s\S]*?)<\/code><\/pre>/i)
+      if (preCodeMatch) {
+        console.log('检测到 <pre><code> 包裹，提取内容...')
+        content = preCodeMatch[1]
+        // 再次反转义（因为 code 标签中的内容会被转义）
+        const tempDiv = document.createElement('div')
+        tempDiv.innerHTML = content
+        content = tempDiv.textContent || tempDiv.innerText || content
+      }
+      
       // 确保内容是有效的 SVG
       if (!content.toLowerCase().includes('<svg')) {
+        console.error('无效的 SVG 内容，不包含 <svg> 标签')
         previewError.value = '无效的 SVG 内容'
         return ''
       }
@@ -517,9 +623,17 @@ const sanitizedSvgContent = computed(() => {
       // 移除潜在的危险脚本标签
       content = content.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
       
+      // 确保 SVG 有合适的 viewBox 或尺寸（如果没有的话）
+      if (!content.includes('viewBox') && !content.includes('width') && !content.includes('height')) {
+        // 如果 SVG 没有尺寸属性，添加默认的 viewBox
+        content = content.replace(/<svg([^>]*)>/i, '<svg$1 viewBox="0 0 400 400">')
+      }
+      
+      console.log('最终 SVG 内容（前100字符）:', content.substring(0, 100))
       return content
     } catch (error) {
       previewError.value = 'SVG 内容处理失败'
+      console.error('SVG 处理错误:', error, props.artifact?.content?.substring(0, 100))
       return ''
     }
   }
@@ -556,16 +670,33 @@ function handleIframeError(event: Event) {
  */
 watch(
   () => props.artifact,
-  async (newArtifact) => {
+  async (newArtifact, oldArtifact) => {
+    console.log('PreviewPanel: artifact 变化', newArtifact ? {
+      type: newArtifact.type,
+      contentLength: newArtifact.content?.length,
+      hasContent: !!newArtifact.content
+    } : 'null')
+    
+    // 清理旧的 Blob URL（当 artifact 变化时）
+    if (oldArtifact?.type === 'html' && htmlBlobUrlRef.value) {
+      URL.revokeObjectURL(htmlBlobUrlRef.value)
+      htmlBlobUrlRef.value = null
+    }
+    
     previewError.value = null
     isFullscreen.value = false // 切换预览内容时退出全屏
     
     if (!newArtifact) {
+      console.log('PreviewPanel: artifact 为空，清空容器')
+      if (svgContainerRef.value) {
+        svgContainerRef.value.innerHTML = ''
+      }
       return
     }
 
     // 验证内容
     if (!newArtifact.content || newArtifact.content.trim().length === 0) {
+      console.error('PreviewPanel: 预览内容为空')
       previewError.value = '预览内容为空'
       return
     }
@@ -582,17 +713,87 @@ watch(
       }, 2000)
     }
     
-    // 对于 SVG，直接渲染，无需额外检查
-    if (newArtifact.type === 'svg') {
+    // 对于 SVG，直接设置 innerHTML 渲染（包括 xml 类型的 SVG 内容）
+    if (isSvgArtifact(newArtifact)) {
+      console.log('检测到 SVG artifact，开始处理...', {
+        type: newArtifact.type,
+        contentLength: newArtifact.content?.length,
+        contentPreview: newArtifact.content?.substring(0, 200)
+      })
       await nextTick()
-      // SVG 内容已通过 v-html 渲染，检查是否有错误
-      if (!previewError.value) {
-        console.log('SVG 预览渲染成功')
+      console.log('nextTick 完成，svgContainerRef:', svgContainerRef.value)
+      
+      if (svgContainerRef.value) {
+        try {
+          // 直接处理内容，不依赖computed属性
+          let content = newArtifact.content.trim()
+          console.log('原始内容（前200字符）:', content.substring(0, 200))
+          
+          // 如果内容被 HTML 转义了，先反转义
+          if (content.includes('&lt;') || content.includes('&gt;') || content.includes('&amp;')) {
+            console.log('检测到 HTML 转义，开始反转义...')
+            const tempDiv = document.createElement('div')
+            tempDiv.innerHTML = content
+            content = tempDiv.textContent || tempDiv.innerText || content
+            console.log('反转义后（前200字符）:', content.substring(0, 200))
+          }
+          
+          // 如果内容被包裹在代码块标记中，移除它们
+          if (content.startsWith('```')) {
+            console.log('检测到代码块标记，移除...')
+            content = content.replace(/^```svg\s*/i, '').replace(/```\s*$/, '').trim()
+          }
+          
+          // 如果内容被包裹在 <pre><code> 中，提取 SVG 内容
+          const preCodeMatch = content.match(/<pre[^>]*><code[^>]*>([\s\S]*?)<\/code><\/pre>/i)
+          if (preCodeMatch) {
+            console.log('检测到 <pre><code> 包裹，提取内容...')
+            content = preCodeMatch[1]
+            const tempDiv = document.createElement('div')
+            tempDiv.innerHTML = content
+            content = tempDiv.textContent || tempDiv.innerText || content
+          }
+          
+          // 确保内容是有效的 SVG
+          if (!content.toLowerCase().includes('<svg')) {
+            console.error('无效的 SVG 内容，不包含 <svg> 标签，内容:', content.substring(0, 100))
+            previewError.value = '无效的 SVG 内容'
+            svgContainerRef.value.innerHTML = '<pre class="preview-code"><code>' + escapeHtml(content) + '</code></pre>'
+            return
+          }
+          
+          // 移除潜在的危险脚本标签
+          content = content.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+          
+          // 确保 SVG 有合适的 viewBox 或尺寸
+          if (!content.includes('viewBox') && !content.includes('width') && !content.includes('height')) {
+            content = content.replace(/<svg([^>]*)>/i, '<svg$1 viewBox="0 0 400 400">')
+          }
+          
+          console.log('最终 SVG 内容（前200字符）:', content.substring(0, 200))
+          svgContainerRef.value.innerHTML = content
+          console.log('SVG 预览渲染成功，内容长度:', content.length)
+        } catch (error) {
+          console.error('SVG 渲染错误:', error)
+          previewError.value = 'SVG 渲染失败: ' + (error instanceof Error ? error.message : String(error))
+        }
+      } else {
+        console.error('svgContainerRef 为空，无法渲染 SVG')
       }
     }
   },
   { immediate: true }
 )
+
+/**
+ * 组件卸载时清理 Blob URL
+ */
+onUnmounted(() => {
+  if (htmlBlobUrlRef.value) {
+    URL.revokeObjectURL(htmlBlobUrlRef.value)
+    htmlBlobUrlRef.value = null
+  }
+})
 </script>
 
 <style scoped>

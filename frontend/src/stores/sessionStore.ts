@@ -51,52 +51,54 @@ export const useSessionStore = defineStore('session', () => {
     }
     messages.value.push(userMessage)
 
-    // 创建 AI 回复消息占位符（用于流式输出）
+    // 创建 AI 回复消息占位符（显示加载状态）
     const assistantMessage: Message = {
       role: 'assistant',
       content: '',
       artifacts: [],
+      pending: true, // 标记为加载中
     }
     messages.value.push(assistantMessage)
 
     try {
-      console.log('发送消息（流式）:', { toolId: toolId.value, sessionId: sessionId.value, content })
+      console.log('发送消息（非流式）:', { toolId: toolId.value, sessionId: sessionId.value, content })
       
-      // 使用流式接口
-      console.log('开始流式请求...')
-      await ApiService.chatStream(
+      // 使用非流式接口
+      console.log('开始非流式请求...')
+      const response = await ApiService.chat(
         toolId.value,
         {
-        message: content,
+          message: content,
           session_id: sessionId.value || null, // 如果有会话ID则继续会话，没有则创建新会话
           history: messages.value.slice(0, -2).map(msg => ({
             role: msg.role,
             content: msg.content,
           })), // 不包含刚添加的用户消息和AI占位符
-        },
-        (data) => {
-          console.log('收到流式数据:', data.type, data.content ? `内容长度: ${data.content.length}` : '')
-          if (data.type === 'session_id' && data.session_id) {
-            // 更新会话ID
-            sessionId.value = data.session_id
-            console.log('会话ID已更新:', data.session_id)
-          } else if (data.type === 'content' && data.content) {
-            // 追加内容块
-            assistantMessage.content += data.content
-            console.log('内容已追加，当前总长度:', assistantMessage.content.length)
-            // 触发滚动事件（每收到内容就滚动）
-            window.dispatchEvent(new CustomEvent('message-updated'))
-          } else if (data.type === 'done') {
-            // 流式输出完成，更新 artifacts
-            assistantMessage.artifacts = data.artifacts || []
-            console.log('流式输出完成，总长度:', assistantMessage.content.length, 'artifacts:', assistantMessage.artifacts.length)
-          } else if (data.type === 'error') {
-            // 错误处理
-            console.error('流式输出错误:', data.error)
-            throw new Error(data.error || '流式输出失败')
-          }
         }
       )
+      
+      console.log('收到完整回复:', {
+        sessionId: response.session_id,
+        replyLength: response.reply.length,
+        artifactsCount: response.artifacts?.length || 0
+      })
+      
+      // 更新会话ID
+      if (response.session_id) {
+        sessionId.value = response.session_id
+        console.log('会话ID已更新:', response.session_id)
+      }
+      
+      // 更新 AI 消息内容
+      assistantMessage.content = response.reply
+      assistantMessage.artifacts = response.artifacts || []
+      assistantMessage.pending = false
+      
+      console.log('消息处理完成，总长度:', assistantMessage.content.length, 'artifacts:', assistantMessage.artifacts.length)
+      
+      // 等待 DOM 更新后触发滚动事件
+      await new Promise(resolve => setTimeout(resolve, 0))
+      window.dispatchEvent(new CustomEvent('message-updated'))
 
       // 更新用户消息状态（移除 pending）
       const lastUserMessage = messages.value[messages.value.length - 2]

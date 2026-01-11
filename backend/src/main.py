@@ -1394,6 +1394,22 @@ async def chat(
         user_message=request.message
     )
     
+    # 记录最终返回的完整内容（用于排查HTML问题）
+    logger.info("=" * 80)
+    logger.info("最终返回给前端的完整内容:")
+    logger.info(f"内容总长度: {len(reply)} 字符")
+    if '<html' in reply.lower() or '<!doctype' in reply.lower():
+        logger.info("包含HTML内容")
+        logger.info(f"完整HTML内容（前2000字符）:\n{reply[:2000]}")
+        logger.info(f"完整HTML内容（后2000字符）:\n{reply[-2000:]}")
+        # 检查HTML结构完整性
+        html_tags = ['<!doctype', '<html', '</html>', '<head', '</head>', '<body', '</body>']
+        for tag in html_tags:
+            count = reply.lower().count(tag)
+            if count > 0:
+                logger.info(f"  {tag}: {count} 个")
+    logger.info("=" * 80)
+    
     # 保存用户消息到数据库
     session_service.add_message(
         session_id=session_id,
@@ -1412,6 +1428,17 @@ async def chat(
     
     # 解析成果物
     artifacts = artifact_parser.parse_from_markdown(reply)
+    logger.info(f"解析成果物完成，成果物数量: {len(artifacts)}")
+    for i, artifact in enumerate(artifacts):
+        logger.info(f"  成果物 {i+1}: type={artifact.type}, language={artifact.language}, content长度={len(artifact.content)}")
+        if artifact.type == 'html':
+            logger.info(f"    HTML内容预览（前500字符）:\n{artifact.content[:500]}")
+            logger.info(f"    HTML内容预览（后500字符）:\n{artifact.content[-500:]}")
+            # 检查HTML是否完整
+            if '</html>' not in artifact.content.lower():
+                logger.warning(f"    ⚠️ HTML成果物缺少 </html> 闭合标签！")
+            if '<body' in artifact.content.lower() and '</body>' not in artifact.content.lower():
+                logger.warning(f"    ⚠️ HTML成果物缺少 </body> 闭合标签！")
     
     return ChatResponse(
         session_id=session_id,
@@ -1487,6 +1514,7 @@ async def chat_stream(
     # 流式生成回复
     async def generate_stream():
         full_reply = ""
+        chunk_count = 0
         try:
             # 先发送 session_id
             yield f"data: {json.dumps({'type': 'session_id', 'session_id': session_id})}\n\n"
@@ -1497,9 +1525,17 @@ async def chat_stream(
                 history=history_list,
                 user_message=request.message
             ):
-                full_reply += chunk
-                # 发送内容块
-                yield f"data: {json.dumps({'type': 'content', 'content': chunk})}\n\n"
+                if chunk:
+                    chunk_count += 1
+                    full_reply += chunk
+                    # 发送内容块
+                    yield f"data: {json.dumps({'type': 'content', 'content': chunk})}\n\n"
+            
+            logger.info(f"流式输出完成 - 总chunk数: {chunk_count}, 总内容长度: {len(full_reply)} 字符")
+            if 'html' in full_reply.lower() or '<html' in full_reply.lower():
+                logger.info(f"HTML内容检测 - 包含<html>标签: {'<html' in full_reply.lower()}, 包含</html>标签: {'</html>' in full_reply.lower()}")
+                logger.debug(f"HTML内容预览（前500字符）: {full_reply[:500]}")
+                logger.debug(f"HTML内容预览（后500字符）: {full_reply[-500:]}")
             
             # 保存完整回复到数据库
             session_service.add_message(
@@ -1511,6 +1547,7 @@ async def chat_stream(
             
             # 解析成果物
             artifacts = artifact_parser.parse_from_markdown(full_reply)
+            logger.info(f"解析成果物完成 - 成果物数量: {len(artifacts)}")
             
             # 发送完成信号和成果物（转换为字典格式以便序列化）
             artifacts_dict = [

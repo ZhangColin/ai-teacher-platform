@@ -91,6 +91,11 @@ class ArtifactParser:
             if language:
                 # 有显式声明，使用声明的类型
                 language = language.strip()
+                # 但是，如果声明的是 'xml' 但内容是 SVG，应该识别为 'svg'
+                if language.lower() == 'xml':
+                    detected = ArtifactParser.detect_language_by_content(code_content)
+                    if detected == 'svg':
+                        language = 'svg'
             else:
                 # 没有显式声明，使用智能识别
                 language = ArtifactParser.detect_language_by_content(code_content)
