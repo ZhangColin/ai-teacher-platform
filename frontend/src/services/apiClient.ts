@@ -15,11 +15,40 @@ import type {
   UserListResponse,
   CreateUserRequest,
   CreateUserResponse,
+  UpdateUserRequest,
+  UpdateUserResponse,
+  ResetPasswordRequest,
+  ResetPasswordResponse,
   UserInfo,
   CommonToolCategoryResponse,
   CommonToolDetail,
   WorkCategoryResponse,
   WorkDetail,
+  AdminCommonToolListResponse,
+  AdminCommonToolListItem,
+  CreateBuiltInToolRequest,
+  UpdateToolRequest,
+  ToolMutationResponse,
+  MoveToolResponse,
+  ToggleVisibilityResponse,
+  AdminToolCategoryListResponse,
+  AdminToolCategoryListItem,
+  CreateToolCategoryRequest,
+  UpdateToolCategoryRequest,
+  CategoryMutationResponse,
+  MoveCategoryResponse,
+  AdminWorkListResponse,
+  AdminWorkListItem,
+  UpdateWorkRequest,
+  WorkMutationResponse,
+  MoveWorkResponse,
+  ToggleWorkVisibilityResponse,
+  AdminWorkCategoryListResponse,
+  AdminWorkCategoryListItem,
+  CreateWorkCategoryRequest,
+  UpdateWorkCategoryRequest,
+  WorkCategoryMutationResponse,
+  MoveWorkCategoryResponse,
 } from '../types'
 import type { NavigationResponse } from '../types/navigation'
 
@@ -330,11 +359,21 @@ export class ApiService {
    * 获取用户列表
    * @param page 页码（可选，默认1）
    * @param pageSize 每页数量（可选，默认20）
+   * @param isAdmin 筛选管理员（可选，true: 仅管理员，false: 仅普通用户，undefined: 全部）
    */
-  static async getUserList(page: number = 1, pageSize: number = 20): Promise<UserListResponse> {
-    const response = await apiClient.get<UserListResponse>('/admin/users', {
-      params: { page, page_size: pageSize },
-    })
+  static async getUserList(
+    page: number = 1,
+    pageSize: number = 20,
+    isAdmin?: boolean
+  ): Promise<UserListResponse> {
+    const params: Record<string, any> = {
+      page,
+      page_size: pageSize,
+    }
+    if (isAdmin !== undefined) {
+      params.is_admin = isAdmin
+    }
+    const response = await apiClient.get<UserListResponse>('/admin/users', { params })
     return response.data
   }
 
@@ -344,6 +383,40 @@ export class ApiService {
    */
   static async createUser(request: CreateUserRequest): Promise<CreateUserResponse> {
     const response = await apiClient.post<CreateUserResponse>('/admin/users', request)
+    return response.data
+  }
+
+  /**
+   * 更新用户信息
+   * @param userId 用户ID
+   * @param request 更新用户请求
+   */
+  static async updateUser(userId: string, request: UpdateUserRequest): Promise<UpdateUserResponse> {
+    const response = await apiClient.put<UpdateUserResponse>(`/admin/users/${userId}`, request)
+    return response.data
+  }
+
+  /**
+   * 删除用户
+   * @param userId 用户ID
+   */
+  static async deleteUser(userId: string): Promise<void> {
+    await apiClient.delete(`/admin/users/${userId}`)
+  }
+
+  /**
+   * 重置用户密码
+   * @param userId 用户ID
+   * @param request 重置密码请求
+   */
+  static async resetUserPassword(
+    userId: string,
+    request: ResetPasswordRequest
+  ): Promise<ResetPasswordResponse> {
+    const response = await apiClient.post<ResetPasswordResponse>(
+      `/admin/users/${userId}/reset-password`,
+      request
+    )
     return response.data
   }
 
@@ -382,6 +455,319 @@ export class ApiService {
    */
   static async getWorkDetail(workId: string): Promise<WorkDetail> {
     const response = await apiClient.get<WorkDetail>(`/works/${workId}`)
+    return response.data
+  }
+
+  // ==================== 后台管理 - 工具管理模块 ====================
+
+  /**
+   * 获取工具列表（管理后台）
+   * @param page 页码
+   * @param pageSize 每页数量
+   * @param categoryId 按分类ID筛选
+   * @param type 按类型筛选（'built_in' | 'html'）
+   * @param visible 按可见性筛选
+   */
+  static async getAdminTools(
+    page: number = 1,
+    pageSize: number = 20,
+    categoryId?: string,
+    type?: string,
+    visible?: boolean
+  ): Promise<AdminCommonToolListResponse> {
+    const params: Record<string, any> = { page, page_size: pageSize }
+    if (categoryId) params.category_id = categoryId
+    if (type) params.type = type
+    if (visible !== undefined) params.visible = visible
+
+    const response = await apiClient.get<AdminCommonToolListResponse>('/admin/common-tools', {
+      params,
+    })
+    return response.data
+  }
+
+  /**
+   * 创建内置工具
+   * @param request 创建内置工具请求
+   */
+  static async createBuiltInTool(request: CreateBuiltInToolRequest): Promise<ToolMutationResponse> {
+    const response = await apiClient.post<ToolMutationResponse>('/admin/common-tools/built-in', request)
+    return response.data
+  }
+
+  /**
+   * 上传HTML工具
+   * @param name 工具名称
+   * @param description 工具描述
+   * @param categoryId 所属分类ID
+   * @param htmlFile HTML文件
+   * @param icon 图标标识
+   * @param order 排序顺序
+   * @param visible 是否可见
+   */
+  static async createHtmlTool(
+    name: string,
+    description: string,
+    categoryId: string,
+    htmlFile: File,
+    icon?: string,
+    order: number = 0,
+    visible: boolean = true
+  ): Promise<ToolMutationResponse> {
+    const formData = new FormData()
+    formData.append('name', name)
+    formData.append('description', description)
+    formData.append('category_id', categoryId)
+    formData.append('html_file', htmlFile)
+    if (icon) formData.append('icon', icon)
+    formData.append('order', order.toString())
+    formData.append('visible', visible.toString())
+
+    const response = await apiClient.post<ToolMutationResponse>('/admin/common-tools/html', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+    return response.data
+  }
+
+  /**
+   * 更新工具信息
+   * @param toolId 工具ID
+   * @param request 更新工具请求
+   */
+  static async updateTool(toolId: string, request: UpdateToolRequest): Promise<ToolMutationResponse> {
+    const response = await apiClient.put<ToolMutationResponse>(`/admin/common-tools/${toolId}`, request)
+    return response.data
+  }
+
+  /**
+   * 删除工具
+   * @param toolId 工具ID
+   */
+  static async deleteTool(toolId: string): Promise<void> {
+    await apiClient.delete(`/admin/common-tools/${toolId}`)
+  }
+
+  /**
+   * 上移工具
+   * @param toolId 工具ID
+   */
+  static async moveToolUp(toolId: string): Promise<MoveToolResponse> {
+    const response = await apiClient.post<MoveToolResponse>(`/admin/common-tools/${toolId}/move-up`)
+    return response.data
+  }
+
+  /**
+   * 下移工具
+   * @param toolId 工具ID
+   */
+  static async moveToolDown(toolId: string): Promise<MoveToolResponse> {
+    const response = await apiClient.post<MoveToolResponse>(`/admin/common-tools/${toolId}/move-down`)
+    return response.data
+  }
+
+  /**
+   * 切换工具可见性
+   * @param toolId 工具ID
+   */
+  static async toggleToolVisibility(toolId: string): Promise<ToggleVisibilityResponse> {
+    const response = await apiClient.post<ToggleVisibilityResponse>(`/admin/common-tools/${toolId}/toggle-visibility`)
+    return response.data
+  }
+
+  // ==================== 后台管理 - 工具分类管理模块 ====================
+
+  /**
+   * 获取工具分类列表（管理后台）
+   */
+  static async getAdminToolCategories(): Promise<AdminToolCategoryListResponse> {
+    const response = await apiClient.get<AdminToolCategoryListResponse>('/admin/tool-categories')
+    return response.data
+  }
+
+  /**
+   * 创建工具分类
+   * @param request 创建分类请求
+   */
+  static async createToolCategory(request: CreateToolCategoryRequest): Promise<CategoryMutationResponse> {
+    const response = await apiClient.post<CategoryMutationResponse>('/admin/tool-categories', request)
+    return response.data
+  }
+
+  /**
+   * 更新工具分类
+   * @param categoryId 分类ID
+   * @param request 更新分类请求
+   */
+  static async updateToolCategory(
+    categoryId: string,
+    request: UpdateToolCategoryRequest
+  ): Promise<CategoryMutationResponse> {
+    const response = await apiClient.put<CategoryMutationResponse>(`/admin/tool-categories/${categoryId}`, request)
+    return response.data
+  }
+
+  /**
+   * 删除工具分类
+   * @param categoryId 分类ID
+   */
+  static async deleteToolCategory(categoryId: string): Promise<void> {
+    await apiClient.delete(`/admin/tool-categories/${categoryId}`)
+  }
+
+  /**
+   * 上移分类
+   * @param categoryId 分类ID
+   */
+  static async moveCategoryUp(categoryId: string): Promise<MoveCategoryResponse> {
+    const response = await apiClient.post<MoveCategoryResponse>(`/admin/tool-categories/${categoryId}/move-up`)
+    return response.data
+  }
+
+  /**
+   * 下移分类
+   * @param categoryId 分类ID
+   */
+  static async moveCategoryDown(categoryId: string): Promise<MoveCategoryResponse> {
+    const response = await apiClient.post<MoveCategoryResponse>(`/admin/tool-categories/${categoryId}/move-down`)
+    return response.data
+  }
+
+  // ==================== 后台管理 - 作品管理模块 ====================
+
+  /**
+   * 获取作品列表（管理后台）
+   */
+  static async getAdminWorks(
+    page: number = 1,
+    pageSize: number = 20,
+    categoryId?: string,
+    visible?: boolean
+  ): Promise<AdminWorkListResponse> {
+    const params: Record<string, any> = { page, page_size: pageSize }
+    if (categoryId) params.category_id = categoryId
+    if (visible !== undefined) params.visible = visible
+
+    const response = await apiClient.get<AdminWorkListResponse>('/admin/works', { params })
+    return response.data
+  }
+
+  /**
+   * 上传作品
+   */
+  static async createWork(
+    name: string,
+    description: string,
+    categoryId: string,
+    htmlFile: File,
+    icon?: string,
+    order: number = 0,
+    visible: boolean = true
+  ): Promise<WorkMutationResponse> {
+    const formData = new FormData()
+    formData.append('name', name)
+    formData.append('description', description)
+    formData.append('category_id', categoryId)
+    formData.append('html_file', htmlFile)
+    if (icon) formData.append('icon', icon)
+    formData.append('order', order.toString())
+    formData.append('visible', visible.toString())
+
+    const response = await apiClient.post<WorkMutationResponse>('/admin/works', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return response.data
+  }
+
+  /**
+   * 更新作品信息
+   */
+  static async updateWork(workId: string, request: UpdateWorkRequest): Promise<WorkMutationResponse> {
+    const response = await apiClient.put<WorkMutationResponse>(`/admin/works/${workId}`, request)
+    return response.data
+  }
+
+  /**
+   * 删除作品
+   */
+  static async deleteWork(workId: string): Promise<void> {
+    await apiClient.delete(`/admin/works/${workId}`)
+  }
+
+  /**
+   * 上移作品
+   */
+  static async moveWorkUp(workId: string): Promise<MoveWorkResponse> {
+    const response = await apiClient.post<MoveWorkResponse>(`/admin/works/${workId}/move-up`)
+    return response.data
+  }
+
+  /**
+   * 下移作品
+   */
+  static async moveWorkDown(workId: string): Promise<MoveWorkResponse> {
+    const response = await apiClient.post<MoveWorkResponse>(`/admin/works/${workId}/move-down`)
+    return response.data
+  }
+
+  /**
+   * 切换作品可见性
+   */
+  static async toggleWorkVisibility(workId: string): Promise<ToggleWorkVisibilityResponse> {
+    const response = await apiClient.post<ToggleWorkVisibilityResponse>(`/admin/works/${workId}/toggle-visibility`)
+    return response.data
+  }
+
+  // ==================== 后台管理 - 作品分类管理模块 ====================
+
+  /**
+   * 获取作品分类列表（管理后台）
+   */
+  static async getAdminWorkCategories(): Promise<AdminWorkCategoryListResponse> {
+    const response = await apiClient.get<AdminWorkCategoryListResponse>('/admin/work-categories')
+    return response.data
+  }
+
+  /**
+   * 创建作品分类
+   */
+  static async createWorkCategory(request: CreateWorkCategoryRequest): Promise<WorkCategoryMutationResponse> {
+    const response = await apiClient.post<WorkCategoryMutationResponse>('/admin/work-categories', request)
+    return response.data
+  }
+
+  /**
+   * 更新作品分类
+   */
+  static async updateWorkCategory(
+    categoryId: string,
+    request: UpdateWorkCategoryRequest
+  ): Promise<WorkCategoryMutationResponse> {
+    const response = await apiClient.put<WorkCategoryMutationResponse>(`/admin/work-categories/${categoryId}`, request)
+    return response.data
+  }
+
+  /**
+   * 删除作品分类
+   */
+  static async deleteWorkCategory(categoryId: string): Promise<void> {
+    await apiClient.delete(`/admin/work-categories/${categoryId}`)
+  }
+
+  /**
+   * 上移作品分类
+   */
+  static async moveWorkCategoryUp(categoryId: string): Promise<MoveWorkCategoryResponse> {
+    const response = await apiClient.post<MoveWorkCategoryResponse>(`/admin/work-categories/${categoryId}/move-up`)
+    return response.data
+  }
+
+  /**
+   * 下移作品分类
+   */
+  static async moveWorkCategoryDown(categoryId: string): Promise<MoveWorkCategoryResponse> {
+    const response = await apiClient.post<MoveWorkCategoryResponse>(`/admin/work-categories/${categoryId}/move-down`)
     return response.data
   }
 }

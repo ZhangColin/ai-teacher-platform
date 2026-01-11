@@ -91,14 +91,19 @@ class User(BaseModel):
     phone: Optional[str] = Field(None, description="用户手机号（可选，用于登录）", pattern=r'^1[3-9]\d{9}$')
     password_hash: str = Field(..., description="密码哈希值（bcrypt加密）")
     avatar: Optional[str] = Field(None, description="用户头像URL（可选，默认头像）")
+    is_admin: bool = Field(False, description="是否为管理员（默认为false）")
     created_at: datetime = Field(default_factory=datetime.now, description="用户创建时间")
     
     def verify_password(self, password: str) -> bool:
         """验证密码是否正确"""
         pass
     
+    def is_administrator(self) -> bool:
+        """判断是否为管理员"""
+        return self.is_admin
+    
     @classmethod
-    def create(cls, username: str, password: str, nickname: Optional[str] = None, email: Optional[str] = None, phone: Optional[str] = None, avatar: Optional[str] = None) -> "User":
+    def create(cls, username: str, password: str, nickname: Optional[str] = None, email: Optional[str] = None, phone: Optional[str] = None, avatar: Optional[str] = None, is_admin: bool = False) -> "User":
         """创建新用户（密码自动加密）"""
         pass
 ```
@@ -113,6 +118,8 @@ class User(BaseModel):
 - 如果未提供头像，使用系统默认头像
 - 如果未提供昵称，使用用户名作为显示名称
 - 密码验证使用 bcrypt 比对，不存储明文密码
+- `is_admin` 默认为 `false`，只有管理员可以设置其他用户为管理员
+- 系统至少保留一个管理员（不允许删除或取消最后一个管理员的管理员权限）
 
 **数据约束**：
 - `username`: 唯一索引，非空，长度1-50
@@ -121,6 +128,7 @@ class User(BaseModel):
 - `user_id`: 主键
 - `nickname`: 可为空，用于显示
 - `password_hash`: 非空，bcrypt加密后的字符串
+- `is_admin`: 非空，默认 `false`
 - 用户名、邮箱、手机号至少填写一个（用于登录）
 
 ---
@@ -434,12 +442,14 @@ welcome_message: "你好！我是你的提示词向导。请告诉我你想让 A
   - `phone` (VARCHAR(11), Unique, Nullable) - 手机号，用于登录
   - `password_hash` (VARCHAR(255), Not Null) - bcrypt加密后的密码
   - `avatar` (VARCHAR(500), Nullable) - 头像URL
+  - `is_admin` (BOOLEAN, Not Null, Default: false) - 是否为管理员
   - `created_at` (DATETIME, Not Null)
 
 **索引**：
 - `username`: 唯一索引（用于登录验证和用户名唯一性检查）
 - `email`: 唯一索引（如果提供，用于登录验证和邮箱唯一性检查）
 - `phone`: 唯一索引（如果提供，用于登录验证和手机号唯一性检查）
+- `is_admin`: 索引（用于快速查询管理员列表）
 
 ### 3.3 会话数据存储
 - **存储位置**: 数据库（MySQL）

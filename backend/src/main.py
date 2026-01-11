@@ -2,11 +2,15 @@
 import sys
 import json
 import logging
+import uuid
 from pathlib import Path
-from fastapi import FastAPI, HTTPException, Depends, status
+from typing import Optional
+from fastapi import FastAPI, HTTPException, Depends, status, File, UploadFile, Form
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
+import os
+import shutil
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +34,8 @@ from src.models import (
     ChatRequest, ChatResponse, Message,
     LoginRequest, LoginResponse, UserInfo, UserInfoResponse,
     CreateUserRequest, CreateUserResponse, UserListResponse, UserListItem,
+    UpdateUserRequest, UpdateUserResponse,
+    ResetPasswordRequest, ResetPasswordResponse,
     ToolListResponse, ToolListItem, CategoryGroup,
     ConversationListResponse, ConversationListItem,
     SessionDetailResponse, Session,
@@ -37,7 +43,22 @@ from src.models import (
     MarkdownToWordRequest,
     NavigationModule, NavigationResponse,
     CommonToolCategoryResponse, CommonToolDetail,
-    WorkCategoryResponse, WorkDetail
+    WorkCategoryResponse, WorkDetail,
+    AdminCommonToolListResponse, AdminCommonToolListItem,
+    CreateBuiltInToolRequest, CreateToolResponse,
+    UpdateToolRequest, UpdateToolResponse,
+    MoveToolResponse, ToggleVisibilityResponse,
+    AdminToolCategoryListResponse, AdminToolCategoryListItem,
+    CreateToolCategoryRequest, CreateToolCategoryResponse,
+    UpdateToolCategoryRequest, UpdateToolCategoryResponse,
+    MoveCategoryResponse,
+    AdminWorkListResponse, AdminWorkListItem,
+    CreateWorkResponse, UpdateWorkRequest, UpdateWorkResponse,
+    MoveWorkResponse, ToggleWorkVisibilityResponse,
+    AdminWorkCategoryListResponse, AdminWorkCategoryListItem,
+    CreateWorkCategoryRequest, CreateWorkCategoryResponse,
+    UpdateWorkCategoryRequest, UpdateWorkCategoryResponse,
+    MoveWorkCategoryResponse
 )
 
 app = FastAPI(title="AI Teacher Platform Backend")
@@ -108,8 +129,31 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         nickname=user.nickname,
         email=user.email,
         phone=user.phone,
-        avatar=user.avatar
+        avatar=user.avatar,
+        is_admin=user.is_admin
     )
+
+
+async def require_admin(current_user: UserInfo = Depends(get_current_user)) -> UserInfo:
+    """
+    管理员权限验证（依赖注入函数）
+    
+    Args:
+        current_user: 当前登录用户
+        
+    Returns:
+        UserInfo: 当前用户信息（已验证为管理员）
+        
+    Raises:
+        HTTPException: 用户不是管理员
+    """
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="需要管理员权限"
+        )
+    
+    return current_user
 
 
 @app.get("/api/v1/navigation", response_model=NavigationResponse)
@@ -397,7 +441,8 @@ async def login(request: LoginRequest):
         nickname=user.nickname,
         email=user.email,
         phone=user.phone,
-        avatar=user.avatar
+        avatar=user.avatar,
+        is_admin=user.is_admin
     )
     
     return LoginResponse(
@@ -417,10 +462,19 @@ async def get_me(current_user: UserInfo = Depends(get_current_user)):
 async def get_user_list(
     page: int = 1,
     page_size: int = 20,
-    current_user: UserInfo = Depends(get_current_user)
+    is_admin: Optional[bool] = None,
+    current_user: UserInfo = Depends(require_admin)
 ):
-    """获取用户列表（临时管理功能）"""
-    users, total = user_service.get_all_users(page=page, page_size=page_size)
+    """获取用户列表（管理员功能）- 支持分页和筛选"""
+    # 限制每页最大数量
+    if page_size > 100:
+        page_size = 100
+    
+    users, total = user_service.get_all_users(
+        page=page, 
+        page_size=page_size,
+        is_admin=is_admin
+    )
     
     # 转换为API响应格式
     user_items = [
@@ -431,6 +485,7 @@ async def get_user_list(
             email=user.email,
             phone=user.phone,
             avatar=user.avatar,
+            is_admin=user.is_admin,
             created_at=user.created_at
         )
         for user in users
@@ -444,34 +499,826 @@ async def get_user_list(
     )
 
 
-@app.post("/api/v1/admin/users", response_model=CreateUserResponse)
+@app.post("/api/v1/admin/users", response_model=CreateUserResponse, status_code=status.HTTP_201_CREATED)
 async def create_user(
     request: CreateUserRequest,
-    current_user: UserInfo = Depends(get_current_user)
+    current_user: UserInfo = Depends(require_admin)
 ):
-    """创建新用户（临时管理功能）"""
+    """创建新用户（管理员功能）"""
     try:
         user = user_service.create_user(
             username=request.username,
+            nickname=request.nickname,
             email=request.email,
             password=request.password,
             phone=request.phone,
-            avatar=request.avatar
+            avatar=request.avatar,
+            is_admin=request.is_admin
         )
         
         # 转换为API响应格式
-        user_info = UserInfo(
+        user_item = UserListItem(
             user_id=user.user_id,
             username=user.username,
             nickname=user.nickname,
             email=user.email,
             phone=user.phone,
-            avatar=user.avatar
+            avatar=user.avatar,
+            is_admin=user.is_admin,
+            created_at=user.created_at
         )
         
-        return CreateUserResponse(user=user_info)
+        return CreateUserResponse(user=user_item)
     except ValueError as e:
-        # 邮箱或手机号已存在
+        # 用户名、邮箱或手机号已存在
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(e)
+        )
+
+
+@app.put("/api/v1/admin/users/{user_id}", response_model=UpdateUserResponse)
+async def update_user(
+    user_id: str,
+    request: UpdateUserRequest,
+    current_user: UserInfo = Depends(require_admin)
+):
+    """更新用户信息（管理员功能）"""
+    try:
+        user = user_service.update_user(
+            user_id=user_id,
+            username=request.username,
+            nickname=request.nickname,
+            email=request.email,
+            phone=request.phone,
+            is_admin=request.is_admin
+        )
+        
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="用户不存在"
+            )
+        
+        # 转换为API响应格式
+        user_item = UserListItem(
+            user_id=user.user_id,
+            username=user.username,
+            nickname=user.nickname,
+            email=user.email,
+            phone=user.phone,
+            avatar=user.avatar,
+            is_admin=user.is_admin,
+            created_at=user.created_at
+        )
+        
+        return UpdateUserResponse(user=user_item)
+    except ValueError as e:
+        # 业务规则错误（如取消最后一个管理员、用户名/邮箱/手机号冲突）
+        if "最后一个管理员" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e)
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=str(e)
+            )
+
+
+@app.delete("/api/v1/admin/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_user(
+    user_id: str,
+    current_user: UserInfo = Depends(require_admin)
+):
+    """删除用户（管理员功能）"""
+    try:
+        success = user_service.delete_user(user_id, current_user_id=current_user.user_id)
+        
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="用户不存在"
+            )
+        
+        return None  # 204 No Content
+    except ValueError as e:
+        # 业务规则错误（如删除自己、删除最后一个管理员）
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@app.post("/api/v1/admin/users/{user_id}/reset-password", response_model=ResetPasswordResponse)
+async def reset_user_password(
+    user_id: str,
+    request: ResetPasswordRequest,
+    current_user: UserInfo = Depends(require_admin)
+):
+    """重置用户密码（管理员功能）"""
+    try:
+        success = user_service.reset_password(user_id, request.new_password)
+        
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="用户不存在"
+            )
+        
+        return ResetPasswordResponse(
+            message="密码已重置",
+            new_password=request.new_password
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+# ==================== 后台管理 - 常用工具管理接口 ====================
+
+@app.get("/api/v1/admin/common-tools", response_model=AdminCommonToolListResponse)
+async def get_admin_tools(
+    page: int = 1,
+    page_size: int = 20,
+    category_id: Optional[str] = None,
+    type: Optional[str] = None,
+    visible: Optional[bool] = None,
+    current_user: UserInfo = Depends(require_admin)
+):
+    """获取工具列表（管理后台）"""
+    try:
+        return common_tool_service.get_all_tools_admin(
+            page=page,
+            page_size=page_size,
+            category_id=category_id,
+            tool_type=type,
+            visible=visible
+        )
+    except Exception as e:
+        logger.error(f"获取工具列表失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+@app.post("/api/v1/admin/common-tools/built-in", response_model=CreateToolResponse, status_code=status.HTTP_201_CREATED)
+async def create_built_in_tool(
+    request: CreateBuiltInToolRequest,
+    current_user: UserInfo = Depends(require_admin)
+):
+    """创建内置工具（管理后台）"""
+    try:
+        tool = common_tool_service.create_built_in_tool(request)
+        return CreateToolResponse(tool=tool)
+    except ValueError as e:
+        if "分类不存在" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(e)
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@app.post("/api/v1/admin/common-tools/html", response_model=CreateToolResponse, status_code=status.HTTP_201_CREATED)
+async def create_html_tool(
+    name: str = Form(...),
+    description: str = Form(...),
+    category_id: str = Form(...),
+    icon: Optional[str] = Form(None),
+    order: int = Form(0),
+    visible: bool = Form(True),
+    html_file: UploadFile = File(...),
+    current_user: UserInfo = Depends(require_admin)
+):
+    """上传HTML工具（管理后台）"""
+    try:
+        # 验证文件类型
+        if not html_file.filename.endswith('.html'):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="只支持.html文件"
+            )
+        
+        # 验证文件大小（5MB）
+        content = await html_file.read()
+        if len(content) > 5 * 1024 * 1024:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="文件大小超过5MB限制"
+            )
+        
+        # 生成工具ID（使用UUID前8位确保唯一性且简短）
+        import uuid
+        tool_id = str(uuid.uuid4())[:8]
+        
+        # 创建存储目录
+        tool_dir = Path(__file__).parent.parent / "static" / "common_tools" / "html" / tool_id
+        tool_dir.mkdir(parents=True, exist_ok=True)
+        
+        # 保存文件
+        file_path = tool_dir / "index.html"
+        with open(file_path, "wb") as f:
+            f.write(content)
+        
+        # 数据库存储相对路径
+        html_path = f"common_tools/html/{tool_id}/index.html"
+        
+        # 创建工具记录
+        tool = common_tool_service.create_html_tool(
+            name=name,
+            description=description,
+            category_id=category_id,
+            html_path=html_path,
+            icon=icon,
+            order=order,
+            visible=visible
+        )
+        
+        return CreateToolResponse(tool=tool)
+        
+    except ValueError as e:
+        if "分类不存在" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(e)
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@app.put("/api/v1/admin/common-tools/{tool_id}", response_model=UpdateToolResponse)
+async def update_tool(
+    tool_id: str,
+    request: UpdateToolRequest,
+    current_user: UserInfo = Depends(require_admin)
+):
+    """更新工具信息（管理后台）"""
+    try:
+        tool = common_tool_service.update_tool(tool_id, request)
+        return UpdateToolResponse(tool=tool)
+    except ValueError as e:
+        if "不存在" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(e)
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@app.delete("/api/v1/admin/common-tools/{tool_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_tool(
+    tool_id: str,
+    current_user: UserInfo = Depends(require_admin)
+):
+    """删除工具（管理后台）"""
+    try:
+        html_path = common_tool_service.delete_tool(tool_id)
+        
+        # 如果是HTML工具，删除文件
+        if html_path:
+            file_path = Path(__file__).parent.parent / "static" / html_path
+            if file_path.exists():
+                # 删除整个工具目录
+                tool_dir = file_path.parent
+                shutil.rmtree(tool_dir, ignore_errors=True)
+        
+        return None
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+
+
+@app.post("/api/v1/admin/common-tools/{tool_id}/move-up", response_model=MoveToolResponse)
+async def move_tool_up(
+    tool_id: str,
+    current_user: UserInfo = Depends(require_admin)
+):
+    """上移工具（管理后台）"""
+    try:
+        tool = common_tool_service.move_tool_up(tool_id)
+        return MoveToolResponse(message="工具已上移", tool=tool)
+    except ValueError as e:
+        if "不存在" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(e)
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@app.post("/api/v1/admin/common-tools/{tool_id}/move-down", response_model=MoveToolResponse)
+async def move_tool_down(
+    tool_id: str,
+    current_user: UserInfo = Depends(require_admin)
+):
+    """下移工具（管理后台）"""
+    try:
+        tool = common_tool_service.move_tool_down(tool_id)
+        return MoveToolResponse(message="工具已下移", tool=tool)
+    except ValueError as e:
+        if "不存在" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(e)
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@app.post("/api/v1/admin/common-tools/{tool_id}/toggle-visibility", response_model=ToggleVisibilityResponse)
+async def toggle_tool_visibility(
+    tool_id: str,
+    current_user: UserInfo = Depends(require_admin)
+):
+    """切换工具可见性（管理后台）"""
+    try:
+        tool, message = common_tool_service.toggle_tool_visibility(tool_id)
+        return ToggleVisibilityResponse(message=message, tool=tool)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+
+
+# ==================== 后台管理 - 工具分类管理接口 ====================
+
+@app.get("/api/v1/admin/tool-categories", response_model=AdminToolCategoryListResponse)
+async def get_admin_tool_categories(
+    current_user: UserInfo = Depends(require_admin)
+):
+    """获取工具分类列表（管理后台）"""
+    try:
+        return common_tool_service.get_all_categories_admin()
+    except Exception as e:
+        logger.error(f"获取工具分类列表失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+@app.post("/api/v1/admin/tool-categories", response_model=CreateToolCategoryResponse, status_code=status.HTTP_201_CREATED)
+async def create_tool_category(
+    request: CreateToolCategoryRequest,
+    current_user: UserInfo = Depends(require_admin)
+):
+    """创建工具分类（管理后台）"""
+    try:
+        category = common_tool_service.create_category(request)
+        return CreateToolCategoryResponse(category=category)
+    except ValueError as e:
+        if "已存在" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=str(e)
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@app.put("/api/v1/admin/tool-categories/{category_id}", response_model=UpdateToolCategoryResponse)
+async def update_tool_category(
+    category_id: str,
+    request: UpdateToolCategoryRequest,
+    current_user: UserInfo = Depends(require_admin)
+):
+    """更新工具分类（管理后台）"""
+    try:
+        category = common_tool_service.update_category(category_id, request)
+        return UpdateToolCategoryResponse(category=category)
+    except ValueError as e:
+        if "不存在" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(e)
+            )
+        if "已被使用" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=str(e)
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@app.delete("/api/v1/admin/tool-categories/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_tool_category(
+    category_id: str,
+    current_user: UserInfo = Depends(require_admin)
+):
+    """删除工具分类（管理后台）"""
+    try:
+        common_tool_service.delete_category(category_id)
+        return None
+    except ValueError as e:
+        if "不存在" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(e)
+            )
+        if "还有" in str(e) and "工具" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e)
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@app.post("/api/v1/admin/tool-categories/{category_id}/move-up", response_model=MoveCategoryResponse)
+async def move_category_up(
+    category_id: str,
+    current_user: UserInfo = Depends(require_admin)
+):
+    """上移分类（管理后台）"""
+    try:
+        category = common_tool_service.move_category_up(category_id)
+        return MoveCategoryResponse(message="分类已上移", category=category)
+    except ValueError as e:
+        if "不存在" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(e)
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@app.post("/api/v1/admin/tool-categories/{category_id}/move-down", response_model=MoveCategoryResponse)
+async def move_category_down(
+    category_id: str,
+    current_user: UserInfo = Depends(require_admin)
+):
+    """下移分类（管理后台）"""
+    try:
+        category = common_tool_service.move_category_down(category_id)
+        return MoveCategoryResponse(message="分类已下移", category=category)
+    except ValueError as e:
+        if "不存在" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(e)
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+# ==================== 后台管理 - 作品管理接口 ====================
+
+@app.get("/api/v1/admin/works", response_model=AdminWorkListResponse)
+async def get_admin_works(
+    page: int = 1,
+    page_size: int = 20,
+    category_id: Optional[str] = None,
+    visible: Optional[bool] = None,
+    current_user: UserInfo = Depends(require_admin)
+):
+    """获取作品列表（管理后台）"""
+    try:
+        return work_service.get_all_works_admin(
+            page=page,
+            page_size=page_size,
+            category_id=category_id,
+            visible=visible
+        )
+    except Exception as e:
+        logger.error(f"获取作品列表失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+@app.post("/api/v1/admin/works", response_model=CreateWorkResponse, status_code=status.HTTP_201_CREATED)
+async def create_work(
+    name: str = Form(...),
+    description: str = Form(...),
+    category_id: str = Form(...),
+    icon: Optional[str] = Form(None),
+    order: int = Form(0),
+    visible: bool = Form(True),
+    html_file: UploadFile = File(...),
+    current_user: UserInfo = Depends(require_admin)
+):
+    """上传作品（管理后台）"""
+    try:
+        # 验证文件类型
+        if not html_file.filename.endswith('.html'):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="只支持.html文件"
+            )
+        
+        # 验证文件大小（10MB）
+        content = await html_file.read()
+        if len(content) > 10 * 1024 * 1024:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="文件大小超过10MB限制"
+            )
+        
+        # 生成作品ID
+        work_id = str(uuid.uuid4())[:8]
+        
+        # 创建存储目录
+        work_dir = Path(__file__).parent.parent / "static" / "works" / "html" / work_id
+        work_dir.mkdir(parents=True, exist_ok=True)
+        
+        # 保存文件
+        file_path = work_dir / "index.html"
+        with open(file_path, "wb") as f:
+            f.write(content)
+        
+        # 数据库存储相对路径
+        html_path = f"works/html/{work_id}/index.html"
+        
+        # 创建作品记录
+        work = work_service.create_work(
+            name=name,
+            description=description,
+            category_id=category_id,
+            html_path=html_path,
+            icon=icon,
+            order=order,
+            visible=visible
+        )
+        
+        return CreateWorkResponse(work=work)
+        
+    except ValueError as e:
+        if "分类不存在" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(e)
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@app.put("/api/v1/admin/works/{work_id}", response_model=UpdateWorkResponse)
+async def update_work(
+    work_id: str,
+    request: UpdateWorkRequest,
+    current_user: UserInfo = Depends(require_admin)
+):
+    """更新作品信息（管理后台）"""
+    try:
+        work = work_service.update_work(work_id, request)
+        return UpdateWorkResponse(work=work)
+    except ValueError as e:
+        if "不存在" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(e)
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@app.delete("/api/v1/admin/works/{work_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_work(
+    work_id: str,
+    current_user: UserInfo = Depends(require_admin)
+):
+    """删除作品（管理后台）"""
+    try:
+        html_path = work_service.delete_work(work_id)
+        
+        # 删除文件
+        if html_path:
+            file_path = Path(__file__).parent.parent / "static" / html_path
+            if file_path.exists():
+                work_dir = file_path.parent
+                shutil.rmtree(work_dir, ignore_errors=True)
+        
+        return None
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+
+
+@app.post("/api/v1/admin/works/{work_id}/move-up", response_model=MoveWorkResponse)
+async def move_work_up(
+    work_id: str,
+    current_user: UserInfo = Depends(require_admin)
+):
+    """上移作品（管理后台）"""
+    try:
+        work = work_service.move_work_up(work_id)
+        return MoveWorkResponse(message="作品已上移", work=work)
+    except ValueError as e:
+        if "不存在" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(e)
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@app.post("/api/v1/admin/works/{work_id}/move-down", response_model=MoveWorkResponse)
+async def move_work_down(
+    work_id: str,
+    current_user: UserInfo = Depends(require_admin)
+):
+    """下移作品（管理后台）"""
+    try:
+        work = work_service.move_work_down(work_id)
+        return MoveWorkResponse(message="作品已下移", work=work)
+    except ValueError as e:
+        if "不存在" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(e)
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@app.post("/api/v1/admin/works/{work_id}/toggle-visibility", response_model=ToggleWorkVisibilityResponse)
+async def toggle_work_visibility(
+    work_id: str,
+    current_user: UserInfo = Depends(require_admin)
+):
+    """切换作品可见性（管理后台）"""
+    try:
+        work, message = work_service.toggle_work_visibility(work_id)
+        return ToggleWorkVisibilityResponse(message=message, work=work)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+
+
+# ==================== 后台管理 - 作品分类管理接口 ====================
+
+@app.get("/api/v1/admin/work-categories", response_model=AdminWorkCategoryListResponse)
+async def get_admin_work_categories(
+    current_user: UserInfo = Depends(require_admin)
+):
+    """获取作品分类列表（管理后台）"""
+    try:
+        return work_service.get_all_categories_admin()
+    except Exception as e:
+        logger.error(f"获取作品分类列表失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+@app.post("/api/v1/admin/work-categories", response_model=CreateWorkCategoryResponse, status_code=status.HTTP_201_CREATED)
+async def create_work_category(
+    request: CreateWorkCategoryRequest,
+    current_user: UserInfo = Depends(require_admin)
+):
+    """创建作品分类（管理后台）"""
+    try:
+        category = work_service.create_category(request)
+        return CreateWorkCategoryResponse(category=category)
+    except ValueError as e:
+        if "已存在" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=str(e)
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@app.put("/api/v1/admin/work-categories/{category_id}", response_model=UpdateWorkCategoryResponse)
+async def update_work_category(
+    category_id: str,
+    request: UpdateWorkCategoryRequest,
+    current_user: UserInfo = Depends(require_admin)
+):
+    """更新作品分类（管理后台）"""
+    try:
+        category = work_service.update_category(category_id, request)
+        return UpdateWorkCategoryResponse(category=category)
+    except ValueError as e:
+        if "不存在" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(e)
+            )
+        if "已被使用" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=str(e)
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@app.delete("/api/v1/admin/work-categories/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_work_category(
+    category_id: str,
+    current_user: UserInfo = Depends(require_admin)
+):
+    """删除作品分类（管理后台）"""
+    try:
+        work_service.delete_category(category_id)
+        return None
+    except ValueError as e:
+        if "不存在" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(e)
+            )
+        if "还有" in str(e) and "作品" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e)
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@app.post("/api/v1/admin/work-categories/{category_id}/move-up", response_model=MoveWorkCategoryResponse)
+async def move_work_category_up(
+    category_id: str,
+    current_user: UserInfo = Depends(require_admin)
+):
+    """上移作品分类（管理后台）"""
+    try:
+        category = work_service.move_category_up(category_id)
+        return MoveWorkCategoryResponse(message="分类已上移", category=category)
+    except ValueError as e:
+        if "不存在" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(e)
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@app.post("/api/v1/admin/work-categories/{category_id}/move-down", response_model=MoveWorkCategoryResponse)
+async def move_work_category_down(
+    category_id: str,
+    current_user: UserInfo = Depends(require_admin)
+):
+    """下移作品分类（管理后台）"""
+    try:
+        category = work_service.move_category_down(category_id)
+        return MoveWorkCategoryResponse(message="分类已下移", category=category)
+    except ValueError as e:
+        if "不存在" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(e)
+            )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)

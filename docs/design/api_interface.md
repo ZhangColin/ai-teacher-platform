@@ -1342,11 +1342,1180 @@ sequenceDiagram
 
 ---
 
+### 10.5 后台管理权限验证流程
+```mermaid
+sequenceDiagram
+    participant Admin as 管理员
+    participant Frontend as 前端
+    participant Backend as 后端
+    participant DB as 数据库
+
+    Admin->>Frontend: 访问后台管理页面 (/admin/*)
+    Frontend->>Frontend: 检查登录状态（从localStorage读取Token）
+    alt 未登录
+        Frontend->>Frontend: 跳转到登录页
+    else 已登录
+        Frontend->>Backend: 请求后台API<br/>(携带Authorization Header)
+        Backend->>Backend: 从Header提取Token
+        Backend->>Backend: 验证JWT Token（签名、有效期）
+        alt Token有效
+            Backend->>Backend: 从Token解析user_id
+            Backend->>DB: 查询用户信息（is_admin字段）
+            DB-->>Backend: 返回用户信息
+            alt is_admin = true
+                Backend->>Backend: 继续处理业务逻辑
+                Backend-->>Frontend: 返回业务数据
+                Frontend->>Frontend: 渲染后台管理界面
+            else is_admin = false
+                Backend-->>Frontend: 返回403 Forbidden
+                Frontend->>Frontend: 显示权限不足提示
+                Frontend->>Frontend: 跳转到首页
+            end
+        else Token无效或过期
+            Backend-->>Frontend: 返回401 Unauthorized
+            Frontend->>Frontend: 清除本地Token
+            Frontend->>Frontend: 跳转到登录页
+        end
+    end
+```
+
 ---
 
-**文档版本**: v3.1  
-**最后更新**: 2026-01-10  
+### 10.6 HTML文件上传流程（工具/作品）
+```mermaid
+sequenceDiagram
+    participant Admin as 管理员
+    participant Frontend as 前端
+    participant Backend as 后端
+    participant FileSystem as 文件系统
+    participant DB as 数据库
+
+    Admin->>Frontend: 填写表单并选择HTML文件
+    Admin->>Frontend: 点击"上传并创建"按钮
+    Frontend->>Frontend: 验证表单（名称、描述、分类、文件）
+    Frontend->>Frontend: 验证文件类型（.html）和大小（< 5MB/10MB）
+    Frontend->>Backend: POST /api/v1/admin/common-tools/html<br/>(multipart/form-data)
+    Backend->>Backend: 验证管理员权限
+    Backend->>Backend: 生成UUID作为tool_id
+    Backend->>Backend: 构建文件存储路径<br/>static/common_tools/html/{tool_id}/index.html
+    Backend->>FileSystem: 创建目录<br/>static/common_tools/html/{tool_id}/
+    Backend->>FileSystem: 保存HTML文件<br/>static/common_tools/html/{tool_id}/index.html
+    FileSystem-->>Backend: 文件保存成功
+    Backend->>DB: 插入工具记录<br/>(id, name, description, category_id, type='html', html_path, ...)
+    DB-->>Backend: 插入成功
+    Backend-->>Frontend: 返回201 Created<br/>{tool: {...}}
+    Frontend->>Frontend: 显示成功提示
+    Frontend->>Frontend: 刷新工具列表
+```
+
+---
+
+### 10.7 工具/作品排序调整流程（上移/下移）
+```mermaid
+sequenceDiagram
+    participant Admin as 管理员
+    participant Frontend as 前端
+    participant Backend as 后端
+    participant DB as 数据库
+
+    Admin->>Frontend: 点击"上移"按钮
+    Frontend->>Backend: POST /api/v1/admin/common-tools/{tool_id}/move-up
+    Backend->>Backend: 验证管理员权限
+    Backend->>DB: 查询当前工具信息<br/>(category_id, order)
+    DB-->>Backend: 返回工具信息<br/>(category_id='doc-tools', order=3)
+    Backend->>DB: 查询同分类下order值更小的第一个工具<br/>(category_id='doc-tools', order < 3)
+    DB-->>Backend: 返回上一个工具<br/>(id='tool-2', order=2)
+    alt 找到上一个工具
+        Backend->>DB: 开启事务
+        Backend->>DB: 更新当前工具order=2<br/>(id='tool-1')
+        Backend->>DB: 更新上一个工具order=3<br/>(id='tool-2')
+        Backend->>DB: 提交事务
+        DB-->>Backend: 更新成功
+        Backend-->>Frontend: 返回200 OK<br/>{message: "工具已上移", tool: {...}}
+        Frontend->>Frontend: 显示成功提示
+        Frontend->>Frontend: 刷新工具列表
+    else 已经是第一个工具
+        Backend-->>Frontend: 返回400 Bad Request<br/>{error_message: "工具已经是第一个，无法上移"}
+        Frontend->>Frontend: 显示错误提示
+    end
+```
+
+---
+
+### 10.8 用户删除流程（级联删除）
+```mermaid
+sequenceDiagram
+    participant Admin as 管理员
+    participant Frontend as 前端
+    participant Backend as 后端
+    participant DB as 数据库
+
+    Admin->>Frontend: 点击"删除"按钮
+    Frontend->>Frontend: 弹出二次确认对话框<br/>"确定要删除用户 {username} 吗？"
+    Admin->>Frontend: 点击"确认删除"
+    Frontend->>Backend: DELETE /api/v1/admin/users/{user_id}
+    Backend->>Backend: 验证管理员权限
+    Backend->>Backend: 从Token获取当前管理员user_id
+    alt 尝试删除自己
+        Backend-->>Frontend: 返回400 Bad Request<br/>{error_message: "不允许删除自己"}
+        Frontend->>Frontend: 显示错误提示
+    else 尝试删除其他用户
+        Backend->>DB: 查询目标用户信息<br/>(user_id, is_admin)
+        DB-->>Backend: 返回用户信息
+        alt 目标用户是管理员
+            Backend->>DB: 查询系统管理员总数
+            DB-->>Backend: 返回管理员总数
+            alt 管理员总数 = 1
+                Backend-->>Frontend: 返回400 Bad Request<br/>{error_message: "系统至少需要一个管理员"}
+                Frontend->>Frontend: 显示错误提示
+            else 管理员总数 > 1
+                Backend->>DB: 开启事务
+                Backend->>DB: 删除用户<br/>(级联删除会话、消息、成果物)
+                Backend->>DB: 提交事务
+                DB-->>Backend: 删除成功
+                Backend-->>Frontend: 返回204 No Content
+                Frontend->>Frontend: 显示成功提示
+                Frontend->>Frontend: 刷新用户列表
+            end
+        else 目标用户是普通用户
+            Backend->>DB: 开启事务
+            Backend->>DB: 删除用户<br/>(级联删除会话、消息、成果物)
+            Backend->>DB: 提交事务
+            DB-->>Backend: 删除成功
+            Backend-->>Frontend: 返回204 No Content
+            Frontend->>Frontend: 显示成功提示
+            Frontend->>Frontend: 刷新用户列表
+        end
+    end
+```
+
+---
+
+---
+
+## 11. 后台管理接口（需要管理员权限）
+
+### 11.1 权限验证说明
+
+**管理员权限验证**：
+- 所有后台管理接口（`/api/v1/admin/*`）都需要管理员权限
+- 验证方式：
+  1. 从 JWT Token 中获取 `user_id`
+  2. 查询数据库获取用户的 `is_admin` 字段
+  3. 如果 `is_admin=false`，返回 `403 Forbidden`
+- 权限验证中间件：`require_admin_permission`
+- 非管理员访问后台API，统一返回错误：
+  ```json
+  {
+    "error_code": "PERMISSION_DENIED",
+    "error_message": "需要管理员权限"
+  }
+  ```
+
+---
+
+### 11.2 用户管理接口
+
+#### 11.2.1 获取用户列表（分页）
+
+获取所有用户列表，支持分页和筛选。
+
+- **Endpoint**: `GET /api/v1/admin/users`
+- **Description**: 返回用户列表，支持分页和管理员筛选。
+- **认证要求**: 需要管理员权限
+
+- **Query Parameters**:
+  - `page` (int, optional): 页码，默认 1
+  - `page_size` (int, optional): 每页数量，默认 20，最大 100
+  - `is_admin` (bool, optional): 筛选管理员（true: 仅管理员，false: 仅普通用户，不传：全部）
+
+- **Response**: `200 OK`
+```python
+class UserListItem(BaseModel):
+    user_id: str = Field(..., description="用户唯一标识（UUID）")
+    username: str = Field(..., description="用户名")
+    nickname: Optional[str] = Field(None, description="用户昵称")
+    email: Optional[str] = Field(None, description="用户邮箱")
+    phone: Optional[str] = Field(None, description="用户手机号")
+    avatar: Optional[str] = Field(None, description="用户头像URL")
+    is_admin: bool = Field(..., description="是否为管理员")
+    created_at: datetime = Field(..., description="用户创建时间")
+
+class UserListResponse(BaseModel):
+    users: List[UserListItem] = Field(..., description="用户列表")
+    total: int = Field(..., description="用户总数")
+    page: int = Field(..., description="当前页码")
+    page_size: int = Field(..., description="每页数量")
+```
+
+**业务规则**：
+- 按创建时间倒序排列
+- 管理员可以查看所有用户（包括其他管理员）
+
+**Example Response**:
+```json
+{
+  "users": [
+    {
+      "user_id": "550e8400-e29b-41d4-a716-446655440000",
+      "username": "zhangsan",
+      "nickname": "张三",
+      "email": "zhangsan@example.com",
+      "phone": "13800138000",
+      "avatar": null,
+      "is_admin": true,
+      "created_at": "2026-01-02T10:00:00Z"
+    }
+  ],
+  "total": 15,
+  "page": 1,
+  "page_size": 20
+}
+```
+
+**错误响应**：
+- `401 Unauthorized`: 未登录或 Token 无效
+- `403 Forbidden`: 非管理员用户
+
+---
+
+#### 11.2.2 创建用户
+
+管理员创建新用户。
+
+- **Endpoint**: `POST /api/v1/admin/users`
+- **Description**: 创建新用户，可设置管理员权限。
+- **认证要求**: 需要管理员权限
+
+- **Request Body**:
+```python
+class CreateUserRequest(BaseModel):
+    username: str = Field(..., description="用户名", min_length=1, max_length=50)
+    nickname: Optional[str] = Field(None, description="用户昵称", max_length=50)
+    email: Optional[str] = Field(None, description="用户邮箱", pattern=r'^[^@]+@[^@]+\.[^@]+$')
+    phone: Optional[str] = Field(None, description="用户手机号", pattern=r'^1[3-9]\d{9}$')
+    password: str = Field(..., description="用户密码", min_length=6)
+    is_admin: bool = Field(False, description="是否为管理员（默认为false）")
+```
+
+- **Response**: `201 Created`
+```python
+class CreateUserResponse(BaseModel):
+    user: UserListItem = Field(..., description="新创建的用户信息")
+```
+
+**业务规则**：
+- 用户名必须唯一，如果已存在返回 `409 Conflict`
+- 邮箱必须唯一（如果提供），如果已存在返回 `409 Conflict`
+- 手机号必须唯一（如果提供），如果已存在返回 `409 Conflict`
+- 用户名、邮箱、手机号至少填写一个
+- 密码使用 bcrypt 加密存储
+- 如果未提供昵称，使用用户名作为显示名称
+- 用户ID使用UUID生成
+
+**Example Request**:
+```json
+{
+  "username": "lisi",
+  "nickname": "李四",
+  "email": "lisi@example.com",
+  "phone": "13800138001",
+  "password": "password123",
+  "is_admin": false
+}
+```
+
+**Example Response**:
+```json
+{
+  "user": {
+    "user_id": "660e8400-e29b-41d4-a716-446655440001",
+    "username": "lisi",
+    "nickname": "李四",
+    "email": "lisi@example.com",
+    "phone": "13800138001",
+    "avatar": null,
+    "is_admin": false,
+    "created_at": "2026-01-11T10:00:00Z"
+  }
+}
+```
+
+**错误响应**：
+- `400 Bad Request`: 参数格式错误、密码长度不足
+- `401 Unauthorized`: 未登录或 Token 无效
+- `403 Forbidden`: 非管理员用户
+- `409 Conflict`: 用户名、邮箱或手机号已存在
+
+---
+
+#### 11.2.3 更新用户信息
+
+管理员更新用户信息。
+
+- **Endpoint**: `PUT /api/v1/admin/users/{user_id}`
+- **Description**: 更新指定用户的信息（不包括密码）。
+- **认证要求**: 需要管理员权限
+
+- **Path Parameters**:
+  - `user_id` (string, required): 用户ID
+
+- **Request Body**:
+```python
+class UpdateUserRequest(BaseModel):
+    username: Optional[str] = Field(None, description="用户名", min_length=1, max_length=50)
+    nickname: Optional[str] = Field(None, description="用户昵称", max_length=50)
+    email: Optional[str] = Field(None, description="用户邮箱", pattern=r'^[^@]+@[^@]+\.[^@]+$')
+    phone: Optional[str] = Field(None, description="用户手机号", pattern=r'^1[3-9]\d{9}$')
+    is_admin: Optional[bool] = Field(None, description="是否为管理员")
+```
+
+- **Response**: `200 OK`
+```python
+class UpdateUserResponse(BaseModel):
+    user: UserListItem = Field(..., description="更新后的用户信息")
+```
+
+**业务规则**：
+- 只更新提供的字段，未提供的字段保持不变
+- 用户名、邮箱、手机号必须唯一（如果提供且与原值不同）
+- 不允许取消最后一个管理员的管理员权限（返回 `400 Bad Request`）
+- 用户名、邮箱、手机号至少保留一个
+
+**Example Request**:
+```json
+{
+  "nickname": "李四（已更新）",
+  "is_admin": true
+}
+```
+
+**Example Response**:
+```json
+{
+  "user": {
+    "user_id": "660e8400-e29b-41d4-a716-446655440001",
+    "username": "lisi",
+    "nickname": "李四（已更新）",
+    "email": "lisi@example.com",
+    "phone": "13800138001",
+    "avatar": null,
+    "is_admin": true,
+    "created_at": "2026-01-11T10:00:00Z"
+  }
+}
+```
+
+**错误响应**：
+- `400 Bad Request`: 参数格式错误、尝试取消最后一个管理员的权限
+- `401 Unauthorized`: 未登录或 Token 无效
+- `403 Forbidden`: 非管理员用户
+- `404 Not Found`: 用户不存在
+- `409 Conflict`: 用户名、邮箱或手机号已被其他用户使用
+
+---
+
+#### 11.2.4 删除用户
+
+管理员删除用户。
+
+- **Endpoint**: `DELETE /api/v1/admin/users/{user_id}`
+- **Description**: 删除指定用户及其所有关联数据（会话、消息等）。
+- **认证要求**: 需要管理员权限
+
+- **Path Parameters**:
+  - `user_id` (string, required): 用户ID
+
+- **Response**: `204 No Content`
+
+**业务规则**：
+- 不允许删除自己（返回 `400 Bad Request`）
+- 不允许删除最后一个管理员（返回 `400 Bad Request`）
+- 删除用户时，级联删除其所有会话、消息、成果物
+
+**错误响应**：
+- `400 Bad Request`: 尝试删除自己或最后一个管理员
+- `401 Unauthorized`: 未登录或 Token 无效
+- `403 Forbidden`: 非管理员用户
+- `404 Not Found`: 用户不存在
+
+---
+
+#### 11.2.5 重置用户密码
+
+管理员重置用户密码。
+
+- **Endpoint**: `POST /api/v1/admin/users/{user_id}/reset-password`
+- **Description**: 重置指定用户的密码。
+- **认证要求**: 需要管理员权限
+
+- **Path Parameters**:
+  - `user_id` (string, required): 用户ID
+
+- **Request Body**:
+```python
+class ResetPasswordRequest(BaseModel):
+    new_password: str = Field(..., description="新密码", min_length=6)
+```
+
+- **Response**: `200 OK`
+```python
+class ResetPasswordResponse(BaseModel):
+    message: str = Field(..., description="操作结果消息")
+    new_password: str = Field(..., description="新密码（明文，用于告知用户）")
+```
+
+**业务规则**：
+- 密码使用 bcrypt 加密存储
+- 重置后返回明文密码，管理员需告知用户
+
+**Example Request**:
+```json
+{
+  "new_password": "newpassword123"
+}
+```
+
+**Example Response**:
+```json
+{
+  "message": "密码已重置",
+  "new_password": "newpassword123"
+}
+```
+
+**错误响应**：
+- `400 Bad Request`: 密码长度不足
+- `401 Unauthorized`: 未登录或 Token 无效
+- `403 Forbidden`: 非管理员用户
+- `404 Not Found`: 用户不存在
+
+---
+
+### 11.3 常用工具管理接口
+
+#### 11.3.1 获取工具列表（管理后台）
+
+获取所有工具列表，包括隐藏的工具。
+
+- **Endpoint**: `GET /api/v1/admin/common-tools`
+- **Description**: 返回所有工具列表，支持分页和筛选。
+- **认证要求**: 需要管理员权限
+
+- **Query Parameters**:
+  - `page` (int, optional): 页码，默认 1
+  - `page_size` (int, optional): 每页数量，默认 20，最大 100
+  - `category_id` (string, optional): 按分类ID筛选
+  - `type` (string, optional): 按类型筛选（'built_in' | 'html'）
+  - `visible` (bool, optional): 按可见性筛选（true | false）
+
+- **Response**: `200 OK`
+```python
+class AdminCommonToolListItem(BaseModel):
+    id: str = Field(..., description="工具ID")
+    name: str = Field(..., description="工具名称")
+    description: str = Field(..., description="工具描述")
+    category_id: str = Field(..., description="所属分类ID")
+    category_name: str = Field(..., description="所属分类名称")
+    type: str = Field(..., description="工具类型：'built_in' 或 'html'")
+    icon: Optional[str] = Field(None, description="图标标识")
+    html_path: Optional[str] = Field(None, description="HTML文件路径（仅HTML工具）")
+    order: int = Field(..., description="排序顺序")
+    visible: bool = Field(..., description="是否可见")
+    created_at: datetime = Field(..., description="创建时间")
+    updated_at: datetime = Field(..., description="更新时间")
+
+class AdminCommonToolListResponse(BaseModel):
+    tools: List[AdminCommonToolListItem] = Field(..., description="工具列表")
+    total: int = Field(..., description="工具总数")
+    page: int = Field(..., description="当前页码")
+    page_size: int = Field(..., description="每页数量")
+```
+
+**业务规则**：
+- 按分类ID和排序顺序排列
+- 与前台接口不同，管理后台接口返回所有工具（包括 `visible=false` 的工具）
+
+**Example Response**:
+```json
+{
+  "tools": [
+    {
+      "id": "markdown-editor",
+      "name": "Markdown编辑器",
+      "description": "在线编辑Markdown文档，实时预览，支持导出Word/PDF",
+      "category_id": "doc-tools",
+      "category_name": "文档工具",
+      "type": "built_in",
+      "icon": "document-text",
+      "html_path": null,
+      "order": 1,
+      "visible": true,
+      "created_at": "2026-01-09T10:00:00Z",
+      "updated_at": "2026-01-09T10:00:00Z"
+    }
+  ],
+  "total": 10,
+  "page": 1,
+  "page_size": 20
+}
+```
+
+**错误响应**：
+- `401 Unauthorized`: 未登录或 Token 无效
+- `403 Forbidden`: 非管理员用户
+
+---
+
+#### 11.3.2 创建内置工具
+
+管理员创建新的内置工具。
+
+- **Endpoint**: `POST /api/v1/admin/common-tools/built-in`
+- **Description**: 创建内置工具。
+- **认证要求**: 需要管理员权限
+
+- **Request Body**:
+```python
+class CreateBuiltInToolRequest(BaseModel):
+    name: str = Field(..., description="工具名称", min_length=1, max_length=100)
+    description: str = Field(..., description="工具描述", min_length=1, max_length=200)
+    category_id: str = Field(..., description="所属分类ID")
+    icon: Optional[str] = Field(None, description="图标标识（heroicons名称）")
+    order: int = Field(0, description="排序顺序（默认0）")
+    visible: bool = Field(True, description="是否可见（默认true）")
+```
+
+- **Response**: `201 Created`
+```python
+class CreateToolResponse(BaseModel):
+    tool: AdminCommonToolListItem = Field(..., description="新创建的工具信息")
+```
+
+**业务规则**：
+- 工具ID使用UUID生成
+- `type` 自动设置为 `'built_in'`
+- `html_path` 自动设置为 `None`
+- 如果未提供图标，系统根据工具名称自动推荐图标
+- 分类必须存在，否则返回 `404 Not Found`
+
+**Example Request**:
+```json
+{
+  "name": "Excel工具",
+  "description": "在线编辑Excel文件",
+  "category_id": "doc-tools",
+  "icon": "table-cells",
+  "order": 5,
+  "visible": true
+}
+```
+
+**Example Response**:
+```json
+{
+  "tool": {
+    "id": "770e8400-e29b-41d4-a716-446655440002",
+    "name": "Excel工具",
+    "description": "在线编辑Excel文件",
+    "category_id": "doc-tools",
+    "category_name": "文档工具",
+    "type": "built_in",
+    "icon": "table-cells",
+    "html_path": null,
+    "order": 5,
+    "visible": true,
+    "created_at": "2026-01-11T10:00:00Z",
+    "updated_at": "2026-01-11T10:00:00Z"
+  }
+}
+```
+
+**错误响应**：
+- `400 Bad Request`: 参数格式错误
+- `401 Unauthorized`: 未登录或 Token 无效
+- `403 Forbidden`: 非管理员用户
+- `404 Not Found`: 分类不存在
+
+---
+
+#### 11.3.3 上传HTML工具
+
+管理员上传HTML工具。
+
+- **Endpoint**: `POST /api/v1/admin/common-tools/html`
+- **Description**: 上传HTML文件并创建HTML工具。
+- **认证要求**: 需要管理员权限
+
+- **Request Body** (multipart/form-data):
+```python
+class CreateHtmlToolRequest(BaseModel):
+    name: str = Field(..., description="工具名称", min_length=1, max_length=100)
+    description: str = Field(..., description="工具描述", min_length=1, max_length=200)
+    category_id: str = Field(..., description="所属分类ID")
+    icon: Optional[str] = Field(None, description="图标标识（heroicons名称）")
+    html_file: UploadFile = Field(..., description="HTML文件（必填，< 5MB）")
+    order: int = Field(0, description="排序顺序（默认0）")
+    visible: bool = Field(True, description="是否可见（默认true）")
+```
+
+- **Response**: `201 Created`
+```python
+class CreateToolResponse(BaseModel):
+    tool: AdminCommonToolListItem = Field(..., description="新创建的工具信息")
+```
+
+**业务规则**：
+- 工具ID使用UUID生成
+- `type` 自动设置为 `'html'`
+- HTML文件存储路径：`backend/static/common_tools/html/{tool_id}/index.html`
+- 数据库存储相对路径：`common_tools/html/{tool_id}/index.html`
+- 文件类型限制：`.html`
+- 文件大小限制：< 5MB
+- 如果未提供图标，系统根据工具名称自动推荐图标
+- 分类必须存在，否则返回 `404 Not Found`
+
+**Example Request** (Form Data):
+```
+name: JSON格式化工具
+description: 格式化和验证JSON字符串，语法高亮显示
+category_id: data-tools
+icon: code-bracket
+html_file: [binary file data]
+order: 2
+visible: true
+```
+
+**Example Response**:
+```json
+{
+  "tool": {
+    "id": "880e8400-e29b-41d4-a716-446655440003",
+    "name": "JSON格式化工具",
+    "description": "格式化和验证JSON字符串，语法高亮显示",
+    "category_id": "data-tools",
+    "category_name": "数据工具",
+    "type": "html",
+    "icon": "code-bracket",
+    "html_path": "common_tools/html/880e8400-e29b-41d4-a716-446655440003/index.html",
+    "order": 2,
+    "visible": true,
+    "created_at": "2026-01-11T10:00:00Z",
+    "updated_at": "2026-01-11T10:00:00Z"
+  }
+}
+```
+
+**错误响应**：
+- `400 Bad Request`: 参数格式错误、文件类型不正确、文件大小超过限制
+- `401 Unauthorized`: 未登录或 Token 无效
+- `403 Forbidden`: 非管理员用户
+- `404 Not Found`: 分类不存在
+
+---
+
+#### 11.3.4 更新工具信息
+
+管理员更新工具信息。
+
+- **Endpoint**: `PUT /api/v1/admin/common-tools/{tool_id}`
+- **Description**: 更新指定工具的信息（不包括HTML文件）。
+- **认证要求**: 需要管理员权限
+
+- **Path Parameters**:
+  - `tool_id` (string, required): 工具ID
+
+- **Request Body**:
+```python
+class UpdateToolRequest(BaseModel):
+    name: Optional[str] = Field(None, description="工具名称", min_length=1, max_length=100)
+    description: Optional[str] = Field(None, description="工具描述", min_length=1, max_length=200)
+    category_id: Optional[str] = Field(None, description="所属分类ID")
+    icon: Optional[str] = Field(None, description="图标标识（heroicons名称）")
+    order: Optional[int] = Field(None, description="排序顺序")
+    visible: Optional[bool] = Field(None, description="是否可见")
+```
+
+- **Response**: `200 OK`
+```python
+class UpdateToolResponse(BaseModel):
+    tool: AdminCommonToolListItem = Field(..., description="更新后的工具信息")
+```
+
+**业务规则**：
+- 只更新提供的字段，未提供的字段保持不变
+- 不能修改工具类型（`type`）和HTML文件路径（`html_path`）
+- 分类必须存在（如果提供），否则返回 `404 Not Found`
+
+**Example Request**:
+```json
+{
+  "name": "Markdown编辑器（增强版）",
+  "description": "在线编辑Markdown文档，实时预览，支持导出Word/PDF，新增表格编辑功能",
+  "visible": true
+}
+```
+
+**Example Response**:
+```json
+{
+  "tool": {
+    "id": "markdown-editor",
+    "name": "Markdown编辑器（增强版）",
+    "description": "在线编辑Markdown文档，实时预览，支持导出Word/PDF，新增表格编辑功能",
+    "category_id": "doc-tools",
+    "category_name": "文档工具",
+    "type": "built_in",
+    "icon": "document-text",
+    "html_path": null,
+    "order": 1,
+    "visible": true,
+    "created_at": "2026-01-09T10:00:00Z",
+    "updated_at": "2026-01-11T10:30:00Z"
+  }
+}
+```
+
+**错误响应**：
+- `400 Bad Request`: 参数格式错误
+- `401 Unauthorized`: 未登录或 Token 无效
+- `403 Forbidden`: 非管理员用户
+- `404 Not Found`: 工具或分类不存在
+
+---
+
+#### 11.3.5 删除工具
+
+管理员删除工具。
+
+- **Endpoint**: `DELETE /api/v1/admin/common-tools/{tool_id}`
+- **Description**: 删除指定工具（包括HTML文件）。
+- **认证要求**: 需要管理员权限
+
+- **Path Parameters**:
+  - `tool_id` (string, required): 工具ID
+
+- **Response**: `204 No Content`
+
+**业务规则**：
+- 删除工具时，如果是HTML工具，同时删除对应的HTML文件和目录
+- 删除操作不可恢复
+
+**错误响应**：
+- `401 Unauthorized`: 未登录或 Token 无效
+- `403 Forbidden`: 非管理员用户
+- `404 Not Found`: 工具不存在
+
+---
+
+#### 11.3.6 调整工具排序（上移）
+
+管理员将工具向上移动一位。
+
+- **Endpoint**: `POST /api/v1/admin/common-tools/{tool_id}/move-up`
+- **Description**: 将指定工具向上移动一位（与上一个工具交换order值）。
+- **认证要求**: 需要管理员权限
+
+- **Path Parameters**:
+  - `tool_id` (string, required): 工具ID
+
+- **Response**: `200 OK`
+```python
+class MoveToolResponse(BaseModel):
+    message: str = Field(..., description="操作结果消息")
+    tool: AdminCommonToolListItem = Field(..., description="移动后的工具信息")
+```
+
+**业务规则**：
+- 查询同分类下的上一个工具（order值更小的第一个）
+- 交换两个工具的 `order` 值
+- 如果已经是第一个工具，返回 `400 Bad Request`
+
+**Example Response**:
+```json
+{
+  "message": "工具已上移",
+  "tool": {
+    "id": "json-formatter",
+    "name": "JSON格式化工具",
+    "description": "格式化和验证JSON字符串，语法高亮显示",
+    "category_id": "data-tools",
+    "category_name": "数据工具",
+    "type": "html",
+    "icon": "code-bracket",
+    "html_path": "common_tools/html/json-formatter/index.html",
+    "order": 1,
+    "visible": true,
+    "created_at": "2026-01-09T10:00:00Z",
+    "updated_at": "2026-01-11T10:35:00Z"
+  }
+}
+```
+
+**错误响应**：
+- `400 Bad Request`: 工具已经是第一个，无法上移
+- `401 Unauthorized`: 未登录或 Token 无效
+- `403 Forbidden`: 非管理员用户
+- `404 Not Found`: 工具不存在
+
+---
+
+#### 11.3.7 调整工具排序（下移）
+
+管理员将工具向下移动一位。
+
+- **Endpoint**: `POST /api/v1/admin/common-tools/{tool_id}/move-down`
+- **Description**: 将指定工具向下移动一位（与下一个工具交换order值）。
+- **认证要求**: 需要管理员权限
+
+- **Path Parameters**:
+  - `tool_id` (string, required): 工具ID
+
+- **Response**: `200 OK`
+```python
+class MoveToolResponse(BaseModel):
+    message: str = Field(..., description="操作结果消息")
+    tool: AdminCommonToolListItem = Field(..., description="移动后的工具信息")
+```
+
+**业务规则**：
+- 查询同分类下的下一个工具（order值更大的第一个）
+- 交换两个工具的 `order` 值
+- 如果已经是最后一个工具，返回 `400 Bad Request`
+
+**错误响应**：
+- `400 Bad Request`: 工具已经是最后一个，无法下移
+- `401 Unauthorized`: 未登录或 Token 无效
+- `403 Forbidden`: 非管理员用户
+- `404 Not Found`: 工具不存在
+
+---
+
+#### 11.3.8 切换工具可见性
+
+管理员切换工具的可见性。
+
+- **Endpoint**: `POST /api/v1/admin/common-tools/{tool_id}/toggle-visibility`
+- **Description**: 切换工具的可见性（显示 ↔ 隐藏）。
+- **认证要求**: 需要管理员权限
+
+- **Path Parameters**:
+  - `tool_id` (string, required): 工具ID
+
+- **Response**: `200 OK`
+```python
+class ToggleVisibilityResponse(BaseModel):
+    message: str = Field(..., description="操作结果消息")
+    tool: AdminCommonToolListItem = Field(..., description="更新后的工具信息")
+```
+
+**业务规则**：
+- `visible=true` 切换为 `visible=false`
+- `visible=false` 切换为 `visible=true`
+- 隐藏的工具不在前台工具列表中显示
+
+**Example Response**:
+```json
+{
+  "message": "工具已隐藏",
+  "tool": {
+    "id": "markdown-editor",
+    "name": "Markdown编辑器",
+    "description": "在线编辑Markdown文档，实时预览，支持导出Word/PDF",
+    "category_id": "doc-tools",
+    "category_name": "文档工具",
+    "type": "built_in",
+    "icon": "document-text",
+    "html_path": null,
+    "order": 1,
+    "visible": false,
+    "created_at": "2026-01-09T10:00:00Z",
+    "updated_at": "2026-01-11T10:40:00Z"
+  }
+}
+```
+
+**错误响应**：
+- `401 Unauthorized`: 未登录或 Token 无效
+- `403 Forbidden`: 非管理员用户
+- `404 Not Found`: 工具不存在
+
+---
+
+#### 11.3.9 获取工具分类列表（管理后台）
+
+获取所有工具分类列表。
+
+- **Endpoint**: `GET /api/v1/admin/tool-categories`
+- **Description**: 返回所有工具分类列表，包括工具数量统计。
+- **认证要求**: 需要管理员权限
+
+- **Response**: `200 OK`
+```python
+class AdminToolCategoryListItem(BaseModel):
+    id: str = Field(..., description="分类ID")
+    name: str = Field(..., description="分类名称")
+    icon: Optional[str] = Field(None, description="分类图标")
+    order: int = Field(..., description="排序顺序")
+    tool_count: int = Field(..., description="该分类下的工具数量")
+    created_at: datetime = Field(..., description="创建时间")
+    updated_at: datetime = Field(..., description="更新时间")
+
+class AdminToolCategoryListResponse(BaseModel):
+    categories: List[AdminToolCategoryListItem] = Field(..., description="分类列表")
+```
+
+**业务规则**：
+- 按 `order` 字段升序排列
+- `tool_count` 包含所有工具（包括隐藏的工具）
+
+**Example Response**:
+```json
+{
+  "categories": [
+    {
+      "id": "doc-tools",
+      "name": "文档工具",
+      "icon": "document-text",
+      "order": 1,
+      "tool_count": 5,
+      "created_at": "2026-01-09T10:00:00Z",
+      "updated_at": "2026-01-09T10:00:00Z"
+    },
+    {
+      "id": "data-tools",
+      "name": "数据工具",
+      "icon": "chart-bar",
+      "order": 2,
+      "tool_count": 3,
+      "created_at": "2026-01-09T10:00:00Z",
+      "updated_at": "2026-01-09T10:00:00Z"
+    }
+  ]
+}
+```
+
+**错误响应**：
+- `401 Unauthorized`: 未登录或 Token 无效
+- `403 Forbidden`: 非管理员用户
+
+---
+
+#### 11.3.10 创建工具分类
+
+管理员创建新的工具分类。
+
+- **Endpoint**: `POST /api/v1/admin/tool-categories`
+- **Description**: 创建新的工具分类。
+- **认证要求**: 需要管理员权限
+
+- **Request Body**:
+```python
+class CreateToolCategoryRequest(BaseModel):
+    name: str = Field(..., description="分类名称", min_length=1, max_length=50)
+    icon: Optional[str] = Field(None, description="分类图标（heroicons名称）")
+    order: int = Field(0, description="排序顺序（默认0）")
+```
+
+- **Response**: `201 Created`
+```python
+class CreateToolCategoryResponse(BaseModel):
+    category: AdminToolCategoryListItem = Field(..., description="新创建的分类信息")
+```
+
+**业务规则**：
+- 分类ID使用UUID生成
+- 分类名称必须唯一，如果已存在返回 `409 Conflict`
+- 如果未提供图标，系统根据分类名称自动推荐图标
+
+**Example Request**:
+```json
+{
+  "name": "媒体工具",
+  "icon": "video-camera",
+  "order": 3
+}
+```
+
+**Example Response**:
+```json
+{
+  "category": {
+    "id": "990e8400-e29b-41d4-a716-446655440004",
+    "name": "媒体工具",
+    "icon": "video-camera",
+    "order": 3,
+    "tool_count": 0,
+    "created_at": "2026-01-11T10:45:00Z",
+    "updated_at": "2026-01-11T10:45:00Z"
+  }
+}
+```
+
+**错误响应**：
+- `400 Bad Request`: 参数格式错误
+- `401 Unauthorized`: 未登录或 Token 无效
+- `403 Forbidden`: 非管理员用户
+- `409 Conflict`: 分类名称已存在
+
+---
+
+#### 11.3.11 更新工具分类
+
+管理员更新工具分类信息。
+
+- **Endpoint**: `PUT /api/v1/admin/tool-categories/{category_id}`
+- **Description**: 更新指定工具分类的信息。
+- **认证要求**: 需要管理员权限
+
+- **Path Parameters**:
+  - `category_id` (string, required): 分类ID
+
+- **Request Body**:
+```python
+class UpdateToolCategoryRequest(BaseModel):
+    name: Optional[str] = Field(None, description="分类名称", min_length=1, max_length=50)
+    icon: Optional[str] = Field(None, description="分类图标（heroicons名称）")
+    order: Optional[int] = Field(None, description="排序顺序")
+```
+
+- **Response**: `200 OK`
+```python
+class UpdateToolCategoryResponse(BaseModel):
+    category: AdminToolCategoryListItem = Field(..., description="更新后的分类信息")
+```
+
+**业务规则**：
+- 只更新提供的字段，未提供的字段保持不变
+- 分类名称必须唯一（如果提供且与原值不同）
+
+**Example Request**:
+```json
+{
+  "name": "文档编辑工具",
+  "icon": "document-text"
+}
+```
+
+**Example Response**:
+```json
+{
+  "category": {
+    "id": "doc-tools",
+    "name": "文档编辑工具",
+    "icon": "document-text",
+    "order": 1,
+    "tool_count": 5,
+    "created_at": "2026-01-09T10:00:00Z",
+    "updated_at": "2026-01-11T10:50:00Z"
+  }
+}
+```
+
+**错误响应**：
+- `400 Bad Request`: 参数格式错误
+- `401 Unauthorized`: 未登录或 Token 无效
+- `403 Forbidden`: 非管理员用户
+- `404 Not Found`: 分类不存在
+- `409 Conflict`: 分类名称已被其他分类使用
+
+---
+
+#### 11.3.12 删除工具分类
+
+管理员删除工具分类。
+
+- **Endpoint**: `DELETE /api/v1/admin/tool-categories/{category_id}`
+- **Description**: 删除指定工具分类。
+- **认证要求**: 需要管理员权限
+
+- **Path Parameters**:
+  - `category_id` (string, required): 分类ID
+
+- **Response**: `204 No Content`
+
+**业务规则**：
+- 如果分类下有工具，不允许删除，返回 `400 Bad Request`
+- 删除操作不可恢复
+
+**错误响应**：
+- `400 Bad Request`: 分类下还有工具，无法删除
+- `401 Unauthorized`: 未登录或 Token 无效
+- `403 Forbidden`: 非管理员用户
+- `404 Not Found`: 分类不存在
+
+---
+
+#### 11.3.13 调整分类排序（上移/下移）
+
+管理员调整分类排序。
+
+- **Endpoint**: `POST /api/v1/admin/tool-categories/{category_id}/move-up`
+- **Endpoint**: `POST /api/v1/admin/tool-categories/{category_id}/move-down`
+- **Description**: 将指定分类向上/下移动一位（与相邻分类交换order值）。
+- **认证要求**: 需要管理员权限
+
+- **Path Parameters**:
+  - `category_id` (string, required): 分类ID
+
+- **Response**: `200 OK`
+```python
+class MoveCategoryResponse(BaseModel):
+    message: str = Field(..., description="操作结果消息")
+    category: AdminToolCategoryListItem = Field(..., description="移动后的分类信息")
+```
+
+**业务规则**：
+- 与工具排序逻辑相同，交换相邻分类的 `order` 值
+- 如果已经是第一个/最后一个分类，返回 `400 Bad Request`
+
+**错误响应**：
+- `400 Bad Request`: 分类已经是第一个/最后一个，无法移动
+- `401 Unauthorized`: 未登录或 Token 无效
+- `403 Forbidden`: 非管理员用户
+- `404 Not Found`: 分类不存在
+
+---
+
+### 11.4 作品展示管理接口
+
+作品展示管理接口与常用工具管理接口完全一致，只是路径和实体不同：
+- 路径前缀：`/api/v1/admin/works` 和 `/api/v1/admin/work-categories`
+- 实体名称：`Work` 和 `WorkCategory`
+- 所有作品均为HTML类型，不区分内置和外部
+- HTML文件存储路径：`backend/static/works/html/{work_id}/index.html`
+- 文件大小限制：< 10MB（比工具的5MB限制更大）
+
+具体接口列表：
+1. `GET /api/v1/admin/works` - 获取作品列表
+2. `POST /api/v1/admin/works` - 上传作品
+3. `PUT /api/v1/admin/works/{work_id}` - 更新作品信息
+4. `DELETE /api/v1/admin/works/{work_id}` - 删除作品
+5. `POST /api/v1/admin/works/{work_id}/move-up` - 作品上移
+6. `POST /api/v1/admin/works/{work_id}/move-down` - 作品下移
+7. `POST /api/v1/admin/works/{work_id}/toggle-visibility` - 切换作品可见性
+8. `GET /api/v1/admin/work-categories` - 获取作品分类列表
+9. `POST /api/v1/admin/work-categories` - 创建作品分类
+10. `PUT /api/v1/admin/work-categories/{category_id}` - 更新作品分类
+11. `DELETE /api/v1/admin/work-categories/{category_id}` - 删除作品分类
+12. `POST /api/v1/admin/work-categories/{category_id}/move-up` - 分类上移
+13. `POST /api/v1/admin/work-categories/{category_id}/move-down` - 分类下移
+
+接口定义与常用工具管理接口完全一致，只需替换实体名称和路径即可。
+
+---
+
+**文档版本**: v4.0  
+**最后更新**: 2026-01-11  
 **更新说明**:
+- v4.0:
+  - **后台管理系统**：新增后台管理系统完整API接口（第11章）
+  - 新增用户管理接口（5个）：用户列表、创建用户、更新用户、删除用户、重置密码
+  - 新增常用工具管理接口（13个）：工具CRUD、工具排序（上移/下移）、切换可见性、分类CRUD、分类排序
+  - 新增作品展示管理接口（13个）：作品CRUD、作品排序（上移/下移）、切换可见性、分类CRUD、分类排序
+  - 管理员权限验证方式：实时查询用户 `is_admin` 字段，权限变更立即生效
+  - 排序调整方式：交换相邻项的 `order` 值，保持order值有序且唯一
+  - 文件上传：HTML工具（< 5MB）、作品（< 10MB），存储到 `backend/static/` 目录
 - v3.1:
   - **作品展示模块**：新增作品展示模块的API接口
   - 新增 `GET /api/v1/works/categories` 接口，获取作品分类和作品列表
@@ -1368,6 +2537,7 @@ sequenceDiagram
   - 更新数据流设计，反映新的接口和流程
 
 **设计依据**: 
+- `docs/requirements/admin_backend_spec.md` (v1.0) - 后台管理系统需求
 - `docs/requirements/works_display_spec.md` (v1.0) - 作品展示模块需求
 - `docs/requirements/common_tools_spec.md` (v1.0) - 常用工具模块需求
 - `docs/requirements/teaching_researcher_spec.md` (v2.0)

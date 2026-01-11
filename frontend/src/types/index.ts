@@ -158,6 +158,7 @@ export interface UserInfo {
   email?: string // 用户邮箱（可选，用于登录）
   phone?: string // 用户手机号（可选，用于登录）
   avatar?: string // 用户头像URL（可选，默认头像）
+  is_admin?: boolean // 是否为管理员（可选，默认false）
 }
 
 /**
@@ -188,6 +189,7 @@ export interface UserListItem {
   email?: string // 用户邮箱（可选，用于登录）
   phone?: string // 用户手机号（可选，用于登录）
   avatar?: string // 用户头像URL
+  is_admin?: boolean // 是否为管理员（可选，默认false）
   created_at: string // 用户创建时间（ISO 8601 格式）
 }
 
@@ -211,13 +213,47 @@ export interface CreateUserRequest {
   phone?: string // 用户手机号（可选，用于登录）
   password: string // 用户密码
   avatar?: string // 用户头像URL（可选）
+  is_admin?: boolean // 是否为管理员（可选，默认false）
 }
 
 /**
  * 创建用户响应
  */
 export interface CreateUserResponse {
-  user: UserInfo // 新创建的用户信息
+  user: UserListItem // 新创建的用户信息
+}
+
+/**
+ * 更新用户请求
+ */
+export interface UpdateUserRequest {
+  username?: string // 用户名（可选）
+  nickname?: string // 用户昵称（可选）
+  email?: string // 用户邮箱（可选）
+  phone?: string // 用户手机号（可选）
+  is_admin?: boolean // 是否为管理员（可选）
+}
+
+/**
+ * 更新用户响应
+ */
+export interface UpdateUserResponse {
+  user: UserListItem // 更新后的用户信息
+}
+
+/**
+ * 重置密码请求
+ */
+export interface ResetPasswordRequest {
+  new_password: string // 新密码
+}
+
+/**
+ * 重置密码响应
+ */
+export interface ResetPasswordResponse {
+  message: string // 操作结果消息
+  new_password: string // 新密码（明文，用于告知用户）
 }
 
 // ==================== 常用工具模块 ====================
@@ -268,6 +304,138 @@ export interface CommonToolDetail {
   created_at: string // 创建时间（ISO 8601格式）
 }
 
+// ==================== 后台管理 - 工具管理模块 ====================
+
+/**
+ * 管理后台 - 工具列表项
+ */
+export interface AdminCommonToolListItem {
+  id: string // 工具ID
+  name: string // 工具名称
+  description: string // 工具描述
+  category_id: string // 所属分类ID
+  category_name: string // 所属分类名称
+  type: 'built_in' | 'html' // 工具类型
+  icon?: string // 图标标识
+  html_path?: string // HTML文件路径（仅HTML工具）
+  order: number // 排序顺序
+  visible: boolean // 是否可见
+  created_at: string // 创建时间
+  updated_at: string // 更新时间
+}
+
+/**
+ * 管理后台 - 工具列表响应
+ */
+export interface AdminCommonToolListResponse {
+  tools: AdminCommonToolListItem[] // 工具列表
+  total: number // 工具总数
+  page: number // 当前页码
+  page_size: number // 每页数量
+}
+
+/**
+ * 创建内置工具请求
+ */
+export interface CreateBuiltInToolRequest {
+  name: string // 工具名称
+  description: string // 工具描述
+  category_id: string // 所属分类ID
+  icon?: string // 图标标识（heroicons名称）
+  order?: number // 排序顺序（默认0）
+  visible?: boolean // 是否可见（默认true）
+}
+
+/**
+ * 更新工具请求
+ */
+export interface UpdateToolRequest {
+  name?: string // 工具名称
+  description?: string // 工具描述
+  category_id?: string // 所属分类ID
+  icon?: string // 图标标识（heroicons名称）
+  order?: number // 排序顺序
+  visible?: boolean // 是否可见
+}
+
+/**
+ * 创建/更新工具响应
+ */
+export interface ToolMutationResponse {
+  tool: AdminCommonToolListItem // 工具信息
+}
+
+/**
+ * 移动工具响应
+ */
+export interface MoveToolResponse {
+  message: string // 操作结果消息
+  tool: AdminCommonToolListItem // 移动后的工具信息
+}
+
+/**
+ * 切换可见性响应
+ */
+export interface ToggleVisibilityResponse {
+  message: string // 操作结果消息
+  tool: AdminCommonToolListItem // 更新后的工具信息
+}
+
+// ==================== 后台管理 - 工具分类管理模块 ====================
+
+/**
+ * 管理后台 - 工具分类列表项
+ */
+export interface AdminToolCategoryListItem {
+  id: string // 分类ID
+  name: string // 分类名称
+  icon?: string // 分类图标
+  order: number // 排序顺序
+  tool_count: number // 该分类下的工具数量
+  created_at: string // 创建时间
+  updated_at: string // 更新时间
+}
+
+/**
+ * 管理后台 - 工具分类列表响应
+ */
+export interface AdminToolCategoryListResponse {
+  categories: AdminToolCategoryListItem[] // 分类列表
+}
+
+/**
+ * 创建工具分类请求
+ */
+export interface CreateToolCategoryRequest {
+  name: string // 分类名称
+  icon?: string // 分类图标（heroicons名称）
+  order?: number // 排序顺序（默认0）
+}
+
+/**
+ * 更新工具分类请求
+ */
+export interface UpdateToolCategoryRequest {
+  name?: string // 分类名称
+  icon?: string // 分类图标（heroicons名称）
+  order?: number // 排序顺序
+}
+
+/**
+ * 创建/更新分类响应
+ */
+export interface CategoryMutationResponse {
+  category: AdminToolCategoryListItem // 分类信息
+}
+
+/**
+ * 移动分类响应
+ */
+export interface MoveCategoryResponse {
+  message: string // 操作结果消息
+  category: AdminToolCategoryListItem // 移动后的分类信息
+}
+
 // ==================== 作品展示模块 ====================
 
 /**
@@ -312,5 +480,124 @@ export interface WorkDetail {
   order: number // 排序字段
   html_url: string // HTML文件访问URL
   created_at: string // 创建时间（ISO 8601格式）
+}
+
+// ==================== 后台管理 - 作品管理模块 ====================
+
+/**
+ * 管理后台 - 作品列表项
+ */
+export interface AdminWorkListItem {
+  id: string // 作品ID
+  name: string // 作品名称
+  description: string // 作品描述
+  category_id: string // 所属分类ID
+  category_name: string // 所属分类名称
+  icon?: string // 图标标识
+  html_path: string // HTML文件路径
+  order: number // 排序顺序
+  visible: boolean // 是否可见
+  created_at: string // 创建时间
+  updated_at: string // 更新时间
+}
+
+/**
+ * 管理后台 - 作品列表响应
+ */
+export interface AdminWorkListResponse {
+  works: AdminWorkListItem[] // 作品列表
+  total: number // 作品总数
+  page: number // 当前页码
+  page_size: number // 每页数量
+}
+
+/**
+ * 更新作品请求
+ */
+export interface UpdateWorkRequest {
+  name?: string // 作品名称
+  description?: string // 作品描述
+  category_id?: string // 所属分类ID
+  icon?: string // 图标标识（heroicons名称）
+  order?: number // 排序顺序
+  visible?: boolean // 是否可见
+}
+
+/**
+ * 作品创建/更新响应
+ */
+export interface WorkMutationResponse {
+  work: AdminWorkListItem // 作品信息
+}
+
+/**
+ * 移动作品响应
+ */
+export interface MoveWorkResponse {
+  message: string // 操作结果消息
+  work: AdminWorkListItem // 移动后的作品信息
+}
+
+/**
+ * 切换作品可见性响应
+ */
+export interface ToggleWorkVisibilityResponse {
+  message: string // 操作结果消息
+  work: AdminWorkListItem // 更新后的作品信息
+}
+
+// ==================== 后台管理 - 作品分类管理模块 ====================
+
+/**
+ * 管理后台 - 作品分类列表项
+ */
+export interface AdminWorkCategoryListItem {
+  id: string // 分类ID
+  name: string // 分类名称
+  icon?: string // 分类图标
+  order: number // 排序顺序
+  work_count: number // 该分类下的作品数量
+  created_at: string // 创建时间
+  updated_at: string // 更新时间
+}
+
+/**
+ * 管理后台 - 作品分类列表响应
+ */
+export interface AdminWorkCategoryListResponse {
+  categories: AdminWorkCategoryListItem[] // 分类列表
+}
+
+/**
+ * 创建作品分类请求
+ */
+export interface CreateWorkCategoryRequest {
+  name: string // 分类名称
+  icon?: string // 分类图标（heroicons名称）
+  order?: number // 排序顺序（默认0）
+}
+
+/**
+ * 更新作品分类请求
+ */
+export interface UpdateWorkCategoryRequest {
+  name?: string // 分类名称
+  icon?: string // 分类图标（heroicons名称）
+  order?: number // 排序顺序
+}
+
+/**
+ * 作品分类创建/更新响应
+ */
+export interface WorkCategoryMutationResponse {
+  category: AdminWorkCategoryListItem // 分类信息
+}
+
+/**
+ * 移动作品分类响应
+ */
+export interface MoveWorkCategoryResponse {
+  message: string // 操作结果消息
+  category: AdminWorkCategoryListItem // 移动后的分类信息
 }
 

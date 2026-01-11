@@ -19,6 +19,7 @@ class UserModel(Base):
     phone = Column(String(11), unique=True, nullable=True, index=True)
     password_hash = Column(String(255), nullable=False)
     avatar = Column(String(500), nullable=True)
+    is_admin = Column(Boolean, nullable=False, default=False, index=True)
     created_at = Column(DateTime, nullable=False, default=datetime.now)
     
     # 关系
@@ -124,7 +125,7 @@ class CommonToolModel(Base):
     
     # 联合索引（按分类和排序查询）
     __table_args__ = (
-        Index("idx_category_order", "category_id", "order"),
+        Index("idx_common_tool_category_order", "category_id", "order"),
     )
 
 
@@ -163,6 +164,6 @@ class WorkModel(Base):
     
     # 联合索引（按分类和排序查询）
     __table_args__ = (
-        Index("idx_category_order", "category_id", "order"),
+        Index("idx_work_category_order", "category_id", "order"),
     )
 

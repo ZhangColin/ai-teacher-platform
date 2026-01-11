@@ -12,6 +12,11 @@
         <div v-if="authStore.user.email" class="user-info-email">{{ authStore.user.email }}</div>
       </div>
       <div class="dropdown-divider"></div>
+      <!-- 管理后台入口（仅管理员可见） -->
+      <button v-if="authStore.user.is_admin" @click="goToAdmin" class="dropdown-item admin-button">
+        管理后台
+      </button>
+      <div v-if="authStore.user.is_admin" class="dropdown-divider"></div>
       <button @click="handleLogout" class="dropdown-item logout-button">
         退出
       </button>
@@ -61,6 +66,12 @@ function handleClickOutside(event: MouseEvent) {
   if (!target.closest('.user-info')) {
     showDropdown.value = false
   }
+}
+
+// 进入管理后台
+function goToAdmin() {
+  showDropdown.value = false
+  router.push('/admin')
 }
 
 // 登出
@@ -147,6 +158,10 @@ onUnmounted(() => {
 
 .dropdown-divider {
   @apply border-t border-gray-200 my-1;
+}
+
+.admin-button {
+  @apply text-primary-600 hover:bg-primary-50 cursor-pointer;
 }
 
 .logout-button {

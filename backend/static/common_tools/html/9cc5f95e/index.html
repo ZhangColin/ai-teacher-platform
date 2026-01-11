@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSON 智能格式化工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+        body { font-family: 'Noto Sans SC', sans-serif; }
+        .fade-enter-active, .fade-leave-active { transition: opacity 0.5s; }
+        .fade-enter-from, .fade-leave-to { opacity: 0; }
+        
+        /* 自定义滚动条样式 */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        
+        /* 代码高亮样式 */
+        .json-key { color: #059669; }
+        .json-string { color: #dc2626; }
+        .json-number { color: #2563eb; }
+        .json-boolean { color: #7c3aed; }
+        .json-null { color: #6b7280; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+    <div id="app" class="flex flex-col h-full min-h-screen">
+        
+        <header class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
+            <h1 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                <i class="fa-solid fa-code-json text-blue-600"></i>
+                <span>JSON 智能格式化工具</span>
+            </h1>
+            <div class="text-sm text-slate-500">
+                <i class="fas fa-sync-alt mr-1"></i>
+                <span>实时格式化</span>
+            </div>
+        </header>
+
+        <main class="flex-grow p-4 md:p-8 flex flex-col">
+            <!-- 控制按钮区域 -->
+            <div class="mb-6 flex flex-wrap justify-center gap-3">
+                <button @click="compressJSON" :disabled="!isValidJSON" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                    <i class="fas fa-compress-alt"></i>
+                    <span>压缩 JSON</span>
+                </button>
+                <button @click="copyResult" :disabled="!isValidJSON" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                    <i class="far fa-copy"></i>
+                    <span>复制结果</span>
+                </button>
+                <button @click="clearAll" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2">
+                    <i class="fas fa-trash-alt"></i>
+                    <span>清空所有</span>
+                </button>
+            </div>
+            
+            <!-- Split View 布局 -->
+            <div class="flex-grow grid grid-cols-1 md:grid-cols-2 gap-6 max-w-6xl w-full mx-auto">
+                <!-- 左侧输入区 -->
+                <div class="bg-white rounded-2xl shadow-xl border border-slate-100 p-6 flex flex-col h-full">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-semibold text-slate-700 flex items-center gap-2">
+                            <i class="fas fa-keyboard text-blue-600"></i>
+                            输入 JSON
+                        </h2>
+                        <div class="text-sm text-slate-500">
+                            <span v-if="inputText.length > 0">
+                                字符数: {{ inputText.length }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="flex-grow relative">
+                        <textarea 
+                            v-model="inputText" 
+                            @input="formatJSON" 
+                            placeholder="粘贴或输入 JSON 字符串，例如：&#10;{&#10;  &quot;name&quot;: &quot;张三&quot;,&#10;  &quot;age&quot;: 25,&#10;  &quot;skills&quot;: [&quot;JavaScript&quot;, &quot;Vue&quot;]&#10;}" 
+                            class="w-full h-full p-4 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none font-mono text-sm custom-scrollbar"
+                            spellcheck="false"
+                        ></textarea>
+                        <button v-if="inputText.length > 0" @click="clearInput" class="absolute top-2 right-2 p-2 text-slate-500 hover:text-slate-700">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 右侧展示区 -->
+                <div class="bg-white rounded-2xl shadow-xl border border-slate-100 p-6 flex flex-col h-full">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-semibold text-slate-700 flex items-center gap-2">
+                            <i class="fas fa-eye text-blue-600"></i>
+                            格式化结果
+                        </h2>
+                        <div v-if="isValidJSON" class="flex items-center gap-2 text-green-600">
+                            <i class="fas fa-check-circle"></i>
+                            <span class="text-sm">格式正确</span>
+                        </div>
+                    </div>
+                    <div class="flex-grow bg-slate-50 rounded-lg overflow-hidden border border-slate-200">
+                        <!-- 错误状态 -->
+                        <div v-if="!isValidJSON && inputText.trim()" class="h-full flex flex-col items-center justify-center p-6 bg-red-50">
+                            <i class="fas fa-exclamation-triangle text-red-500 text-4xl mb-4"></i>
+                            <h3 class="text-lg font-semibold text-red-700 mb-2">JSON 格式错误</h3>
+                            <p class="text-red-600 text-center">{{ errorMessage }}</p>
+                            <button @click="showErrorDetails = !showErrorDetails" class="mt-4 text-sm text-red-500 hover:text-red-700">
+                                {{ showErrorDetails ? '隐藏详情' : '显示详情' }}
+                            </button>
+                            <div v-if="showErrorDetails" class="mt-4 p-4 bg-white rounded-lg border border-red-200 w-full">
+                                <pre class="text-red-600 text-sm whitespace-pre-wrap">{{ errorMessage }}</pre>
+                            </div>
+                        </div>
+                        
+                        <!-- 空状态 -->
+                        <div v-else-if="!inputText.trim()" class="h-full flex flex-col items-center justify-center p-6">
+                            <i class="fas fa-code text-slate-300 text-4xl mb-4"></i>
+                            <h3 class="text-lg font-semibold text-slate-500 mb-2">等待输入</h3>
+                            <p class="text-slate-400 text-center">在左侧输入或粘贴 JSON 字符串，结果将实时显示在这里</p>
+                        </div>
+                        
+                        <!-- 成功格式化状态 -->
+                        <div v-else class="h-full overflow-auto p-4 custom-scrollbar">
+                            <pre class="text-sm font-mono whitespace-pre" v-html="formattedJSON"></pre>
+                        </div>
+                    </div>
+                    
+                    <!-- 格式化信息 -->
+                    <div v-if="isValidJSON && inputText.trim()" class="mt-4 flex flex-wrap gap-4 text-sm text-slate-500">
+                        <div class="flex items-center gap-1">
+                            <span class="font-medium">压缩后长度:</span>
+                            <span>{{ compressedLength }}</span>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <span class="font-medium">格式化长度:</span>
+                            <span>{{ formattedLength }}</span>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <span class="font-medium">保存率:</span>
+                            <span :class="compressionRatio > 0 ? 'text-green-600' : 'text-red-600'">
+                                {{ compressionRatio > 0 ? `-${compressionRatio}%` : `+${Math.abs(compressionRatio)}%` }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="p-6 text-center text-slate-400 text-sm">
+            Generated by AI Tooling | JSON 格式化工具 v1.0
+        </footer>
+
+        <!-- Toast 通知 -->
+        <div class="fixed top-4 right-4 z-50 flex flex-col gap-2">
+            <div v-for="t in toasts" :key="t.id" :class="t.type==='error'?'bg-red-500':'bg-blue-600'" class="text-white px-6 py-3 rounded-lg shadow-lg transition-all transform hover:scale-105 flex items-center gap-2">
+                <i :class="t.type==='error'?'fa-solid fa-circle-xmark':'fa-solid fa-circle-check'"></i>
+                {{t.msg}}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+        
+        // JSON 语法高亮函数
+        function syntaxHighlight(json) {
+            if (typeof json !== 'string') {
+                json = JSON.stringify(json, null, 2);
+            }
+            
+            return json
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?)/g, function (match) {
+                    let cls = 'json-key';
+                    if (/:$/.test(match)) {
+                        // 键名
+                        return '<span class="' + cls + '">' + match + '</span>';
+                    } else if (/^"/.test(match)) {
+                        // 字符串值
+                        if (/:$/.test(match.replace(/"[^"]*"/g, ''))) {
+                            return '<span class="json-key">' + match + '</span>';
+                        } else {
+                            return '<span class="json-string">' + match + '</span>';
+                        }
+                    }
+                    return match;
+                })
+                .replace(/\b(true|false)\b/g, '<span class="json-boolean">$1</span>')
+                .replace(/\b(null)\b/g, '<span class="json-null">$1</span>')
+                .replace(/\b-?\d+(\.\d+)?([eE][+-]?\d+)?\b/g, '<span class="json-number">$&</span>');
+        }
+
+        createApp({
+            data() {
+                return {
+                    toasts: [],
+                    inputText: '', // 输入文本
+                    formattedJSON: '', // 格式化后的 JSON（带高亮）
+                    isValidJSON: true, // JSON 是否有效
+                    errorMessage: '', // 错误信息
+                    showErrorDetails: false, // 是否显示错误详情
+                    compressedLength: 0, // 压缩后长度
+                    formattedLength: 0, // 格式化后长度
+                    compressionRatio: 0 // 压缩率
+                }
+            },
+            mounted() {
+                // 从 localStorage 加载保存的数据
+                this.loadFromStorage();
+                // 初始格式化
+                this.formatJSON();
+            },
+            watch: {
+                // 自动保存输入内容到 localStorage
+                inputText(newValue) {
+                    localStorage.setItem('jsonFormatter_input', newValue);
+                }
+            },
+            methods: {
+                // 显示 Toast 通知
+                showToast(msg, type = 'info') {
+                    const id = Date.now();
+                    this.toasts.push({id, msg, type});
+                    setTimeout(() => {
+                        this.toasts = this.toasts.filter(t => t.id !== id);
+                    }, 3000);
+                },
+                
+                // 从 localStorage 加载数据
+                loadFromStorage() {
+                    const savedInput = localStorage.getItem('jsonFormatter_input');
+                    if (savedInput) {
+                        this.inputText = savedInput;
+                        this.showToast('已加载上次的输入内容', 'info');
+                    }
+                },
+                
+                // 格式化 JSON
+                formatJSON() {
+                    const text = this.inputText.trim();
+                    
+                    if (!text) {
+                        this.isValidJSON = true;
+                        this.formattedJSON = '';
+                        return;
+                    }
+                    
+                    try {
+                        // 尝试解析 JSON
+                        const parsed = JSON.parse(text);
+                        
+                        // 计算长度信息
+                        const compressed = JSON.stringify(parsed);
+                        const formatted = JSON.stringify(parsed, null, 2);
+                        
+                        this.compressedLength = compressed.length;
+                        this.formattedLength = formatted.length;
+                        this.compressionRatio = Math.round(
+                            ((this.compressedLength - this.formattedLength) / this.formattedLength) * 100
+                        );
+                        
+                        // 应用语法高亮
+                        this.formattedJSON = syntaxHighlight(parsed);
+                        this.isValidJSON = true;
+                        this.errorMessage = '';
+                        
+                    } catch (error) {
+                        // JSON 解析失败
+                        this.isValidJSON = false;
+                        this.errorMessage = error.message;
+                        
+                        // 显示错误 Toast
+                        if (text.length > 10) { // 避免在用户刚开始输入时就显示错误
+                            this.showToast('JSON 格式错误: ' + error.message.split('\n')[0], 'error');
+                        }
+                    }
+                },
+                
+                // 压缩 JSON
+                compressJSON() {
+                    if (!this.isValidJSON || !this.inputText.trim()) {
+                        this.showToast('请先输入有效的 JSON', 'error');
+                        return;
+                    }
+                    
+                    try {
+                        const parsed = JSON.parse(this.inputText);
+                        this.inputText = JSON.stringify(parsed);
+                        this.showToast('JSON 已压缩', 'info');
+                    } catch (error) {
+                        this.showToast('压缩失败: ' + error.message, 'error');
+                    }
+                },
+                
+                // 复制结果
+                copyResult() {
+                    if (!this.isValidJSON || !this.inputText.trim()) {
+                        this.showToast('没有有效的内容可复制', 'error');
+                        return;
+                    }
+                    
+                    try {
+                        const parsed = JSON.parse(this.inputText);
+                        const formatted = JSON.stringify(parsed, null, 2);
+                        
+                        navigator.clipboard.writeText(formatted)
+                            .then(() => {
+                                this.showToast('格式化 JSON 已复制到剪贴板', 'info');
+                            })
+                            .catch(err => {
+                                console.error('复制失败:', err);
+                                this.showToast('复制失败，请手动选择复制', 'error');
+                            });
+                    } catch (error) {
+                        this.showToast('复制失败: ' + error.message, 'error');
+                    }
+                },
+                
+                // 清空所有
+                clearAll() {
+                    this.inputText = '';
+                    this.formattedJSON = '';
+                    this.isValidJSON = true;
+                    this.errorMessage = '';
+                    this.showErrorDetails = false;
+                    this.showToast('已清空所有内容', 'info');
+                },
+                
+                // 清空输入
+                clearInput() {
+                    this.inputText = '';
+                    this.showToast('输入已清空', 'info');
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

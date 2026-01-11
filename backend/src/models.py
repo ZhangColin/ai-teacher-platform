@@ -233,14 +233,19 @@ class User(BaseModel):
     phone: Optional[str] = Field(None, description="用户手机号（可选，用于登录）", pattern=r'^1[3-9]\d{9}$')
     password_hash: str = Field(..., description="密码哈希值（bcrypt加密）")
     avatar: Optional[str] = Field(None, description="用户头像URL（可选，默认头像）")
+    is_admin: bool = Field(False, description="是否为管理员（默认为false）")
     created_at: datetime = Field(default_factory=datetime.now, description="用户创建时间")
     
     def verify_password(self, password: str) -> bool:
         """验证密码是否正确"""
         return bcrypt.checkpw(password.encode('utf-8'), self.password_hash.encode('utf-8'))
     
+    def is_administrator(self) -> bool:
+        """判断是否为管理员"""
+        return self.is_admin
+    
     @classmethod
-    def create(cls, username: str, password: str, nickname: Optional[str] = None, email: Optional[str] = None, phone: Optional[str] = None, avatar: Optional[str] = None) -> "User":
+    def create(cls, username: str, password: str, nickname: Optional[str] = None, email: Optional[str] = None, phone: Optional[str] = None, avatar: Optional[str] = None, is_admin: bool = False) -> "User":
         """创建新用户（密码自动加密）"""
         # 生成UUID
         user_id = str(uuid.uuid4())
@@ -256,6 +261,7 @@ class User(BaseModel):
             phone=phone,
             password_hash=password_hash,
             avatar=avatar,
+            is_admin=is_admin,
             created_at=datetime.now()
         )
 
@@ -268,6 +274,7 @@ class UserInfo(BaseModel):
     email: Optional[str] = Field(None, description="用户邮箱（可选，用于登录）")
     phone: Optional[str] = Field(None, description="用户手机号（可选，用于登录）")
     avatar: Optional[str] = Field(None, description="用户头像URL（可选，默认头像）")
+    is_admin: bool = Field(False, description="是否为管理员")
 
 
 class LoginRequest(BaseModel):
@@ -297,6 +304,7 @@ class CreateUserRequest(BaseModel):
     phone: Optional[str] = Field(None, description="用户手机号（可选，用于登录）", pattern=r'^1[3-9]\d{9}$')
     password: str = Field(..., description="用户密码", min_length=6)
     avatar: Optional[str] = Field(None, description="用户头像URL（可选，默认使用系统默认头像）")
+    is_admin: bool = Field(False, description="是否为管理员（默认为false）")
 
 
 class CreateUserResponse(BaseModel):
@@ -312,6 +320,7 @@ class UserListItem(BaseModel):
     email: Optional[str] = Field(None, description="用户邮箱（可选，用于登录）")
     phone: Optional[str] = Field(None, description="用户手机号（可选，用于登录）")
     avatar: Optional[str] = Field(None, description="用户头像URL")
+    is_admin: bool = Field(False, description="是否为管理员")
     created_at: datetime = Field(..., description="用户创建时间")
 
 
@@ -321,6 +330,31 @@ class UserListResponse(BaseModel):
     total: int = Field(..., description="用户总数")
     page: int = Field(..., description="当前页码")
     page_size: int = Field(..., description="每页数量")
+
+
+class UpdateUserRequest(BaseModel):
+    """更新用户信息请求"""
+    username: Optional[str] = Field(None, description="用户名", min_length=1, max_length=50)
+    nickname: Optional[str] = Field(None, description="用户昵称", max_length=50)
+    email: Optional[str] = Field(None, description="用户邮箱", pattern=r'^[^@]+@[^@]+\.[^@]+$')
+    phone: Optional[str] = Field(None, description="用户手机号", pattern=r'^1[3-9]\d{9}$')
+    is_admin: Optional[bool] = Field(None, description="是否为管理员")
+
+
+class UpdateUserResponse(BaseModel):
+    """更新用户信息响应"""
+    user: UserListItem = Field(..., description="更新后的用户信息")
+
+
+class ResetPasswordRequest(BaseModel):
+    """重置密码请求"""
+    new_password: str = Field(..., description="新密码", min_length=6)
+
+
+class ResetPasswordResponse(BaseModel):
+    """重置密码响应"""
+    message: str = Field(..., description="操作结果消息")
+    new_password: str = Field(..., description="新密码（明文，用于告知用户）")
 
 
 class ConversationListItem(BaseModel):
@@ -513,4 +547,225 @@ class WorkDetail(BaseModel):
     order: int = Field(..., description="排序顺序")
     html_url: str = Field(..., description="HTML文件访问URL")
     created_at: datetime = Field(..., description="创建时间")
+
+
+# ==================== 后台管理 - 工具管理模块 ====================
+
+class AdminCommonToolListItem(BaseModel):
+    """管理后台 - 工具列表项"""
+    id: str = Field(..., description="工具ID")
+    name: str = Field(..., description="工具名称")
+    description: str = Field(..., description="工具描述")
+    category_id: str = Field(..., description="所属分类ID")
+    category_name: str = Field(..., description="所属分类名称")
+    type: str = Field(..., description="工具类型：'built_in' 或 'html'")
+    icon: Optional[str] = Field(None, description="图标标识")
+    html_path: Optional[str] = Field(None, description="HTML文件路径（仅HTML工具）")
+    order: int = Field(..., description="排序顺序")
+    visible: bool = Field(..., description="是否可见")
+    created_at: datetime = Field(..., description="创建时间")
+    updated_at: datetime = Field(..., description="更新时间")
+
+
+class AdminCommonToolListResponse(BaseModel):
+    """管理后台 - 工具列表响应"""
+    tools: List[AdminCommonToolListItem] = Field(..., description="工具列表")
+    total: int = Field(..., description="工具总数")
+    page: int = Field(..., description="当前页码")
+    page_size: int = Field(..., description="每页数量")
+
+
+class CreateBuiltInToolRequest(BaseModel):
+    """创建内置工具请求"""
+    name: str = Field(..., description="工具名称", min_length=1, max_length=100)
+    description: str = Field(..., description="工具描述", min_length=1, max_length=200)
+    category_id: str = Field(..., description="所属分类ID")
+    icon: Optional[str] = Field(None, description="图标标识（heroicons名称）")
+    order: int = Field(0, description="排序顺序（默认0）")
+    visible: bool = Field(True, description="是否可见（默认true）")
+
+
+class UpdateToolRequest(BaseModel):
+    """更新工具请求"""
+    name: Optional[str] = Field(None, description="工具名称", min_length=1, max_length=100)
+    description: Optional[str] = Field(None, description="工具描述", min_length=1, max_length=200)
+    category_id: Optional[str] = Field(None, description="所属分类ID")
+    icon: Optional[str] = Field(None, description="图标标识（heroicons名称）")
+    order: Optional[int] = Field(None, description="排序顺序")
+    visible: Optional[bool] = Field(None, description="是否可见")
+
+
+class CreateToolResponse(BaseModel):
+    """创建工具响应"""
+    tool: AdminCommonToolListItem = Field(..., description="新创建的工具信息")
+
+
+class UpdateToolResponse(BaseModel):
+    """更新工具响应"""
+    tool: AdminCommonToolListItem = Field(..., description="更新后的工具信息")
+
+
+class MoveToolResponse(BaseModel):
+    """移动工具响应"""
+    message: str = Field(..., description="操作结果消息")
+    tool: AdminCommonToolListItem = Field(..., description="移动后的工具信息")
+
+
+class ToggleVisibilityResponse(BaseModel):
+    """切换可见性响应"""
+    message: str = Field(..., description="操作结果消息")
+    tool: AdminCommonToolListItem = Field(..., description="更新后的工具信息")
+
+
+# ==================== 后台管理 - 工具分类管理模块 ====================
+
+class AdminToolCategoryListItem(BaseModel):
+    """管理后台 - 工具分类列表项"""
+    id: str = Field(..., description="分类ID")
+    name: str = Field(..., description="分类名称")
+    icon: Optional[str] = Field(None, description="分类图标")
+    order: int = Field(..., description="排序顺序")
+    tool_count: int = Field(..., description="该分类下的工具数量")
+    created_at: datetime = Field(..., description="创建时间")
+    updated_at: datetime = Field(..., description="更新时间")
+
+
+class AdminToolCategoryListResponse(BaseModel):
+    """管理后台 - 工具分类列表响应"""
+    categories: List[AdminToolCategoryListItem] = Field(..., description="分类列表")
+
+
+class CreateToolCategoryRequest(BaseModel):
+    """创建工具分类请求"""
+    name: str = Field(..., description="分类名称", min_length=1, max_length=50)
+    icon: Optional[str] = Field(None, description="分类图标（heroicons名称）")
+    order: int = Field(0, description="排序顺序（默认0）")
+
+
+class UpdateToolCategoryRequest(BaseModel):
+    """更新工具分类请求"""
+    name: Optional[str] = Field(None, description="分类名称", min_length=1, max_length=50)
+    icon: Optional[str] = Field(None, description="分类图标（heroicons名称）")
+    order: Optional[int] = Field(None, description="排序顺序")
+
+
+class CreateToolCategoryResponse(BaseModel):
+    """创建工具分类响应"""
+    category: AdminToolCategoryListItem = Field(..., description="新创建的分类信息")
+
+
+class UpdateToolCategoryResponse(BaseModel):
+    """更新工具分类响应"""
+    category: AdminToolCategoryListItem = Field(..., description="更新后的分类信息")
+
+
+class MoveCategoryResponse(BaseModel):
+    """移动分类响应"""
+    message: str = Field(..., description="操作结果消息")
+    category: AdminToolCategoryListItem = Field(..., description="移动后的分类信息")
+
+
+# ==================== 后台管理 - 作品管理模块 ====================
+
+class AdminWorkListItem(BaseModel):
+    """管理后台 - 作品列表项"""
+    id: str = Field(..., description="作品ID")
+    name: str = Field(..., description="作品名称")
+    description: str = Field(..., description="作品描述")
+    category_id: str = Field(..., description="所属分类ID")
+    category_name: str = Field(..., description="所属分类名称")
+    icon: Optional[str] = Field(None, description="图标标识")
+    html_path: str = Field(..., description="HTML文件路径")
+    order: int = Field(..., description="排序顺序")
+    visible: bool = Field(..., description="是否可见")
+    created_at: datetime = Field(..., description="创建时间")
+    updated_at: datetime = Field(..., description="更新时间")
+
+
+class AdminWorkListResponse(BaseModel):
+    """管理后台 - 作品列表响应"""
+    works: List[AdminWorkListItem] = Field(..., description="作品列表")
+    total: int = Field(..., description="作品总数")
+    page: int = Field(..., description="当前页码")
+    page_size: int = Field(..., description="每页数量")
+
+
+class UpdateWorkRequest(BaseModel):
+    """更新作品请求"""
+    name: Optional[str] = Field(None, description="作品名称", min_length=1, max_length=100)
+    description: Optional[str] = Field(None, description="作品描述", min_length=1, max_length=200)
+    category_id: Optional[str] = Field(None, description="所属分类ID")
+    icon: Optional[str] = Field(None, description="图标标识（heroicons名称）")
+    order: Optional[int] = Field(None, description="排序顺序")
+    visible: Optional[bool] = Field(None, description="是否可见")
+
+
+class CreateWorkResponse(BaseModel):
+    """创建作品响应"""
+    work: AdminWorkListItem = Field(..., description="新创建的作品信息")
+
+
+class UpdateWorkResponse(BaseModel):
+    """更新作品响应"""
+    work: AdminWorkListItem = Field(..., description="更新后的作品信息")
+
+
+class MoveWorkResponse(BaseModel):
+    """移动作品响应"""
+    message: str = Field(..., description="操作结果消息")
+    work: AdminWorkListItem = Field(..., description="移动后的作品信息")
+
+
+class ToggleWorkVisibilityResponse(BaseModel):
+    """切换作品可见性响应"""
+    message: str = Field(..., description="操作结果消息")
+    work: AdminWorkListItem = Field(..., description="更新后的作品信息")
+
+
+# ==================== 后台管理 - 作品分类管理模块 ====================
+
+class AdminWorkCategoryListItem(BaseModel):
+    """管理后台 - 作品分类列表项"""
+    id: str = Field(..., description="分类ID")
+    name: str = Field(..., description="分类名称")
+    icon: Optional[str] = Field(None, description="分类图标")
+    order: int = Field(..., description="排序顺序")
+    work_count: int = Field(..., description="该分类下的作品数量")
+    created_at: datetime = Field(..., description="创建时间")
+    updated_at: datetime = Field(..., description="更新时间")
+
+
+class AdminWorkCategoryListResponse(BaseModel):
+    """管理后台 - 作品分类列表响应"""
+    categories: List[AdminWorkCategoryListItem] = Field(..., description="分类列表")
+
+
+class CreateWorkCategoryRequest(BaseModel):
+    """创建作品分类请求"""
+    name: str = Field(..., description="分类名称", min_length=1, max_length=50)
+    icon: Optional[str] = Field(None, description="分类图标（heroicons名称）")
+    order: int = Field(0, description="排序顺序（默认0）")
+
+
+class UpdateWorkCategoryRequest(BaseModel):
+    """更新作品分类请求"""
+    name: Optional[str] = Field(None, description="分类名称", min_length=1, max_length=50)
+    icon: Optional[str] = Field(None, description="分类图标（heroicons名称）")
+    order: Optional[int] = Field(None, description="排序顺序")
+
+
+class CreateWorkCategoryResponse(BaseModel):
+    """创建作品分类响应"""
+    category: AdminWorkCategoryListItem = Field(..., description="新创建的分类信息")
+
+
+class UpdateWorkCategoryResponse(BaseModel):
+    """更新作品分类响应"""
+    category: AdminWorkCategoryListItem = Field(..., description="更新后的分类信息")
+
+
+class MoveWorkCategoryResponse(BaseModel):
+    """移动作品分类响应"""
+    message: str = Field(..., description="操作结果消息")
+    category: AdminWorkCategoryListItem = Field(..., description="移动后的分类信息")
 

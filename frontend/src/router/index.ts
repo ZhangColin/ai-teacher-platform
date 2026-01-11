@@ -3,6 +3,13 @@ import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw, NavigationGuardNext, RouteLocationNormalized } from 'vue-router'
 import { useAuthStore } from '../stores/authStore'
 
+// 扩展路由meta类型
+declare module 'vue-router' {
+  interface RouteMeta {
+    requiresAdmin?: boolean
+  }
+}
+
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
@@ -15,9 +22,43 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/LoginPage.vue'),
   },
   {
-    path: '/admin/users',
-    name: 'user-list',
-    component: () => import('../views/UserListPage.vue'),
+    path: '/admin',
+    name: 'admin',
+    component: () => import('../layouts/AdminLayout.vue'),
+    redirect: '/admin/users',
+    meta: { requiresAdmin: true },
+    children: [
+      {
+        path: 'users',
+        name: 'admin-users',
+        component: () => import('../views/admin/AdminUsersPage.vue'),
+        meta: { requiresAdmin: true },
+      },
+      {
+        path: 'tool-categories',
+        name: 'admin-tool-categories',
+        component: () => import('../views/admin/AdminToolCategoriesPage.vue'),
+        meta: { requiresAdmin: true },
+      },
+      {
+        path: 'common-tools',
+        name: 'admin-common-tools',
+        component: () => import('../views/admin/AdminCommonToolsPage.vue'),
+        meta: { requiresAdmin: true },
+      },
+      {
+        path: 'work-categories',
+        name: 'admin-work-categories',
+        component: () => import('../views/admin/AdminWorkCategoriesPage.vue'),
+        meta: { requiresAdmin: true },
+      },
+      {
+        path: 'works',
+        name: 'admin-works',
+        component: () => import('../views/admin/AdminWorksPage.vue'),
+        meta: { requiresAdmin: true },
+      },
+    ],
   },
   {
     path: '/modules/:moduleId',
@@ -117,6 +158,28 @@ router.beforeEach(async (to: RouteLocationNormalized, _from: RouteLocationNormal
       query: { redirect: to.fullPath },
     })
     return
+  }
+
+  // 检查是否需要管理员权限
+  if (to.meta.requiresAdmin) {
+    // 如果用户信息不存在，先获取用户信息
+    if (!authStore.user) {
+      try {
+        await authStore.fetchUserInfo()
+      } catch (error) {
+        // 获取用户信息失败，跳转到登录页
+        next('/login')
+        return
+      }
+    }
+
+    // 检查是否为管理员
+    if (!authStore.user?.is_admin) {
+      // 非管理员，跳转到首页
+      console.warn('Access denied: Admin permission required')
+      next('/modules/ai-tools')
+      return
+    }
   }
 
   // 已登录，直接放行（token验证交给API响应拦截器处理）

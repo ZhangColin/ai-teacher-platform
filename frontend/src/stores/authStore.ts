@@ -127,6 +127,13 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
+   * 获取用户信息（别名，用于路由守卫）
+   */
+  async function fetchUserInfo() {
+    await verifyToken()
+  }
+
+  /**
    * 初始化：从存储中恢复认证状态
    */
   restoreAuth()
@@ -144,6 +151,7 @@ export const useAuthStore = defineStore('auth', () => {
     logout,
     restoreAuth,
     verifyToken,
+    fetchUserInfo,
   }
 })
 
