@@ -16,4 +16,4 @@ env/
 # .cursorrules 已改为项目通用规则，需要提交到版本控制
 
 # Mac 系统文件
-.DS_Store
+.DS_Storebackend_bak/

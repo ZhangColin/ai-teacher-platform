@@ -1,0 +1,62 @@
+# AI 教育平台后端服务 - systemd 服务文件
+# 
+# 安装位置: /etc/systemd/system/studio-backend.service
+# 
+# 安装命令:
+#   sudo cp studio-backend.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable studio-backend
+#   sudo systemctl start studio-backend
+#
+# 查看状态:
+#   sudo systemctl status studio-backend
+#
+# 查看日志:
+#   sudo journalctl -u studio-backend -f
+
+[Unit]
+Description=AI Teacher Platform Backend Service
+Documentation=https://github.com/your-repo/ai-teacher-platform
+After=network.target mysql.service
+Wants=mysql.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/home/studio/backend
+
+# Python 虚拟环境路径
+Environment="PATH=/home/studio/backend/venv/bin:/usr/local/bin:/usr/bin:/bin"
+
+# 从 .env 文件加载环境变量
+EnvironmentFile=/home/studio/.env
+
+# 启动命令
+ExecStart=/home/studio/backend/venv/bin/uvicorn src.main:app --host 127.0.0.1 --port 8000
+
+# 重启策略
+Restart=always
+RestartSec=10
+StartLimitInterval=5min
+StartLimitBurst=3
+
+# 日志配置
+StandardOutput=append:/home/studio/data/logs/backend.log
+StandardError=append:/home/studio/data/logs/backend-error.log
+SyslogIdentifier=studio-backend
+
+# 资源限制（可选）
+# LimitNOFILE=65536
+# LimitNPROC=4096
+
+# 安全选项（可选，根据需要调整）
+# PrivateTmp=yes
+# NoNewPrivileges=yes
+# ProtectSystem=strict
+# ProtectHome=yes
+# ReadWritePaths=/home/studio/data
+
+[Install]
+WantedBy=multi-user.target
+
