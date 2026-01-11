@@ -149,7 +149,12 @@ onMounted(() => {
 }
 
 .spinner {
-  @apply w-12 h-12 border-4 border-gray-200 border-t-blue-600 rounded-full animate-spin;
+  @apply w-12 h-12 border-4 border-gray-200 border-t-blue-500 rounded-full;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .loading-text {
@@ -174,23 +179,26 @@ onMounted(() => {
 }
 
 .retry-button {
-  @apply mt-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors;
+  @apply px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors;
 }
 
-/* 工具容器 - 充分利用宽度 */
+/* 工具容器 */
 .tools-container {
-  @apply px-8 py-6;
-  max-width: 100%;
-  margin: 0 auto;
+  @apply p-6 md:p-8 max-w-7xl mx-auto;
 }
 
 /* 分类区域 */
 .category-section {
-  @apply mb-10;
+  @apply mb-12;
 }
 
+.category-section:last-child {
+  @apply mb-0;
+}
+
+/* 分类标题 */
 .category-header {
-  @apply flex items-center gap-3 mb-4 pb-3 border-b border-gray-200;
+  @apply flex items-center gap-3 mb-6;
 }
 
 .category-icon-bg {
@@ -198,22 +206,28 @@ onMounted(() => {
 }
 
 .category-name {
-  @apply text-lg font-semibold text-gray-900 flex-1;
+  @apply text-xl font-semibold text-gray-900;
+  letter-spacing: -0.5px;
 }
 
 .category-count {
-  @apply px-2.5 py-1 bg-blue-50 text-blue-600 text-sm font-medium rounded-full;
+  @apply text-sm text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full;
 }
 
-/* 工具网格 - 响应式列数 */
+/* 工具网格 */
 .tools-grid {
-  @apply grid gap-4;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4;
 }
 
 /* 工具卡片 */
 .tool-card {
-  @apply relative bg-white rounded-lg p-5 shadow-sm hover:shadow-md transition-all cursor-pointer border border-gray-200 hover:border-blue-400 hover:bg-blue-50/30;
+  @apply bg-white rounded-xl p-5 cursor-pointer transition-all duration-200 border border-gray-100;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+}
+
+.tool-card:hover {
+  @apply border-blue-200 shadow-md;
+  transform: translateY(-2px);
 }
 
 /* 卡片头部：图标+标题横向排列 */
@@ -222,19 +236,17 @@ onMounted(() => {
 }
 
 .tool-icon-wrapper {
-  @apply flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center text-blue-600 transition-all;
-}
-
-.tool-card:hover .tool-icon-wrapper {
-  @apply from-blue-100 to-blue-200;
+  @apply w-10 h-10 rounded-lg bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center text-gray-600 flex-shrink-0;
+  border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .tool-name {
-  @apply text-base font-semibold text-gray-900;
+  @apply text-base font-semibold text-gray-900 leading-tight;
+  letter-spacing: -0.3px;
 }
 
 .tool-description {
-  @apply text-sm text-gray-600 line-clamp-2;
+  @apply text-sm text-gray-600 leading-relaxed line-clamp-2;
 }
 
 /* 空状态 */
@@ -242,61 +254,49 @@ onMounted(() => {
   @apply flex flex-col items-center justify-center py-16 gap-4;
 }
 
-.empty-icon {
-  @apply text-gray-400;
-}
-
 .empty-title {
   @apply text-xl font-semibold text-gray-900;
 }
 
 .empty-description {
-  @apply text-gray-600;
+  @apply text-gray-600 text-center;
 }
 
-/* 平板端响应式（768px - 1023px） */
+/* 响应式 - 平板 */
 @media (min-width: 768px) and (max-width: 1023px) {
   .tools-container {
-    @apply px-6;
+    @apply p-6;
   }
-  
+
   .tools-grid {
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  }
-  
-  .tool-card {
-    @apply p-4;
+    @apply grid-cols-2;
   }
 }
 
-/* 移动端响应式（<768px） */
+/* 响应式 - 移动端 */
 @media (max-width: 767px) {
   .tools-container {
-    @apply px-4 py-4;
-  }
-
-  .tools-grid {
-    grid-template-columns: 1fr;
+    @apply p-4;
   }
 
   .category-section {
-    @apply mb-6;
+    @apply mb-8;
   }
-  
+
+  .category-header {
+    @apply mb-4;
+  }
+
+  .category-name {
+    @apply text-lg;
+  }
+
+  .tools-grid {
+    @apply grid-cols-1 gap-3;
+  }
+
   .tool-card {
     @apply p-4;
-  }
-  
-  .tool-icon-wrapper {
-    @apply w-10 h-10;
-  }
-  
-  .tool-name {
-    @apply text-sm;
-  }
-  
-  .tool-description {
-    @apply text-sm;
   }
 }
 </style>
