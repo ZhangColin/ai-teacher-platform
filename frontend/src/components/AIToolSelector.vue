@@ -128,10 +128,12 @@ async function loadTools() {
     categories.value = response.categories
     
     // 如果有工具，默认选中第一个（包括占位工具）
-    if (categories.value.length > 0 && categories.value[0].tools.length > 0) {
+    if (categories.value.length > 0 && categories.value[0]?.tools && categories.value[0].tools.length > 0) {
       const firstTool = categories.value[0].tools[0]
-      activeToolId.value = firstTool.tool_id
-      emit('tool-change', firstTool)
+      if (firstTool) {
+        activeToolId.value = firstTool.tool_id
+        emit('tool-change', firstTool)
+      }
     }
   } catch (err) {
     error.value = err instanceof Error ? err.message : '加载工具列表失败'

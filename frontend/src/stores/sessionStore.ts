@@ -146,7 +146,7 @@ export const useSessionStore = defineStore('session', () => {
       messages.value = response.messages.map(msg => ({
         role: msg.role,
         content: msg.content,
-        timestamp: msg.timestamp || msg.created_at,
+        timestamp: msg.timestamp || (msg as any).created_at,
         artifacts: msg.artifacts || [],
       }))
     } catch (err) {

@@ -30,7 +30,7 @@ export const useNavigationStore = defineStore('navigation', () => {
     if (module.type === 'toolset' && module.config_source) {
       // 从 config_source 提取最后一部分作为 ID（如 "tools/ai_tools" -> "ai-tools"）
       const parts = module.config_source.split('/')
-      return parts[parts.length - 1].replace(/_/g, '-')
+      return parts[parts.length - 1]?.replace(/_/g, '-') || ''
     } else if (module.type === 'page' && module.page_path) {
       // 从 page_path 提取（如 "/common-tools" -> "common-tools"）
       return module.page_path.replace(/^\//, '')
@@ -82,7 +82,7 @@ export const useNavigationStore = defineStore('navigation', () => {
     if (module.type === 'toolset' && module.config_source) {
       // 从 config_source 提取最后一部分（如 "tools/ai_tools" -> "ai_tools"）
       const parts = module.config_source.split('/')
-      return parts[parts.length - 1]
+      return parts[parts.length - 1] || null
     }
     return null
   }

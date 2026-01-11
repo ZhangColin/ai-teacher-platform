@@ -178,7 +178,7 @@ function handleDownloadMarkdown() {
   
   // 生成文件名：优先使用时间戳（因为当前没有会话标题信息）
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')
-  const filename = `markdown_${timestamp[0]}_${timestamp[1].split('-').slice(0, 3).join('')}.md`
+  const filename = `markdown_${timestamp[0]}_${timestamp[1]?.split('-').slice(0, 3).join('') || 'unknown'}.md`
   
   // 创建 Blob 对象（UTF-8 编码，支持中文）
   const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' })
@@ -216,7 +216,7 @@ async function handleDownloadWord() {
     
     // 生成文件名（不含扩展名）
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')
-    const filename = `markdown_${timestamp[0]}_${timestamp[1].split('-').slice(0, 3).join('')}`
+    const filename = `markdown_${timestamp[0]}_${timestamp[1]?.split('-').slice(0, 3).join('') || 'unknown'}`
 
     // 调用后端 API
     const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token')
@@ -252,7 +252,7 @@ async function handleDownloadWord() {
     let downloadFilename = `${filename}.docx`
     if (contentDisposition) {
       const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/)
-      if (filenameMatch) {
+      if (filenameMatch && filenameMatch[1]) {
         downloadFilename = filenameMatch[1]
       }
     }
@@ -307,13 +307,13 @@ async function handleDownloadPDF() {
 
     // 生成文件名
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')
-    const filename = `markdown_${timestamp[0]}_${timestamp[1].split('-').slice(0, 3).join('')}.pdf`
+    const filename = `markdown_${timestamp[0]}_${timestamp[1]?.split('-').slice(0, 3).join('') || 'unknown'}.pdf`
 
     // 配置 html2pdf 选项
     const opt = {
-      margin: [10, 10, 10, 10], // [top, left, bottom, right] in mm
+      margin: [10, 10, 10, 10] as [number, number, number, number], // [top, left, bottom, right] in mm
       filename: filename,
-      image: { type: 'jpeg', quality: 0.98 },
+      image: { type: 'jpeg' as const, quality: 0.98 },
       html2canvas: { 
         scale: 3, // 提高到3倍，改善渲染质量
         useCORS: true,
@@ -329,14 +329,14 @@ async function handleDownloadPDF() {
           if (clonedElement) {
             // 确保所有元素使用与预览相同的渲染方式
             clonedElement.style.transform = 'translateZ(0)' // 强制硬件加速
-            clonedElement.style.webkitFontSmoothing = 'antialiased'
+            ;(clonedElement.style as any).webkitFontSmoothing = 'antialiased'
           }
         }
       },
       jsPDF: { 
         unit: 'mm', 
         format: 'a4', 
-        orientation: 'portrait',
+        orientation: 'portrait' as const,
         compress: true
       },
       pagebreak: { 
@@ -359,7 +359,7 @@ async function handleDownloadPDF() {
  * 下载 SVG 文件
  */
 function handleDownloadSVG() {
-  if (!isSvgArtifact(props.artifact)) {
+  if (!props.artifact || !isSvgArtifact(props.artifact)) {
     return
   }
 
@@ -367,7 +367,7 @@ function handleDownloadSVG() {
   
   // 生成文件名
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')
-  const filename = `svg_${timestamp[0]}_${timestamp[1].split('-').slice(0, 3).join('')}.svg`
+  const filename = `svg_${timestamp[0]}_${timestamp[1]?.split('-').slice(0, 3).join('') || 'unknown'}.svg`
   
   // 创建 Blob 对象（UTF-8 编码）
   const blob = new Blob([content], { type: 'image/svg+xml;charset=utf-8' })
@@ -397,7 +397,7 @@ function handleDownloadHTML() {
   
   // 生成文件名
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')
-  const filename = `html_${timestamp[0]}_${timestamp[1].split('-').slice(0, 3).join('')}.html`
+  const filename = `html_${timestamp[0]}_${timestamp[1]?.split('-').slice(0, 3).join('') || 'unknown'}.html`
   
   // 创建 Blob 对象（UTF-8 编码）
   const blob = new Blob([content], { type: 'text/html;charset=utf-8' })
@@ -542,8 +542,10 @@ ${content}
 
 /**
  * 清理 HTML 内容（保留用于下载等功能）
+ * 注意：虽然当前未直接使用，但保留用于下载功能
  */
-const sanitizedHtmlContent = computed(() => {
+// @ts-expect-error - Reserved for future download functionality
+const _sanitizedHtmlContent = computed(() => {
   if (props.artifact?.type === 'html') {
     try {
       let content = props.artifact.content.trim()
@@ -576,8 +578,10 @@ ${content}
 /**
  * 清理和处理 SVG 内容
  * 确保 SVG 安全渲染
+ * 注意：虽然当前未直接使用，但保留用于未来功能
  */
-const sanitizedSvgContent = computed(() => {
+// @ts-expect-error - Reserved for future functionality
+const _sanitizedSvgContent = computed(() => {
   if (isSvgArtifact(props.artifact) && props.artifact) {
     try {
       previewError.value = null
@@ -604,7 +608,7 @@ const sanitizedSvgContent = computed(() => {
       
       // 如果内容被包裹在 <pre><code> 中，提取 SVG 内容
       const preCodeMatch = content.match(/<pre[^>]*><code[^>]*>([\s\S]*?)<\/code><\/pre>/i)
-      if (preCodeMatch) {
+      if (preCodeMatch && preCodeMatch[1]) {
         console.log('检测到 <pre><code> 包裹，提取内容...')
         content = preCodeMatch[1]
         // 再次反转义（因为 code 标签中的内容会被转义）
@@ -746,7 +750,7 @@ watch(
           
           // 如果内容被包裹在 <pre><code> 中，提取 SVG 内容
           const preCodeMatch = content.match(/<pre[^>]*><code[^>]*>([\s\S]*?)<\/code><\/pre>/i)
-          if (preCodeMatch) {
+          if (preCodeMatch && preCodeMatch[1]) {
             console.log('检测到 <pre><code> 包裹，提取内容...')
             content = preCodeMatch[1]
             const tempDiv = document.createElement('div')

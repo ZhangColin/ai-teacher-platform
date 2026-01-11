@@ -43,7 +43,7 @@
         <div class="form-group">
           <label class="checkbox-label">
             <input
-              v-model="formData.rememberMe"
+              v-model="formData.remember_me"
               type="checkbox"
               class="checkbox-input"
             />
@@ -71,7 +71,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import type { LoginRequest } from '@/types'
@@ -135,14 +135,14 @@ function validatePassword() {
   return true
 }
 
-// 表单是否有效
-const isFormValid = computed(() => {
-  return (
-    formData.value.account.trim() !== '' &&
-    formData.value.password.length >= 6 &&
-    Object.keys(errors.value).length === 0
-  )
-})
+// 表单是否有效（虽然当前未使用，但保留用于未来功能）
+// const isFormValid = computed(() => {
+//   return (
+//     formData.value.account.trim() !== '' &&
+//     formData.value.password.length >= 6 &&
+//     Object.keys(errors.value).length === 0
+//   )
+// })
 
 // 提交登录
 async function handleSubmit() {

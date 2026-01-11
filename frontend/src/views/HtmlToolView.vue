@@ -92,7 +92,7 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 const toolDetail = ref<CommonToolDetail | null>(null)
 const isFullscreen = ref(false)
-const iframeRef = ref<HTMLIFrameElement | null>(null)
+// const iframeRef = ref<HTMLIFrameElement | null>(null) // 未使用，但保留用于未来功能
 
 /**
  * 加载工具详情

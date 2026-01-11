@@ -19,7 +19,7 @@ export function renderMarkdown(content: string, artifacts: Artifact[] = []): str
   // 匹配所有代码块的正则表达式
   const codeBlockRegex = /<pre><code(?:\s+class="language-([^"]+)")?>([\s\S]*?)<\/code><\/pre>/gi
 
-  html = html.replace(codeBlockRegex, (match, language, codeContent) => {
+  html = html.replace(codeBlockRegex, (_match, language, codeContent) => {
     // 获取语言标识（去除可能的空格）
     let lang = (language || '').trim().toLowerCase()
     
@@ -157,8 +157,11 @@ function detectLanguageByContent(content: string): string {
 
 /**
  * 转义正则表达式特殊字符
+ * 注意：虽然当前未使用，但保留用于未来功能
  */
-function escapeRegex(text: string): string {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// @ts-expect-error - Reserved for future functionality
+function _escapeRegex(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 

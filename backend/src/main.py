@@ -64,7 +64,8 @@ from src.models import (
 app = FastAPI(title="AI Teacher Platform Backend")
 
 # 挂载静态文件目录
-static_dir = project_root / "backend" / "static"
+# 优先使用环境变量指定的目录，否则使用默认目录
+static_dir = Path(os.getenv("STATIC_DIR", str(project_root / "backend" / "static")))
 if static_dir.exists():
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 else:

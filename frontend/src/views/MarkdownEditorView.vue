@@ -206,7 +206,7 @@ const handleResize = (e: MouseEvent | TouchEvent) => {
   if (!container) return
   
   const containerRect = container.getBoundingClientRect()
-  const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
+  const clientX = 'touches' in e ? (e.touches[0]?.clientX ?? 0) : e.clientX
   
   // 计算新宽度（百分比）
   const newWidth = ((clientX - containerRect.left) / containerRect.width) * 100

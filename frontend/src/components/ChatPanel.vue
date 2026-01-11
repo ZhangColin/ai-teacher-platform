@@ -205,7 +205,7 @@ async function handleRetry() {
     // 移除错误状态和最后一条 AI 消息（如果有）
     sessionStore.error = null
     const lastIndex = sessionStore.messages.length - 1
-    if (lastIndex >= 0 && sessionStore.messages[lastIndex].role === 'assistant') {
+    if (lastIndex >= 0 && sessionStore.messages[lastIndex]?.role === 'assistant') {
       sessionStore.messages.pop()
     }
     

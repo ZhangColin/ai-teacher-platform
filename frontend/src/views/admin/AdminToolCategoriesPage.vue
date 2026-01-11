@@ -166,7 +166,7 @@ async function handleSubmit() {
 
     // 如果没有选择图标，自动推荐一个
     if (!form.icon || form.icon.trim() === '') {
-      form.icon = recommendIcon(form.name, '', 'folder')
+      form.icon = recommendIcon(form.name || '', '', 'folder')
     }
 
     submitting.value = true

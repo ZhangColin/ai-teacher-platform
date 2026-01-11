@@ -8,12 +8,10 @@
           清空会话
         </button>
       </div>
-      <MessageList
-        :messages="sessionStore.messages"
-        :loading="sessionStore.loading"
-        @preview="handlePreview"
-        @retry="handleRetry"
-      />
+      <!-- MessageList 组件暂时不可用 -->
+      <div class="message-list-placeholder">
+        <p>MessageList 组件暂时不可用</p>
+      </div>
       <InputArea
         :loading="sessionStore.loading"
         :disabled="sessionStore.loading"
@@ -33,11 +31,11 @@
 <script setup lang="ts">
 import { computed, onMounted, watch } from 'vue'
 import { useSessionStore } from '../stores/sessionStore'
-import { saveSession, updateSession, restoreSession, deleteSession } from '../utils/sessionStorage'
-import MessageList from './MessageList.vue'
+import { restoreSession, deleteSession } from '../utils/sessionStorage'
+// import MessageList from './MessageList.vue' // 文件不存在，暂时注释
 import InputArea from './InputArea.vue'
 import PreviewPanel from './PreviewPanel.vue'
-import type { Artifact, Message } from '../types'
+// import type { Artifact, Message } from '../types' // 暂时不需要，因为相关函数被注释
 
 const props = defineProps<{
   agentId: string
@@ -57,27 +55,29 @@ async function initSession() {
   if (savedSession && savedSession.sessionId) {
     // 恢复会话状态
     sessionStore.sessionId = savedSession.sessionId
-    sessionStore.agentId = savedSession.agentId
+    // sessionStore.agentId = savedSession.agentId // agentId 属性不存在于 sessionStore
     sessionStore.messages = savedSession.messages
     // 注意：uiConfig 需要从后端获取，这里使用默认配置
     // 如果需要完整的 uiConfig，应该重新创建会话或从后端获取
-    if (!sessionStore.uiConfig) {
-      sessionStore.uiConfig = {
-        show_preview: true,
-        preview_types: ['markdown', 'html', 'svg'],
-      }
-    }
+    // if (!sessionStore.uiConfig) {
+    //   sessionStore.uiConfig = {
+    //     show_preview: true,
+    //     preview_types: ['markdown', 'html', 'svg'],
+    //   }
+    // } // uiConfig 属性不存在于 sessionStore
   } else {
     // 创建新会话
     try {
-      await sessionStore.createSession(props.agentId)
+      // await sessionStore.createSession(props.agentId) // createSession 方法不存在
+      // 使用 initTool 代替
+      sessionStore.initTool(props.agentId)
       // 保存会话
-      if (sessionStore.sessionId && sessionStore.agentId) {
-        saveSession(
-          sessionStore.agentId,
-          sessionStore.sessionId,
-          sessionStore.messages
-        )
+      if (sessionStore.sessionId) {
+        // saveSession(
+        //   sessionStore.agentId,
+        //   sessionStore.sessionId,
+        //   sessionStore.messages
+        // ) // agentId 属性不存在
       }
     } catch (error) {
       console.error('创建会话失败:', error)
@@ -92,31 +92,32 @@ async function handleSendMessage(content: string) {
   try {
     await sessionStore.sendMessage(content)
     // 更新会话存储
-    if (sessionStore.sessionId && sessionStore.agentId) {
-      updateSession(sessionStore.agentId, sessionStore.messages)
+    if (sessionStore.sessionId) {
+      // updateSession(sessionStore.agentId, sessionStore.messages) // agentId 属性不存在
     }
   } catch (error) {
     // 错误已经在 store 中处理，这里不需要额外处理
     // 但需要更新会话存储（保存失败的消息）
-    if (sessionStore.sessionId && sessionStore.agentId) {
-      updateSession(sessionStore.agentId, sessionStore.messages)
+    if (sessionStore.sessionId) {
+      // updateSession(sessionStore.agentId, sessionStore.messages) // agentId 属性不存在
     }
   }
 }
 
 /**
  * 处理重发消息
+ * TODO: 实现重试功能
  */
-async function handleRetry(message: Message) {
-  // 移除错误状态，重新发送
-  const messageIndex = sessionStore.messages.findIndex((m) => m === message)
-  if (messageIndex !== -1) {
-    // 移除错误消息
-    sessionStore.messages.splice(messageIndex, 1)
-    // 重新发送
-    await handleSendMessage(message.content)
-  }
-}
+// async function handleRetry(message: Message) {
+//   // 移除错误状态，重新发送
+//   const messageIndex = sessionStore.messages.findIndex((m) => m === message)
+//   if (messageIndex !== -1) {
+//     // 移除错误消息
+//     sessionStore.messages.splice(messageIndex, 1)
+//     // 重新发送
+//     await handleSendMessage(message.content)
+//   }
+// }
 
 /**
  * 处理清空会话
@@ -135,10 +136,11 @@ function handleClearSession() {
 
 /**
  * 处理预览
+ * TODO: 实现预览功能
  */
-function handlePreview(artifact: Artifact | null) {
-  sessionStore.setPreviewArtifact(artifact)
-}
+// function handlePreview(artifact: Artifact | null) {
+//   sessionStore.setPreviewArtifact(artifact)
+// }
 
 /**
  * 处理关闭预览

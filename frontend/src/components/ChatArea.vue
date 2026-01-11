@@ -15,7 +15,7 @@
     <ChatPanel 
       :tool-id="toolId"
       :welcome-message="welcomeMessage"
-      :session-id="currentSessionId"
+      :session-id="currentSessionId ?? undefined"
       :conversation-collapsed="conversationListCollapsed"
       class="chat-panel"
       :style="showPreview ? { width: chatPanelWidth + 'px' } : {}"
@@ -66,9 +66,9 @@ const chatPanelWidth = ref<number>(0)
 const isResizing = ref(false)
 const containerWidth = ref<number>(0)
 
-function toggleConversationList() {
-  conversationListCollapsed.value = !conversationListCollapsed.value
-}
+// function toggleConversationList() {
+//   conversationListCollapsed.value = !conversationListCollapsed.value
+// }
 
 // 监听工具切换，清空当前会话
 watch(() => props.toolId, (newToolId) => {
@@ -93,7 +93,7 @@ function handleNewConversation() {
   sessionStore.clearSession()
 }
 
-function handleSendMessage(content: string) {
+function handleSendMessage(_content: string) {
   // 消息发送由 ChatPanel 通过 sessionStore 处理
   // 这里可以添加额外的处理逻辑
 }
