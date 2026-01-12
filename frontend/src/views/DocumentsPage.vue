@@ -160,7 +160,6 @@ import {
 import { useCoursesStore } from '../stores/coursesStore'
 import CategoryTreeNode from '../components/CategoryTreeNode.vue'
 import { renderMarkdown } from '../utils/markdownRenderer'
-import { ApiService } from '../services/apiClient'
 import html2pdf from 'html2pdf.js'
 
 const coursesStore = useCoursesStore()
@@ -301,12 +300,12 @@ const handleDownloadPDF = async () => {
     const opt = {
       margin: 10,
       filename: `${currentDocument.value.title}.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
+      image: { type: 'jpeg' as const, quality: 0.98 },
       html2canvas: { scale: 2 },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
     }
     
-    await html2pdf().set(opt).from(element).save()
+    await html2pdf().set(opt).from(element as HTMLElement).save()
   } catch (error) {
     console.error('PDF生成失败:', error)
     alert('PDF生成失败，请稍后重试')

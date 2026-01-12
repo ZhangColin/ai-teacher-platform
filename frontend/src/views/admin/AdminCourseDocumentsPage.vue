@@ -240,7 +240,7 @@ const rules: FormRules = {
   order: [{ required: true, message: '请输入排序', trigger: 'blur' }],
   markdown_file: [
     {
-      validator: (rule, value, callback) => {
+      validator: (_rule, _value, callback) => {
         if (!selectedFile.value) {
           callback(new Error('请选择Markdown文件'))
         } else {

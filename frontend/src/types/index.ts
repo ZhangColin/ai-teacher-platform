@@ -692,6 +692,7 @@ export interface CreateCourseCategoryRequest {
 export interface UpdateCourseCategoryRequest {
   name?: string // 目录名称
   parent_id?: string | null // 父目录ID
+  order?: number // 排序顺序
 }
 
 // ==================== 后台管理 - 课程文档管理模块 ====================
