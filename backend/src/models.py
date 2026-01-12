@@ -769,3 +769,147 @@ class MoveWorkCategoryResponse(BaseModel):
     message: str = Field(..., description="操作结果消息")
     category: AdminWorkCategoryListItem = Field(..., description="移动后的分类信息")
 
+
+# ==================== 课程文档模块 - 前台接口 ====================
+
+class CourseCategoryNode(BaseModel):
+    """目录节点（递归结构）"""
+    id: str = Field(..., description="目录ID")
+    name: str = Field(..., description="目录名称")
+    parent_id: Optional[str] = Field(None, description="父目录ID")
+    order: int = Field(..., description="排序顺序")
+    children: List["CourseCategoryNode"] = Field(default_factory=list, description="子目录列表")
+
+
+class CourseCategoryTreeResponse(BaseModel):
+    """目录树响应"""
+    categories: List[CourseCategoryNode] = Field(..., description="目录树")
+
+
+class CourseDocumentListItem(BaseModel):
+    """文档列表项"""
+    id: str = Field(..., description="文档ID")
+    title: str = Field(..., description="文档标题")
+    summary: str = Field(..., description="文档摘要")
+    order: int = Field(..., description="排序顺序")
+
+
+class CourseDocumentListResponse(BaseModel):
+    """文档列表响应"""
+    documents: List[CourseDocumentListItem] = Field(..., description="文档列表")
+
+
+class CourseDocumentDetail(BaseModel):
+    """文档详情"""
+    id: str = Field(..., description="文档ID")
+    title: str = Field(..., description="文档标题")
+    summary: str = Field(..., description="文档摘要")
+    content: str = Field(..., description="Markdown内容")
+    category_id: str = Field(..., description="所属目录ID")
+    order: int = Field(..., description="排序顺序")
+    prev_doc_id: Optional[str] = Field(None, description="上一篇文档ID（同一目录下）")
+    next_doc_id: Optional[str] = Field(None, description="下一篇文档ID（同一目录下）")
+    created_at: datetime = Field(..., description="创建时间")
+
+
+# ==================== 后台管理 - 文档目录管理模块 ====================
+
+class AdminCourseCategoryListItem(BaseModel):
+    """管理后台 - 目录列表项"""
+    id: str = Field(..., description="目录ID")
+    name: str = Field(..., description="目录名称")
+    parent_id: Optional[str] = Field(None, description="父目录ID")
+    parent_name: Optional[str] = Field(None, description="父目录名称")
+    order: int = Field(..., description="排序顺序")
+    document_count: int = Field(..., description="该目录下的文档数量（不包括子目录）")
+    children_count: int = Field(..., description="子目录数量")
+    created_at: datetime = Field(..., description="创建时间")
+    updated_at: datetime = Field(..., description="更新时间")
+
+
+class AdminCourseCategoryListResponse(BaseModel):
+    """管理后台 - 目录列表响应"""
+    categories: List[AdminCourseCategoryListItem] = Field(..., description="目录列表")
+
+
+class CreateCourseCategoryRequest(BaseModel):
+    """创建目录请求"""
+    name: str = Field(..., description="目录名称", min_length=1, max_length=100)
+    parent_id: Optional[str] = Field(None, description="父目录ID（NULL表示根目录）")
+    order: int = Field(0, description="排序顺序（默认0）")
+
+
+class UpdateCourseCategoryRequest(BaseModel):
+    """更新目录请求"""
+    name: Optional[str] = Field(None, description="目录名称", min_length=1, max_length=100)
+    parent_id: Optional[str] = Field(None, description="父目录ID（可以移动到其他目录下）")
+
+
+class CreateCourseCategoryResponse(BaseModel):
+    """创建目录响应"""
+    category: AdminCourseCategoryListItem = Field(..., description="新创建的目录信息")
+
+
+class UpdateCourseCategoryResponse(BaseModel):
+    """更新目录响应"""
+    category: AdminCourseCategoryListItem = Field(..., description="更新后的目录信息")
+
+
+class MoveCourseCategoryResponse(BaseModel):
+    """移动目录响应"""
+    message: str = Field(..., description="操作结果消息")
+    category: AdminCourseCategoryListItem = Field(..., description="移动后的目录信息")
+
+
+# ==================== 后台管理 - 文档管理模块 ====================
+
+class AdminCourseDocumentListItem(BaseModel):
+    """管理后台 - 文档列表项"""
+    id: str = Field(..., description="文档ID")
+    title: str = Field(..., description="文档标题")
+    summary: str = Field(..., description="文档摘要")
+    category_id: str = Field(..., description="所属目录ID")
+    category_name: str = Field(..., description="所属目录名称")
+    order: int = Field(..., description="排序顺序")
+    created_at: datetime = Field(..., description="创建时间")
+    updated_at: datetime = Field(..., description="更新时间")
+
+
+class AdminCourseDocumentListResponse(BaseModel):
+    """管理后台 - 文档列表响应"""
+    documents: List[AdminCourseDocumentListItem] = Field(..., description="文档列表")
+    total: int = Field(..., description="文档总数")
+    page: int = Field(..., description="当前页码")
+    page_size: int = Field(..., description="每页数量")
+
+
+class CreateCourseDocumentRequest(BaseModel):
+    """创建文档请求"""
+    title: str = Field(..., description="文档标题", min_length=1, max_length=200)
+    summary: str = Field(..., description="文档摘要", min_length=1, max_length=500)
+    category_id: str = Field(..., description="所属目录ID")
+    order: int = Field(0, description="排序顺序（默认0）")
+
+
+class UpdateCourseDocumentRequest(BaseModel):
+    """更新文档信息请求"""
+    title: Optional[str] = Field(None, description="文档标题", min_length=1, max_length=200)
+    summary: Optional[str] = Field(None, description="文档摘要", min_length=1, max_length=500)
+    category_id: Optional[str] = Field(None, description="所属目录ID（可以移动到其他目录）")
+
+
+class CreateCourseDocumentResponse(BaseModel):
+    """创建文档响应"""
+    document: AdminCourseDocumentListItem = Field(..., description="新创建的文档信息")
+
+
+class UpdateCourseDocumentResponse(BaseModel):
+    """更新文档响应"""
+    document: AdminCourseDocumentListItem = Field(..., description="更新后的文档信息")
+
+
+class MoveCourseDocumentResponse(BaseModel):
+    """移动文档响应"""
+    message: str = Field(..., description="操作结果消息")
+    document: AdminCourseDocumentListItem = Field(..., description="移动后的文档信息")
+

@@ -29,3 +29,10 @@ modules:
     page_path: "/works"
     icon: "photo"
     order: 4
+
+  # AI素养课模块（独立页面类型）
+  - name: "AI素养课"
+    type: "page"
+    page_path: "/documents"
+    icon: "document-text"
+    order: 5

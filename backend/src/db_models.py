@@ -167,3 +167,47 @@ class WorkModel(Base):
         Index("idx_work_category_order", "category_id", "order"),
     )
 
+
+class CourseCategoryModel(Base):
+    """文档目录数据库模型（SQLAlchemy ORM）"""
+    __tablename__ = "course_categories"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(100), nullable=False)
+    parent_id = Column(String(36), ForeignKey("course_categories.id", ondelete="RESTRICT"), nullable=True, index=True)
+    order = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
+    updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
+    
+    # 关系
+    children = relationship("CourseCategoryModel", back_populates="parent", remote_side="CourseCategoryModel.id")
+    parent = relationship("CourseCategoryModel", back_populates="children", remote_side="CourseCategoryModel.parent_id")
+    documents = relationship("CourseDocumentModel", back_populates="category", cascade="all, delete-orphan")
+    
+    # 联合索引（按父目录和排序查询）
+    __table_args__ = (
+        Index("idx_course_category_parent_order", "parent_id", "order"),
+    )
+
+
+class CourseDocumentModel(Base):
+    """文档数据库模型（SQLAlchemy ORM）"""
+    __tablename__ = "course_documents"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    title = Column(String(200), nullable=False)
+    summary = Column(String(500), nullable=False)
+    file_path = Column(String(255), nullable=False)
+    category_id = Column(String(36), ForeignKey("course_categories.id", ondelete="RESTRICT"), nullable=False, index=True)
+    order = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
+    updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
+    
+    # 关系
+    category = relationship("CourseCategoryModel", back_populates="documents")
+    
+    # 联合索引（按分类和排序查询）
+    __table_args__ = (
+        Index("idx_course_document_category_order", "category_id", "order"),
+    )
+

@@ -49,6 +49,14 @@ import type {
   UpdateWorkCategoryRequest,
   WorkCategoryMutationResponse,
   MoveWorkCategoryResponse,
+  CourseCategoryTreeResponse,
+  CourseDocumentListResponse,
+  CourseDocumentDetail,
+  AdminCourseCategoryListResponse,
+  CreateCourseCategoryRequest,
+  UpdateCourseCategoryRequest,
+  AdminCourseDocumentListResponse,
+  UpdateCourseDocumentRequest,
 } from '../types'
 import type { NavigationResponse } from '../types/navigation'
 
@@ -106,25 +114,37 @@ apiClient.interceptors.response.use(
     // 统一错误处理
     if (error.response) {
       const status = error.response.status
+      const errorData = error.response.data
       
-      // 401 未授权：Token过期或无效，清除本地认证信息并跳转到登录页
+      // 401 未授权：需要区分登录接口和其他接口
       if (status === 401) {
-        // 清除本地token
-        localStorage.removeItem('auth_token')
-        localStorage.removeItem('auth_user')
-        sessionStorage.removeItem('auth_token')
-        sessionStorage.removeItem('auth_user')
+        // 检查是否是登录接口
+        const isLoginRequest = error.config?.url?.includes('/auth/login')
         
-        // 如果不在登录页，跳转到登录页
-        if (window.location.pathname !== '/login') {
-          window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`
+        if (isLoginRequest) {
+          // 登录接口的 401 错误：用户名或密码错误，显示后端返回的具体错误
+          const errorMessage = 
+            (errorData as { detail?: string })?.detail ||
+            (errorData as ApiErrorResponse)?.error_message ||
+            '账号或密码错误'
+          return Promise.reject(new Error(errorMessage))
+        } else {
+          // 其他接口的 401 错误：Token过期或无效，清除本地认证信息并跳转到登录页
+          localStorage.removeItem('auth_token')
+          localStorage.removeItem('auth_user')
+          sessionStorage.removeItem('auth_token')
+          sessionStorage.removeItem('auth_user')
+          
+          // 如果不在登录页，跳转到登录页
+          if (window.location.pathname !== '/login') {
+            window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`
+          }
+          
+          return Promise.reject(new Error('登录已过期，请重新登录'))
         }
-        
-        return Promise.reject(new Error('登录已过期，请重新登录'))
       }
       
       // 其他错误
-      const errorData = error.response.data
       // FastAPI默认错误格式是 { detail: string }，也支持自定义格式 { error_message: string }
       const errorMessage = 
         (errorData as { detail?: string })?.detail ||
@@ -768,6 +788,164 @@ export class ApiService {
    */
   static async moveWorkCategoryDown(categoryId: string): Promise<MoveWorkCategoryResponse> {
     const response = await apiClient.post<MoveWorkCategoryResponse>(`/admin/work-categories/${categoryId}/move-down`)
+    return response.data
+  }
+
+  // ==================== 课程文档模块 ====================
+
+  /**
+   * 获取课程目录树
+   */
+  static async getCourseCategories(): Promise<CourseCategoryTreeResponse> {
+    const response = await apiClient.get<CourseCategoryTreeResponse>('/documents/categories')
+    return response.data
+  }
+
+  /**
+   * 获取指定目录下的文档列表
+   */
+  static async getCourseDocumentsByCategory(categoryId: string): Promise<CourseDocumentListResponse> {
+    const response = await apiClient.get<CourseDocumentListResponse>(`/documents/category/${categoryId}/documents`)
+    return response.data
+  }
+
+  /**
+   * 获取文档详情
+   */
+  static async getCourseDocumentDetail(docId: string): Promise<CourseDocumentDetail> {
+    const response = await apiClient.get<CourseDocumentDetail>(`/documents/${docId}`)
+    return response.data
+  }
+
+  // ==================== 后台管理 - 课程目录管理模块 ====================
+
+  /**
+   * 获取课程目录列表（管理后台）
+   */
+  static async getAdminCourseCategories(): Promise<AdminCourseCategoryListResponse> {
+    const response = await apiClient.get<AdminCourseCategoryListResponse>('/admin/course-categories')
+    return response.data
+  }
+
+  /**
+   * 创建课程目录
+   */
+  static async createCourseCategory(request: CreateCourseCategoryRequest): Promise<{ message: string }> {
+    const response = await apiClient.post<{ message: string }>('/admin/course-categories', request)
+    return response.data
+  }
+
+  /**
+   * 更新课程目录
+   */
+  static async updateCourseCategory(
+    categoryId: string,
+    request: UpdateCourseCategoryRequest
+  ): Promise<{ message: string }> {
+    const response = await apiClient.put<{ message: string }>(`/admin/course-categories/${categoryId}`, request)
+    return response.data
+  }
+
+  /**
+   * 删除课程目录
+   */
+  static async deleteCourseCategory(categoryId: string): Promise<{ message: string }> {
+    const response = await apiClient.delete<{ message: string }>(`/admin/course-categories/${categoryId}`)
+    return response.data
+  }
+
+  /**
+   * 上移课程目录
+   */
+  static async moveCourseCategoryUp(categoryId: string): Promise<{ message: string }> {
+    const response = await apiClient.post<{ message: string }>(`/admin/course-categories/${categoryId}/move-up`)
+    return response.data
+  }
+
+  /**
+   * 下移课程目录
+   */
+  static async moveCourseCategoryDown(categoryId: string): Promise<{ message: string }> {
+    const response = await apiClient.post<{ message: string }>(`/admin/course-categories/${categoryId}/move-down`)
+    return response.data
+  }
+
+  // ==================== 后台管理 - 课程文档管理模块 ====================
+
+  /**
+   * 获取课程文档列表（管理后台）
+   */
+  static async getAdminCourseDocuments(
+    page?: number,
+    pageSize?: number,
+    categoryId?: string
+  ): Promise<AdminCourseDocumentListResponse> {
+    const params = new URLSearchParams()
+    if (page) params.append('page', page.toString())
+    if (pageSize) params.append('page_size', pageSize.toString())
+    if (categoryId) params.append('category_id', categoryId)
+
+    const response = await apiClient.get<AdminCourseDocumentListResponse>(
+      `/admin/course-documents?${params.toString()}`
+    )
+    return response.data
+  }
+
+  /**
+   * 创建课程文档
+   */
+  static async createCourseDocument(
+    title: string,
+    summary: string,
+    categoryId: string,
+    order: number,
+    markdownFile: File
+  ): Promise<{ message: string }> {
+    const formData = new FormData()
+    formData.append('title', title)
+    formData.append('summary', summary)
+    formData.append('category_id', categoryId)
+    formData.append('order', order.toString())
+    formData.append('markdown_file', markdownFile)
+
+    const response = await apiClient.post<{ message: string }>('/admin/course-documents', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return response.data
+  }
+
+  /**
+   * 更新课程文档
+   */
+  static async updateCourseDocument(
+    docId: string,
+    request: UpdateCourseDocumentRequest
+  ): Promise<{ message: string }> {
+    const response = await apiClient.put<{ message: string }>(`/admin/course-documents/${docId}`, request)
+    return response.data
+  }
+
+  /**
+   * 删除课程文档
+   */
+  static async deleteCourseDocument(docId: string): Promise<{ message: string }> {
+    const response = await apiClient.delete<{ message: string }>(`/admin/course-documents/${docId}`)
+    return response.data
+  }
+
+  /**
+   * 上移课程文档
+   */
+  static async moveCourseDocumentUp(docId: string): Promise<{ message: string }> {
+    const response = await apiClient.post<{ message: string }>(`/admin/course-documents/${docId}/move-up`)
+    return response.data
+  }
+
+  /**
+   * 下移课程文档
+   */
+  static async moveCourseDocumentDown(docId: string): Promise<{ message: string }> {
+    const response = await apiClient.post<{ message: string }>(`/admin/course-documents/${docId}/move-down`)
     return response.data
   }
 }

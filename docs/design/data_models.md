@@ -13,6 +13,7 @@
 - **成果物上下文**: 负责成果物的识别、解析和展示
 - **常用工具上下文**: 负责常用工具的管理、分类组织和工具运行（独立于会话的临时工具）
 - **作品展示上下文**: 负责作品的管理、分类组织和作品展示（优秀HTML作品的集中展示平台）
+- **文档管理上下文**: 负责文档的管理、目录组织和文档展示（AI素养课等系统化课程文档）
 
 ### 1.2 核心实体关系
 ```mermaid
@@ -689,6 +690,89 @@ WorkCategory(
 
 ---
 
+### 2.11 CourseCategory（聚合根）
+CourseCategory 是文档管理上下文的目录实体，用于组织文档的层级结构。
+
+```python
+class CourseCategory(BaseModel):
+    """文档目录实体（聚合根）"""
+    id: str = Field(..., description="目录唯一标识（UUID）")
+    name: str = Field(..., description="目录名称", min_length=1, max_length=100)
+    parent_id: Optional[str] = Field(None, description="父目录ID（NULL表示根目录）")
+    order: int = Field(default=0, description="排序顺序（数字越小越靠前）")
+    created_at: datetime = Field(default_factory=datetime.now, description="创建时间")
+    updated_at: datetime = Field(default_factory=datetime.now, description="更新时间")
+```
+
+**业务约束**：
+- 支持无限层级（通过 `parent_id` 自引用实现）
+- 删除目录前需检查：是否有子目录、是否有文档
+- 同一父目录下的子目录按 `order` 字段排序展示
+
+**典型目录示例**：
+```python
+CourseCategory(
+    id="chapter-001",
+    name="第一章：AI基础",
+    parent_id=None,  # 根目录
+    order=1
+)
+
+CourseCategory(
+    id="section-001",
+    name="1.1 什么是AI",
+    parent_id="chapter-001",  # 子目录
+    order=1
+)
+```
+
+---
+
+### 2.12 CourseDocument（聚合根）
+CourseDocument 是文档管理上下文的文档实体，代表一个Markdown文档。
+
+```python
+class CourseDocument(BaseModel):
+    """文档实体（聚合根）"""
+    id: str = Field(..., description="文档唯一标识（UUID）")
+    title: str = Field(..., description="文档标题", min_length=1, max_length=200)
+    summary: str = Field(..., description="文档摘要", min_length=1, max_length=500)
+    file_path: str = Field(..., description="Markdown文件路径（相对于static目录）")
+    category_id: str = Field(..., description="所属目录ID")
+    order: int = Field(default=0, description="排序顺序（数字越小越靠前）")
+    created_at: datetime = Field(default_factory=datetime.now, description="创建时间")
+    updated_at: datetime = Field(default_factory=datetime.now, description="更新时间")
+    
+    def get_file_url(self) -> str:
+        """获取Markdown文件访问URL"""
+        return f"/static/{self.file_path}"
+    
+    def get_content(self) -> str:
+        """从文件系统读取Markdown内容"""
+        # 由后端实现
+        pass
+```
+
+**业务约束**：
+- 文档必须属于某个目录（`category_id` 不允许为NULL）
+- `file_path` 格式：`course_docs/{doc_id}/content.md`
+- 删除文档时，同时删除文件系统中的Markdown文件
+- 同一目录下的文档按 `order` 字段排序展示
+
+**典型文档示例**：
+```python
+CourseDocument(
+    id="doc-001",
+    title="AI的定义",
+    summary="本节介绍人工智能的基本定义和发展历史",
+    file_path="course_docs/doc-001/content.md",
+    category_id="section-001",
+    order=1
+)
+```
+
+---
+
 ### 3.7 作品展示数据存储
 
 #### 3.7.1 作品分类表（work_categories）
@@ -769,6 +853,97 @@ INSERT INTO works (id, name, description, category_id, icon, html_path, `order`,
 
 ---
 
+### 3.8 文档管理数据存储
+
+#### 3.8.1 文档目录表（course_categories）
+```sql
+CREATE TABLE course_categories (
+    id VARCHAR(36) PRIMARY KEY COMMENT '目录ID（UUID）',
+    name VARCHAR(100) NOT NULL COMMENT '目录名称',
+    parent_id VARCHAR(36) DEFAULT NULL COMMENT '父目录ID（NULL表示根目录）',
+    `order` INT NOT NULL DEFAULT 0 COMMENT '排序顺序',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    FOREIGN KEY (parent_id) REFERENCES course_categories(id) ON DELETE RESTRICT,
+    INDEX idx_parent_order (parent_id, `order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='文档目录表';
+```
+
+**约束说明**：
+- `parent_id` 外键约束：删除目录前必须先删除或移动子目录
+- 支持无限层级（通过 `parent_id` 自引用）
+- 删除目录时，如果有子目录或文档，则阻止删除（`ON DELETE RESTRICT`）
+
+**初始数据示例**：
+```sql
+-- 插入根目录
+INSERT INTO course_categories (id, name, parent_id, `order`) VALUES
+('chapter-001', '第一章：AI基础', NULL, 1),
+('chapter-002', '第二章：AI应用', NULL, 2);
+
+-- 插入子目录
+INSERT INTO course_categories (id, name, parent_id, `order`) VALUES
+('section-001', '1.1 什么是AI', 'chapter-001', 1),
+('section-002', '1.2 AI的发展历史', 'chapter-001', 2);
+```
+
+---
+
+#### 3.8.2 文档表（course_documents）
+```sql
+CREATE TABLE course_documents (
+    id VARCHAR(36) PRIMARY KEY COMMENT '文档ID（UUID）',
+    title VARCHAR(200) NOT NULL COMMENT '文档标题',
+    summary VARCHAR(500) NOT NULL COMMENT '文档摘要',
+    file_path VARCHAR(255) NOT NULL COMMENT 'Markdown文件路径（相对于static目录）',
+    category_id VARCHAR(36) NOT NULL COMMENT '所属目录ID',
+    `order` INT NOT NULL DEFAULT 0 COMMENT '排序顺序',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    FOREIGN KEY (category_id) REFERENCES course_categories(id) ON DELETE RESTRICT,
+    INDEX idx_category_order (category_id, `order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='文档表';
+```
+
+**约束说明**：
+- `category_id` 外键约束：删除目录前必须先删除或移动该目录下的所有文档
+- `file_path` 存储相对路径，格式：`course_docs/{doc_id}/content.md`
+- 通过应用层验证确保数据一致性
+
+**Markdown文件存储规范**：
+- **存储目录**：`backend/static/course_docs/{doc_id}/`
+- **主文件名**：`content.md`
+- **完整路径示例**：`backend/static/course_docs/doc-001/content.md`
+- **数据库存储**：`course_docs/doc-001/content.md`（相对路径）
+- **访问URL**：`/static/course_docs/doc-001/content.md`
+
+**文件管理规则**：
+- 上传文档时，自动创建目录并保存文件
+- 删除文档时，同时删除文件和目录
+- 更新文档内容时，覆盖原文件
+
+**初始数据示例**：
+```sql
+-- 插入文档
+INSERT INTO course_documents (id, title, summary, file_path, category_id, `order`) VALUES
+('doc-001', 'AI的定义', '本节介绍人工智能的基本定义和发展历史', 'course_docs/doc-001/content.md', 'section-001', 1),
+('doc-002', 'AI的应用领域', '介绍AI在各个行业的应用场景', 'course_docs/doc-002/content.md', 'section-001', 2);
+```
+
+---
+
+**与其他模块的对比**：
+| 特性 | 常用工具 | 作品展示 | 文档管理 |
+|------|---------|---------|---------|
+| 内容类型 | 内置工具 + HTML | 仅HTML | 仅Markdown |
+| 分类表名 | `tool_categories` | `work_categories` | `course_categories` |
+| 内容表名 | `common_tools` | `works` | `course_documents` |
+| 文件存储路径 | `static/common_tools/html/` | `static/works/html/` | `static/course_docs/` |
+| 层级支持 | 单层（一级分类） | 单层（一级分类） | 多层（无限层级） |
+| 业务定位 | 实用工具集合 | 优秀作品展示 | 系统化课程文档 |
+
+---
+
 ## 4. 领域服务（可选）
 
 ### 4.1 ArtifactParser（领域服务）
@@ -811,9 +986,16 @@ class ArtifactParser:
 
 ---
 
-**文档版本**: v4.1  
-**最后更新**: 2026-01-10  
+**文档版本**: v4.2  
+**最后更新**: 2026-01-12  
 **更新说明**:
+- v4.2:
+  - **文档管理模块**：新增 CourseCategory（文档目录）和 CourseDocument（文档）实体
+  - **限界上下文扩展**：新增"文档管理上下文"
+  - **数据存储扩展**：新增 `course_categories` 和 `course_documents` 表
+  - **章节调整**：新增 2.11 CourseCategory、2.12 CourseDocument、3.8 文档管理数据存储
+  - **Markdown文件存储规范**：定义Markdown文档的文件存储路径和访问方式
+  - **多级目录支持**：通过 `parent_id` 自引用实现无限层级目录结构
 - v4.1:
   - **作品展示模块**：新增 Work（作品）和 WorkCategory（作品分类）实体
   - **限界上下文扩展**：新增"作品展示上下文"
@@ -842,6 +1024,7 @@ class ArtifactParser:
   - 删除 UIConfig 值对象
 
 **设计依据**: 
+- `docs/requirements/ai_literacy_course_spec.md` (v1.0) - AI素养课模块需求
 - `docs/requirements/works_display_spec.md` (v1.0) - 作品展示模块需求
 - `docs/requirements/common_tools_spec.md` (v1.0) - 常用工具模块需求
 - `docs/requirements/teaching_researcher_spec.md` (v2.0)

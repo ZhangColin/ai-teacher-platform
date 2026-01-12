@@ -58,6 +58,18 @@ const routes: RouteRecordRaw[] = [
         component: () => import('../views/admin/AdminWorksPage.vue'),
         meta: { requiresAdmin: true },
       },
+      {
+        path: 'course-categories',
+        name: 'admin-course-categories',
+        component: () => import('../views/admin/AdminCourseCategoriesPage.vue'),
+        meta: { requiresAdmin: true },
+      },
+      {
+        path: 'course-documents',
+        name: 'admin-course-documents',
+        component: () => import('../views/admin/AdminCourseDocumentsPage.vue'),
+        meta: { requiresAdmin: true },
+      },
     ],
   },
   {
@@ -104,6 +116,18 @@ const routes: RouteRecordRaw[] = [
         name: 'work-detail',
         component: () => import('../views/WorkDetailPage.vue'),
         props: true,
+      },
+    ],
+  },
+  {
+    path: '/documents',
+    name: 'documents',
+    component: () => import('../layouts/DocumentsLayout.vue'),
+    children: [
+      {
+        path: '',
+        name: 'documents-page',
+        component: () => import('../views/DocumentsPage.vue'),
       },
     ],
   },

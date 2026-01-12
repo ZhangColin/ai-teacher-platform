@@ -356,3 +356,62 @@ configs/tools/teaching_researcher/
 ---
 
 **最后更新**: 2026-01-11（添加后台管理系统开发任务）
+
+---
+
+## 当前迭代：AI素养课模块开发（文档管理）
+
+**需求来源**: `docs/requirements/ai_literacy_course_spec.md` (v1.0)  
+**架构设计**: `docs/design/document_management_design.md` (v1.0), `docs/design/api_interface.md` (v4.1), `docs/design/data_models.md` (v4.2)  
+**创建时间**: 2026-01-12
+
+### 模块概述
+
+AI素养课模块提供系统化的课程文档展示和管理平台。前台展示采用三栏布局（目录+文件列表+文档内容），支持多级目录结构，在线阅读和下载Markdown文档。后台管理支持目录和文档的完整生命周期管理。
+
+### 设计原则
+
+- **复用现有组件**：文档预览直接复用 PreviewPanel 组件（Markdown渲染+下载功能）
+- **保持风格一致**：参考现有的常用工具和作品展示模块的实现风格
+- **不破坏现有功能**：在现有架构上扩展，确保向后兼容
+- **可交付验收**：每个任务都是完整的功能模块，可独立验收
+
+### 任务列表
+
+#### 阶段1：数据库和后端服务
+
+| ID | 任务描述 | 状态 | 优先级 | 验收标准 |
+|:---|:---|:---|:---|:---|
+| doc-1 | **数据库基础设施**：创建数据库表（course_categories、course_documents），执行Alembic迁移，创建static/course_docs目录结构 | pending | P0 | - course_categories表创建成功（支持多级目录）<br>- course_documents表创建成功<br>- 外键约束正确（ON DELETE RESTRICT）<br>- static/course_docs/目录存在 |
+| doc-2 | **Service层 - 目录服务**：实现course_service.py（目录CRUD、递归构建目录树、排序move_up/move_down、删除检查） | pending | P0 | - 可以创建、查询、更新、删除目录<br>- 递归构建目录树正确<br>- 目录排序功能正常<br>- 删除检查正确（有子目录或文档时阻止删除）<br>- 单元测试通过 |
+| doc-3 | **Service层 - 文档服务**：扩展course_service.py（文档CRUD、文件上传/读取/删除、排序、上下篇计算） | pending | P0 | - 可以创建、查询、更新、删除文档<br>- 文件上传保存到正确路径<br>- 文件删除清理目录<br>- 排序功能正常<br>- 上下篇计算正确<br>- 单元测试通过 |
+| doc-4 | **前台API接口**：实现3个前台接口（GET categories树、GET documents列表、GET document详情） | pending | P0 | - GET /api/v1/course/categories 返回递归目录树<br>- GET /api/v1/course/categories/{id}/documents 返回文档列表<br>- GET /api/v1/course/documents/{id} 返回文档详情+上下篇<br>- API测试通过 |
+| doc-5 | **后台管理API接口**：实现10个后台管理接口（目录CRUD+排序、文档CRUD+排序），使用require_admin权限验证 | pending | P0 | - 目录管理5个接口正常（GET/POST/PUT/DELETE + move-up/move-down）<br>- 文档管理5个接口正常（GET/POST/PUT/DELETE + move-up/move-down）<br>- 权限验证生效（非管理员返回403）<br>- 文件上传限制正确（<10MB）<br>- API测试通过 |
+
+#### 阶段2：前台展示页面
+
+| ID | 任务描述 | 状态 | 优先级 | 验收标准 |
+|:---|:---|:---|:---|:---|
+| doc-6 | **导航配置**：在configs/navigation.yaml添加"AI素养课"模块配置 | pending | P0 | - 顶部导航显示"AI素养课"入口<br>- 点击可进入文档管理页面<br>- 图标正确显示 |
+| doc-7 | **前端类型和Store**：创建types定义和documentStore.ts（目录树、文档列表、当前文档状态管理） | pending | P0 | - 类型定义完整无TS错误<br>- Store可以正常加载目录树<br>- Store可以正常加载文档列表<br>- Store可以正常加载文档详情 |
+| doc-8 | **前台页面组件**：实现三栏布局页面（复用PreviewPanel）和子组件（CategoryMenu、DocumentList、DocumentViewer容器） | pending | P0 | - 访问/documents显示三栏布局<br>- 左侧目录树正确展示（支持多级）<br>- 中间文档列表显示标题和摘要<br>- 右侧复用PreviewPanel显示文档内容<br>- 下载功能正常（Markdown/Word/PDF）<br>- 上一篇/下一篇导航正常 |
+| doc-9 | **前台路由配置**：配置/documents路由，集成到路由系统 | pending | P0 | - 路由配置正确<br>- 页面切换流畅<br>- 刷新页面正常显示 |
+
+#### 阶段3：后台管理页面
+
+| ID | 任务描述 | 状态 | 优先级 | 验收标准 |
+|:---|:---|:---|:---|:---|
+| doc-10 | **后台管理 - 目录管理页面**：实现AdminCourseCategoriesPage.vue（目录列表、创建/编辑/删除、上下移动排序） | pending | P0 | - 可查看目录列表（显示层级关系）<br>- 可创建新目录（选择父目录、填写名称）<br>- 可编辑目录名称<br>- 可删除目录（有内容时阻止并提示）<br>- 可上下移动目录排序<br>- 表单验证正确 |
+| doc-11 | **后台管理 - 文档管理页面**：实现AdminCourseDocumentsPage.vue（文档列表、上传/编辑/删除、上下移动排序） | pending | P0 | - 可查看文档列表（分页、筛选目录）<br>- 可上传Markdown文档（表单+文件上传）<br>- 可编辑文档信息（标题、摘要、目录）<br>- 可删除文档（二次确认）<br>- 可上下移动文档排序<br>- 文件类型和大小验证正确 |
+| doc-12 | **后台路由配置**：配置后台管理路由，集成到AdminLayout | pending | P0 | - 访问/admin/course-categories显示目录管理<br>- 访问/admin/course-documents显示文档管理<br>- 侧边栏菜单显示"文档管理"入口<br>- 路由守卫正常工作 |
+
+#### 阶段4：集成测试和优化
+
+| ID | 任务描述 | 状态 | 优先级 | 验收标准 |
+|:---|:---|:---|:---|:---|
+| doc-13 | **端到端测试**：完整业务流程测试（后台创建目录和文档 → 前台浏览和下载） | pending | P0 | - 后台可以创建多级目录<br>- 后台可以上传文档<br>- 前台正确显示目录树<br>- 前台正确显示文档列表<br>- 前台正确渲染文档内容<br>- 下载功能全部正常<br>- 上下篇导航正常 |
+| doc-14 | **初始数据和文档**：创建初始数据SQL脚本（示例目录和文档），更新部署文档 | pending | P1 | - 提供示例数据SQL脚本<br>- 包含2-3级目录示例<br>- 包含5-10个示例文档<br>- 部署文档更新完整 |
+
+---
+
+**最后更新**: 2026-01-12（添加AI素养课模块开发任务）

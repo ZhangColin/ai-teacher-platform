@@ -1119,7 +1119,165 @@ class WorkDetail(BaseModel):
 
 ---
 
-## 7. 成果物解析协议 (Artifacts Protocol)
+## 7. 文档管理接口（需要认证）
+
+### 7.1 获取目录树
+
+获取所有文档目录树结构（递归）。
+
+- **Endpoint**: `GET /api/v1/course/categories`
+- **Description**: 返回文档目录树（递归结构），用于前端左侧目录菜单展示。
+- **认证要求**: 需要认证（Bearer Token）
+
+- **Response**: `200 OK`
+```python
+class CourseCategoryNode(BaseModel):
+    """目录节点（递归结构）"""
+    id: str = Field(..., description="目录ID")
+    name: str = Field(..., description="目录名称")
+    parent_id: Optional[str] = Field(None, description="父目录ID")
+    order: int = Field(..., description="排序顺序")
+    children: List["CourseCategoryNode"] = Field(default_factory=list, description="子目录列表")
+
+class CourseCategoryTreeResponse(BaseModel):
+    categories: List[CourseCategoryNode] = Field(..., description="目录树")
+```
+
+**响应示例**：
+```json
+{
+  "categories": [
+    {
+      "id": "chapter-001",
+      "name": "第一章：AI基础",
+      "parent_id": null,
+      "order": 1,
+      "children": [
+        {
+          "id": "section-001",
+          "name": "1.1 什么是AI",
+          "parent_id": "chapter-001",
+          "order": 1,
+          "children": []
+        }
+      ]
+    }
+  ]
+}
+```
+
+**业务规则**：
+- 返回递归的目录树结构
+- 按 `order` 字段升序排列
+- 如果没有目录，返回空列表
+
+---
+
+### 7.2 获取目录下的文档列表
+
+获取指定目录下的所有文档列表（不包括子目录的文档）。
+
+- **Endpoint**: `GET /api/v1/course/categories/{category_id}/documents`
+- **Description**: 返回指定目录下的所有文档列表，用于前端中间文件列表展示。
+- **认证要求**: 需要认证（Bearer Token）
+
+- **Path Parameters**:
+  - `category_id` (string, required): 目录ID
+
+- **Response**: `200 OK`
+```python
+class CourseDocumentListItem(BaseModel):
+    id: str = Field(..., description="文档ID")
+    title: str = Field(..., description="文档标题")
+    summary: str = Field(..., description="文档摘要")
+    order: int = Field(..., description="排序顺序")
+
+class CourseDocumentListResponse(BaseModel):
+    documents: List[CourseDocumentListItem] = Field(..., description="文档列表")
+```
+
+**响应示例**：
+```json
+{
+  "documents": [
+    {
+      "id": "doc-001",
+      "title": "AI的定义",
+      "summary": "本节介绍人工智能的基本定义和发展历史",
+      "order": 1
+    },
+    {
+      "id": "doc-002",
+      "title": "AI的应用领域",
+      "summary": "介绍AI在各个行业的应用场景",
+      "order": 2
+    }
+  ]
+}
+```
+
+**业务规则**：
+- 只返回当前目录下的文档（不包括子目录的文档）
+- 按 `order` 字段升序排列
+- 如果目录下没有文档，返回空列表
+
+**错误响应**：
+- `404 Not Found`: 目录不存在
+
+---
+
+### 7.3 获取文档详情
+
+获取文档详情，包括标题、摘要、Markdown内容、上下篇导航。
+
+- **Endpoint**: `GET /api/v1/course/documents/{doc_id}`
+- **Description**: 返回文档详情，用于前端右侧文档内容展示。
+- **认证要求**: 需要认证（Bearer Token）
+
+- **Path Parameters**:
+  - `doc_id` (string, required): 文档ID
+
+- **Response**: `200 OK`
+```python
+class CourseDocumentDetail(BaseModel):
+    id: str = Field(..., description="文档ID")
+    title: str = Field(..., description="文档标题")
+    summary: str = Field(..., description="文档摘要")
+    content: str = Field(..., description="Markdown内容")
+    category_id: str = Field(..., description="所属目录ID")
+    order: int = Field(..., description="排序顺序")
+    prev_doc_id: Optional[str] = Field(None, description="上一篇文档ID（同一目录下）")
+    next_doc_id: Optional[str] = Field(None, description="下一篇文档ID（同一目录下）")
+    created_at: datetime = Field(..., description="创建时间")
+```
+
+**响应示例**：
+```json
+{
+  "id": "doc-001",
+  "title": "AI的定义",
+  "summary": "本节介绍人工智能的基本定义和发展历史",
+  "content": "# AI的定义\n\n人工智能（Artificial Intelligence，简称AI）...",
+  "category_id": "section-001",
+  "order": 1,
+  "prev_doc_id": null,
+  "next_doc_id": "doc-002",
+  "created_at": "2026-01-12T10:00:00Z"
+}
+```
+
+**业务规则**：
+- 从文件系统读取Markdown内容
+- 计算上一篇和下一篇文档（同一目录下，按 `order` 排序）
+- 如果是第一篇，`prev_doc_id` 为 `null`
+- 如果是最后一篇，`next_doc_id` 为 `null`
+
+**错误响应**：
+- `404 Not Found`: 文档不存在或文件已被删除
+
+---
+
+## 8. 成果物解析协议 (Artifacts Protocol)
 
 ### 7.1 代码块识别规则
 系统从 AI 的 Markdown 回复中识别代码块，只有代码块中的内容才被视为可预览的成果物。
@@ -2505,9 +2663,251 @@ class MoveCategoryResponse(BaseModel):
 
 ---
 
-**文档版本**: v4.0  
-**最后更新**: 2026-01-11  
+### 11.5 文档管理接口
+
+文档管理接口用于AI素养课模块的目录和文档管理，支持多级目录结构。
+
+#### 11.5.1 获取目录列表（管理后台）
+
+获取所有目录列表（扁平结构，包含父目录信息）。
+
+- **Endpoint**: `GET /api/v1/admin/course-categories`
+- **Description**: 返回所有目录列表，用于后台管理页面展示。
+- **认证要求**: 需要管理员权限
+
+- **Response**: `200 OK`
+```python
+class AdminCourseCategoryListItem(BaseModel):
+    id: str = Field(..., description="目录ID")
+    name: str = Field(..., description="目录名称")
+    parent_id: Optional[str] = Field(None, description="父目录ID")
+    parent_name: Optional[str] = Field(None, description="父目录名称")
+    order: int = Field(..., description="排序顺序")
+    document_count: int = Field(..., description="该目录下的文档数量（不包括子目录）")
+    children_count: int = Field(..., description="子目录数量")
+    created_at: datetime = Field(..., description="创建时间")
+    updated_at: datetime = Field(..., description="更新时间")
+
+class AdminCourseCategoryListResponse(BaseModel):
+    categories: List[AdminCourseCategoryListItem] = Field(..., description="目录列表")
+```
+
+**业务规则**：
+- 返回扁平结构（便于管理后台显示）
+- 按层级和 `order` 排序
+- 统计每个目录的文档数和子目录数
+
+---
+
+#### 11.5.2 创建目录
+
+- **Endpoint**: `POST /api/v1/admin/course-categories`
+- **Description**: 创建新目录
+- **认证要求**: 需要管理员权限
+
+- **Request Body**:
+```python
+class CreateCourseCategoryRequest(BaseModel):
+    name: str = Field(..., description="目录名称", min_length=1, max_length=100)
+    parent_id: Optional[str] = Field(None, description="父目录ID（NULL表示根目录）")
+    order: int = Field(0, description="排序顺序（默认0）")
+```
+
+- **Response**: `201 Created`
+
+**业务规则**：
+- 目录ID使用UUID生成
+- 如果 `parent_id` 不为空，验证父目录是否存在
+- 支持无限层级
+
+---
+
+#### 11.5.3 更新目录
+
+- **Endpoint**: `PUT /api/v1/admin/course-categories/{category_id}`
+- **Description**: 更新目录信息
+- **认证要求**: 需要管理员权限
+
+- **Request Body**:
+```python
+class UpdateCourseCategoryRequest(BaseModel):
+    name: Optional[str] = Field(None, description="目录名称", min_length=1, max_length=100)
+    parent_id: Optional[str] = Field(None, description="父目录ID（可以移动到其他目录下）")
+```
+
+- **Response**: `200 OK`
+
+**业务规则**：
+- 只更新提供的字段
+- 如果修改 `parent_id`，需验证不会形成循环引用
+- 不允许将目录移动到自己的子目录下
+
+---
+
+#### 11.5.4 删除目录
+
+- **Endpoint**: `DELETE /api/v1/admin/course-categories/{category_id}`
+- **Description**: 删除目录
+- **认证要求**: 需要管理员权限
+
+- **Response**: `204 No Content`
+
+**业务规则**：
+- 如果目录下有子目录，不允许删除（返回 `400 Bad Request`）
+- 如果目录下有文档，不允许删除（返回 `400 Bad Request`）
+- 删除操作不可恢复
+
+---
+
+#### 11.5.5 调整目录排序
+
+- **Endpoint**: `POST /api/v1/admin/course-categories/{category_id}/move-up`
+- **Endpoint**: `POST /api/v1/admin/course-categories/{category_id}/move-down`
+- **Description**: 将目录向上/下移动一位（与同级相邻目录交换order值）
+- **认证要求**: 需要管理员权限
+
+- **Response**: `200 OK`
+
+**业务规则**：
+- 只能在同一父目录下移动
+- 与相邻目录交换 `order` 值
+
+**实现建议**：由开发决定具体实现方式（上下箭头/拖拽/手动输入），不强求。
+
+---
+
+#### 11.5.6 获取文档列表（管理后台）
+
+- **Endpoint**: `GET /api/v1/admin/course-documents`
+- **Description**: 获取所有文档列表，支持分页和筛选
+- **认证要求**: 需要管理员权限
+
+- **Query Parameters**:
+  - `page` (int, optional): 页码，默认 1
+  - `page_size` (int, optional): 每页数量，默认 20，最大 100
+  - `category_id` (string, optional): 按目录ID筛选
+
+- **Response**: `200 OK`
+```python
+class AdminCourseDocumentListItem(BaseModel):
+    id: str = Field(..., description="文档ID")
+    title: str = Field(..., description="文档标题")
+    summary: str = Field(..., description="文档摘要")
+    category_id: str = Field(..., description="所属目录ID")
+    category_name: str = Field(..., description="所属目录名称")
+    order: int = Field(..., description="排序顺序")
+    created_at: datetime = Field(..., description="创建时间")
+    updated_at: datetime = Field(..., description="更新时间")
+
+class AdminCourseDocumentListResponse(BaseModel):
+    documents: List[AdminCourseDocumentListItem] = Field(..., description="文档列表")
+    total: int = Field(..., description="文档总数")
+    page: int = Field(..., description="当前页码")
+    page_size: int = Field(..., description="每页数量")
+```
+
+---
+
+#### 11.5.7 上传文档
+
+- **Endpoint**: `POST /api/v1/admin/course-documents`
+- **Description**: 上传Markdown文档
+- **认证要求**: 需要管理员权限
+
+- **Request Body** (multipart/form-data):
+```python
+class CreateCourseDocumentRequest(BaseModel):
+    title: str = Field(..., description="文档标题", min_length=1, max_length=200)
+    summary: str = Field(..., description="文档摘要", min_length=1, max_length=500)
+    category_id: str = Field(..., description="所属目录ID")
+    markdown_file: UploadFile = Field(..., description="Markdown文件（.md格式）")
+    order: int = Field(0, description="排序顺序（默认0）")
+```
+
+- **Response**: `201 Created`
+
+**业务规则**：
+- 文档ID使用UUID生成
+- Markdown文件存储路径：`backend/static/course_docs/{doc_id}/content.md`
+- 文件类型限制：`.md`
+- 文件大小限制：< 10MB
+- 目录必须存在，否则返回 `404 Not Found`
+
+---
+
+#### 11.5.8 更新文档信息
+
+- **Endpoint**: `PUT /api/v1/admin/course-documents/{doc_id}`
+- **Description**: 更新文档信息（标题、摘要、所属目录）
+- **认证要求**: 需要管理员权限
+
+- **Request Body**:
+```python
+class UpdateCourseDocumentRequest(BaseModel):
+    title: Optional[str] = Field(None, description="文档标题", min_length=1, max_length=200)
+    summary: Optional[str] = Field(None, description="文档摘要", min_length=1, max_length=500)
+    category_id: Optional[str] = Field(None, description="所属目录ID（可以移动到其他目录）")
+```
+
+- **Response**: `200 OK`
+
+**业务规则**：
+- 只更新提供的字段
+- 不支持修改文档内容（如需修改，删除后重新上传）
+
+---
+
+#### 11.5.9 删除文档
+
+- **Endpoint**: `DELETE /api/v1/admin/course-documents/{doc_id}`
+- **Description**: 删除文档（包括Markdown文件）
+- **认证要求**: 需要管理员权限
+
+- **Response**: `204 No Content`
+
+**业务规则**：
+- 删除数据库记录
+- 同时删除文件系统中的Markdown文件和目录
+- 删除操作不可恢复
+
+**前端二次确认**："确定删除《XXX》？此操作不可恢复。"
+
+---
+
+#### 11.5.10 调整文档排序
+
+- **Endpoint**: `POST /api/v1/admin/course-documents/{doc_id}/move-up`
+- **Endpoint**: `POST /api/v1/admin/course-documents/{doc_id}/move-down`
+- **Description**: 将文档向上/下移动一位（与同目录相邻文档交换order值）
+- **认证要求**: 需要管理员权限
+
+- **Response**: `200 OK`
+
+**业务规则**：
+- 只能在同一目录下移动
+- 与相邻文档交换 `order` 值
+
+**实现建议**：由开发决定具体实现方式（上下箭头/拖拽/手动输入），不强求。
+
+---
+
+**文档管理接口说明**：
+- 目录支持无限层级（通过 `parent_id` 自引用实现）
+- 文档内容存储在文件系统（与作品管理一致）
+- 排序实现方式由开发决定，灵活调整
+
+---
+
+**文档版本**: v4.1  
+**最后更新**: 2026-01-12  
 **更新说明**:
+- v4.1:
+  - **文档管理模块**：新增文档管理接口（第7章和第11.5章）
+  - 前台接口（3个）：获取目录树、获取目录下的文档列表、获取文档详情
+  - 后台管理接口（10个）：目录CRUD、目录排序、文档CRUD、文档排序
+  - 支持多级目录结构（无限层级）
+  - Markdown文件存储到 `backend/static/course_docs/` 目录
+  - 文件大小限制：< 10MB
 - v4.0:
   - **后台管理系统**：新增后台管理系统完整API接口（第11章）
   - 新增用户管理接口（5个）：用户列表、创建用户、更新用户、删除用户、重置密码
@@ -2537,6 +2937,7 @@ class MoveCategoryResponse(BaseModel):
   - 更新数据流设计，反映新的接口和流程
 
 **设计依据**: 
+- `docs/requirements/ai_literacy_course_spec.md` (v1.0) - AI素养课模块需求
 - `docs/requirements/admin_backend_spec.md` (v1.0) - 后台管理系统需求
 - `docs/requirements/works_display_spec.md` (v1.0) - 作品展示模块需求
 - `docs/requirements/common_tools_spec.md` (v1.0) - 常用工具模块需求

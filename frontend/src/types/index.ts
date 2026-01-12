@@ -601,3 +601,131 @@ export interface MoveWorkCategoryResponse {
   category: AdminWorkCategoryListItem // 移动后的分类信息
 }
 
+// ==================== 课程文档模块 ====================
+
+/**
+ * 课程目录节点（递归结构）
+ */
+export interface CourseCategoryNode {
+  id: string // 目录ID
+  name: string // 目录名称
+  parent_id?: string | null // 父目录ID（根目录为null）
+  order: number // 排序顺序
+  children: CourseCategoryNode[] // 子目录列表
+}
+
+/**
+ * 课程目录树响应
+ */
+export interface CourseCategoryTreeResponse {
+  categories: CourseCategoryNode[] // 根目录列表
+}
+
+/**
+ * 课程文档列表项（用于文档列表）
+ */
+export interface CourseDocumentListItem {
+  id: string // 文档ID
+  title: string // 文档标题
+  summary: string // 文档摘要
+  order: number // 排序顺序
+}
+
+/**
+ * 课程文档列表响应
+ */
+export interface CourseDocumentListResponse {
+  documents: CourseDocumentListItem[] // 文档列表
+}
+
+/**
+ * 课程文档详情
+ */
+export interface CourseDocumentDetail {
+  id: string // 文档ID
+  title: string // 文档标题
+  summary: string // 文档摘要
+  content: string // Markdown内容
+  category_id: string // 所属目录ID
+  order: number // 排序顺序
+  prev_doc_id?: string | null // 上一篇文档ID
+  next_doc_id?: string | null // 下一篇文档ID
+  created_at: string // 创建时间（ISO 8601格式）
+}
+
+// ==================== 后台管理 - 课程目录管理模块 ====================
+
+/**
+ * 管理后台 - 课程目录列表项
+ */
+export interface AdminCourseCategoryListItem {
+  id: string // 目录ID
+  name: string // 目录名称
+  parent_id?: string | null // 父目录ID
+  parent_name?: string | null // 父目录名称
+  order: number // 排序顺序
+  document_count: number // 该目录下的文档数量
+  children_count: number // 子目录数量
+  created_at: string // 创建时间
+  updated_at: string // 更新时间
+}
+
+/**
+ * 管理后台 - 课程目录列表响应
+ */
+export interface AdminCourseCategoryListResponse {
+  categories: AdminCourseCategoryListItem[] // 目录列表
+}
+
+/**
+ * 创建课程目录请求
+ */
+export interface CreateCourseCategoryRequest {
+  name: string // 目录名称
+  parent_id?: string | null // 父目录ID（可选，根目录为null）
+  order?: number // 排序顺序（默认0）
+}
+
+/**
+ * 更新课程目录请求
+ */
+export interface UpdateCourseCategoryRequest {
+  name?: string // 目录名称
+  parent_id?: string | null // 父目录ID
+}
+
+// ==================== 后台管理 - 课程文档管理模块 ====================
+
+/**
+ * 管理后台 - 课程文档列表项
+ */
+export interface AdminCourseDocumentListItem {
+  id: string // 文档ID
+  title: string // 文档标题
+  summary: string // 文档摘要
+  category_id: string // 所属目录ID
+  category_name: string // 所属目录名称
+  order: number // 排序顺序
+  created_at: string // 创建时间
+  updated_at: string // 更新时间
+}
+
+/**
+ * 管理后台 - 课程文档列表响应
+ */
+export interface AdminCourseDocumentListResponse {
+  documents: AdminCourseDocumentListItem[] // 文档列表
+  total: number // 文档总数
+  page: number // 当前页码
+  page_size: number // 每页数量
+}
+
+/**
+ * 更新课程文档请求
+ */
+export interface UpdateCourseDocumentRequest {
+  title?: string // 文档标题
+  summary?: string // 文档摘要
+  category_id?: string // 所属目录ID
+}
+

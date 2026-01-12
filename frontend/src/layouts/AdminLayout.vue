@@ -44,6 +44,15 @@
             <el-menu-item index="/admin/work-categories">分类管理</el-menu-item>
             <el-menu-item index="/admin/works">作品管理</el-menu-item>
           </el-sub-menu>
+          
+          <el-sub-menu index="courses">
+            <template #title>
+              <el-icon><Document /></el-icon>
+              <span>课程管理</span>
+            </template>
+            <el-menu-item index="/admin/course-categories">目录管理</el-menu-item>
+            <el-menu-item index="/admin/course-documents">文档管理</el-menu-item>
+          </el-sub-menu>
         </el-menu>
       </el-aside>
 
@@ -60,7 +69,7 @@ import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/authStore'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { User, Tools, Picture } from '@element-plus/icons-vue'
+import { User, Tools, Picture, Document } from '@element-plus/icons-vue'
 import Logo from '../components/Logo.vue'
 
 const router = useRouter()
