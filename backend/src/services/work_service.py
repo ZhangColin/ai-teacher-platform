@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """作品展示服务：管理作品和分类数据"""
 from typing import Optional, Tuple
 from sqlalchemy.orm import Session
@@ -24,12 +25,8 @@ class WorkService:
         pass
     
     def _get_db(self):
-        """获取数据库会话（生成器）"""
-        db = SessionLocal()
-        try:
-            yield db
-        finally:
-            db.close()
+        """获取数据库会话"""
+        return SessionLocal()
     
     def get_categories_with_works(self) -> WorkCategoryResponse:
         """
@@ -44,8 +41,7 @@ class WorkService:
             - 每个分类下的作品按 order 字段升序排列
             - 如果某个分类下没有可见作品，则不返回该分类
         """
-        db_gen = self._get_db()
-        db = next(db_gen)
+        db = self._get_db()
         try:
             # 查询所有分类（按order排序）
             categories = db.query(WorkCategoryModel).order_by(asc(WorkCategoryModel.order)).all()
@@ -86,7 +82,7 @@ class WorkService:
             return WorkCategoryResponse(categories=category_groups)
             
         finally:
-            next(db_gen, None)
+            db.close()
     
     def get_work_detail(self, work_id: str) -> Optional[WorkDetail]:
         """
@@ -102,8 +98,7 @@ class WorkService:
             - 只能查询 visible=True 的作品
             - html_path 会被转换为完整的访问URL
         """
-        db_gen = self._get_db()
-        db = next(db_gen)
+        db = self._get_db()
         try:
             # 查询作品及其分类
             work = db.query(WorkModel).filter(
@@ -136,7 +131,7 @@ class WorkService:
             )
             
         finally:
-            next(db_gen, None)
+            db.close()
     
     # ==================== 后台管理方法 ====================
     
@@ -148,8 +143,7 @@ class WorkService:
         visible: Optional[bool] = None
     ) -> AdminWorkListResponse:
         """获取所有作品列表（管理后台）"""
-        db_gen = self._get_db()
-        db = next(db_gen)
+        db = self._get_db()
         try:
             page_size = min(page_size, 100)
             query = db.query(WorkModel)
@@ -192,7 +186,7 @@ class WorkService:
                 page_size=page_size
             )
         finally:
-            next(db_gen, None)
+            db.close()
     
     def create_work(
         self,
@@ -205,8 +199,7 @@ class WorkService:
         visible: bool = True
     ) -> AdminWorkListItem:
         """创建作品"""
-        db_gen = self._get_db()
-        db = next(db_gen)
+        db = self._get_db()
         try:
             category = db.query(WorkCategoryModel).filter(
                 WorkCategoryModel.id == category_id
@@ -245,12 +238,11 @@ class WorkService:
                 updated_at=work.updated_at
             )
         finally:
-            next(db_gen, None)
+            db.close()
     
     def update_work(self, work_id: str, request: UpdateWorkRequest) -> AdminWorkListItem:
         """更新作品信息"""
-        db_gen = self._get_db()
-        db = next(db_gen)
+        db = self._get_db()
         try:
             work = db.query(WorkModel).filter(WorkModel.id == work_id).first()
             if not work:
@@ -297,12 +289,11 @@ class WorkService:
                 updated_at=work.updated_at
             )
         finally:
-            next(db_gen, None)
+            db.close()
     
     def delete_work(self, work_id: str) -> str:
         """删除作品，返回html_path用于删除文件"""
-        db_gen = self._get_db()
-        db = next(db_gen)
+        db = self._get_db()
         try:
             work = db.query(WorkModel).filter(WorkModel.id == work_id).first()
             if not work:
@@ -313,12 +304,11 @@ class WorkService:
             db.commit()
             return html_path
         finally:
-            next(db_gen, None)
+            db.close()
     
     def move_work_up(self, work_id: str) -> AdminWorkListItem:
         """上移作品"""
-        db_gen = self._get_db()
-        db = next(db_gen)
+        db = self._get_db()
         try:
             work = db.query(WorkModel).filter(WorkModel.id == work_id).first()
             if not work:
@@ -356,12 +346,11 @@ class WorkService:
                 updated_at=work.updated_at
             )
         finally:
-            next(db_gen, None)
+            db.close()
     
     def move_work_down(self, work_id: str) -> AdminWorkListItem:
         """下移作品"""
-        db_gen = self._get_db()
-        db = next(db_gen)
+        db = self._get_db()
         try:
             work = db.query(WorkModel).filter(WorkModel.id == work_id).first()
             if not work:
@@ -399,12 +388,11 @@ class WorkService:
                 updated_at=work.updated_at
             )
         finally:
-            next(db_gen, None)
+            db.close()
     
     def toggle_work_visibility(self, work_id: str) -> Tuple[AdminWorkListItem, str]:
         """切换作品可见性"""
-        db_gen = self._get_db()
-        db = next(db_gen)
+        db = self._get_db()
         try:
             work = db.query(WorkModel).filter(WorkModel.id == work_id).first()
             if not work:
@@ -438,14 +426,13 @@ class WorkService:
                 message
             )
         finally:
-            next(db_gen, None)
+            db.close()
     
     # ==================== 作品分类管理方法 ====================
     
     def get_all_categories_admin(self) -> AdminWorkCategoryListResponse:
         """获取所有作品分类列表（管理后台）"""
-        db_gen = self._get_db()
-        db = next(db_gen)
+        db = self._get_db()
         try:
             categories = db.query(WorkCategoryModel).order_by(asc(WorkCategoryModel.order)).all()
             
@@ -467,12 +454,11 @@ class WorkService:
             
             return AdminWorkCategoryListResponse(categories=category_items)
         finally:
-            next(db_gen, None)
+            db.close()
     
     def create_category(self, request: CreateWorkCategoryRequest) -> AdminWorkCategoryListItem:
         """创建作品分类"""
-        db_gen = self._get_db()
-        db = next(db_gen)
+        db = self._get_db()
         try:
             existing = db.query(WorkCategoryModel).filter(
                 WorkCategoryModel.name == request.name
@@ -503,12 +489,11 @@ class WorkService:
                 updated_at=category.updated_at
             )
         finally:
-            next(db_gen, None)
+            db.close()
     
     def update_category(self, category_id: str, request: UpdateWorkCategoryRequest) -> AdminWorkCategoryListItem:
         """更新作品分类"""
-        db_gen = self._get_db()
-        db = next(db_gen)
+        db = self._get_db()
         try:
             category = db.query(WorkCategoryModel).filter(
                 WorkCategoryModel.id == category_id
@@ -547,12 +532,11 @@ class WorkService:
                 updated_at=category.updated_at
             )
         finally:
-            next(db_gen, None)
+            db.close()
     
     def delete_category(self, category_id: str) -> None:
         """删除作品分类"""
-        db_gen = self._get_db()
-        db = next(db_gen)
+        db = self._get_db()
         try:
             category = db.query(WorkCategoryModel).filter(
                 WorkCategoryModel.id == category_id
@@ -569,12 +553,11 @@ class WorkService:
             db.delete(category)
             db.commit()
         finally:
-            next(db_gen, None)
+            db.close()
     
     def move_category_up(self, category_id: str) -> AdminWorkCategoryListItem:
         """上移分类"""
-        db_gen = self._get_db()
-        db = next(db_gen)
+        db = self._get_db()
         try:
             category = db.query(WorkCategoryModel).filter(
                 WorkCategoryModel.id == category_id
@@ -609,12 +592,11 @@ class WorkService:
                 updated_at=category.updated_at
             )
         finally:
-            next(db_gen, None)
+            db.close()
     
     def move_category_down(self, category_id: str) -> AdminWorkCategoryListItem:
         """下移分类"""
-        db_gen = self._get_db()
-        db = next(db_gen)
+        db = self._get_db()
         try:
             category = db.query(WorkCategoryModel).filter(
                 WorkCategoryModel.id == category_id
@@ -649,4 +631,4 @@ class WorkService:
                 updated_at=category.updated_at
             )
         finally:
-            next(db_gen, None)
+            db.close()

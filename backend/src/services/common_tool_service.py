@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """常用工具服务：管理常用工具和分类数据"""
 from typing import List, Optional, Dict, Tuple
 from sqlalchemy.orm import Session
@@ -24,12 +25,8 @@ class CommonToolService:
         pass
     
     def _get_db(self):
-        """获取数据库会话（生成器）"""
-        db = SessionLocal()
-        try:
-            yield db
-        finally:
-            db.close()
+        """获取数据库会话"""
+        return SessionLocal()
     
     def get_categories_with_tools(self) -> CommonToolCategoryResponse:
         """
@@ -44,8 +41,7 @@ class CommonToolService:
             - 每个分类下的工具按 order 字段升序排列
             - 如果某个分类下没有可见工具，则不返回该分类
         """
-        db_gen = self._get_db()
-        db = next(db_gen)
+        db = self._get_db()
         try:
             # 查询所有分类（按order排序）
             categories = db.query(ToolCategoryModel).order_by(asc(ToolCategoryModel.order)).all()
@@ -87,7 +83,7 @@ class CommonToolService:
             return CommonToolCategoryResponse(categories=category_groups)
             
         finally:
-            next(db_gen, None)
+            db.close()
     
     def get_tool_detail(self, tool_id: str) -> Optional[CommonToolDetail]:
         """
@@ -103,8 +99,7 @@ class CommonToolService:
             - 只能查询 visible=True 的工具
             - HTML工具的 html_path 会被转换为完整的访问URL
         """
-        db_gen = self._get_db()
-        db = next(db_gen)
+        db = self._get_db()
         try:
             # 查询工具及其分类
             tool = db.query(CommonToolModel).filter(
@@ -139,7 +134,7 @@ class CommonToolService:
             )
             
         finally:
-            next(db_gen, None)
+            db.close()
     
     # ==================== 后台管理方法 ====================
     
@@ -164,8 +159,7 @@ class CommonToolService:
         Returns:
             AdminCommonToolListResponse: 工具列表响应
         """
-        db_gen = self._get_db()
-        db = next(db_gen)
+        db = self._get_db()
         try:
             # 限制page_size最大值
             page_size = min(page_size, 100)
@@ -221,7 +215,7 @@ class CommonToolService:
             )
             
         finally:
-            next(db_gen, None)
+            db.close()
     
     def create_built_in_tool(self, request: CreateBuiltInToolRequest) -> AdminCommonToolListItem:
         """
@@ -236,8 +230,7 @@ class CommonToolService:
         Raises:
             ValueError: 分类不存在
         """
-        db_gen = self._get_db()
-        db = next(db_gen)
+        db = self._get_db()
         try:
             # 验证分类是否存在
             category = db.query(ToolCategoryModel).filter(
@@ -281,7 +274,7 @@ class CommonToolService:
             )
             
         finally:
-            next(db_gen, None)
+            db.close()
     
     def create_html_tool(
         self,
@@ -311,8 +304,7 @@ class CommonToolService:
         Raises:
             ValueError: 分类不存在
         """
-        db_gen = self._get_db()
-        db = next(db_gen)
+        db = self._get_db()
         try:
             # 验证分类是否存在
             category = db.query(ToolCategoryModel).filter(
@@ -356,7 +348,7 @@ class CommonToolService:
             )
             
         finally:
-            next(db_gen, None)
+            db.close()
     
     def update_tool(self, tool_id: str, request: UpdateToolRequest) -> AdminCommonToolListItem:
         """
@@ -372,8 +364,7 @@ class CommonToolService:
         Raises:
             ValueError: 工具不存在或分类不存在
         """
-        db_gen = self._get_db()
-        db = next(db_gen)
+        db = self._get_db()
         try:
             # 查询工具
             tool = db.query(CommonToolModel).filter(CommonToolModel.id == tool_id).first()
@@ -427,7 +418,7 @@ class CommonToolService:
             )
             
         finally:
-            next(db_gen, None)
+            db.close()
     
     def delete_tool(self, tool_id: str) -> None:
         """
@@ -442,8 +433,7 @@ class CommonToolService:
         Returns:
             html_path: HTML文件路径（如果是HTML工具），用于调用方删除文件
         """
-        db_gen = self._get_db()
-        db = next(db_gen)
+        db = self._get_db()
         try:
             # 查询工具
             tool = db.query(CommonToolModel).filter(CommonToolModel.id == tool_id).first()
@@ -459,7 +449,7 @@ class CommonToolService:
             return html_path
             
         finally:
-            next(db_gen, None)
+            db.close()
     
     def move_tool_up(self, tool_id: str) -> AdminCommonToolListItem:
         """
@@ -474,8 +464,7 @@ class CommonToolService:
         Raises:
             ValueError: 工具不存在或已经是第一个
         """
-        db_gen = self._get_db()
-        db = next(db_gen)
+        db = self._get_db()
         try:
             # 查询当前工具
             tool = db.query(CommonToolModel).filter(CommonToolModel.id == tool_id).first()
@@ -520,7 +509,7 @@ class CommonToolService:
             )
             
         finally:
-            next(db_gen, None)
+            db.close()
     
     def move_tool_down(self, tool_id: str) -> AdminCommonToolListItem:
         """
@@ -535,8 +524,7 @@ class CommonToolService:
         Raises:
             ValueError: 工具不存在或已经是最后一个
         """
-        db_gen = self._get_db()
-        db = next(db_gen)
+        db = self._get_db()
         try:
             # 查询当前工具
             tool = db.query(CommonToolModel).filter(CommonToolModel.id == tool_id).first()
@@ -581,7 +569,7 @@ class CommonToolService:
             )
             
         finally:
-            next(db_gen, None)
+            db.close()
     
     def toggle_tool_visibility(self, tool_id: str) -> Tuple[AdminCommonToolListItem, str]:
         """
@@ -596,8 +584,7 @@ class CommonToolService:
         Raises:
             ValueError: 工具不存在
         """
-        db_gen = self._get_db()
-        db = next(db_gen)
+        db = self._get_db()
         try:
             # 查询工具
             tool = db.query(CommonToolModel).filter(CommonToolModel.id == tool_id).first()
@@ -637,7 +624,7 @@ class CommonToolService:
             )
             
         finally:
-            next(db_gen, None)
+            db.close()
     
     # ==================== 工具分类管理方法 ====================
     
@@ -648,8 +635,7 @@ class CommonToolService:
         Returns:
             AdminToolCategoryListResponse: 分类列表响应（包含工具数量统计）
         """
-        db_gen = self._get_db()
-        db = next(db_gen)
+        db = self._get_db()
         try:
             # 查询所有分类（按order排序）
             categories = db.query(ToolCategoryModel).order_by(asc(ToolCategoryModel.order)).all()
@@ -675,7 +661,7 @@ class CommonToolService:
             return AdminToolCategoryListResponse(categories=category_items)
             
         finally:
-            next(db_gen, None)
+            db.close()
     
     def create_category(self, request: CreateToolCategoryRequest) -> AdminToolCategoryListItem:
         """
@@ -690,8 +676,7 @@ class CommonToolService:
         Raises:
             ValueError: 分类名称已存在
         """
-        db_gen = self._get_db()
-        db = next(db_gen)
+        db = self._get_db()
         try:
             # 检查分类名称是否已存在
             existing = db.query(ToolCategoryModel).filter(
@@ -725,7 +710,7 @@ class CommonToolService:
             )
             
         finally:
-            next(db_gen, None)
+            db.close()
     
     def update_category(self, category_id: str, request: UpdateToolCategoryRequest) -> AdminToolCategoryListItem:
         """
@@ -741,8 +726,7 @@ class CommonToolService:
         Raises:
             ValueError: 分类不存在或分类名称已被使用
         """
-        db_gen = self._get_db()
-        db = next(db_gen)
+        db = self._get_db()
         try:
             # 查询分类
             category = db.query(ToolCategoryModel).filter(
@@ -787,7 +771,7 @@ class CommonToolService:
             )
             
         finally:
-            next(db_gen, None)
+            db.close()
     
     def delete_category(self, category_id: str) -> None:
         """
@@ -799,8 +783,7 @@ class CommonToolService:
         Raises:
             ValueError: 分类不存在或分类下还有工具
         """
-        db_gen = self._get_db()
-        db = next(db_gen)
+        db = self._get_db()
         try:
             # 查询分类
             category = db.query(ToolCategoryModel).filter(
@@ -821,7 +804,7 @@ class CommonToolService:
             db.commit()
             
         finally:
-            next(db_gen, None)
+            db.close()
     
     def move_category_up(self, category_id: str) -> AdminToolCategoryListItem:
         """
@@ -836,8 +819,7 @@ class CommonToolService:
         Raises:
             ValueError: 分类不存在或已经是第一个
         """
-        db_gen = self._get_db()
-        db = next(db_gen)
+        db = self._get_db()
         try:
             # 查询当前分类
             category = db.query(ToolCategoryModel).filter(
@@ -878,7 +860,7 @@ class CommonToolService:
             )
             
         finally:
-            next(db_gen, None)
+            db.close()
     
     def move_category_down(self, category_id: str) -> AdminToolCategoryListItem:
         """
@@ -893,8 +875,7 @@ class CommonToolService:
         Raises:
             ValueError: 分类不存在或已经是最后一个
         """
-        db_gen = self._get_db()
-        db = next(db_gen)
+        db = self._get_db()
         try:
             # 查询当前分类
             category = db.query(ToolCategoryModel).filter(
@@ -935,4 +916,4 @@ class CommonToolService:
             )
             
         finally:
-            next(db_gen, None)
+            db.close()

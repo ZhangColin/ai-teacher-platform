@@ -17,9 +17,12 @@ DATABASE_URL = os.getenv(
 # 创建数据库引擎
 engine = create_engine(
     DATABASE_URL,
-    pool_pre_ping=True,  # 连接前检查连接是否有效
-    pool_recycle=3600,   # 连接回收时间（秒）
-    echo=False  # 是否打印SQL语句（开发时可设为True）
+    pool_pre_ping=True,     # 连接前检查连接是否有效
+    pool_recycle=3600,      # 连接回收时间（秒）
+    pool_size=20,           # 连接池大小（默认5）
+    max_overflow=40,        # 最大溢出连接数（默认10）
+    pool_timeout=30,        # 获取连接超时时间（秒）
+    echo=False              # 是否打印SQL语句（开发时可设为True）
 )
 
 # 创建会话工厂

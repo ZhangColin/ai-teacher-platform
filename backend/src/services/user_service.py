@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """用户服务：管理用户数据"""
 from typing import Optional, List, Tuple
 from sqlalchemy.orm import Session
@@ -16,12 +17,8 @@ class UserService:
         pass
     
     def _get_db(self):
-        """获取数据库会话（生成器）"""
-        db = SessionLocal()
-        try:
-            yield db
-        finally:
-            db.close()
+        """获取数据库会话"""
+        return SessionLocal()
     
     def create_user(self, username: str, password: str, nickname: Optional[str] = None, email: Optional[str] = None, phone: Optional[str] = None, avatar: Optional[str] = None, is_admin: bool = False) -> User:
         """
@@ -45,8 +42,7 @@ class UserService:
         # 使用User.create方法创建用户实体（密码自动加密）
         user_entity = User.create(username=username, password=password, nickname=nickname, email=email, phone=phone, avatar=avatar, is_admin=is_admin)
         
-        db_gen = self._get_db()
-        db = next(db_gen)
+        db = self._get_db()
         try:
             # 转换为SQLAlchemy模型
             user_model = UserModel(
@@ -88,10 +84,7 @@ class UserService:
                 raise ValueError("手机号已存在")
             raise ValueError("创建用户失败")
         finally:
-            try:
-                next(db_gen, None)  # 完成生成器
-            except StopIteration:
-                pass
+            db.close()
     
     def get_user_by_email(self, email: str) -> Optional[User]:
         """
@@ -103,8 +96,7 @@ class UserService:
         Returns:
             User: 用户实体，如果不存在返回None
         """
-        db_gen = self._get_db()
-        db = next(db_gen)
+        db = self._get_db()
         try:
             user_model = db.query(UserModel).filter(UserModel.email == email).first()
             if user_model is None:
@@ -122,10 +114,7 @@ class UserService:
                 created_at=user_model.created_at
             )
         finally:
-            try:
-                next(db_gen, None)  # 完成生成器
-            except StopIteration:
-                pass
+            db.close()
     
     def get_user_by_phone(self, phone: str) -> Optional[User]:
         """
@@ -137,8 +126,7 @@ class UserService:
         Returns:
             User: 用户实体，如果不存在返回None
         """
-        db_gen = self._get_db()
-        db = next(db_gen)
+        db = self._get_db()
         try:
             user_model = db.query(UserModel).filter(UserModel.phone == phone).first()
             if user_model is None:
@@ -156,10 +144,7 @@ class UserService:
                 created_at=user_model.created_at
             )
         finally:
-            try:
-                next(db_gen, None)  # 完成生成器
-            except StopIteration:
-                pass
+            db.close()
     
     def get_user_by_username(self, username: str) -> Optional[User]:
         """
@@ -171,8 +156,7 @@ class UserService:
         Returns:
             User: 用户实体，如果不存在返回None
         """
-        db_gen = self._get_db()
-        db = next(db_gen)
+        db = self._get_db()
         try:
             user_model = db.query(UserModel).filter(UserModel.username == username).first()
             if user_model is None:
@@ -190,10 +174,7 @@ class UserService:
                 created_at=user_model.created_at
             )
         finally:
-            try:
-                next(db_gen, None)  # 完成生成器
-            except StopIteration:
-                pass
+            db.close()
     
     def get_user_by_id(self, user_id: str) -> Optional[User]:
         """
@@ -205,8 +186,7 @@ class UserService:
         Returns:
             User: 用户实体，如果不存在返回None
         """
-        db_gen = self._get_db()
-        db = next(db_gen)
+        db = self._get_db()
         try:
             user_model = db.query(UserModel).filter(UserModel.user_id == user_id).first()
             if user_model is None:
@@ -224,10 +204,7 @@ class UserService:
                 created_at=user_model.created_at
             )
         finally:
-            try:
-                next(db_gen, None)  # 完成生成器
-            except StopIteration:
-                pass
+            db.close()
     
     def get_all_users(self, page: int = 1, page_size: int = 20, is_admin: Optional[bool] = None) -> Tuple[List[User], int]:
         """
@@ -241,8 +218,7 @@ class UserService:
         Returns:
             Tuple[List[User], int]: (用户列表, 总数)
         """
-        db_gen = self._get_db()
-        db = next(db_gen)
+        db = self._get_db()
         try:
             # 计算偏移量
             offset = (page - 1) * page_size
@@ -278,10 +254,7 @@ class UserService:
             
             return users, total
         finally:
-            try:
-                next(db_gen, None)  # 完成生成器
-            except StopIteration:
-                pass
+            db.close()
     
     def update_user(
         self, 
@@ -309,8 +282,7 @@ class UserService:
         Raises:
             ValueError: 业务规则错误（用户名/邮箱/手机号冲突，取消最后一个管理员）
         """
-        db_gen = self._get_db()
-        db = next(db_gen)
+        db = self._get_db()
         try:
             # 查询用户
             user_model = db.query(UserModel).filter(UserModel.user_id == user_id).first()
@@ -373,10 +345,7 @@ class UserService:
             db.rollback()
             raise ValueError("更新用户失败：数据冲突")
         finally:
-            try:
-                next(db_gen, None)  # 完成生成器
-            except StopIteration:
-                pass
+            db.close()
     
     def delete_user(self, user_id: str, current_user_id: str) -> bool:
         """
@@ -392,8 +361,7 @@ class UserService:
         Raises:
             ValueError: 业务规则错误（删除自己，删除最后一个管理员）
         """
-        db_gen = self._get_db()
-        db = next(db_gen)
+        db = self._get_db()
         try:
             # 检查是否删除自己
             if user_id == current_user_id:
@@ -416,10 +384,7 @@ class UserService:
             
             return True
         finally:
-            try:
-                next(db_gen, None)  # 完成生成器
-            except StopIteration:
-                pass
+            db.close()
     
     def reset_password(self, user_id: str, new_password: str) -> bool:
         """
@@ -438,8 +403,7 @@ class UserService:
         if len(new_password) < 6:
             raise ValueError("密码长度不能少于6位")
         
-        db_gen = self._get_db()
-        db = next(db_gen)
+        db = self._get_db()
         try:
             # 查询用户
             user_model = db.query(UserModel).filter(UserModel.user_id == user_id).first()
@@ -466,8 +430,5 @@ class UserService:
             
             return True
         finally:
-            try:
-                next(db_gen, None)  # 完成生成器
-            except StopIteration:
-                pass
+            db.close()
 
