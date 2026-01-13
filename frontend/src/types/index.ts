@@ -668,6 +668,7 @@ export interface AdminCourseCategoryListItem {
   children_count: number // 子目录数量
   created_at: string // 创建时间
   updated_at: string // 更新时间
+  children?: AdminCourseCategoryListItem[] // 子目录列表（树形表格使用）
 }
 
 /**

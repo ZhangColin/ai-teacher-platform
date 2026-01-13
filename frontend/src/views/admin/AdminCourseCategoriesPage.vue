@@ -8,13 +8,15 @@
         </div>
       </template>
 
-      <el-table :data="categories" v-loading="loading" style="width: 100%">
-        <el-table-column prop="name" label="目录名称" width="200" />
-        <el-table-column prop="parent_name" label="父目录" width="150">
-          <template #default="{ row }">
-            {{ row.parent_name || '根目录' }}
-          </template>
-        </el-table-column>
+      <el-table 
+        :data="categoryTreeTableData" 
+        v-loading="loading" 
+        style="width: 100%"
+        row-key="id"
+        :tree-props="{ children: 'children', hasChildren: 'hasChildren' }"
+        default-expand-all
+      >
+        <el-table-column prop="name" label="目录名称" width="300" />
         <el-table-column prop="order" label="排序" width="100" />
         <el-table-column prop="document_count" label="文档数" width="100" />
         <el-table-column prop="children_count" label="子目录数" width="100" />
@@ -126,6 +128,22 @@ const categoryTreeData = computed(() => {
       .map(cat => ({
         value: cat.id,
         label: cat.name,
+        children: buildTree(cat.id),
+      }))
+  }
+  
+  return buildTree(null)
+})
+
+// 构建树形表格数据
+const categoryTreeTableData = computed(() => {
+  // 递归构建树形结构
+  const buildTree = (parentId: string | null): AdminCourseCategoryListItem[] => {
+    return categories.value
+      .filter(cat => cat.parent_id === parentId)
+      .sort((a, b) => a.order - b.order)
+      .map(cat => ({
+        ...cat,
         children: buildTree(cat.id),
       }))
   }
