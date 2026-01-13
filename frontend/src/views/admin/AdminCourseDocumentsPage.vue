@@ -147,18 +147,14 @@
           />
         </el-form-item>
         <el-form-item label="所属目录" prop="category_id">
-          <el-select
+          <el-tree-select
             v-model="form.category_id"
+            :data="categoryTreeData"
             placeholder="请选择目录"
+            check-strictly
+            :render-after-expand="false"
             style="width: 100%"
-          >
-            <el-option
-              v-for="cat in allCategories"
-              :key="cat.id"
-              :label="cat.name"
-              :value="cat.id"
-            />
-          </el-select>
+          />
         </el-form-item>
       </el-form>
       <template #footer>
