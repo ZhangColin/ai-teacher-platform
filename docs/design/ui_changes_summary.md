@@ -53,7 +53,7 @@
 
 **变更内容**：
 - Logo：从文本Logo改为真实Logo图片文件（`logo.png`）
-- 平台名称：从"AI Platform"改为"海创元AI教育平台"
+- 平台名称：从"AI Platform"改为"海创元AI教育智研云平台"
 - Logo显示：Logo图片 + 平台名称并排显示
 
 **文件位置**：
@@ -177,7 +177,7 @@
 
 **变更内容**：
 - Favicon：从默认的 `vite.svg` 改为海创元 logo（`favicon.png`）
-- 页面标题：从"frontend"改为"海创元AI教育平台"
+- 页面标题：从"frontend"改为"海创元AI教育智研云平台"
 - 添加 `apple-touch-icon` 支持（iOS 设备）
 
 **文件位置**：

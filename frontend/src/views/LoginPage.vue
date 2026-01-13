@@ -3,8 +3,8 @@
     <div class="login-container">
       <!-- Logo和平台名称 -->
       <div class="login-header">
-        <img src="@/assets/logo/logo.png" alt="海创元AI教育平台" class="login-logo" />
-        <h1 class="login-title">海创元AI教育平台</h1>
+        <img src="@/assets/logo/logo.png" alt="海创元AI教育智研云平台" class="login-logo" />
+        <h1 class="login-title">海创元AI教育智研云平台</h1>
       </div>
 
       <!-- 登录表单 -->

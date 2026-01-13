@@ -1,7 +1,7 @@
 <template>
   <div class="logo" @click="handleClick">
-    <img :src="logoImage" alt="海创元AI教育平台" class="logo-image" />
-    <span class="logo-text">海创元AI教育平台</span>
+    <img :src="logoImage" alt="海创元AI教育智研云平台" class="logo-image" />
+    <span class="logo-text">海创元AI教育智研云平台</span>
   </div>
 </template>
 
