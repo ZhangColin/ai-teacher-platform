@@ -729,5 +729,6 @@ export interface UpdateCourseDocumentRequest {
   title?: string // 文档标题
   summary?: string // 文档摘要
   category_id?: string // 所属目录ID
+  order?: number // 排序顺序
 }
 

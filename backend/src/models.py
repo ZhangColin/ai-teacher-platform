@@ -843,6 +843,7 @@ class UpdateCourseCategoryRequest(BaseModel):
     """更新目录请求"""
     name: Optional[str] = Field(None, description="目录名称", min_length=1, max_length=100)
     parent_id: Optional[str] = Field(None, description="父目录ID（可以移动到其他目录下）")
+    order: Optional[int] = Field(None, description="排序顺序", ge=0)
 
 
 class CreateCourseCategoryResponse(BaseModel):
@@ -896,6 +897,7 @@ class UpdateCourseDocumentRequest(BaseModel):
     title: Optional[str] = Field(None, description="文档标题", min_length=1, max_length=200)
     summary: Optional[str] = Field(None, description="文档摘要", min_length=1, max_length=500)
     category_id: Optional[str] = Field(None, description="所属目录ID（可以移动到其他目录）")
+    order: Optional[int] = Field(None, description="排序顺序", ge=0)
 
 
 class CreateCourseDocumentResponse(BaseModel):

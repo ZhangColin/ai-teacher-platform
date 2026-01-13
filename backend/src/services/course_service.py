@@ -247,6 +247,9 @@ class CourseService:
                 
                 category.parent_id = request.parent_id
             
+            if request.order is not None:
+                category.order = request.order
+            
             category.updated_at = datetime.now()
             
             db.commit()
@@ -671,6 +674,9 @@ class CourseService:
                     raise ValueError(f"目录不存在: {request.category_id}")
                 
                 document.category_id = request.category_id
+            
+            if request.order is not None:
+                document.order = request.order
             
             document.updated_at = datetime.now()
             

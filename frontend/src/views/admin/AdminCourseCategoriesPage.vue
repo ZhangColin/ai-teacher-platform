@@ -221,6 +221,7 @@ async function handleSubmit() {
       const request: UpdateCourseCategoryRequest = {
         name: form.name,
         parent_id: form.parent_id,
+        order: form.order,
       }
       await ApiService.updateCourseCategory(form.id, request)
       ElMessage.success('目录更新成功')

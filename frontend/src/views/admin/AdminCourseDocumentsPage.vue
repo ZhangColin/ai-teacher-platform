@@ -387,6 +387,7 @@ async function handleSubmit() {
       if (form.title) request.title = form.title
       if (form.summary) request.summary = form.summary
       if (form.category_id) request.category_id = form.category_id
+      if (form.order !== undefined) request.order = form.order
 
       await ApiService.updateCourseDocument(form.id, request)
       ElMessage.success('文档更新成功')
