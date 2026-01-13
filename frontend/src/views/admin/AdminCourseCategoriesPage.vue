@@ -58,15 +58,15 @@
           <el-input v-model="form.name" placeholder="请输入目录名称" />
         </el-form-item>
         <el-form-item label="父目录" prop="parent_id">
-          <el-select v-model="form.parent_id" placeholder="请选择父目录（可选）" clearable style="width: 100%">
-            <el-option label="根目录" :value="null" />
-            <el-option
-              v-for="cat in availableParentCategories"
-              :key="cat.id"
-              :label="cat.name"
-              :value="cat.id"
-            />
-          </el-select>
+          <el-tree-select
+            v-model="form.parent_id"
+            :data="categoryTreeData"
+            placeholder="请选择父目录（可选，留空则为根目录）"
+            clearable
+            check-strictly
+            :render-after-expand="false"
+            style="width: 100%"
+          />
         </el-form-item>
         <el-form-item label="排序" prop="order">
           <el-input-number v-model="form.order" :min="0" />
@@ -113,6 +113,24 @@ const availableParentCategories = computed(() => {
     return categories.value.filter(cat => cat.id !== form.id)
   }
   return categories.value
+})
+
+// 构建树形数据（用于树形选择器）
+const categoryTreeData = computed(() => {
+  const availableCategories = availableParentCategories.value
+  
+  // 构建树形结构的递归函数
+  const buildTree = (parentId: string | null): any[] => {
+    return availableCategories
+      .filter(cat => cat.parent_id === parentId)
+      .map(cat => ({
+        value: cat.id,
+        label: cat.name,
+        children: buildTree(cat.id),
+      }))
+  }
+  
+  return buildTree(null)
 })
 
 // 表单验证规则

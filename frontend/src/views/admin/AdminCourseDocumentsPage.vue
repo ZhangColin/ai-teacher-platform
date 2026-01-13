@@ -85,18 +85,14 @@
           />
         </el-form-item>
         <el-form-item label="所属目录" prop="category_id">
-          <el-select
+          <el-tree-select
             v-model="form.category_id"
+            :data="categoryTreeData"
             placeholder="请选择目录"
+            check-strictly
+            :render-after-expand="false"
             style="width: 100%"
-          >
-            <el-option
-              v-for="cat in allCategories"
-              :key="cat.id"
-              :label="cat.name"
-              :value="cat.id"
-            />
-          </el-select>
+          />
         </el-form-item>
         <el-form-item label="排序" prop="order">
           <el-input-number v-model="form.order" :min="0" />
@@ -176,7 +172,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import {
   ElMessage,
   ElMessageBox,
@@ -224,6 +220,22 @@ const form = reactive<{
   summary: '',
   category_id: '',
   order: 0,
+})
+
+// 构建树形数据（用于树形选择器）
+const categoryTreeData = computed(() => {
+  // 构建树形结构的递归函数
+  const buildTree = (parentId: string | null): any[] => {
+    return allCategories.value
+      .filter(cat => cat.parent_id === parentId)
+      .map(cat => ({
+        value: cat.id,
+        label: cat.name,
+        children: buildTree(cat.id),
+      }))
+  }
+  
+  return buildTree(null)
 })
 
 // 创建表单验证规则
