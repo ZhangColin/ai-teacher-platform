@@ -35,6 +35,34 @@ class CourseService:
         """获取数据库会话"""
         return SessionLocal()
     
+    def _get_category_path(self, db: Session, category_id: str) -> str:
+        """
+        获取目录的完整路径
+        
+        Args:
+            db: 数据库会话
+            category_id: 目录ID
+            
+        Returns:
+            完整路径字符串（如: AI基础知识 > 什么是AI）
+        """
+        path_parts = []
+        current_id = category_id
+        
+        # 向上遍历找到所有父目录
+        while current_id:
+            category = db.query(CourseCategoryModel).filter(
+                CourseCategoryModel.id == current_id
+            ).first()
+            
+            if not category:
+                break
+                
+            path_parts.insert(0, category.name)
+            current_id = category.parent_id
+        
+        return " > ".join(path_parts) if path_parts else "未知"
+    
     # ========== 目录管理方法 ==========
     
     def _build_category_tree(self, categories: List[CourseCategoryModel], parent_id: Optional[str] = None) -> List[CourseCategoryNode]:
@@ -532,19 +560,23 @@ class CourseService:
                 asc(CourseDocumentModel.order)
             ).offset((page - 1) * page_size).limit(page_size).all()
             
-            # 获取目录名称
+            # 获取目录名称和路径
             result = []
             for doc in documents:
                 category = db.query(CourseCategoryModel).filter(
                     CourseCategoryModel.id == doc.category_id
                 ).first()
                 
+                category_name = category.name if category else "未知"
+                category_path = self._get_category_path(db, doc.category_id)
+                
                 result.append(AdminCourseDocumentListItem(
                     id=doc.id,
                     title=doc.title,
                     summary=doc.summary,
                     category_id=doc.category_id,
-                    category_name=category.name if category else "未知",
+                    category_name=category_name,
+                    category_path=category_path,
                     order=doc.order,
                     created_at=doc.created_at,
                     updated_at=doc.updated_at

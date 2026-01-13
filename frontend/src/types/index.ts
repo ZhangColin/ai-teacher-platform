@@ -707,6 +707,7 @@ export interface AdminCourseDocumentListItem {
   summary: string // 文档摘要
   category_id: string // 所属目录ID
   category_name: string // 所属目录名称
+  category_path: string // 所属目录完整路径
   order: number // 排序顺序
   created_at: string // 创建时间
   updated_at: string // 更新时间

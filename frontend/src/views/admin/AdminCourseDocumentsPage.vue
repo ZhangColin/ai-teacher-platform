@@ -26,7 +26,7 @@
 
       <el-table :data="documents" v-loading="loading" style="width: 100%">
         <el-table-column prop="title" label="文档标题" width="250" />
-        <el-table-column prop="category_name" label="所属目录" width="200" />
+        <el-table-column prop="category_path" label="所属目录" width="300" show-overflow-tooltip />
         <el-table-column prop="summary" label="摘要" min-width="300" show-overflow-tooltip />
         <el-table-column prop="order" label="排序" width="80" />
         <el-table-column prop="created_at" label="创建时间" width="180">
