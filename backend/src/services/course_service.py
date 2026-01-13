@@ -645,12 +645,15 @@ class CourseService:
             db.commit()
             db.refresh(new_document)
             
+            category_path = self._get_category_path(db, new_document.category_id)
+            
             return AdminCourseDocumentListItem(
                 id=new_document.id,
                 title=new_document.title,
                 summary=new_document.summary,
                 category_id=new_document.category_id,
                 category_name=category.name,
+                category_path=category_path,
                 order=new_document.order,
                 created_at=new_document.created_at,
                 updated_at=new_document.updated_at
@@ -715,17 +718,21 @@ class CourseService:
             db.commit()
             db.refresh(document)
             
-            # 获取目录名称
+            # 获取目录名称和路径
             category = db.query(CourseCategoryModel).filter(
                 CourseCategoryModel.id == document.category_id
             ).first()
+            
+            category_name = category.name if category else "未知"
+            category_path = self._get_category_path(db, document.category_id)
             
             return AdminCourseDocumentListItem(
                 id=document.id,
                 title=document.title,
                 summary=document.summary,
                 category_id=document.category_id,
-                category_name=category.name if category else "未知",
+                category_name=category_name,
+                category_path=category_path,
                 order=document.order,
                 created_at=document.created_at,
                 updated_at=document.updated_at
