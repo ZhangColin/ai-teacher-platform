@@ -11,6 +11,7 @@ export const useSessionStore = defineStore('session', () => {
   const messages = ref<Message[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
+  const titleGenerated = ref(false) // 标题是否已生成
   const currentPreviewArtifact = ref<Artifact | null>(null)
 
   // 计算属性
@@ -42,6 +43,7 @@ export const useSessionStore = defineStore('session', () => {
 
     loading.value = true
     error.value = null
+    titleGenerated.value = false // 重置标题生成标志
 
     // 添加用户消息（标记为 pending）
     messages.value.push({
@@ -61,8 +63,6 @@ export const useSessionStore = defineStore('session', () => {
     const aiMsgIndex = messages.value.length - 1
 
     try {
-      console.log('发送消息（流式）:', { toolId: toolId.value, sessionId: sessionId.value, content })
-      
       // 使用流式接口
       await ApiService.chatStream(
         toolId.value,
@@ -80,17 +80,14 @@ export const useSessionStore = defineStore('session', () => {
             // 更新会话ID
             if (data.session_id) {
               sessionId.value = data.session_id
-              console.log('会话ID已更新:', data.session_id)
             }
           } else if (data.type === 'content') {
             // 通过索引直接修改数组中的消息
             if (messages.value[aiMsgIndex]) {
-              // 方案1：直接修改 content
               messages.value[aiMsgIndex].content += data.content || ''
-              // 方案2：触发响应式更新 - 重新赋值该消息对象
+              // 触发响应式更新 - 重新赋值该消息对象
               const msg = messages.value[aiMsgIndex]
               messages.value[aiMsgIndex] = { ...msg }
-              console.log('累积内容长度:', messages.value[aiMsgIndex].content.length)
             }
             // 收到第一个内容块时，关闭 loading 状态
             if (loading.value) {
@@ -101,11 +98,13 @@ export const useSessionStore = defineStore('session', () => {
             if (messages.value[aiMsgIndex]) {
               messages.value[aiMsgIndex].artifacts = data.artifacts || []
               messages.value[aiMsgIndex].pending = false
-              console.log('流式对话完成，总长度:', messages.value[aiMsgIndex].content.length)
             }
             if (messages.value[userMsgIndex]) {
               messages.value[userMsgIndex].pending = false
             }
+          } else if (data.type === 'title_generated') {
+            // 标题生成完成
+            titleGenerated.value = true
           } else if (data.type === 'error') {
             // 错误处理
             throw new Error(data.error || '发送消息失败')
@@ -218,6 +217,7 @@ export const useSessionStore = defineStore('session', () => {
     loading,
     error,
     currentPreviewArtifact,
+    titleGenerated,
     // 计算属性
     hasSession,
     messageCount,

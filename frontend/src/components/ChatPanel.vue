@@ -50,15 +50,15 @@
         </div>
       </template>
       
-      <!-- 加载指示器（暂时禁用，调试流式输出） -->
-      <!-- <div v-if="sessionStore.loading" class="loading-indicator">
+      <!-- 加载指示器 -->
+      <div v-if="sessionStore.loading" class="loading-indicator">
         <div class="loading-typing">
           <span></span>
           <span></span>
           <span></span>
         </div>
         <span class="loading-text">AI 正在思考...</span>
-      </div> -->
+      </div>
       
       <!-- 错误提示 -->
       <div v-if="sessionStore.error" class="error-message">
@@ -125,9 +125,8 @@ watch(() => props.toolId, (newToolId) => {
 // 恢复会话
 watch(() => props.sessionId, async (newSessionId) => {
   if (newSessionId) {
-    // 🔥 如果正在流式输出，跳过 restoreSession（避免替换数组导致引用失效）
+    // 如果正在流式输出，跳过 restoreSession（避免替换数组导致引用失效）
     if (sessionStore.loading) {
-      console.log('⚠️ 流式输出进行中，跳过 restoreSession')
       return
     }
     try {
@@ -143,6 +142,15 @@ watch(() => props.sessionId, async (newSessionId) => {
 
 // 监听消息变化，自动滚动到底部
 watch(() => sessionStore.messages.length, async () => {
+  await nextTick()
+  scrollToBottom()
+})
+
+// 监听最后一条消息的内容变化（流式输出时自动滚动）
+watch(() => {
+  const lastMsg = sessionStore.messages[sessionStore.messages.length - 1]
+  return lastMsg?.content.length || 0
+}, async () => {
   await nextTick()
   scrollToBottom()
 })

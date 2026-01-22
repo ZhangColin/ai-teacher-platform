@@ -1931,6 +1931,8 @@ async def chat_stream(
                     # 更新会话标题
                     session_service.update_session_title(session_id, title, user_id=current_user.user_id)
                     logger.info(f"会话标题已生成并更新：{title}")
+                    # 发送标题生成完成事件
+                    yield f"data: {json.dumps({'type': 'title_generated', 'title': title})}\n\n"
                 except Exception as e:
                     logger.error(f"生成会话标题失败，使用降级方案: {e}", exc_info=True)
                     # 降级方案：使用简单截取
@@ -1938,6 +1940,8 @@ async def chat_stream(
                         fallback_title = title_generator._fallback_title(request.message)
                         session_service.update_session_title(session_id, fallback_title, user_id=current_user.user_id)
                         logger.info(f"使用降级方案生成标题：{fallback_title}")
+                        # 发送降级标题事件
+                        yield f"data: {json.dumps({'type': 'title_generated', 'title': fallback_title})}\n\n"
                     except Exception as e2:
                         logger.error(f"降级方案也失败了: {e2}", exc_info=True)
             else:
