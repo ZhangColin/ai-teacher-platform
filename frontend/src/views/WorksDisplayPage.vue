@@ -50,6 +50,20 @@
             <!-- 下方：描述 -->
             <p class="work-description">{{ work.description }}</p>
           </div>
+
+          <!-- 添加作品卡片 -->
+          <div
+            class="work-card add-card"
+            @click="handleAddWork(category.id)"
+          >
+            <div class="work-header">
+              <div class="work-icon-wrapper add-icon">
+                <PlusIcon class="w-6 h-6" />
+              </div>
+              <h3 class="work-name">添加教案学案</h3>
+            </div>
+            <p class="work-description">上传教案学案到此分类</p>
+          </div>
         </div>
       </div>
 
@@ -60,11 +74,20 @@
         <p class="empty-description">目前还没有可展示的作品</p>
       </div>
     </div>
+
+    <!-- 添加作品对话框 -->
+    <AddHtmlContentDialog
+      v-model="showAddDialog"
+      title="添加教案学案"
+      submit-text="添加"
+      :max-file-size-m-b="10"
+      @submit="handleSubmitAdd"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import {
@@ -74,8 +97,13 @@ import {
   StarIcon,
   CursorArrowRaysIcon,
   PresentationChartLineIcon,
+  PlusIcon,
 } from '@heroicons/vue/24/outline'
+import { ElMessage } from 'element-plus'
 import { useWorksStore } from '../stores/worksStore'
+import { ApiService } from '../services/apiClient'
+import AddHtmlContentDialog from '../components/AddHtmlContentDialog.vue'
+import { recommendWorkIcon } from '../utils/iconRecommendation'
 
 const router = useRouter()
 const worksStore = useWorksStore()
@@ -111,6 +139,64 @@ const loadCategories = async () => {
  */
 const navigateToWork = (workId: string) => {
   router.push(`/works/${workId}`)
+}
+
+// 添加作品对话框
+const showAddDialog = ref(false)
+const currentCategoryId = ref<string>('')
+
+/**
+ * 处理添加作品
+ */
+const handleAddWork = (categoryId: string) => {
+  currentCategoryId.value = categoryId
+  showAddDialog.value = true
+}
+
+/**
+ * 计算当前分类的最大 order
+ */
+const getMaxOrderInCategory = (categoryId: string): number => {
+  const category = categories.value.find(cat => cat.id === categoryId)
+  if (!category || category.works.length === 0) {
+    return 0
+  }
+  return Math.max(...category.works.map(work => work.order || 0))
+}
+
+/**
+ * 处理提交添加作品
+ */
+const handleSubmitAdd = async (data: { name: string; description: string; htmlFile: File }) => {
+  try {
+    // 自动推荐图标
+    const icon = recommendWorkIcon(data.name, data.description)
+    
+    // 计算排序值（当前分类最大 order + 1）
+    const order = getMaxOrderInCategory(currentCategoryId.value) + 1
+    
+    // 调用 API 创建作品
+    await ApiService.createWork(
+      data.name,
+      data.description,
+      currentCategoryId.value,
+      data.htmlFile,
+      icon,
+      order,
+      true // 默认可见
+    )
+    
+    ElMessage.success('添加成功')
+    
+    // 关闭对话框
+    showAddDialog.value = false
+    
+    // 重新加载数据
+    await loadCategories()
+  } catch (error) {
+    console.error('添加作品失败:', error)
+    ElMessage.error(error instanceof Error ? error.message : '添加失败，请稍后重试')
+  }
 }
 
 // 组件挂载时加载数据
@@ -228,6 +314,28 @@ onMounted(() => {
 
 .work-description {
   @apply text-sm text-gray-600 leading-relaxed line-clamp-2;
+}
+
+/* 添加卡片样式 */
+.add-card {
+  @apply border-2 border-dashed border-gray-300;
+  background-color: rgba(249, 250, 251, 0.5);
+}
+
+.add-card:hover {
+  @apply border-blue-400 bg-blue-50;
+}
+
+.add-card .work-icon-wrapper.add-icon {
+  @apply bg-gradient-to-br from-blue-50 to-blue-100 text-blue-600;
+}
+
+.add-card .work-name {
+  @apply text-blue-600;
+}
+
+.add-card .work-description {
+  @apply text-gray-500;
 }
 
 /* 空状态 */

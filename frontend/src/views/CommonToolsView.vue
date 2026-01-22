@@ -50,6 +50,20 @@
             <!-- 下方：描述 -->
             <p class="tool-description">{{ tool.description }}</p>
           </div>
+
+          <!-- 添加工具卡片 -->
+          <div
+            class="tool-card add-card"
+            @click="handleAddTool(category.id)"
+          >
+            <div class="tool-header">
+              <div class="tool-icon-wrapper add-icon">
+                <PlusIcon class="w-6 h-6" />
+              </div>
+              <h3 class="tool-name">添加工具</h3>
+            </div>
+            <p class="tool-description">上传 HTML 工具到此分类</p>
+          </div>
         </div>
       </div>
 
@@ -60,6 +74,15 @@
         <p class="empty-description">目前还没有可用的工具</p>
       </div>
     </div>
+
+    <!-- 添加工具对话框 -->
+    <AddHtmlContentDialog
+      v-model="showAddDialog"
+      title="添加工具"
+      submit-text="添加"
+      :max-file-size-m-b="5"
+      @submit="handleSubmitAdd"
+    />
   </div>
 </template>
 
@@ -72,9 +95,13 @@ import {
   ChartBarIcon,
   CodeBracketIcon,
   TableCellsIcon,
+  PlusIcon,
 } from '@heroicons/vue/24/outline'
+import { ElMessage } from 'element-plus'
 import { ApiService } from '../services/apiClient'
 import type { ToolCategoryGroup, CommonToolListItem } from '../types'
+import AddHtmlContentDialog from '../components/AddHtmlContentDialog.vue'
+import { recommendToolIcon } from '../utils/iconRecommendation'
 
 const router = useRouter()
 
@@ -128,6 +155,64 @@ const navigateToTool = (tool: CommonToolListItem) => {
   } else if (tool.type === 'html') {
     // HTML工具：导航到HTML工具运行器
     router.push(`/common-tools/html/${tool.id}`)
+  }
+}
+
+// 添加工具对话框
+const showAddDialog = ref(false)
+const currentCategoryId = ref<string>('')
+
+/**
+ * 处理添加工具
+ */
+const handleAddTool = (categoryId: string) => {
+  currentCategoryId.value = categoryId
+  showAddDialog.value = true
+}
+
+/**
+ * 计算当前分类的最大 order
+ */
+const getMaxOrderInCategory = (categoryId: string): number => {
+  const category = categories.value.find(cat => cat.id === categoryId)
+  if (!category || category.tools.length === 0) {
+    return 0
+  }
+  return Math.max(...category.tools.map(tool => tool.order || 0))
+}
+
+/**
+ * 处理提交添加工具
+ */
+const handleSubmitAdd = async (data: { name: string; description: string; htmlFile: File }) => {
+  try {
+    // 自动推荐图标
+    const icon = recommendToolIcon(data.name, data.description)
+    
+    // 计算排序值（当前分类最大 order + 1）
+    const order = getMaxOrderInCategory(currentCategoryId.value) + 1
+    
+    // 调用 API 创建工具
+    await ApiService.createHtmlTool(
+      data.name,
+      data.description,
+      currentCategoryId.value,
+      data.htmlFile,
+      icon,
+      order,
+      true // 默认可见
+    )
+    
+    ElMessage.success('添加成功')
+    
+    // 关闭对话框
+    showAddDialog.value = false
+    
+    // 重新加载数据
+    await loadCategories()
+  } catch (error) {
+    console.error('添加工具失败:', error)
+    ElMessage.error(error instanceof Error ? error.message : '添加失败，请稍后重试')
   }
 }
 
@@ -247,6 +332,28 @@ onMounted(() => {
 
 .tool-description {
   @apply text-sm text-gray-600 leading-relaxed line-clamp-2;
+}
+
+/* 添加卡片样式 */
+.add-card {
+  @apply border-2 border-dashed border-gray-300;
+  background-color: rgba(249, 250, 251, 0.5);
+}
+
+.add-card:hover {
+  @apply border-blue-400 bg-blue-50;
+}
+
+.add-card .tool-icon-wrapper.add-icon {
+  @apply bg-gradient-to-br from-blue-50 to-blue-100 text-blue-600;
+}
+
+.add-card .tool-name {
+  @apply text-blue-600;
+}
+
+.add-card .tool-description {
+  @apply text-gray-500;
 }
 
 /* 空状态 */
