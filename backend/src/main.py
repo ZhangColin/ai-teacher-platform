@@ -29,6 +29,7 @@ from src.services.conversion_service import ConversionService
 from src.services.common_tool_service import CommonToolService
 from src.services.work_service import WorkService
 from src.services.course_service import CourseService
+from src.services.title_generator import TitleGenerator
 from src.config_loader import ConfigLoader
 from src.models import (
     AgentListResponse, AgentListItem, SessionInitResponse,
@@ -93,6 +94,7 @@ conversion_service = ConversionService()
 common_tool_service = CommonToolService()
 work_service = WorkService()
 course_service = CourseService()
+title_generator = TitleGenerator()
 
 # HTTP Bearer Token 安全方案
 security = HTTPBearer()
@@ -1664,6 +1666,8 @@ async def chat(
     current_user: UserInfo = Depends(get_current_user)
 ):
     """向指定工具发送消息，获取 AI 回复。如果 session_id 不存在，自动创建新会话。"""
+    logger.info(f"🚀 chat() 函数被调用 - tool_id: {tool_id}, user: {current_user.username}, session_id: {request.session_id}")
+    
     # 验证工具是否存在
     tool = tool_service.get_tool_by_id(tool_id)
     if not tool:
@@ -1764,6 +1768,30 @@ async def chat(
         user_id=current_user.user_id,
         created_at=ai_message_time
     )
+    
+    # 检查是否是第一轮对话，如果是则生成标题
+    messages = session_service.get_messages_by_session(session_id, user_id=current_user.user_id)
+    logger.info(f"会话消息数量检查 - 会话ID: {session_id}, 消息数: {len(messages)}")
+    
+    if len(messages) == 2:  # 第一轮对话：1条用户消息 + 1条AI回复
+        try:
+            logger.info(f"检测到第一轮对话，开始生成会话标题 - 用户消息: {request.message[:50]}")
+            # 生成标题
+            title = await title_generator.generate_title(request.message, reply)
+            # 更新会话标题
+            session_service.update_session_title(session_id, title, user_id=current_user.user_id)
+            logger.info(f"会话标题已生成并更新：{title}")
+        except Exception as e:
+            logger.error(f"生成会话标题失败，使用降级方案: {e}", exc_info=True)
+            # 降级方案：使用简单截取
+            try:
+                fallback_title = title_generator._fallback_title(request.message)
+                session_service.update_session_title(session_id, fallback_title, user_id=current_user.user_id)
+                logger.info(f"使用降级方案生成标题：{fallback_title}")
+            except Exception as e2:
+                logger.error(f"降级方案也失败了: {e2}", exc_info=True)
+    else:
+        logger.info(f"非第一轮对话，跳过标题生成")
     
     # 解析成果物
     artifacts = artifact_parser.parse_from_markdown(reply)
@@ -1890,6 +1918,30 @@ async def chat_stream(
                 user_id=current_user.user_id,
                 created_at=ai_message_time
             )
+            
+            # 检查是否是第一轮对话，如果是则生成标题
+            messages = session_service.get_messages_by_session(session_id, user_id=current_user.user_id)
+            logger.info(f"会话消息数量检查 - 会话ID: {session_id}, 消息数: {len(messages)}")
+            
+            if len(messages) == 2:  # 第一轮对话：1条用户消息 + 1条AI回复
+                try:
+                    logger.info(f"检测到第一轮对话，开始生成会话标题 - 用户消息: {request.message[:50]}")
+                    # 生成标题
+                    title = await title_generator.generate_title(request.message, full_reply)
+                    # 更新会话标题
+                    session_service.update_session_title(session_id, title, user_id=current_user.user_id)
+                    logger.info(f"会话标题已生成并更新：{title}")
+                except Exception as e:
+                    logger.error(f"生成会话标题失败，使用降级方案: {e}", exc_info=True)
+                    # 降级方案：使用简单截取
+                    try:
+                        fallback_title = title_generator._fallback_title(request.message)
+                        session_service.update_session_title(session_id, fallback_title, user_id=current_user.user_id)
+                        logger.info(f"使用降级方案生成标题：{fallback_title}")
+                    except Exception as e2:
+                        logger.error(f"降级方案也失败了: {e2}", exc_info=True)
+            else:
+                logger.info(f"非第一轮对话，跳过标题生成")
             
             # 解析成果物
             artifacts = artifact_parser.parse_from_markdown(full_reply)

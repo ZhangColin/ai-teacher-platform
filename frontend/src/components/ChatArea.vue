@@ -2,6 +2,7 @@
   <div class="chat-area" :class="{ 'with-preview': showPreview, 'conversation-collapsed': conversationListCollapsed }">
     <!-- 左侧：历史对话列表 -->
     <ConversationList 
+      ref="conversationListRef"
       :tool-id="toolId"
       :collapsed="conversationListCollapsed"
       class="conversation-list" 
@@ -60,6 +61,7 @@ const currentSessionId = ref<string | null>(null)
 const showPreview = ref(false)
 const currentArtifact = ref<Artifact | null>(null)
 const conversationListCollapsed = ref(false)
+const conversationListRef = ref<InstanceType<typeof ConversationList> | null>(null)
 
 // 拖拽相关
 const chatPanelWidth = ref<number>(0)
@@ -77,6 +79,24 @@ watch(() => props.toolId, (newToolId) => {
     showPreview.value = false
     currentArtifact.value = null
     sessionStore.initTool(newToolId)
+  }
+})
+
+// 监听 sessionStore 的 sessionId 变化（新会话创建）
+watch(() => sessionStore.sessionId, async (newId, oldId) => {
+  if (newId && !oldId) {
+    // 新会话创建了
+    console.log('检测到新会话创建:', newId)
+    
+    // 更新当前会话ID
+    currentSessionId.value = newId
+    
+    // 刷新会话列表
+    if (conversationListRef.value) {
+      await conversationListRef.value.loadConversations()
+      // 设置为当前选中的会话
+      conversationListRef.value.setCurrentConversation(newId)
+    }
   }
 })
 

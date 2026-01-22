@@ -221,6 +221,14 @@ function handleDeleteClick(conversation: ConversationListItem) {
   deletingSession.value = conversation
 }
 
+// 暴露方法给父组件调用
+defineExpose({
+  loadConversations,
+  setCurrentConversation: (sessionId: string) => {
+    currentConversationId.value = sessionId
+  }
+})
+
 // 取消删除
 function handleCancelDelete() {
   deletingSession.value = null
@@ -277,11 +285,6 @@ function formatTime(timestamp: string): string {
     })
   }
 }
-
-// 暴露刷新方法，供外部调用
-defineExpose({
-  refresh: loadConversations,
-})
 </script>
 
 <style scoped>

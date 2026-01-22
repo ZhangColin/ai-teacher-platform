@@ -16,10 +16,7 @@
         <!-- 用户消息：显示在聊天框里 -->
         <div v-if="message.role === 'user'" class="user-message-wrapper">
           <div class="user-message">
-            <div 
-              class="user-message-content" 
-              :class="{ 'user-message-short': isShortMessage(message.content) }"
-            >{{ message.content }}</div>
+            <div class="user-message-content">{{ message.content }}</div>
           </div>
           <!-- 消息工具栏 -->
           <div class="message-toolbar">
@@ -353,31 +350,7 @@ function unescapeHtml(text: string): string {
   return text.replace(/&(?:amp|lt|gt|quot|#039|nbsp);/g, (m) => map[m] || m)
 }
 
-/**
- * 判断消息是否很短（应该保持在一行）
- * 中文字符按2个字符宽度计算，英文字符按1个字符宽度计算
- */
-function isShortMessage(content: string): boolean {
-  if (!content) return false
-  
-  // 如果消息包含换行符，不应该被视为短消息
-  if (content.includes('\n')) {
-    return false
-  }
-  
-  // 计算实际显示宽度（粗略估算：中文2，英文1）
-  let displayWidth = 0
-  for (const char of content) {
-    // 中文字符、全角字符按2计算，其他按1计算
-    if (/[\u4e00-\u9fa5\u3000-\u303f\uff00-\uffef]/.test(char)) {
-      displayWidth += 2
-    } else {
-      displayWidth += 1
-    }
-  }
-  // 如果显示宽度小于30个字符单位，认为是短消息
-  return displayWidth < 30
-}
+// 移除了 isShortMessage 函数，所有消息统一使用10栅格宽度，内容自然换行
 </script>
 
 <style scoped>
@@ -417,24 +390,17 @@ function isShortMessage(content: string): boolean {
   @apply text-sm leading-relaxed px-4 py-3 rounded-2xl bg-primary-500 text-white;
   /* 层级3：交互层 - 主色背景，明显阴影 */
   box-shadow: 0 2px 8px theme('colors.primary.500 / 0.3'), 0 1px 3px rgba(0, 0, 0, 0.1);
-  /* 换行策略：短消息自适应宽度不换行，长消息超过合理宽度时才换行 */
+  /* 换行策略：保留用户换行，超出宽度自动换行 */
   word-break: normal;
   overflow-wrap: break-word;
   /* 保留用户输入的换行符，合并多余空格 */
   white-space: pre-line;
-  /* 使用 fit-content 让短消息保持在一行 */
+  /* 自适应内容宽度，但最大不超过10栅格（83.33%） */
   width: fit-content;
-  /* 最大宽度：使用 clamp，确保在移动端和桌面端都合理 */
-  max-width: clamp(200px, 85%, 600px);
+  max-width: clamp(200px, 83.33%, 900px);
   display: inline-block;
   /* 确保内容不会因为父容器 flex 布局而被压缩 */
   flex-shrink: 0;
-}
-
-/* 短消息强制不换行 */
-.user-message-content.user-message-short {
-  white-space: nowrap;
-  max-width: none; /* 短消息移除最大宽度限制 */
 }
 
 /* AI 消息：直接渲染 Markdown，充分利用页面宽度 */
