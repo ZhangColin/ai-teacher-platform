@@ -17,3 +17,6 @@ env/
 
 # Mac 系统文件
 .DS_Storebackend_bak/
+
+.cursorrules
+backend/static

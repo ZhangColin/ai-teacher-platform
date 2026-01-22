@@ -2,7 +2,7 @@ tool_id: audio_gen
 name: 文生音频
 description: 通过文本描述生成音频内容
 category: "内容生成"
-icon: "sparkles"
+icon: "musical-note"
 visible: true
 type: "placeholder"
 order: 3

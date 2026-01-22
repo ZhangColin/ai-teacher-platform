@@ -3,7 +3,7 @@ tool_id: lesson_planning
 name: "AI备课评课教研员"
 description: "资深语文教研员，帮助老师备课和评课，提供专业的教学指导"
 category: "备课评课"
-icon: "academic-cap"
+icon: "clipboard-document-list"
 visible: true
 type: "normal"
 order: 1

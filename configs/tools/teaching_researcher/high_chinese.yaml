@@ -3,7 +3,7 @@ tool_id: high_chinese
 name: "高中语文教研员"
 description: "专注高中语文教学研究，提供文本解读、写作指导等专业支持"
 category: "语文教研"
-icon: "pencil-square"
+icon: "newspaper"
 visible: true
 type: "normal"
 order: 3

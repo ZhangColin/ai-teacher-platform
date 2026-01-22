@@ -3,7 +3,7 @@ tool_id: middle_english
 name: "初中英语教研员"
 description: "专注初中英语教学研究，提供语法、阅读、写作等专业指导"
 category: "英语教研"
-icon: "chat-bubble-left-right"
+icon: "globe-americas"
 visible: true
 type: "normal"
 order: 2
