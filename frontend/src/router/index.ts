@@ -1,7 +1,8 @@
 /** 路由配置 */
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHashHistory } from 'vue-router'
 import type { RouteRecordRaw, NavigationGuardNext, RouteLocationNormalized } from 'vue-router'
 import { useAuthStore } from '../stores/authStore'
+import { useNavigationStore } from '../stores/navigationStore'
 
 // 扩展路由meta类型
 declare module 'vue-router' {
@@ -146,7 +147,7 @@ const routes: RouteRecordRaw[] = [
 ]
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHashHistory(), // 使用 Hash 模式，刷新页面不会 404
   routes,
 })
 
@@ -156,6 +157,7 @@ const publicRoutes = ['/login']
 // 路由守卫
 router.beforeEach(async (to: RouteLocationNormalized, _from: RouteLocationNormalized, next: NavigationGuardNext) => {
   const authStore = useAuthStore()
+  const navigationStore = useNavigationStore()
 
   // 如果是登录页
   if (to.path === '/login') {
@@ -182,6 +184,17 @@ router.beforeEach(async (to: RouteLocationNormalized, _from: RouteLocationNormal
       query: { redirect: to.fullPath },
     })
     return
+  }
+
+  // 预加载导航配置（避免刷新时白屏）
+  // 如果是 /modules/* 路由，确保导航配置已加载
+  if (to.path.startsWith('/modules/') && !navigationStore.isLoaded) {
+    try {
+      await navigationStore.loadNavigation()
+    } catch (error) {
+      console.error('加载导航配置失败:', error)
+      // 即使失败也继续导航（navigationStore 会使用默认配置）
+    }
   }
 
   // 检查是否需要管理员权限

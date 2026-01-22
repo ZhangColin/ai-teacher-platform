@@ -74,7 +74,7 @@ export interface ApiErrorResponse {
  */
 const apiClient: AxiosInstance = axios.create({
   baseURL: '/api/v1',
-  timeout: 30000, // 30 秒超时
+  timeout: 180000, // 180 秒超时（3 分钟），为长文本续写预留足够时间
   headers: {
     'Content-Type': 'application/json',
   },
@@ -221,7 +221,10 @@ export class ApiService {
   ): Promise<ChatResponse> {
     const response = await apiClient.post<ChatResponse>(
       `/tools/${toolId}/chat`,
-      request
+      request,
+      {
+        timeout: 300000, // 聊天接口单独设置 300 秒超时（5 分钟），支持长文本续写
+      }
     )
     return response.data
   }

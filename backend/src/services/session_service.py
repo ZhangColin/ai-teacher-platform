@@ -3,6 +3,7 @@
 import uuid
 from datetime import datetime
 from typing import List, Optional
+from contextlib import contextmanager
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
@@ -18,6 +19,22 @@ class SessionService:
         # 使用数据库的 get_db 函数
         from ..database import get_db
         self._get_db = get_db
+    
+    @contextmanager
+    def _get_db_session(self):
+        """
+        获取数据库会话的上下文管理器
+        确保数据库连接正确释放
+        """
+        db_gen = self._get_db()
+        db = next(db_gen)
+        try:
+            yield db
+        finally:
+            try:
+                next(db_gen, None)  # 触发生成器的 finally 块
+            except StopIteration:
+                pass
     
     def create_session(
         self, 
@@ -38,9 +55,7 @@ class SessionService:
         Returns:
             Session 领域模型实例
         """
-        db = next(self._get_db())
-        
-        try:
+        with self._get_db_session() as db:
             # 生成会话ID
             session_id = str(uuid.uuid4())
             
@@ -74,9 +89,6 @@ class SessionService:
             
             # 转换为领域模型
             return self._to_domain_model(session_model)
-            
-        finally:
-            db.close()
     
     def get_session_by_id(self, session_id: str, user_id: Optional[str] = None) -> Optional[SessionDomain]:
         """
@@ -89,9 +101,7 @@ class SessionService:
         Returns:
             Session 领域模型实例，如果不存在或不属于用户则返回 None
         """
-        db = next(self._get_db())
-        
-        try:
+        with self._get_db_session() as db:
             query = db.query(SessionModel).filter(SessionModel.session_id == session_id)
             
             if user_id:
@@ -103,9 +113,6 @@ class SessionService:
                 return None
             
             return self._to_domain_model(session_model)
-            
-        finally:
-            db.close()
     
     def get_sessions_by_user_and_tool(
         self, 
@@ -122,18 +129,13 @@ class SessionService:
         Returns:
             会话列表（按 updated_at 倒序）
         """
-        db = next(self._get_db())
-        
-        try:
+        with self._get_db_session() as db:
             session_models = db.query(SessionModel).filter(
                 SessionModel.user_id == user_id,
                 SessionModel.tool_id == tool_id
             ).order_by(desc(SessionModel.updated_at)).all()
             
             return [self._to_domain_model(sm) for sm in session_models]
-            
-        finally:
-            db.close()
     
     def update_session_title(self, session_id: str, new_title: str, user_id: Optional[str] = None) -> Optional[SessionDomain]:
         """
@@ -147,9 +149,7 @@ class SessionService:
         Returns:
             更新后的 Session 领域模型实例，如果不存在或不属于用户则返回 None
         """
-        db = next(self._get_db())
-        
-        try:
+        with self._get_db_session() as db:
             query = db.query(SessionModel).filter(SessionModel.session_id == session_id)
             
             if user_id:
@@ -168,9 +168,6 @@ class SessionService:
             db.refresh(session_model)
             
             return self._to_domain_model(session_model)
-            
-        finally:
-            db.close()
     
     def delete_session(self, session_id: str, user_id: Optional[str] = None) -> bool:
         """
@@ -183,9 +180,7 @@ class SessionService:
         Returns:
             是否删除成功
         """
-        db = next(self._get_db())
-        
-        try:
+        with self._get_db_session() as db:
             query = db.query(SessionModel).filter(SessionModel.session_id == session_id)
             
             if user_id:
@@ -200,16 +195,14 @@ class SessionService:
             db.commit()
             
             return True
-            
-        finally:
-            db.close()
     
     def add_message(
         self,
         session_id: str,
         role: str,
         content: str,
-        user_id: Optional[str] = None
+        user_id: Optional[str] = None,
+        created_at: Optional[datetime] = None
     ) -> MessageDomain:
         """
         添加消息到会话
@@ -219,13 +212,12 @@ class SessionService:
             role: 消息角色（'user' 或 'assistant'）
             content: 消息内容
             user_id: 用户ID（可选，如果提供则验证会话是否属于该用户）
+            created_at: 消息创建时间（可选，如果不提供则使用当前时间）
             
         Returns:
             Message 领域模型实例
         """
-        db = next(self._get_db())
-        
-        try:
+        with self._get_db_session() as db:
             # 验证会话存在且属于用户
             query = db.query(SessionModel).filter(SessionModel.session_id == session_id)
             if user_id:
@@ -235,14 +227,15 @@ class SessionService:
             if not session_model:
                 raise ValueError(f"Session '{session_id}' not found")
             
-            # 创建消息
+            # 创建消息（使用传入的时间或当前时间）
+            message_time = created_at if created_at is not None else datetime.now()
             message_id = str(uuid.uuid4())
             message_model = MessageModel(
                 message_id=message_id,
                 session_id=session_id,
                 role=MessageRole(role),
                 content=content,
-                created_at=datetime.now()
+                created_at=message_time
             )
             
             db.add(message_model)
@@ -255,9 +248,6 @@ class SessionService:
             
             # 转换为领域模型
             return self._to_domain_model_message(message_model)
-            
-        finally:
-            db.close()
     
     def get_messages_by_session(
         self,
@@ -274,9 +264,7 @@ class SessionService:
         Returns:
             消息列表（按 created_at 正序）
         """
-        db = next(self._get_db())
-        
-        try:
+        with self._get_db_session() as db:
             # 验证会话存在且属于用户
             query = db.query(SessionModel).filter(SessionModel.session_id == session_id)
             if user_id:
@@ -292,9 +280,6 @@ class SessionService:
             ).order_by(MessageModel.created_at).all()
             
             return [self._to_domain_model_message(mm) for mm in message_models]
-            
-        finally:
-            db.close()
     
     def _to_domain_model(self, session_model: SessionModel) -> SessionDomain:
         """将数据库模型转换为领域模型"""

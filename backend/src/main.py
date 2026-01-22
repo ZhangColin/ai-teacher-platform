@@ -315,6 +315,9 @@ async def get_session_detail(
     
     # 获取消息列表
     messages = session_service.get_messages_by_session(session_id, user_id=current_user.user_id)
+    logger.info(f"获取会话消息 - 会话ID: {session_id}, 消息数量: {len(messages)}")
+    for i, msg in enumerate(messages):
+        logger.info(f"  消息 {i+1} - 角色: {msg.role}, 时间: {msg.created_at}, 内容前20字: {msg.content[:20]}")
     
     # 转换为 API 响应格式（设置 timestamp 字段）
     message_list = []
@@ -1739,20 +1742,27 @@ async def chat(
                 logger.info(f"  {tag}: {count} 个")
     logger.info("=" * 80)
     
-    # 保存用户消息到数据库
+    # 保存用户消息到数据库（显式控制时间戳，确保消息顺序）
+    from datetime import datetime, timedelta
+    user_message_time = datetime.now()
+    logger.info(f"保存用户消息 - 时间戳: {user_message_time}, 会话ID: {session_id}")
     session_service.add_message(
         session_id=session_id,
         role="user",
         content=request.message,
-        user_id=current_user.user_id
+        user_id=current_user.user_id,
+        created_at=user_message_time
     )
     
-    # 保存 AI 回复到数据库
+    # 保存 AI 回复到数据库（确保晚于用户消息 1 秒，避免精度问题）
+    ai_message_time = user_message_time + timedelta(seconds=1)
+    logger.info(f"保存 AI 消息 - 时间戳: {ai_message_time}, 会话ID: {session_id}")
     session_service.add_message(
         session_id=session_id,
         role="assistant",
         content=reply,
-        user_id=current_user.user_id
+        user_id=current_user.user_id,
+        created_at=ai_message_time
     )
     
     # 解析成果物
@@ -1832,12 +1842,16 @@ async def chat_stream(
                 "content": msg.content
             })
     
-    # 保存用户消息到数据库
+    # 保存用户消息到数据库（显式控制时间戳，确保消息顺序）
+    from datetime import datetime, timedelta
+    user_message_time = datetime.now()
+    logger.info(f"保存用户消息 - 时间戳: {user_message_time}, 会话ID: {session_id}")
     session_service.add_message(
         session_id=session_id,
         role="user",
         content=request.message,
-        user_id=current_user.user_id
+        user_id=current_user.user_id,
+        created_at=user_message_time
     )
     
     # 流式生成回复
@@ -1866,12 +1880,15 @@ async def chat_stream(
                 logger.debug(f"HTML内容预览（前500字符）: {full_reply[:500]}")
                 logger.debug(f"HTML内容预览（后500字符）: {full_reply[-500:]}")
             
-            # 保存完整回复到数据库
+            # 保存完整回复到数据库（确保晚于用户消息 1 秒，避免精度问题）
+            ai_message_time = user_message_time + timedelta(seconds=1)
+            logger.info(f"保存 AI 消息 - 时间戳: {ai_message_time}, 会话ID: {session_id}")
             session_service.add_message(
                 session_id=session_id,
                 role="assistant",
                 content=full_reply,
-                user_id=current_user.user_id
+                user_id=current_user.user_id,
+                created_at=ai_message_time
             )
             
             # 解析成果物

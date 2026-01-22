@@ -11,6 +11,9 @@ export default defineConfig({
     },
   },
   server: {
+    port: 5173,
+    strictPort: false,
+    // 配置 history fallback，确保刷新页面不会 404
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:8000',
@@ -21,6 +24,15 @@ export default defineConfig({
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
         secure: false,
+      }
+    }
+  },
+  // 构建配置
+  build: {
+    rollupOptions: {
+      output: {
+        // 确保路由正确
+        manualChunks: undefined
       }
     }
   }
