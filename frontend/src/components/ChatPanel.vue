@@ -12,7 +12,7 @@
       </div>
       
       <!-- 消息列表 -->
-      <template v-for="(message, index) in sessionStore.messages" :key="`${message.role}-${index}-${message.content.slice(0, 10)}`">
+      <template v-for="(message, index) in sessionStore.messages" :key="`msg-${index}`">
         <!-- 用户消息：显示在聊天框里 -->
         <div v-if="message.role === 'user'" class="user-message-wrapper">
           <div class="user-message">
@@ -32,8 +32,7 @@
     
         <!-- AI 消息：直接渲染 Markdown，充分利用页面 -->
         <div v-else class="assistant-message-wrapper">
-      <div 
-            :key="`markdown-${index}-${message.content.length}`"
+          <div 
             class="markdown-content prose prose-slate max-w-none"
             v-html="renderMarkdown(message.content, message.artifacts || [])"
             @click="handleMarkdownClick"
@@ -51,15 +50,15 @@
         </div>
       </template>
       
-      <!-- 加载指示器 -->
-      <div v-if="sessionStore.loading" class="loading-indicator">
+      <!-- 加载指示器（暂时禁用，调试流式输出） -->
+      <!-- <div v-if="sessionStore.loading" class="loading-indicator">
         <div class="loading-typing">
           <span></span>
           <span></span>
           <span></span>
         </div>
         <span class="loading-text">AI 正在思考...</span>
-      </div>
+      </div> -->
       
       <!-- 错误提示 -->
       <div v-if="sessionStore.error" class="error-message">
@@ -126,6 +125,11 @@ watch(() => props.toolId, (newToolId) => {
 // 恢复会话
 watch(() => props.sessionId, async (newSessionId) => {
   if (newSessionId) {
+    // 🔥 如果正在流式输出，跳过 restoreSession（避免替换数组导致引用失效）
+    if (sessionStore.loading) {
+      console.log('⚠️ 流式输出进行中，跳过 restoreSession')
+      return
+    }
     try {
       await sessionStore.restoreSession(newSessionId)
       // 恢复会话后，滚动到底部

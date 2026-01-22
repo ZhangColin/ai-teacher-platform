@@ -1,6 +1,6 @@
 /** Session Store - 管理当前会话状态 */
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import { ApiService } from '../services/apiClient'
 import type { Message, Artifact } from '../types'
 
@@ -44,79 +44,84 @@ export const useSessionStore = defineStore('session', () => {
     error.value = null
 
     // 添加用户消息（标记为 pending）
-    const userMessage: Message = {
+    messages.value.push({
       role: 'user',
       content,
       pending: true,
-    }
-    messages.value.push(userMessage)
+    })
+    const userMsgIndex = messages.value.length - 1
 
     // 创建 AI 回复消息占位符（显示加载状态）
-    const assistantMessage: Message = {
+    messages.value.push({
       role: 'assistant',
       content: '',
       artifacts: [],
       pending: true, // 标记为加载中
-    }
-    messages.value.push(assistantMessage)
+    })
+    const aiMsgIndex = messages.value.length - 1
 
     try {
-      console.log('发送消息（非流式）:', { toolId: toolId.value, sessionId: sessionId.value, content })
+      console.log('发送消息（流式）:', { toolId: toolId.value, sessionId: sessionId.value, content })
       
-      // 使用非流式接口
-      console.log('开始非流式请求...')
-      const response = await ApiService.chat(
+      // 使用流式接口
+      await ApiService.chatStream(
         toolId.value,
         {
           message: content,
-          session_id: sessionId.value || null, // 如果有会话ID则继续会话，没有则创建新会话
+          session_id: sessionId.value || null,
           history: messages.value.slice(0, -2).map(msg => ({
             role: msg.role,
             content: msg.content,
-          })), // 不包含刚添加的用户消息和AI占位符
+          })),
+        },
+        (data) => {
+          // 处理流式数据块
+          if (data.type === 'session_id') {
+            // 更新会话ID
+            if (data.session_id) {
+              sessionId.value = data.session_id
+              console.log('会话ID已更新:', data.session_id)
+            }
+          } else if (data.type === 'content') {
+            // 通过索引直接修改数组中的消息
+            if (messages.value[aiMsgIndex]) {
+              // 方案1：直接修改 content
+              messages.value[aiMsgIndex].content += data.content || ''
+              // 方案2：触发响应式更新 - 重新赋值该消息对象
+              const msg = messages.value[aiMsgIndex]
+              messages.value[aiMsgIndex] = { ...msg }
+              console.log('累积内容长度:', messages.value[aiMsgIndex].content.length)
+            }
+            // 收到第一个内容块时，关闭 loading 状态
+            if (loading.value) {
+              loading.value = false
+            }
+          } else if (data.type === 'done') {
+            // 流式完成
+            if (messages.value[aiMsgIndex]) {
+              messages.value[aiMsgIndex].artifacts = data.artifacts || []
+              messages.value[aiMsgIndex].pending = false
+              console.log('流式对话完成，总长度:', messages.value[aiMsgIndex].content.length)
+            }
+            if (messages.value[userMsgIndex]) {
+              messages.value[userMsgIndex].pending = false
+            }
+          } else if (data.type === 'error') {
+            // 错误处理
+            throw new Error(data.error || '发送消息失败')
+          }
         }
       )
-      
-      console.log('收到完整回复:', {
-        sessionId: response.session_id,
-        replyLength: response.reply.length,
-        artifactsCount: response.artifacts?.length || 0
-      })
-      
-      // 更新会话ID
-      if (response.session_id) {
-        sessionId.value = response.session_id
-        console.log('会话ID已更新:', response.session_id)
-      }
-      
-      // 更新 AI 消息内容
-      assistantMessage.content = response.reply
-      assistantMessage.artifacts = response.artifacts || []
-      assistantMessage.pending = false
-      
-      console.log('消息处理完成，总长度:', assistantMessage.content.length, 'artifacts:', assistantMessage.artifacts.length)
-      
-      // 等待 DOM 更新后触发滚动事件
-      await new Promise(resolve => setTimeout(resolve, 0))
-      window.dispatchEvent(new CustomEvent('message-updated'))
-
-      // 更新用户消息状态（移除 pending）
-      const lastUserMessage = messages.value[messages.value.length - 2]
-      if (lastUserMessage && lastUserMessage.role === 'user') {
-        lastUserMessage.pending = false
-      }
     } catch (err) {
       console.error('发送消息失败:', err)
       // 移除 AI 占位符消息
-      const aiMessageIndex = messages.value.findIndex(msg => msg === assistantMessage)
-      if (aiMessageIndex !== -1) {
-        messages.value.splice(aiMessageIndex, 1)
+      if (aiMsgIndex < messages.value.length) {
+        messages.value.splice(aiMsgIndex, 1)
       }
       // 更新用户消息状态（标记为错误）
-      const lastMessage = messages.value[messages.value.length - 1]
-      if (lastMessage && lastMessage.role === 'user') {
-        lastMessage.pending = false
-        lastMessage.error = err instanceof Error ? err.message : '发送消息失败'
+      if (userMsgIndex < messages.value.length && messages.value[userMsgIndex]) {
+        messages.value[userMsgIndex].pending = false
+        messages.value[userMsgIndex].error = err instanceof Error ? err.message : '发送消息失败'
       }
       error.value = err instanceof Error ? err.message : '发送消息失败'
       throw err
