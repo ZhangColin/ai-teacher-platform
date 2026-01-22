@@ -1,71 +1,154 @@
 <template>
   <div class="login-page">
-    <div class="login-container">
-      <!-- Logo和平台名称 -->
-      <div class="login-header">
-        <img src="@/assets/logo/logo.png" alt="海创元AI教育智研云平台" class="login-logo" />
-        <h1 class="login-title">海创元AI教育智研云平台</h1>
+    <!-- 左侧：平台介绍 -->
+    <div class="intro-section">
+      <div class="intro-content">
+        <!-- Logo和平台名称 -->
+        <div class="intro-header">
+          <img src="@/assets/logo/logo.png" alt="海创元AI教育智研云平台" class="intro-logo" />
+          <h1 class="intro-title">海创元AI教育智研云平台</h1>
+        </div>
+
+        <!-- 平台介绍 -->
+        <div class="intro-modules">
+          <div class="modules-container">
+            <!-- 模块1: AI模型能力 -->
+            <div class="module-item">
+              <div class="module-icon">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+              </div>
+              <div class="module-content">
+                <h3 class="module-title">AI模型能力</h3>
+                <p class="module-desc">智能匹配国内外优质大模型，提供文案生成、文生图、文生音频、文生视频、AI编程及SVG绘图等全方位创作能力</p>
+              </div>
+            </div>
+
+            <!-- 模块2: AI教研员智能体 -->
+            <div class="module-item">
+              <div class="module-icon">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+              </div>
+              <div class="module-content">
+                <h3 class="module-title">AI教研员智能体</h3>
+                <p class="module-desc">覆盖小初高全学科，兼具资深导师、优秀同事、得力助手三重身份，辅助设计教案、生成逐字稿，打造个性化授课风格</p>
+              </div>
+            </div>
+
+            <!-- 模块3: 扩展工具箱 -->
+            <div class="module-item">
+              <div class="module-icon">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+              </div>
+              <div class="module-content">
+                <h3 class="module-title">扩展工具箱</h3>
+                <p class="module-desc">将教学高频场景智能化，提供课堂活跃工具、成绩统计分析、易错点追踪等实用功能，全面提升教学效率</p>
+              </div>
+            </div>
+
+            <!-- 模块4: 教案学案区 -->
+            <div class="module-item">
+              <div class="module-icon">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <div class="module-content">
+                <h3 class="module-title">教案学案区</h3>
+                <p class="module-desc">汇聚优质教学案例资源，提供3D模型、动画演示等创新素材，让抽象概念可视化，增强课程趣味性与理解度</p>
+              </div>
+            </div>
+
+            <!-- 模块5: 全科AI素养提升区 -->
+            <div class="module-item">
+              <div class="module-icon">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+              </div>
+              <div class="module-content">
+                <h3 class="module-title">全科AI素养提升区</h3>
+                <p class="module-desc">按学科分类的AI融合专项资料库，提供丰富的文档、课件等素材，助力教师提升AI教学应用能力</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
+    </div>
 
-      <!-- 登录表单 -->
-      <form @submit.prevent="handleSubmit" class="login-form">
-        <!-- 账号输入框（支持邮箱或手机号） -->
-        <div class="form-group">
-          <label for="account" class="form-label">账号</label>
-          <input
-            id="account"
-            v-model="formData.account"
-            type="text"
-            class="form-input"
-            :class="{ 'form-input-error': errors.account }"
-            placeholder="请输入用户名、邮箱或手机号"
-            @blur="validateAccount"
-          />
-          <span v-if="errors.account" class="error-message">{{ errors.account }}</span>
+    <!-- 右侧：登录区域 -->
+    <div class="login-section">
+      <div class="login-container">
+        <div class="login-header">
+          <h2 class="login-title">欢迎登录</h2>
+          <p class="login-subtitle">探索AI赋能教育的无限可能</p>
         </div>
 
-        <!-- 密码输入框 -->
-        <div class="form-group">
-          <label for="password" class="form-label">密码</label>
-          <input
-            id="password"
-            v-model="formData.password"
-            type="password"
-            class="form-input"
-            :class="{ 'form-input-error': errors.password }"
-            placeholder="请输入密码"
-            @blur="validatePassword"
-          />
-          <span v-if="errors.password" class="error-message">{{ errors.password }}</span>
-        </div>
-
-        <!-- 记住我 -->
-        <div class="form-group">
-          <label class="checkbox-label">
+        <!-- 登录表单 -->
+        <form @submit.prevent="handleSubmit" class="login-form">
+          <!-- 账号输入框 -->
+          <div class="form-group">
+            <label for="account" class="form-label">账号</label>
             <input
-              v-model="formData.remember_me"
-              type="checkbox"
-              class="checkbox-input"
+              id="account"
+              v-model="formData.account"
+              type="text"
+              class="form-input"
+              :class="{ 'form-input-error': errors.account }"
+              placeholder="请输入用户名、邮箱或手机号"
+              @blur="validateAccount"
             />
-            <span class="checkbox-text">记住我</span>
-          </label>
-        </div>
+            <span v-if="errors.account" class="error-message">{{ errors.account }}</span>
+          </div>
 
-        <!-- 错误提示 -->
-        <div v-if="authStore.error" class="error-alert">
-          {{ authStore.error }}
-        </div>
+          <!-- 密码输入框 -->
+          <div class="form-group">
+            <label for="password" class="form-label">密码</label>
+            <input
+              id="password"
+              v-model="formData.password"
+              type="password"
+              class="form-input"
+              :class="{ 'form-input-error': errors.password }"
+              placeholder="请输入密码"
+              @blur="validatePassword"
+            />
+            <span v-if="errors.password" class="error-message">{{ errors.password }}</span>
+          </div>
 
-        <!-- 登录按钮 -->
-        <button
-          type="submit"
-          class="login-button"
-          :disabled="authStore.loading"
-        >
-          <span v-if="authStore.loading">登录中...</span>
-          <span v-else>登录</span>
-        </button>
-      </form>
+          <!-- 记住我 -->
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input
+                v-model="formData.remember_me"
+                type="checkbox"
+                class="checkbox-input"
+              />
+              <span class="checkbox-text">记住我</span>
+            </label>
+          </div>
+
+          <!-- 错误提示 -->
+          <div v-if="authStore.error" class="error-alert">
+            {{ authStore.error }}
+          </div>
+
+          <!-- 登录按钮 -->
+          <button
+            type="submit"
+            class="login-button"
+            :disabled="authStore.loading"
+          >
+            <span v-if="authStore.loading">登录中...</span>
+            <span v-else>登录</span>
+          </button>
+        </form>
+      </div>
     </div>
   </div>
 </template>
@@ -175,30 +258,107 @@ async function handleSubmit() {
 </script>
 
 <style scoped>
+/* ========== 页面布局 ========== */
 .login-page {
-  @apply min-h-screen flex items-center justify-center;
-  background: linear-gradient(to bottom, theme('colors.gray.50') 0%, theme('colors.gray.100') 100%);
+  @apply min-h-screen flex;
+}
+
+/* ========== 左侧：平台介绍 ========== */
+.intro-section {
+  @apply flex-1 flex items-center justify-center px-8 py-12;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.intro-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  opacity: 0.3;
+}
+
+.intro-content {
+  @apply relative z-10 w-full max-w-2xl;
+}
+
+.intro-header {
+  @apply text-center mb-12;
+}
+
+.intro-logo {
+  @apply h-16 w-auto mx-auto mb-4;
+  object-fit: contain;
+  filter: brightness(0) invert(1);
+}
+
+.intro-title {
+  @apply text-3xl font-bold text-white mb-2;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.intro-modules {
+  @apply space-y-6;
+}
+
+.modules-container {
+  @apply bg-white bg-opacity-10 backdrop-blur-sm rounded-2xl p-6 space-y-1;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.module-item {
+  @apply flex items-start gap-4 p-4 rounded-xl transition-all duration-300 hover:bg-white hover:bg-opacity-10;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.module-item:last-child {
+  border-bottom: none;
+}
+
+.module-icon {
+  @apply flex-shrink-0 w-10 h-10 rounded-lg bg-white bg-opacity-20 flex items-center justify-center text-white;
+}
+
+.module-content {
+  @apply flex-1 min-w-0;
+}
+
+.module-title {
+  @apply text-base font-semibold text-white mb-1;
+}
+
+.module-desc {
+  @apply text-sm text-white text-opacity-90 leading-relaxed;
+}
+
+/* ========== 右侧：登录区域 ========== */
+.login-section {
+  @apply w-full md:w-[480px] lg:w-[520px] flex items-center justify-center px-8 py-12 bg-gray-50;
 }
 
 .login-container {
-  @apply w-full max-w-md px-6 py-8 bg-white rounded-xl shadow-lg;
+  @apply w-full max-w-md;
 }
 
 .login-header {
   @apply text-center mb-8;
 }
 
-.login-logo {
-  @apply h-16 w-auto mx-auto mb-4;
-  object-fit: contain;
+.login-title {
+  @apply text-3xl font-bold text-gray-900 mb-2;
 }
 
-.login-title {
-  @apply text-2xl font-semibold text-gray-900;
+.login-subtitle {
+  @apply text-sm text-gray-600;
 }
 
 .login-form {
-  @apply space-y-6;
+  @apply space-y-5;
 }
 
 .form-group {
@@ -210,7 +370,7 @@ async function handleSubmit() {
 }
 
 .form-input {
-  @apply w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all;
+  @apply w-full px-4 py-3 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all;
 }
 
 .form-input-error {
@@ -226,7 +386,7 @@ async function handleSubmit() {
 }
 
 .checkbox-input {
-  @apply w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500;
+  @apply w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500 cursor-pointer;
 }
 
 .checkbox-text {
@@ -238,26 +398,140 @@ async function handleSubmit() {
 }
 
 .login-button {
-  @apply w-full px-4 py-3 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed;
+  @apply w-full px-4 py-3.5 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md;
 }
 
-/* 平板端响应式 */
+/* ========== 响应式设计 ========== */
+
+/* 平板端 (768px - 1023px) */
 @media (min-width: 768px) and (max-width: 1023px) {
-  .login-container {
-    @apply max-w-lg;
+  .intro-section {
+    @apply px-6 py-10;
+  }
+
+  .intro-logo {
+    @apply h-14;
+  }
+
+  .intro-title {
+    @apply text-2xl;
+  }
+
+  .modules-container {
+    @apply p-5 space-y-0.5;
+  }
+
+  .module-item {
+    @apply gap-3 p-3;
+  }
+
+  .module-icon {
+    @apply w-9 h-9;
+  }
+
+  .module-title {
+    @apply text-sm;
+  }
+
+  .module-desc {
+    @apply text-xs;
+  }
+
+  .login-section {
+    @apply w-[420px];
   }
 }
 
-/* 移动端响应式 */
+/* 移动端 (<768px) - 垂直堆叠 */
 @media (max-width: 767px) {
-  .login-container {
-    @apply px-4 py-6;
+  .login-page {
+    @apply flex-col;
   }
-  
-  .login-logo {
+
+  .intro-section {
+    @apply px-6 py-8;
+    min-height: auto;
+  }
+
+  .intro-header {
+    @apply mb-6;
+  }
+
+  .intro-logo {
     @apply h-12;
   }
-  
+
+  .intro-title {
+    @apply text-xl;
+  }
+
+  .intro-modules {
+    @apply space-y-4;
+  }
+
+  .modules-container {
+    @apply p-4 space-y-0;
+  }
+
+  .module-item {
+    @apply gap-3 p-3;
+  }
+
+  .module-icon {
+    @apply w-8 h-8;
+  }
+
+  .module-title {
+    @apply text-sm mb-1;
+  }
+
+  .module-desc {
+    @apply text-xs;
+  }
+
+  .login-section {
+    @apply w-full px-6 py-8;
+  }
+
+  .login-title {
+    @apply text-2xl;
+  }
+
+  .login-subtitle {
+    @apply text-xs;
+  }
+}
+
+/* 超小屏幕 (<375px) */
+@media (max-width: 374px) {
+  .intro-section {
+    @apply px-4 py-6;
+  }
+
+  .intro-logo {
+    @apply h-10;
+  }
+
+  .intro-title {
+    @apply text-lg;
+  }
+
+  .modules-container {
+    @apply p-3;
+  }
+
+  .module-item {
+    @apply gap-2 p-2;
+  }
+
+  .module-icon {
+    @apply w-7 h-7;
+  }
+
+  .login-section {
+    @apply px-4 py-6;
+  }
+
   .login-title {
     @apply text-xl;
   }
