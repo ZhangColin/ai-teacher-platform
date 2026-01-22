@@ -7,6 +7,7 @@ visible: true
 type: "normal"
 order: 1
 toolset_id: ai_tools
+model: "deepseek:deepseek-chat"
 system_prompt: |
   你是一个友好、乐于助人的AI助手。请根据用户的问题和需求，提供有价值的回答和帮助。
 welcome_message: "你好！我是你的AI助手，有什么可以帮你的吗？"

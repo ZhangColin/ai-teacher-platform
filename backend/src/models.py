@@ -47,6 +47,7 @@ class Tool(BaseModel):
     order: int = Field(999, description="排序顺序（数字越小越靠前，默认999）")
     toolset_id: str = Field("ai_tools", description="所属工具集ID（默认ai_tools，保持向后兼容）")
     system_prompt_file: Optional[str] = Field(None, description="系统提示词文件路径（相对于工具集配置目录），如果指定则从文件加载system_prompt")
+    model: Optional[str] = Field(None, description="使用的AI模型（格式：provider:model_name，如 deepseek:deepseek-coder），如果未指定则使用系统默认")
     
     def validate(self) -> bool:
         """验证工具配置是否完整有效"""

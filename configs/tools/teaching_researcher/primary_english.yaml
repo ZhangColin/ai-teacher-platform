@@ -9,6 +9,7 @@ type: "normal"
 order: 1
 toolset_id: teaching_researcher
 system_prompt_file: "prompts/小学英语教研员提示词.md"
+model: "deepseek:deepseek-chat"
 welcome_message: |
   Hello! 我是一位小学英语教研员，专注于培养孩子们的英语学习兴趣和语言能力。
   

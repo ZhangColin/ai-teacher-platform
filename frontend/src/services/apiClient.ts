@@ -283,7 +283,6 @@ export class ApiService {
               const jsonStr = trimmedLine.slice(6).trim()
               if (jsonStr) {
                 const data = JSON.parse(jsonStr)
-                console.log('收到流式数据块:', data.type, data.content?.substring(0, 20) || '')
                 onChunk(data)
               }
             } catch (e) {
@@ -303,7 +302,6 @@ export class ApiService {
           const jsonStr = trimmedBuffer.slice(6).trim()
           if (jsonStr) {
             const data = JSON.parse(jsonStr)
-            console.log('收到流式数据块（最后）:', data.type)
             onChunk(data)
           }
         } catch (e) {

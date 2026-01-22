@@ -63,7 +63,6 @@ function toggleSidebar() {
 
 function handleToolChange(tool: ToolListItem) {
   currentTool.value = tool
-  console.log('切换到工具:', tool.tool_id, '类型:', tool.type, '工具集:', props.toolsetId)
 }
 </script>
 

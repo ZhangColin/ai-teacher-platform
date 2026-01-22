@@ -587,29 +587,24 @@ const _sanitizedSvgContent = computed(() => {
       previewError.value = null
       let content = props.artifact.content.trim()
       
-      console.log('原始 SVG 内容（前100字符）:', content.substring(0, 100))
       
       // 如果内容被 HTML 转义了，先反转义
       // 检查是否包含转义的 HTML 实体
       if (content.includes('&lt;') || content.includes('&gt;') || content.includes('&amp;')) {
-        console.log('检测到 HTML 转义，开始反转义...')
         // 创建临时 DOM 元素来反转义
         const tempDiv = document.createElement('div')
         tempDiv.innerHTML = content
         content = tempDiv.textContent || tempDiv.innerText || content
-        console.log('反转义后（前100字符）:', content.substring(0, 100))
       }
       
       // 如果内容被包裹在代码块标记中（```svg ... ```），移除它们
       if (content.startsWith('```')) {
-        console.log('检测到代码块标记，移除...')
         content = content.replace(/^```svg\s*/i, '').replace(/```\s*$/, '').trim()
       }
       
       // 如果内容被包裹在 <pre><code> 中，提取 SVG 内容
       const preCodeMatch = content.match(/<pre[^>]*><code[^>]*>([\s\S]*?)<\/code><\/pre>/i)
       if (preCodeMatch && preCodeMatch[1]) {
-        console.log('检测到 <pre><code> 包裹，提取内容...')
         content = preCodeMatch[1]
         // 再次反转义（因为 code 标签中的内容会被转义）
         const tempDiv = document.createElement('div')
@@ -633,7 +628,6 @@ const _sanitizedSvgContent = computed(() => {
         content = content.replace(/<svg([^>]*)>/i, '<svg$1 viewBox="0 0 400 400">')
       }
       
-      console.log('最终 SVG 内容（前100字符）:', content.substring(0, 100))
       return content
     } catch (error) {
       previewError.value = 'SVG 内容处理失败'
@@ -654,7 +648,6 @@ function handleIframeLoad() {
     // 我们无法访问 iframe.contentDocument，这是正常的安全限制
     // 如果 load 事件触发，说明内容已成功加载
     previewError.value = null
-    console.log('HTML 预览加载成功')
   } catch (error) {
     console.error('HTML 预览加载出错:', error)
     previewError.value = '预览内容加载失败，可能是内容格式错误'
@@ -675,12 +668,6 @@ function handleIframeError(event: Event) {
 watch(
   () => props.artifact,
   async (newArtifact, oldArtifact) => {
-    console.log('PreviewPanel: artifact 变化', newArtifact ? {
-      type: newArtifact.type,
-      contentLength: newArtifact.content?.length,
-      hasContent: !!newArtifact.content
-    } : 'null')
-    
     // 清理旧的 Blob URL（当 artifact 变化时）
     if (oldArtifact?.type === 'html' && htmlBlobUrlRef.value) {
       URL.revokeObjectURL(htmlBlobUrlRef.value)
@@ -691,7 +678,6 @@ watch(
     isFullscreen.value = false // 切换预览内容时退出全屏
     
     if (!newArtifact) {
-      console.log('PreviewPanel: artifact 为空，清空容器')
       if (svgContainerRef.value) {
         svgContainerRef.value.innerHTML = ''
       }
@@ -712,46 +698,34 @@ watch(
       setTimeout(() => {
         if (htmlIframeRef.value && previewError.value === null) {
           // 如果 2 秒后没有错误，说明加载正常
-          console.log('HTML 预览超时检查：正常')
         }
       }, 2000)
     }
     
     // 对于 SVG，直接设置 innerHTML 渲染（包括 xml 类型的 SVG 内容）
     if (isSvgArtifact(newArtifact)) {
-      console.log('检测到 SVG artifact，开始处理...', {
-        type: newArtifact.type,
-        contentLength: newArtifact.content?.length,
-        contentPreview: newArtifact.content?.substring(0, 200)
-      })
       await nextTick()
-      console.log('nextTick 完成，svgContainerRef:', svgContainerRef.value)
       
       if (svgContainerRef.value) {
         try {
           // 直接处理内容，不依赖computed属性
           let content = newArtifact.content.trim()
-          console.log('原始内容（前200字符）:', content.substring(0, 200))
           
           // 如果内容被 HTML 转义了，先反转义
           if (content.includes('&lt;') || content.includes('&gt;') || content.includes('&amp;')) {
-            console.log('检测到 HTML 转义，开始反转义...')
             const tempDiv = document.createElement('div')
             tempDiv.innerHTML = content
             content = tempDiv.textContent || tempDiv.innerText || content
-            console.log('反转义后（前200字符）:', content.substring(0, 200))
           }
           
           // 如果内容被包裹在代码块标记中，移除它们
           if (content.startsWith('```')) {
-            console.log('检测到代码块标记，移除...')
             content = content.replace(/^```svg\s*/i, '').replace(/```\s*$/, '').trim()
           }
           
           // 如果内容被包裹在 <pre><code> 中，提取 SVG 内容
           const preCodeMatch = content.match(/<pre[^>]*><code[^>]*>([\s\S]*?)<\/code><\/pre>/i)
           if (preCodeMatch && preCodeMatch[1]) {
-            console.log('检测到 <pre><code> 包裹，提取内容...')
             content = preCodeMatch[1]
             const tempDiv = document.createElement('div')
             tempDiv.innerHTML = content
@@ -774,9 +748,7 @@ watch(
             content = content.replace(/<svg([^>]*)>/i, '<svg$1 viewBox="0 0 400 400">')
           }
           
-          console.log('最终 SVG 内容（前200字符）:', content.substring(0, 200))
           svgContainerRef.value.innerHTML = content
-          console.log('SVG 预览渲染成功，内容长度:', content.length)
         } catch (error) {
           console.error('SVG 渲染错误:', error)
           previewError.value = 'SVG 渲染失败: ' + (error instanceof Error ? error.message : String(error))

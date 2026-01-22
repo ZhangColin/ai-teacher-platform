@@ -9,6 +9,7 @@ type: "normal"
 order: 1
 toolset_id: teaching_researcher
 system_prompt_file: "prompts/AI备课评课教研员.md"
+model: "kimi:moonshot-v1-128k"
 welcome_message: |
   您好！我是一位拥有20年教研经验的资深教研员。我深度研究过肖培东、黄厚江、程翔等特级教师的课堂实录，擅长UBD逆向设计和问题驱动教学。
   

@@ -7,6 +7,7 @@ visible: true
 type: "normal"
 order: 4
 toolset_id: ai_tools
+model: "deepseek:deepseek-coder"
 system_prompt: |
   ### 职责
   你的职责是帮助我完成编写代码、修复代码和理解代码等任务。我会与你分享我的目标和项目，你将协助我编写所需的代码以取得成功。

@@ -31,21 +31,18 @@ const textareaRef = ref<HTMLTextAreaElement | null>(null)
 function handleCompositionStart() {
   // 输入法开始输入
   isComposing.value = true
-  console.log('输入法开始输入')
 }
 
 function handleCompositionEnd() {
   // 输入法结束输入，延迟一小段时间确保状态更新
   setTimeout(() => {
     isComposing.value = false
-    console.log('输入法结束输入')
   }, 0)
 }
 
 function handleKeyDown(event: KeyboardEvent) {
   // 如果正在使用输入法，不处理 Enter 键
   if (isComposing.value) {
-    console.log('输入法正在输入，忽略 Enter 键')
     return
   }
   
@@ -56,7 +53,6 @@ function handleKeyDown(event: KeyboardEvent) {
     if (!isComposing.value) {
     handleSend()
     } else {
-      console.log('输入法状态检查：正在输入，取消发送')
     }
   }
   // Shift+Enter 允许默认行为（换行）
@@ -96,7 +92,6 @@ watch(inputText, () => {
 function handleSend() {
   const trimmedText = inputText.value.trim()
   if (trimmedText) {
-    console.log('发送消息:', trimmedText)
     const textToSend = trimmedText
     // 先发送，再清空输入框
     emit('send', textToSend)
@@ -106,9 +101,7 @@ function handleSend() {
     if (textareaRef.value) {
       textareaRef.value.style.height = 'auto'
     }
-    console.log('消息已发送，输入框已清空')
   } else {
-    console.log('消息为空，不发送')
   }
 }
 </script>

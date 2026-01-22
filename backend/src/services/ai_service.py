@@ -16,29 +16,57 @@ class AIService:
     """AI 服务客户端"""
     
     def __init__(self):
-        """初始化 AI 服务"""
-        self.client, self.model_name = self._get_ai_client()
+        """初始化 AI 服务（使用默认配置）"""
+        self.default_client, self.default_model_name = self._get_ai_client()
     
-    def _get_ai_client(self) -> Tuple[Optional[OpenAI], str]:
+    def _get_ai_client(self, model_config: Optional[str] = None) -> Tuple[Optional[OpenAI], str]:
         """
-        根据配置文件获取 OpenAI 兼容的客户端实例和模型名称。
-        支持 DeepSeek, Kimi 等兼容 OpenAI 协议的模型。
+        根据配置获取 OpenAI 兼容的客户端实例和模型名称。
+        支持 OpenAI, DeepSeek, Kimi 等兼容 OpenAI 协议的模型。
+        
+        Args:
+            model_config: 模型配置字符串，格式：provider:model_name（如 "deepseek:deepseek-coder"）
+                         如果为 None，使用环境变量中的默认配置
+        
+        Returns:
+            (client, model_name) 元组
         """
-        provider = os.getenv("CURRENT_PROVIDER", "kimi").lower()
+        # 解析 model_config
+        if model_config and ":" in model_config:
+            provider, model_name = model_config.split(":", 1)
+            provider = provider.lower()
+            logger.info(f"使用工具指定的模型配置: {provider}:{model_name}")
+        else:
+            # 使用默认配置
+            provider = os.getenv("CURRENT_PROVIDER", "deepseek").lower()
+            model_name = None  # 稍后从环境变量读取
+            if model_config:
+                logger.warning(f"模型配置格式错误: {model_config}，使用默认配置")
+            else:
+                logger.info(f"使用系统默认配置: {provider}")
         
         api_key = ""
         base_url = ""
-        model_name = ""
         
         # 根据服务商读取对应的环境变量
-        if provider == "deepseek":
+        if provider == "openai":
+            api_key = os.getenv("OPENAI_API_KEY")
+            base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+            if not model_name:  # 如果没有指定具体模型，使用默认
+                model_name = os.getenv("OPENAI_MODEL", "gpt-4")
+        elif provider == "deepseek":
             api_key = os.getenv("DEEPSEEK_API_KEY")
-            base_url = os.getenv("DEEPSEEK_BASE_URL")
-            model_name = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
+            base_url = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
+            if not model_name:
+                model_name = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
         elif provider == "kimi":
             api_key = os.getenv("KIMI_API_KEY")
-            base_url = os.getenv("KIMI_BASE_URL")
-            model_name = os.getenv("KIMI_MODEL", "moonshot-v1-8k")
+            base_url = os.getenv("KIMI_BASE_URL", "https://api.moonshot.cn/v1")
+            if not model_name:
+                model_name = os.getenv("KIMI_MODEL", "moonshot-v1-8k")
+        else:
+            logger.warning(f"未知的服务商 [{provider}]，将使用 Mock 模式。")
+            return None, "mock-model"
         
         # 校验 API Key 是否有效
         if not api_key or not api_key.startswith("sk-"):
@@ -60,27 +88,31 @@ class AIService:
         logger.info(f"AI 客户端初始化成功 - 服务商: {provider}, 模型: {model_name}, 超时: {timeout_seconds}秒")
         return client, model_name
     
-    async def generate_welcome_message(self, system_prompt: str) -> str:
+    async def generate_welcome_message(self, system_prompt: str, model_config: Optional[str] = None) -> str:
         """
         生成欢迎消息
         
         Args:
             system_prompt: Agent 的系统提示词
+            model_config: 模型配置（格式：provider:model_name），如果为 None 使用默认配置
             
         Returns:
             AI 生成的欢迎消息
         """
+        # 获取客户端和模型
+        client, model_name = self._get_ai_client(model_config) if model_config else (self.default_client, self.default_model_name)
+        
         # 无客户端时的模拟返回（用于本地无网调试）
-        if not self.client:
+        if not client:
             return "你好！我是你的 AI 助手。请告诉我你需要什么帮助。"
         
         try:
             # 记录系统提示词（用于调试）
-            logger.info(f"生成欢迎消息 - 系统提示词长度: {len(system_prompt)} 字符")
+            logger.info(f"生成欢迎消息 - 系统提示词长度: {len(system_prompt)} 字符, 使用模型: {model_name}")
             logger.debug(f"系统提示词内容: {system_prompt[:200]}...")
             
-            response = self.client.chat.completions.create(
-                model=self.model_name,
+            response = client.chat.completions.create(
+                model=model_name,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": "请用一句话介绍你自己，并询问用户需要什么帮助。"}
@@ -356,7 +388,7 @@ class AIService:
         
         return result
     
-    async def chat(self, system_prompt: str, history: List[Dict[str, str]], user_message: str, max_continue: int = 3) -> str:
+    async def chat(self, system_prompt: str, history: List[Dict[str, str]], user_message: str, max_continue: int = 3, model_config: Optional[str] = None) -> str:
         """
         进行对话（非流式）
         
@@ -365,12 +397,16 @@ class AIService:
             history: 历史消息列表（格式：[{"role": "user/assistant", "content": "..."}, ...]）
             user_message: 用户当前消息
             max_continue: 最大继续生成次数（防止无限递归）
+            model_config: 模型配置（格式：provider:model_name），如果为 None 使用默认配置
             
         Returns:
             AI 生成的回复
         """
+        # 获取客户端和模型
+        client, model_name = self._get_ai_client(model_config) if model_config else (self.default_client, self.default_model_name)
+        
         # 无客户端时的模拟返回
-        if not self.client:
+        if not client:
             return f"Mock 回复：收到你的消息「{user_message}」"
         
         try:
@@ -385,10 +421,10 @@ class AIService:
             messages.append({"role": "user", "content": user_message})
             
             # 记录系统提示词（用于调试）
-            logger.info(f"对话请求 - 系统提示词长度: {len(system_prompt)} 字符, 历史消息数: {len(history)}, 用户消息: {user_message[:50]}...")
+            logger.info(f"对话请求 - 系统提示词长度: {len(system_prompt)} 字符, 历史消息数: {len(history)}, 用户消息: {user_message[:50]}..., 使用模型: {model_name}")
             
-            response = self.client.chat.completions.create(
-                model=self.model_name,
+            response = client.chat.completions.create(
+                model=model_name,
                 messages=messages,
                 temperature=0.7
             )
@@ -484,8 +520,8 @@ class AIService:
                         {"role": "assistant", "content": accumulated_result}
                     ]
                     
-                    # 继续生成
-                    continue_result = await self.chat(system_prompt, new_history, continue_message, max_continue - 1)
+                    # 继续生成（传递 model_config）
+                    continue_result = await self.chat(system_prompt, new_history, continue_message, max_continue - 1, model_config)
                     
                     # 清理继续返回的内容
                     cleaned_continue_result = self._clean_continue_result(continue_result, is_html)
@@ -575,7 +611,7 @@ class AIService:
             else:
                 return f"⚠️ AI服务调用失败: {str(e)[:100]}"
     
-    async def chat_stream(self, system_prompt: str, history: List[Dict[str, str]], user_message: str, max_continue: int = 3) -> AsyncGenerator[str, None]:
+    async def chat_stream(self, system_prompt: str, history: List[Dict[str, str]], user_message: str, max_continue: int = 3, model_config: Optional[str] = None) -> AsyncGenerator[str, None]:
         """
         进行对话（流式输出）
         
@@ -584,12 +620,16 @@ class AIService:
             history: 历史消息列表（格式：[{"role": "user/assistant", "content": "..."}, ...]）
             user_message: 用户当前消息
             max_continue: 最大继续生成次数（防止无限递归）
+            model_config: 模型配置（格式：provider:model_name），如果为 None 使用默认配置
             
         Yields:
             str: AI 生成的回复片段（逐块返回）
         """
+        # 获取客户端和模型
+        client, model_name = self._get_ai_client(model_config) if model_config else (self.default_client, self.default_model_name)
+        
         # 无客户端时的模拟返回
-        if not self.client:
+        if not client:
             mock_reply = f"Mock 回复：收到你的消息「{user_message}」"
             # 模拟流式输出
             for char in mock_reply:
@@ -609,12 +649,12 @@ class AIService:
             messages.append({"role": "user", "content": user_message})
             
             # 记录系统提示词（用于调试）
-            logger.info(f"流式对话请求 - 系统提示词长度: {len(system_prompt)} 字符, 历史消息数: {len(history)}, 用户消息: {user_message[:50]}...")
+            logger.info(f"流式对话请求 - 系统提示词长度: {len(system_prompt)} 字符, 历史消息数: {len(history)}, 用户消息: {user_message[:50]}..., 使用模型: {model_name}")
             
             # 使用流式输出（同步调用，需要在异步函数中处理）
             # 注意：OpenAI 客户端的流式调用是同步的，需要在异步上下文中处理
-            stream = self.client.chat.completions.create(
-                model=self.model_name,
+            stream = client.chat.completions.create(
+                model=model_name,
                 messages=messages,
                 temperature=0.7,
                 stream=True  # 启用流式输出
@@ -661,10 +701,10 @@ class AIService:
                     {"role": "user", "content": user_message},
                     {"role": "assistant", "content": accumulated_content}
                 ]
-                # 继续生成（使用"继续"作为提示）
+                # 继续生成（使用"继续"作为提示，传递 model_config）
                 continue_message = "请继续完成上面的内容，不要重复已生成的部分。"
                 continue_count = 0
-                async for chunk in self.chat_stream(system_prompt, new_history, continue_message, max_continue - 1):
+                async for chunk in self.chat_stream(system_prompt, new_history, continue_message, max_continue - 1, model_config):
                     continue_count += len(chunk) if chunk else 0
                     yield chunk
                 logger.info(f"自动继续生成完成，继续部分长度: {continue_count} 字符")

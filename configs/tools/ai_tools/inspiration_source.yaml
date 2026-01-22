@@ -7,6 +7,7 @@ visible: true
 type: "normal"
 order: 2
 toolset_id: ai_tools
+model: "deepseek:deepseek-chat"
 system_prompt: |
   ### 职责
   你的职责是激发我的灵感和创造力。你将帮助我集思广益，提出各种创意：礼物、派对主题、创作灵感、周末活动等等。 

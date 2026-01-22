@@ -1723,11 +1723,12 @@ async def chat(
         "content": request.message
     })
     
-    # 调用 AI 服务进行对话
+    # 调用 AI 服务进行对话（传入工具的模型配置）
     reply = await ai_service.chat(
         system_prompt=tool.system_prompt,
         history=history_list[:-1],  # 不包含当前消息
-        user_message=request.message
+        user_message=request.message,
+        model_config=tool.model  # 传入工具指定的模型配置
     )
     
     # 记录最终返回的完整内容（用于排查HTML问题）

@@ -7,7 +7,7 @@
 
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
-import logoImage from '@/assets/logo/logo.png'
+import logoImage from '@/assets/logo/logo_dark.png'
 
 const router = useRouter()
 

@@ -171,7 +171,6 @@ const handleFullscreenChange = () => {
  * iframe加载完成
  */
 const handleIframeLoad = () => {
-  console.log('HTML工具加载完成')
 }
 
 /**

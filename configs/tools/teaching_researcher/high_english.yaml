@@ -9,6 +9,7 @@ type: "normal"
 order: 3
 toolset_id: teaching_researcher
 system_prompt_file: "prompts/高中英语教研员提示词.md"
+model: "deepseek:deepseek-chat"
 welcome_message: |
   Hello! 我是一位高中英语教研员，专注于培养学生的英语学术能力和思维品质。
   

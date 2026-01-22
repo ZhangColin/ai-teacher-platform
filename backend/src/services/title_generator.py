@@ -21,29 +21,52 @@ class TitleGenerator:
     def _get_ai_client(self) -> Tuple[Optional[OpenAI], str]:
         """
         获取 AI 客户端和模型名称
-        优先使用 DeepSeek（成本最低），其次使用配置的默认服务商
+        优先级：TITLE_GENERATION_MODEL > DeepSeek > CURRENT_PROVIDER
         
         Returns:
             (client, model_name) 元组
         """
-        # 优先尝试 DeepSeek（成本最低）
-        api_key = os.getenv("DEEPSEEK_API_KEY")
-        base_url = os.getenv("DEEPSEEK_BASE_URL")
-        model_name = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
-        provider = "deepseek"
+        # 1. 检查是否配置了标题生成专用模型
+        title_model_config = os.getenv("TITLE_GENERATION_MODEL")
+        if title_model_config and ":" in title_model_config:
+            provider, model_name = title_model_config.split(":", 1)
+            provider = provider.lower()
+            logger.info(f"标题生成使用配置的专用模型: {provider}:{model_name}")
+        else:
+            # 2. 优先尝试 DeepSeek（成本最低）
+            api_key = os.getenv("DEEPSEEK_API_KEY")
+            if api_key and api_key.startswith("sk-"):
+                provider = "deepseek"
+                model_name = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
+                logger.info(f"标题生成使用 DeepSeek（成本优先）")
+            else:
+                # 3. 使用当前配置的服务商
+                provider = os.getenv("CURRENT_PROVIDER", "deepseek").lower()
+                model_name = None  # 稍后从环境变量读取
+                logger.info(f"标题生成使用系统默认服务商: {provider}")
         
-        # 如果没有 DeepSeek，使用当前配置的服务商
-        if not api_key or not api_key.startswith("sk-"):
-            provider = os.getenv("CURRENT_PROVIDER", "kimi").lower()
-            if provider == "kimi":
-                api_key = os.getenv("KIMI_API_KEY")
-                base_url = os.getenv("KIMI_BASE_URL")
-                # 标题生成使用快速模型，不使用 thinking 模型
-                model_name = "moonshot-v1-8k"
-            elif provider == "deepseek":
-                # 如果当前服务商是 DeepSeek，但前面没拿到 key，说明配置有问题
-                logger.warning("标题生成服务：DeepSeek 配置不完整")
-                return None, ""
+        # 根据服务商获取配置
+        api_key = ""
+        base_url = ""
+        
+        if provider == "openai":
+            api_key = os.getenv("OPENAI_API_KEY")
+            base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+            if not model_name:
+                model_name = os.getenv("OPENAI_MODEL", "gpt-4")
+        elif provider == "deepseek":
+            api_key = os.getenv("DEEPSEEK_API_KEY")
+            base_url = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
+            if not model_name:
+                model_name = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
+        elif provider == "kimi":
+            api_key = os.getenv("KIMI_API_KEY")
+            base_url = os.getenv("KIMI_BASE_URL", "https://api.moonshot.cn/v1")
+            if not model_name:
+                model_name = os.getenv("KIMI_MODEL", "moonshot-v1-8k")
+        else:
+            logger.warning(f"标题生成服务：未知的服务商 [{provider}]")
+            return None, ""
         
         # 校验 API Key
         if not api_key or not api_key.startswith("sk-"):

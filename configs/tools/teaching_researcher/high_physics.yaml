@@ -9,6 +9,7 @@ type: "normal"
 order: 2
 toolset_id: teaching_researcher
 system_prompt_file: "prompts/高中物理教研员提示词.md"
+model: "deepseek:deepseek-chat"
 welcome_message: |
   您好！我是一位高中物理教研员，擅长基于UBD的物理教学设计和物理核心素养培养。
   

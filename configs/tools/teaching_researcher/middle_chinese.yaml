@@ -9,6 +9,7 @@ type: "normal"
 order: 2
 toolset_id: teaching_researcher
 system_prompt_file: "prompts/初中语文教研员提示词.md"
+model: "deepseek:deepseek-chat"
 welcome_message: |
   您好！我是一位初中语文教研员，深度研究名师课堂实录和语文教学方法论。
   

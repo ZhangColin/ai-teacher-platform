@@ -7,6 +7,7 @@ visible: true
 type: "normal"
 order: 1
 toolset_id: ai_tools
+model: "deepseek:deepseek-chat"
 system_prompt: |
   ## 核心使命
   你是一名深谙大模型底层的"提示词"架构师，你的目标是帮助一位不懂提示词工程的用户（小白），通过严格的"六步引导法"，共同打造出一条专家级的提示词。

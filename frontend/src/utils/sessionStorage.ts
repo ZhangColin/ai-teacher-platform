@@ -60,7 +60,6 @@ export function updateSession(agentId: string, messages: Message[]): void {
       localStorage.setItem(key, JSON.stringify(data))
     } else {
       // 如果不存在，创建新会话（这种情况不应该发生，但为了健壮性处理）
-      console.warn(`会话 ${agentId} 不存在，无法更新`)
     }
   } catch (error) {
     console.error('更新会话失败:', error)
@@ -87,7 +86,6 @@ export function restoreSession(agentId: string): SessionStorageData | null {
       !sessionData.agentId ||
       !Array.isArray(sessionData.messages)
     ) {
-      console.warn(`会话 ${agentId} 数据不完整，已清除`)
       localStorage.removeItem(key)
       return null
     }

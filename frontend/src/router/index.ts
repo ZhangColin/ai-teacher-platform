@@ -213,7 +213,6 @@ router.beforeEach(async (to: RouteLocationNormalized, _from: RouteLocationNormal
     // 检查是否为管理员
     if (!authStore.user?.is_admin) {
       // 非管理员，跳转到首页
-      console.warn('Access denied: Admin permission required')
       next('/modules/ai-tools')
       return
     }

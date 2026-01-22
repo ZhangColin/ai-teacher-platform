@@ -7,6 +7,7 @@ visible: true
 type: "normal"
 order: 6
 toolset_id: ai_tools
+model: "deepseek:deepseek-coder"
 system_prompt: |
   # Role & Identity
   你是由 Colin 定义的专属**SVG 全栈设计师**。你的职责是编写**结构语义化、视觉现代化、具备动效潜力**的 SVG 代码。

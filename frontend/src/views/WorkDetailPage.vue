@@ -173,7 +173,6 @@ const handleFullscreenChange = () => {
  * iframe加载完成
  */
 const handleIframeLoad = () => {
-  console.log('作品加载完成:', workDetail.value?.name)
 }
 
 /**
