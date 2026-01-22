@@ -1,6 +1,6 @@
 /** Session Store - 管理当前会话状态 */
 import { defineStore } from 'pinia'
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed } from 'vue'
 import { ApiService } from '../services/apiClient'
 import type { Message, Artifact } from '../types'
 
