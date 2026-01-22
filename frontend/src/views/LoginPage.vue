@@ -11,70 +11,72 @@
 
         <!-- 平台介绍 -->
         <div class="intro-modules">
-          <div class="modules-container">
-            <!-- 模块1: AI模型能力 -->
-            <div class="module-item">
-              <div class="module-icon">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                </svg>
-              </div>
-              <div class="module-content">
+          <div class="modules-grid">
+            <!-- 模块1: AI模型能力 - 横跨两列 -->
+            <div class="module-card module-card-featured">
+              <div class="module-header">
+                <div class="module-icon">
+                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                  </svg>
+                </div>
                 <h3 class="module-title">AI模型能力</h3>
-                <p class="module-desc">智能匹配国内外优质大模型，提供文案生成、文生图、文生音频、文生视频、AI编程及SVG绘图等全方位创作能力</p>
               </div>
+              <p class="module-desc">多模态AI创作平台，涵盖文案、图像、音视频及编程，智能匹配最优模型</p>
             </div>
 
             <!-- 模块2: AI教研员智能体 -->
-            <div class="module-item">
-              <div class="module-icon">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                </svg>
-              </div>
-              <div class="module-content">
+            <div class="module-card">
+              <div class="module-header">
+                <div class="module-icon">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
+                  </svg>
+                </div>
                 <h3 class="module-title">AI教研员智能体</h3>
-                <p class="module-desc">覆盖小初高全学科，兼具资深导师、优秀同事、得力助手三重身份，辅助设计教案、生成逐字稿，打造个性化授课风格</p>
               </div>
+              <p class="module-desc">全学科教学助手，定制专属授课风格</p>
             </div>
 
             <!-- 模块3: 扩展工具箱 -->
-            <div class="module-item">
-              <div class="module-icon">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                </svg>
-              </div>
-              <div class="module-content">
+            <div class="module-card">
+              <div class="module-header">
+                <div class="module-icon">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                  </svg>
+                </div>
                 <h3 class="module-title">扩展工具箱</h3>
-                <p class="module-desc">将教学高频场景智能化，提供课堂活跃工具、成绩统计分析、易错点追踪等实用功能，全面提升教学效率</p>
               </div>
+              <p class="module-desc">智能化教学场景，提升课堂效率与质量</p>
             </div>
 
             <!-- 模块4: 教案学案区 -->
-            <div class="module-item">
-              <div class="module-icon">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-              <div class="module-content">
+            <div class="module-card">
+              <div class="module-header">
+                <div class="module-icon">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                  </svg>
+                </div>
                 <h3 class="module-title">教案学案区</h3>
-                <p class="module-desc">汇聚优质教学案例资源，提供3D模型、动画演示等创新素材，让抽象概念可视化，增强课程趣味性与理解度</p>
               </div>
+              <p class="module-desc">优质案例素材库，3D动画让知识可视化</p>
             </div>
 
             <!-- 模块5: 全科AI素养提升区 -->
-            <div class="module-item">
-              <div class="module-icon">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                </svg>
+            <div class="module-card">
+              <div class="module-header">
+                <div class="module-icon">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </div>
+                <h3 class="module-title">AI素养提升区</h3>
               </div>
-              <div class="module-content">
-                <h3 class="module-title">全科AI素养提升区</h3>
-                <p class="module-desc">按学科分类的AI融合专项资料库，提供丰富的文档、课件等素材，助力教师提升AI教学应用能力</p>
-              </div>
+              <p class="module-desc">学科AI融合资料，系统提升教学能力</p>
             </div>
           </div>
         </div>
@@ -302,34 +304,41 @@ async function handleSubmit() {
 }
 
 .intro-modules {
-  @apply space-y-6;
+  @apply w-full;
 }
 
-.modules-container {
-  @apply bg-white bg-opacity-10 backdrop-blur-sm rounded-2xl p-6 space-y-1;
+.modules-grid {
+  @apply grid grid-cols-1 md:grid-cols-2 gap-4;
+}
+
+.module-card {
+  @apply bg-white bg-opacity-10 backdrop-blur-sm rounded-xl p-5 transition-all duration-300 hover:bg-white hover:bg-opacity-15 hover:transform hover:scale-105;
   border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
 }
 
-.module-item {
-  @apply flex items-start gap-4 p-4 rounded-xl transition-all duration-300 hover:bg-white hover:bg-opacity-10;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+.module-card-featured {
+  @apply md:col-span-2;
 }
 
-.module-item:last-child {
-  border-bottom: none;
+.module-header {
+  @apply flex items-center gap-3 mb-3;
 }
 
 .module-icon {
   @apply flex-shrink-0 w-10 h-10 rounded-lg bg-white bg-opacity-20 flex items-center justify-center text-white;
 }
 
-.module-content {
-  @apply flex-1 min-w-0;
+.module-card-featured .module-icon {
+  @apply w-12 h-12;
 }
 
 .module-title {
-  @apply text-base font-semibold text-white mb-1;
+  @apply text-base font-semibold text-white flex-1;
+}
+
+.module-card-featured .module-title {
+  @apply text-lg;
 }
 
 .module-desc {
@@ -417,20 +426,32 @@ async function handleSubmit() {
     @apply text-2xl;
   }
 
-  .modules-container {
-    @apply p-5 space-y-0.5;
+  .modules-grid {
+    @apply gap-3;
   }
 
-  .module-item {
-    @apply gap-3 p-3;
+  .module-card {
+    @apply p-4;
+  }
+
+  .module-header {
+    @apply gap-2 mb-2;
   }
 
   .module-icon {
     @apply w-9 h-9;
   }
 
+  .module-card-featured .module-icon {
+    @apply w-10 h-10;
+  }
+
   .module-title {
     @apply text-sm;
+  }
+
+  .module-card-featured .module-title {
+    @apply text-base;
   }
 
   .module-desc {
@@ -465,24 +486,32 @@ async function handleSubmit() {
     @apply text-xl;
   }
 
-  .intro-modules {
-    @apply space-y-4;
+  .modules-grid {
+    @apply gap-3;
   }
 
-  .modules-container {
-    @apply p-4 space-y-0;
+  .module-card {
+    @apply p-4;
   }
 
-  .module-item {
-    @apply gap-3 p-3;
+  .module-header {
+    @apply gap-2 mb-2;
   }
 
   .module-icon {
-    @apply w-8 h-8;
+    @apply w-9 h-9;
+  }
+
+  .module-card-featured .module-icon {
+    @apply w-10 h-10;
   }
 
   .module-title {
-    @apply text-sm mb-1;
+    @apply text-sm;
+  }
+
+  .module-card-featured .module-title {
+    @apply text-base;
   }
 
   .module-desc {
@@ -516,16 +545,32 @@ async function handleSubmit() {
     @apply text-lg;
   }
 
-  .modules-container {
+  .modules-grid {
+    @apply gap-2;
+  }
+
+  .module-card {
     @apply p-3;
   }
 
-  .module-item {
-    @apply gap-2 p-2;
+  .module-header {
+    @apply gap-2 mb-2;
   }
 
   .module-icon {
-    @apply w-7 h-7;
+    @apply w-8 h-8;
+  }
+
+  .module-card-featured .module-icon {
+    @apply w-9 h-9;
+  }
+
+  .module-title {
+    @apply text-xs;
+  }
+
+  .module-desc {
+    @apply text-xs;
   }
 
   .login-section {
