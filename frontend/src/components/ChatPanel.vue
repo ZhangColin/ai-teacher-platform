@@ -359,6 +359,12 @@ function unescapeHtml(text: string): string {
  */
 function isShortMessage(content: string): boolean {
   if (!content) return false
+  
+  // 如果消息包含换行符，不应该被视为短消息
+  if (content.includes('\n')) {
+    return false
+  }
+  
   // 计算实际显示宽度（粗略估算：中文2，英文1）
   let displayWidth = 0
   for (const char of content) {
@@ -414,7 +420,8 @@ function isShortMessage(content: string): boolean {
   /* 换行策略：短消息自适应宽度不换行，长消息超过合理宽度时才换行 */
   word-break: normal;
   overflow-wrap: break-word;
-  white-space: normal;
+  /* 保留用户输入的换行符，合并多余空格 */
+  white-space: pre-line;
   /* 使用 fit-content 让短消息保持在一行 */
   width: fit-content;
   /* 最大宽度：使用 clamp，确保在移动端和桌面端都合理 */
