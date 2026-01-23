@@ -1011,10 +1011,18 @@ class MediaGenerateRequest(BaseModel):
     message: str = Field(..., description="用户提示词", min_length=1)
     session_id: Optional[str] = Field(None, description="会话ID（可选）。首次为空，后续传入")
     
-    # 可选参数（有默认值）
-    size: Optional[str] = Field("1024x1024", description="生成尺寸（图片适用）")
+    # 图片参数
+    size: Optional[str] = Field("1024x1024", description="生成尺寸（图片/视频适用）")
     count: Optional[int] = Field(1, description="生成数量", ge=1, le=4)
     style: Optional[str] = Field("auto", description="生成风格")
+    
+    # 音频参数
+    voice: Optional[str] = Field(None, description="音色ID（音频适用）")
+    
+    # 视频参数
+    fps: Optional[int] = Field(None, description="视频帧率（30或60）")
+    quality: Optional[str] = Field(None, description="视频质量（quality或speed）")
+    with_audio: Optional[bool] = Field(False, description="是否生成AI音效（视频适用）")
 
 
 class MediaGenerateResponse(BaseModel):

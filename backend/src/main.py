@@ -2187,12 +2187,129 @@ async def generate_media(
                     logger.info(f"异步任务已提交 - task_id: {task_id}, glm_task_id: {glm_task_id}")
                 
             elif tool.media_type == "audio":
-                # TODO: 实现音频生成
-                raise HTTPException(status_code=501, detail="音频生成功能尚未实现")
+                logger.info(f"开始调用GLM音频生成 - 文本: {request.message[:50]}...")
+                
+                glm_result = await ai_service.generate_audio(
+                    prompt=request.message,
+                    model_config=tool.model or "glm:glm-tts",
+                    voice=request.voice if hasattr(request, 'voice') else None
+                )
+                
+                print("\n" + "*"*50)
+                print("【main.py 处理GLM音频结果】")
+                print(f"GLM返回: {glm_result}")
+                print("*"*50 + "\n")
+                
+                logger.info(f"GLM返回结果: {glm_result}")
+                
+                # GLM-TTS是同步返回
+                if glm_result.get("mode") == "sync":
+                    print(f"✓ 同步模式处理")
+                    
+                    # 提取音频URLs
+                    audio_data = glm_result.get("data", [])
+                    print(f"  audio_data: {audio_data}")
+                    
+                    media_urls = [audio.get("url") for audio in audio_data if audio.get("url")]
+                    print(f"  提取到的URLs: {media_urls}")
+                    print(f"  音频数量: {len(media_urls)}")
+                    
+                    logger.info(f"获取到 {len(media_urls)} 个音频")
+                    
+                    # 构建元数据
+                    metadata = {
+                        "text_length": len(request.message),
+                        "voice": request.voice if hasattr(request, 'voice') else "default"
+                    }
+                    
+                    # 保存AI回复消息（包含音频URLs）
+                    ai_message_id = str(uuid.uuid4())
+                    media_content_obj = MultiModalContent(
+                        content_type="audio",
+                        media_urls=media_urls,
+                        metadata=metadata
+                    )
+                    
+                    ai_message = Message(
+                        message_id=ai_message_id,
+                        session_id=session_id,
+                        role="assistant",
+                        content="",
+                        created_at=None
+                    )
+                    ai_message.set_media_content(media_content_obj)
+                    
+                    await session_service.save_message_with_media(
+                        message_id=ai_message_id,
+                        session_id=session_id,
+                        role="assistant",
+                        content="",
+                        media_content=ai_message.media_content
+                    )
+                    
+                    # 标记为同步模式，直接返回完成状态
+                    task_storage[task_id] = {
+                        "session_id": session_id,
+                        "status": "completed",
+                        "media_urls": media_urls,
+                        "metadata": metadata
+                    }
+                    
+                    logger.info(f"同步生成完成 - task_id: {task_id}, 音频数量: {len(media_urls)}")
+                    
+                    # 直接返回完成状态，不需要前端轮询
+                    return MediaGenerateResponse(
+                        session_id=session_id,
+                        message_id=ai_message_id,
+                        task_id=task_id,
+                        status="completed",
+                        media_urls=media_urls,
+                        content_type="audio"
+                    )
             
             elif tool.media_type == "video":
-                # TODO: 实现视频生成
-                raise HTTPException(status_code=501, detail="视频生成功能尚未实现")
+                logger.info(f"开始调用GLM视频生成 - 提示词: {request.message[:50]}...")
+                
+                glm_result = await ai_service.generate_video(
+                    prompt=request.message,
+                    model_config=tool.model or "glm:cogvideox-2",
+                    size=request.size,
+                    fps=request.fps if hasattr(request, 'fps') else None,
+                    quality=request.quality if hasattr(request, 'quality') else None,
+                    with_audio=request.with_audio if hasattr(request, 'with_audio') else False
+                )
+                
+                print("\n" + "*"*50)
+                print("【main.py 处理GLM视频结果】")
+                print(f"GLM返回: {glm_result}")
+                print("*"*50 + "\n")
+                
+                logger.info(f"GLM返回结果: {glm_result}")
+                
+                # CogVideoX是异步返回，需要轮询
+                if glm_result.get("mode") == "async":
+                    print(f"✓ 异步模式处理")
+                    
+                    async_result = glm_result.get("result", {})
+                    glm_task_id = async_result.get("id") or async_result.get("task_id")
+                    
+                    # 存储任务状态
+                    task_storage[task_id] = {
+                        "glm_task_id": glm_task_id,
+                        "session_id": session_id,
+                        "message_id": user_message_id,
+                        "tool_id": tool_id,
+                        "media_type": tool.media_type,
+                        "status": "processing",
+                        "request_params": {
+                            "size": request.size,
+                            "fps": request.fps if hasattr(request, 'fps') else None,
+                            "quality": request.quality if hasattr(request, 'quality') else None
+                        },
+                        "query_fail_count": 0
+                    }
+                    
+                    logger.info(f"异步任务已提交 - task_id: {task_id}, glm_task_id: {glm_task_id}")
             
             else:
                 raise HTTPException(status_code=400, detail=f"不支持的媒体类型: {tool.media_type}")
@@ -2347,8 +2464,92 @@ async def get_task_status(
                         progress=50  # 简单返回50%
                     )
             
+            elif media_type == "video":
+                logger.info(f"查询GLM视频任务状态 - task_id: {task_id}, glm_task_id: {glm_task_id}")
+                glm_result = await ai_service.get_video_result(glm_task_id)
+                
+                # 解析GLM返回结果（视频使用与图片相同的接口）
+                task_status = glm_result.get("task_status", "PROCESSING")
+                logger.info(f"GLM视频任务状态: {task_status}")
+                
+                if task_status == "SUCCESS":
+                    # 提取视频URLs
+                    video_result = glm_result.get("video_result", [])
+                    media_urls = [video.get("url") for video in video_result if video.get("url")]
+                    
+                    # 构建元数据
+                    metadata = {
+                        "size": task_info["request_params"].get("size"),
+                        "fps": task_info["request_params"].get("fps"),
+                        "quality": task_info["request_params"].get("quality"),
+                        "duration": 6  # CogVideoX默认生成6秒视频
+                    }
+                    
+                    # 保存AI回复消息（包含视频URLs）
+                    ai_message_id = str(uuid.uuid4())
+                    media_content_obj = MultiModalContent(
+                        content_type="video",
+                        media_urls=media_urls,
+                        metadata=metadata
+                    )
+                    
+                    ai_message = Message(
+                        message_id=ai_message_id,
+                        session_id=session_id,
+                        role="assistant",
+                        content="",
+                        created_at=None
+                    )
+                    ai_message.set_media_content(media_content_obj)
+                    
+                    await session_service.save_message_with_media(
+                        message_id=ai_message_id,
+                        session_id=session_id,
+                        role="assistant",
+                        content="",
+                        media_content=ai_message.media_content
+                    )
+                    
+                    # 更新任务状态为已完成
+                    task_storage[task_id]["status"] = "completed"
+                    
+                    logger.info(f"视频任务完成 - task_id: {task_id}, 视频数量: {len(media_urls)}")
+                    
+                    return TaskStatusResponse(
+                        task_id=task_id,
+                        status="completed",
+                        content_type="video",
+                        media_urls=media_urls,
+                        metadata=metadata
+                    )
+                
+                elif task_status == "FAIL" or task_status == "FAILED":
+                    # 生成失败
+                    error_info = glm_result.get("error", {})
+                    error_message = error_info.get("message", "视频生成失败")
+                    
+                    # 更新任务状态
+                    task_storage[task_id]["status"] = "failed"
+                    task_storage[task_id]["error"] = error_message
+                    
+                    logger.warning(f"视频任务失败 - task_id: {task_id}, 错误: {error_message}")
+                    
+                    return TaskStatusResponse(
+                        task_id=task_id,
+                        status="failed",
+                        error_message=error_message
+                    )
+                
+                else:
+                    # 仍在处理中（视频生成通常需要30秒左右）
+                    return TaskStatusResponse(
+                        task_id=task_id,
+                        status="processing",
+                        progress=50
+                    )
+            
             else:
-                # 其他媒体类型（音频、视频）
+                # 其他媒体类型
                 raise HTTPException(status_code=501, detail=f"媒体类型 {media_type} 暂不支持")
                 
         except Exception as e:

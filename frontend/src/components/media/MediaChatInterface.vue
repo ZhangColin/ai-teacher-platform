@@ -38,24 +38,65 @@
             </div>
           </div>
           
-          <!-- 生成完成：显示图片 -->
-          <div v-else-if="message.media_content" class="image-gallery">
-            <div 
-              v-for="(url, idx) in parseMediaUrls(message.media_content)" 
-              :key="idx"
-              class="image-item group"
-              @click="handleImageClick(message, idx)"
-            >
-              <img 
-                :src="url" 
-                :alt="`生成的图片 ${idx + 1}`" 
-                class="generated-image"
-                @load="handleImageLoad"
-              />
-              <button class="image-download-btn" @click.stop="handleDownloadImage(url, idx)">
-                下载
-              </button>
-            </div>
+          <!-- 生成完成：根据媒体类型显示内容 -->
+          <div v-else-if="message.media_content" class="media-gallery">
+            <!-- 图片 -->
+            <template v-if="getMediaType(message.media_content) === 'image'">
+              <div class="image-gallery">
+                <div 
+                  v-for="(url, idx) in parseMediaUrls(message.media_content)" 
+                  :key="idx"
+                  class="image-item group"
+                  @click="handleImageClick(message, idx)"
+                >
+                  <img 
+                    :src="url" 
+                    :alt="`生成的图片 ${idx + 1}`" 
+                    class="generated-image"
+                    @load="handleImageLoad"
+                  />
+                  <button class="image-download-btn" @click.stop="handleDownloadImage(url, idx)">
+                    下载
+                  </button>
+                </div>
+              </div>
+            </template>
+            
+            <!-- 音频 -->
+            <template v-else-if="getMediaType(message.media_content) === 'audio'">
+              <div class="audio-gallery">
+                <div 
+                  v-for="(url, idx) in parseMediaUrls(message.media_content)" 
+                  :key="idx"
+                  class="audio-item"
+                >
+                  <audio controls :src="url" class="generated-audio">
+                    您的浏览器不支持音频播放
+                  </audio>
+                  <button class="media-download-btn" @click.stop="handleDownloadMedia(url, idx, 'audio')">
+                    下载
+                  </button>
+                </div>
+              </div>
+            </template>
+            
+            <!-- 视频 -->
+            <template v-else-if="getMediaType(message.media_content) === 'video'">
+              <div class="video-gallery">
+                <div 
+                  v-for="(url, idx) in parseMediaUrls(message.media_content)" 
+                  :key="idx"
+                  class="video-item"
+                >
+                  <video controls :src="url" class="generated-video">
+                    您的浏览器不支持视频播放
+                  </video>
+                  <button class="media-download-btn" @click.stop="handleDownloadMedia(url, idx, 'video')">
+                    下载
+                  </button>
+                </div>
+              </div>
+            </template>
           </div>
         </div>
       </template>
@@ -329,6 +370,30 @@ async function handleDownloadImage(url: string, index: number) {
   }
 }
 
+async function handleDownloadMedia(url: string, index: number, type: string) {
+  try {
+    const extensions = {
+      audio: 'mp3',
+      video: 'mp4'
+    }
+    const ext = extensions[type as keyof typeof extensions] || type
+    window.open(url, '_blank')
+  } catch (error) {
+    console.error('下载失败:', error)
+    alert('下载失败，请重试')
+  }
+}
+
+function getMediaType(mediaContent?: string): string {
+  if (!mediaContent) return 'unknown'
+  try {
+    const parsed = parseMediaContent(mediaContent)
+    return parsed?.contentType || 'unknown'
+  } catch {
+    return 'unknown'
+  }
+}
+
 function closeLightbox() {
   showLightbox.value = false
 }
@@ -533,10 +598,60 @@ onMounted(() => {
   @apply absolute bottom-2 right-2 px-3 py-1.5 bg-black bg-opacity-70 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-opacity-90;
 }
 
+/* 音频展示区域 */
+.audio-gallery {
+  @apply flex flex-col gap-4 mb-4;
+  max-width: 100%;
+}
+
+.audio-item {
+  @apply flex items-center gap-3 p-4 rounded-lg border border-gray-200 bg-gray-50;
+}
+
+.generated-audio {
+  @apply flex-1;
+  max-width: 600px;
+}
+
+/* 视频展示区域 */
+.video-gallery {
+  @apply grid gap-4 mb-4;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  max-width: 100%;
+}
+
+.video-item {
+  @apply relative rounded-lg overflow-hidden border border-gray-200 bg-gray-50;
+}
+
+.generated-video {
+  @apply w-full h-auto;
+  display: block;
+  max-height: 500px;
+}
+
+/* 通用下载按钮 */
+.media-download-btn {
+  @apply px-3 py-1.5 bg-primary-500 text-white text-xs rounded-md hover:bg-primary-600 transition-colors cursor-pointer;
+  border: none;
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
   .image-gallery {
     @apply grid-cols-1;
+  }
+  
+  .video-gallery {
+    @apply grid-cols-1;
+  }
+  
+  .audio-item {
+    @apply flex-col items-stretch;
+  }
+  
+  .generated-audio {
+    @apply w-full max-w-full;
   }
 }
 </style>

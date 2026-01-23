@@ -902,4 +902,242 @@ class AIService:
         except Exception as e:
             logger.error(f"查询GLM任务状态异常: {e}", exc_info=True)
             raise
+    
+    async def generate_audio(
+        self,
+        prompt: str,
+        model_config: str,
+        voice: str = None,
+        **kwargs
+    ) -> Dict[str, any]:
+        """
+        生成音频（文本转语音）
+        
+        Args:
+            prompt: 要转换为语音的文本
+            model_config: 模型配置（格式：provider:model_name）
+            voice: 音色ID（可选）
+            **kwargs: 其他参数
+        
+        Returns:
+            {
+                "mode": "sync",
+                "data": [{"url": "https://..."}, ...],
+                "metadata": {...}
+            }
+        
+        Raises:
+            Exception: API调用失败
+        """
+        # 解析模型配置
+        if not model_config or ":" not in model_config:
+            raise ValueError(f"模型配置格式错误: {model_config}")
+        
+        provider, model_name = model_config.split(":", 1)
+        provider = provider.lower()
+        
+        if provider != "glm":
+            raise ValueError(f"音频生成仅支持GLM服务商，当前配置: {provider}")
+        
+        # 获取GLM配置
+        api_key = os.getenv("GLM_API_KEY")
+        base_url = os.getenv("GLM_BASE_URL", "https://open.bigmodel.cn/api/paas/v4")
+        
+        if not api_key:
+            raise ValueError("未配置GLM_API_KEY")
+        
+        # 构建请求
+        url = f"{base_url}/tts"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        # 构建请求体
+        payload = {
+            "model": model_name,
+            "text": prompt
+        }
+        
+        # 添加音色参数（如果指定）
+        if voice:
+            payload["voice"] = voice
+        
+        try:
+            print("\n" + "-"*50)
+            print("【调用GLM TTS API】")
+            print(f"模型: {model_name}")
+            print(f"文本: {prompt[:100]}...")
+            print(f"音色: {voice}")
+            print(f"完整payload: {payload}")
+            print("-"*50 + "\n")
+            
+            logger.info(f"调用GLM音频生成API - 模型: {model_name}, payload: {payload}")
+            
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                response = await client.post(url, headers=headers, json=payload)
+                response.raise_for_status()
+                
+                result = response.json()
+                
+                print("\n" + "~"*50)
+                print("【GLM TTS API 返回结果】")
+                print(f"状态码: {response.status_code}")
+                print(f"返回数据: {result}")
+                print("~"*50 + "\n")
+                
+                logger.info(f"GLM音频生成API调用成功，完整返回: {result}")
+                
+                # GLM-TTS 返回格式：{"data": {"url": "..."}}
+                if "data" in result:
+                    audio_url = result["data"].get("url")
+                    if audio_url:
+                        return {
+                            "mode": "sync",
+                            "data": [{"url": audio_url}]
+                        }
+                
+                # 如果格式不对，返回原始结果
+                return {
+                    "mode": "sync",
+                    "data": result.get("data", [])
+                }
+                
+        except httpx.HTTPStatusError as e:
+            logger.error(f"GLM API返回错误: {e.response.status_code} - {e.response.text}")
+            raise Exception(f"音频生成失败: {e.response.text}")
+        except httpx.TimeoutException:
+            logger.error("GLM API请求超时")
+            raise Exception("音频生成请求超时，请稍后重试")
+        except Exception as e:
+            logger.error(f"GLM音频生成异常: {e}", exc_info=True)
+            raise
+    
+    async def generate_video(
+        self,
+        prompt: str,
+        model_config: str,
+        size: str = None,
+        fps: int = None,
+        quality: str = None,
+        with_audio: bool = False,
+        **kwargs
+    ) -> Dict[str, any]:
+        """
+        生成视频（文本转视频）
+        
+        Args:
+            prompt: 视频描述文本
+            model_config: 模型配置（格式：provider:model_name）
+            size: 视频分辨率（如：1920x1080）
+            fps: 帧率（30或60）
+            quality: 质量模式（quality或speed）
+            with_audio: 是否生成AI音效
+            **kwargs: 其他参数
+        
+        Returns:
+            {
+                "mode": "async",
+                "result": {"id": "task_xxx", ...}
+            }
+        
+        Raises:
+            Exception: API调用失败
+        """
+        # 解析模型配置
+        if not model_config or ":" not in model_config:
+            raise ValueError(f"模型配置格式错误: {model_config}")
+        
+        provider, model_name = model_config.split(":", 1)
+        provider = provider.lower()
+        
+        if provider != "glm":
+            raise ValueError(f"视频生成仅支持GLM服务商，当前配置: {provider}")
+        
+        # 获取GLM配置
+        api_key = os.getenv("GLM_API_KEY")
+        base_url = os.getenv("GLM_BASE_URL", "https://open.bigmodel.cn/api/paas/v4")
+        
+        if not api_key:
+            raise ValueError("未配置GLM_API_KEY")
+        
+        # 构建请求
+        url = f"{base_url}/videos/generations"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        # 构建请求体
+        payload = {
+            "model": model_name,
+            "prompt": prompt
+        }
+        
+        # 添加可选参数
+        if size:
+            payload["size"] = size
+        if fps:
+            payload["fps"] = fps
+        if quality:
+            payload["quality"] = quality
+        if with_audio:
+            payload["with_audio"] = with_audio
+        
+        try:
+            print("\n" + "-"*50)
+            print("【调用GLM Video API】")
+            print(f"模型: {model_name}")
+            print(f"提示词: {prompt[:100]}...")
+            print(f"参数 - size: {size}, fps: {fps}, quality: {quality}, with_audio: {with_audio}")
+            print(f"完整payload: {payload}")
+            print("-"*50 + "\n")
+            
+            logger.info(f"调用GLM视频生成API - 模型: {model_name}, payload: {payload}")
+            
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                response = await client.post(url, headers=headers, json=payload)
+                response.raise_for_status()
+                
+                result = response.json()
+                
+                print("\n" + "~"*50)
+                print("【GLM Video API 返回结果】")
+                print(f"状态码: {response.status_code}")
+                print(f"返回数据: {result}")
+                print("~"*50 + "\n")
+                
+                logger.info(f"GLM视频生成API调用成功，完整返回: {result}")
+                
+                # CogVideoX 返回异步任务ID
+                return {
+                    "mode": "async",
+                    "result": result
+                }
+                
+        except httpx.HTTPStatusError as e:
+            logger.error(f"GLM API返回错误: {e.response.status_code} - {e.response.text}")
+            raise Exception(f"视频生成失败: {e.response.text}")
+        except httpx.TimeoutException:
+            logger.error("GLM API请求超时")
+            raise Exception("视频生成请求超时，请稍后重试")
+        except Exception as e:
+            logger.error(f"GLM视频生成异常: {e}", exc_info=True)
+            raise
+    
+    async def get_video_result(self, task_id: str) -> Dict[str, any]:
+        """
+        查询GLM视频生成结果（与图片查询相同的接口）
+        
+        Args:
+            task_id: 任务ID
+        
+        Returns:
+            任务状态和结果
+        
+        Raises:
+            Exception: API调用失败
+        """
+        # 视频查询使用与图片相同的异步结果查询接口
+        return await self.get_image_result(task_id)
 
