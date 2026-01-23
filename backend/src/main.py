@@ -5,7 +5,7 @@ import logging
 import uuid
 from pathlib import Path
 from typing import Optional
-from fastapi import FastAPI, HTTPException, Depends, status, File, UploadFile, Form
+from fastapi import FastAPI, HTTPException, Depends, status, File, UploadFile, Form, Request
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
@@ -80,10 +80,9 @@ if static_dir.exists():
 else:
     logger.warning(f"静态文件目录不存在: {static_dir}")
 
-# 挂载媒体文件目录（生成的音频、视频等）
-media_dir = Path(project_root / "backend" / "media")
+# 确保static下的media目录存在（用于存储生成的音频、视频等）
+media_dir = static_dir / "media"
 media_dir.mkdir(parents=True, exist_ok=True)
-app.mount("/media", StaticFiles(directory=str(media_dir)), name="media")
 
 # 初始化服务
 config_loader = ConfigLoader(config_root=str(project_root / "configs"))
@@ -1997,10 +1996,31 @@ async def chat_stream(
 task_storage: dict[str, dict] = {}
 
 
+def make_absolute_url(relative_url: str, request: Request) -> str:
+    """
+    将相对URL转换为绝对URL
+    
+    Args:
+        relative_url: 相对URL（如 /static/media/audio/xxx.mp3）
+        request: FastAPI Request对象
+    
+    Returns:
+        绝对URL（如 http://localhost:8000/static/media/audio/xxx.mp3）
+    """
+    # 如果已经是绝对URL，直接返回
+    if relative_url.startswith(('http://', 'https://')):
+        return relative_url
+    
+    # 构建绝对URL
+    base_url = str(request.base_url).rstrip('/')
+    return f"{base_url}{relative_url}"
+
+
 @app.post("/api/v1/tools/{tool_id}/generate-media", response_model=MediaGenerateResponse)
 async def generate_media(
     tool_id: str,
-    request: MediaGenerateRequest,
+    media_request: MediaGenerateRequest,
+    http_request: Request,
     current_user: UserInfo = Depends(get_current_user)
 ):
     """
@@ -2021,14 +2041,14 @@ async def generate_media(
         print("\n" + "="*50)
         print("【后端接收到的参数】")
         print(f"工具ID: {tool_id}")
-        print(f"提示词: {request.message[:100]}")
-        print(f"size: {request.size} (类型: {type(request.size).__name__})")
-        print(f"count: {request.count} (类型: {type(request.count).__name__})")
-        print(f"style: {request.style} (类型: {type(request.style).__name__})")
-        print(f"session_id: {request.session_id}")
+        print(f"提示词: {media_request.message[:100]}")
+        print(f"size: {media_request.size} (类型: {type(media_request.size).__name__})")
+        print(f"count: {media_media_request.count} (类型: {type(media_media_request.count).__name__})")
+        print(f"style: {media_media_request.style} (类型: {type(media_media_request.style).__name__})")
+        print(f"session_id: {media_media_request.session_id}")
         print("="*50 + "\n")
         
-        logger.info(f"收到多模态生成请求 - 工具: {tool_id}, size={request.size}, count={request.count}, style={request.style}")
+        logger.info(f"收到多模态生成请求 - 工具: {tool_id}, size={media_media_request.size}, count={media_media_request.count}, style={media_media_request.style}")
         
         # 1. 获取工具配置
         tool = tool_service.get_tool_by_id(tool_id)
@@ -2043,14 +2063,14 @@ async def generate_media(
             )
         
         # 2. 创建或获取会话
-        session_id = request.session_id
+        session_id = media_request.session_id
         if not session_id:
             # 首次生成，创建新会话
             session_id = str(uuid.uuid4())
             
             # 生成会话标题（只传用户提示词，不传AI回复）
             title = await title_generator.generate_title(
-                user_message=request.message,
+                user_message=media_request.message,
                 ai_response=None
             )
             
@@ -2075,7 +2095,7 @@ async def generate_media(
             message_id=user_message_id,
             session_id=session_id,
             role="user",
-            content=request.message
+            content=media_request.message
         )
         
         # 4. 调用AI服务生成内容
@@ -2084,14 +2104,14 @@ async def generate_media(
         try:
             # 根据媒体类型调用不同的生成方法
             if tool.media_type == "image":
-                logger.info(f"开始调用GLM图像生成 - 提示词: {request.message[:50]}...")
+                logger.info(f"开始调用GLM图像生成 - 提示词: {media_request.message[:50]}...")
                 
                 glm_result = await ai_service.generate_image(
-                    prompt=request.message,
+                    prompt=media_request.message,
                     model_config=tool.model or "glm:cogview-4",
-                    size=request.size,
-                    count=request.count,
-                    style=request.style
+                    size=media_request.size,
+                    count=media_request.count,
+                    style=media_request.style
                 )
                 
                 print("\n" + "*"*50)
@@ -2118,9 +2138,9 @@ async def generate_media(
                     
                     # 构建元数据
                     metadata = {
-                        "size": request.size,
+                        "size": media_request.size,
                         "count": len(media_urls),
-                        "style": request.style
+                        "style": media_request.style
                     }
                     
                     # 直接保存AI回复消息
@@ -2182,9 +2202,9 @@ async def generate_media(
                         "media_type": tool.media_type,
                         "status": "processing",
                         "request_params": {
-                            "size": request.size,
-                            "count": request.count,
-                            "style": request.style
+                            "size": media_request.size,
+                            "count": media_request.count,
+                            "style": media_request.style
                         },
                         "query_fail_count": 0
                     }
@@ -2192,12 +2212,12 @@ async def generate_media(
                     logger.info(f"异步任务已提交 - task_id: {task_id}, glm_task_id: {glm_task_id}")
                 
             elif tool.media_type == "audio":
-                logger.info(f"开始调用GLM音频生成 - 文本: {request.message[:50]}...")
+                logger.info(f"开始调用GLM音频生成 - 文本: {media_request.message[:50]}...")
                 
                 glm_result = await ai_service.generate_audio(
-                    prompt=request.message,
+                    prompt=media_request.message,
                     model_config=tool.model or "glm:glm-tts",
-                    voice=request.voice if hasattr(request, 'voice') else None
+                    voice=media_request.voice if hasattr(media_request, 'voice') else None
                 )
                 
                 print("\n" + "*"*50)
@@ -2216,6 +2236,10 @@ async def generate_media(
                     print(f"  audio_data: {audio_data}")
                     
                     media_urls = [audio.get("url") for audio in audio_data if audio.get("url")]
+                    
+                    # 将相对URL转换为绝对URL（确保前端可以正确访问）
+                    media_urls = [make_absolute_url(url, http_request) for url in media_urls]
+                    
                     print(f"  提取到的URLs: {media_urls}")
                     print(f"  音频数量: {len(media_urls)}")
                     
@@ -2223,8 +2247,8 @@ async def generate_media(
                     
                     # 构建元数据
                     metadata = {
-                        "text_length": len(request.message),
-                        "voice": request.voice if hasattr(request, 'voice') else "default"
+                        "text_length": len(media_request.message),
+                        "voice": media_request.voice if hasattr(request, 'voice') else "default"
                     }
                     
                     # 保存AI回复消息（包含音频URLs）
@@ -2273,15 +2297,15 @@ async def generate_media(
                     )
             
             elif tool.media_type == "video":
-                logger.info(f"开始调用GLM视频生成 - 提示词: {request.message[:50]}...")
+                logger.info(f"开始调用GLM视频生成 - 提示词: {media_request.message[:50]}...")
                 
                 glm_result = await ai_service.generate_video(
-                    prompt=request.message,
+                    prompt=media_request.message,
                     model_config=tool.model or "glm:cogvideox-2",
-                    size=request.size,
-                    fps=request.fps if hasattr(request, 'fps') else None,
-                    quality=request.quality if hasattr(request, 'quality') else None,
-                    with_audio=request.with_audio if hasattr(request, 'with_audio') else False
+                    size=media_request.size,
+                    fps=media_request.fps if hasattr(request, 'fps') else None,
+                    quality=media_request.quality if hasattr(request, 'quality') else None,
+                    with_audio=media_request.with_audio if hasattr(request, 'with_audio') else False
                 )
                 
                 print("\n" + "*"*50)
@@ -2307,9 +2331,9 @@ async def generate_media(
                         "media_type": tool.media_type,
                         "status": "processing",
                         "request_params": {
-                            "size": request.size,
-                            "fps": request.fps if hasattr(request, 'fps') else None,
-                            "quality": request.quality if hasattr(request, 'quality') else None
+                            "size": media_request.size,
+                            "fps": media_request.fps if hasattr(request, 'fps') else None,
+                            "quality": media_request.quality if hasattr(request, 'quality') else None
                         },
                         "query_fail_count": 0
                     }

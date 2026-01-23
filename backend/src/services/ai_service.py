@@ -1074,8 +1074,9 @@ class AIService:
             可访问的音频URL路径
         """
         try:
-            # 创建media目录（如果不存在）
-            media_dir = Path(__file__).parent.parent.parent / "media" / "audio"
+            # 创建static/media/audio目录（与HTML上传统一到static目录）
+            static_dir = Path(__file__).parent.parent.parent / "static"
+            media_dir = static_dir / "media" / "audio"
             media_dir.mkdir(parents=True, exist_ok=True)
             
             # 生成唯一文件名
@@ -1087,8 +1088,8 @@ class AIService:
             with open(file_path, "wb") as f:
                 f.write(audio_bytes)
             
-            # 返回可访问的URL（相对路径）
-            audio_url = f"/media/audio/{file_name}"
+            # 返回可访问的URL（通过/static路径访问）
+            audio_url = f"/static/media/audio/{file_name}"
             
             logger.info(f"Base64音频已保存: {file_path}, URL: {audio_url}")
             print(f"✓ Base64音频已保存到: {file_path}")
