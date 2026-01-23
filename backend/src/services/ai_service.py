@@ -946,22 +946,29 @@ class AIService:
         if not api_key:
             raise ValueError("未配置GLM_API_KEY")
         
-        # 构建请求
-        url = f"{base_url}/tts"
+        # GLM-TTS需要使用glm-4-voice模型通过chat/completions调用
+        # 将glm-tts映射到glm-4-voice
+        if model_name == "glm-tts":
+            model_name = "glm-4-voice"
+        
+        # 构建请求 - 使用chat/completions端点
+        url = f"{base_url}/chat/completions"
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json"
         }
         
-        # 构建请求体
+        # 构建请求体 - 使用对话格式
         payload = {
             "model": model_name,
-            "text": prompt
+            "messages": [
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            "stream": False  # 同步调用
         }
-        
-        # 添加音色参数（如果指定）
-        if voice:
-            payload["voice"] = voice
         
         try:
             print("\n" + "-"*50)
@@ -988,7 +995,28 @@ class AIService:
                 
                 logger.info(f"GLM音频生成API调用成功，完整返回: {result}")
                 
-                # GLM-TTS 返回格式：{"data": {"url": "..."}}
+                # GLM-4-Voice 通过chat/completions返回
+                # 返回格式示例: {"choices": [{"message": {"content": "...", "audio": {...}}}]}
+                if "choices" in result and len(result["choices"]) > 0:
+                    message = result["choices"][0].get("message", {})
+                    
+                    # 检查是否有音频数据
+                    audio_data = message.get("audio")
+                    if audio_data and isinstance(audio_data, dict):
+                        audio_url = audio_data.get("url")
+                        if audio_url:
+                            return {
+                                "mode": "sync",
+                                "data": [{"url": audio_url}]
+                            }
+                    
+                    # 如果没有audio字段，可能音频在content中
+                    content = message.get("content", "")
+                    if content:
+                        # TODO: 处理content中可能包含的音频信息
+                        logger.warning(f"GLM返回了文本内容而非音频: {content}")
+                
+                # 尝试其他可能的格式
                 if "data" in result:
                     audio_url = result["data"].get("url")
                     if audio_url:
@@ -997,11 +1025,8 @@ class AIService:
                             "data": [{"url": audio_url}]
                         }
                 
-                # 如果格式不对，返回原始结果
-                return {
-                    "mode": "sync",
-                    "data": result.get("data", [])
-                }
+                # 如果都不匹配，抛出异常
+                raise Exception(f"无法从GLM响应中提取音频URL，返回格式: {result}")
                 
         except httpx.HTTPStatusError as e:
             logger.error(f"GLM API返回错误: {e.response.status_code} - {e.response.text}")
