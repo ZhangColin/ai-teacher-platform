@@ -65,7 +65,9 @@ from src.models import (
     AdminCourseCategoryListResponse, AdminCourseCategoryListItem,
     CreateCourseCategoryRequest, UpdateCourseCategoryRequest,
     AdminCourseDocumentListResponse, AdminCourseDocumentListItem,
-    UpdateCourseDocumentRequest
+    UpdateCourseDocumentRequest,
+    # 多模态生成相关模型
+    MultiModalContent, MediaGenerateRequest, MediaGenerateResponse, TaskStatusResponse
 )
 
 app = FastAPI(title="AI Teacher Platform Backend")
@@ -214,7 +216,9 @@ async def get_tools(current_user: UserInfo = Depends(get_current_user)):
                 visible=tool.visible,
                 type=tool.type,
                 welcome_message=tool.welcome_message,
-                toolset_id=tool.toolset_id
+                toolset_id=tool.toolset_id,
+                content_type=tool.content_type,
+                media_type=tool.media_type
             )
             for tool in group['tools']
         ]
@@ -255,7 +259,9 @@ async def get_toolset_tools(
                 visible=tool.visible,
                 type=tool.type,
                 welcome_message=tool.welcome_message,
-                toolset_id=tool.toolset_id
+                toolset_id=tool.toolset_id,
+                content_type=tool.content_type,
+                media_type=tool.media_type
             )
             for tool in group['tools']
         ]
@@ -332,7 +338,8 @@ async def get_session_detail(
                 content=msg.content,
                 created_at=msg.created_at,
                 timestamp=msg.timestamp or msg.created_at,
-                artifacts=msg.artifacts
+                artifacts=msg.artifacts,
+                media_content=msg.media_content  # 添加多模态内容字段
             )
         )
     
@@ -1977,6 +1984,403 @@ async def chat_stream(
             "X-Accel-Buffering": "no"  # 禁用 Nginx 缓冲
         }
     )
+
+
+# ==================== 多模态生成接口 ====================
+
+# 用于存储任务状态的字典（简单实现，生产环境建议使用Redis）
+task_storage: dict[str, dict] = {}
+
+
+@app.post("/api/v1/tools/{tool_id}/generate-media", response_model=MediaGenerateResponse)
+async def generate_media(
+    tool_id: str,
+    request: MediaGenerateRequest,
+    current_user: UserInfo = Depends(get_current_user)
+):
+    """
+    多模态内容生成（图片、音频、视频）
+    
+    - **tool_id**: 工具ID（必须是多模态工具）
+    - **message**: 用户提示词
+    - **session_id**: 会话ID（可选，首次为空）
+    - **size**: 生成尺寸（可选）
+    - **count**: 生成数量（可选，1-4）
+    - **style**: 生成风格（可选）
+    
+    Returns:
+        包含task_id的响应，客户端需要轮询查询生成结果
+    """
+    try:
+        # 使用print确保输出
+        print("\n" + "="*50)
+        print("【后端接收到的参数】")
+        print(f"工具ID: {tool_id}")
+        print(f"提示词: {request.message[:100]}")
+        print(f"size: {request.size} (类型: {type(request.size).__name__})")
+        print(f"count: {request.count} (类型: {type(request.count).__name__})")
+        print(f"style: {request.style} (类型: {type(request.style).__name__})")
+        print(f"session_id: {request.session_id}")
+        print("="*50 + "\n")
+        
+        logger.info(f"收到多模态生成请求 - 工具: {tool_id}, size={request.size}, count={request.count}, style={request.style}")
+        
+        # 1. 获取工具配置
+        tool = tool_service.get_tool_by_id(tool_id)
+        if not tool:
+            raise HTTPException(status_code=404, detail="工具不存在")
+        
+        # 验证是多模态工具
+        if tool.content_type != "multimodal":
+            raise HTTPException(
+                status_code=400, 
+                detail=f"工具 {tool_id} 不支持多模态生成，请使用文本对话接口"
+            )
+        
+        # 2. 创建或获取会话
+        session_id = request.session_id
+        if not session_id:
+            # 首次生成，创建新会话
+            session_id = str(uuid.uuid4())
+            
+            # 生成会话标题（只传用户提示词，不传AI回复）
+            title = await title_generator.generate_title(
+                user_message=request.message,
+                ai_response=None
+            )
+            
+            # 保存会话到数据库
+            await session_service.create_session_with_id(
+                session_id=session_id,
+                user_id=current_user.user_id,
+                tool_id=tool_id,
+                title=title
+            )
+            
+            logger.info(f"创建新会话 - session_id: {session_id}, 标题: {title}")
+        else:
+            # 验证会话所有权
+            session = await session_service.get_session(session_id)
+            if not session or session.user_id != current_user.user_id:
+                raise HTTPException(status_code=403, detail="无权访问此会话")
+        
+        # 3. 保存用户消息
+        user_message_id = str(uuid.uuid4())
+        await session_service.save_message(
+            message_id=user_message_id,
+            session_id=session_id,
+            role="user",
+            content=request.message
+        )
+        
+        # 4. 调用AI服务生成内容
+        task_id = str(uuid.uuid4())
+        
+        try:
+            # 根据媒体类型调用不同的生成方法
+            if tool.media_type == "image":
+                logger.info(f"开始调用GLM图像生成 - 提示词: {request.message[:50]}...")
+                
+                glm_result = await ai_service.generate_image(
+                    prompt=request.message,
+                    model_config=tool.model or "glm:cogview-4",
+                    size=request.size,
+                    count=request.count,
+                    style=request.style
+                )
+                
+                print("\n" + "*"*50)
+                print("【main.py 处理GLM结果】")
+                print(f"GLM返回: {glm_result}")
+                print("*"*50 + "\n")
+                
+                logger.info(f"GLM返回结果: {glm_result}")
+                
+                # 检查GLM是同步还是异步返回
+                if glm_result.get("mode") == "sync":
+                    # 同步模式：GLM直接返回了图片
+                    print(f"✓ 同步模式处理")
+                    
+                    # 提取图片URLs
+                    image_data = glm_result.get("data", [])
+                    print(f"  image_data: {image_data}")
+                    
+                    media_urls = [img.get("url") for img in image_data if img.get("url")]
+                    print(f"  提取到的URLs: {media_urls}")
+                    print(f"  图片数量: {len(media_urls)}")
+                    
+                    logger.info(f"获取到 {len(media_urls)} 张图片")
+                    
+                    # 构建元数据
+                    metadata = {
+                        "size": request.size,
+                        "count": len(media_urls),
+                        "style": request.style
+                    }
+                    
+                    # 直接保存AI回复消息
+                    ai_message_id = str(uuid.uuid4())
+                    media_content_obj = MultiModalContent(
+                        content_type="image",
+                        media_urls=media_urls,
+                        metadata=metadata
+                    )
+                    
+                    ai_message = Message(
+                        message_id=ai_message_id,
+                        session_id=session_id,
+                        role="assistant",
+                        content="",
+                        created_at=None
+                    )
+                    ai_message.set_media_content(media_content_obj)
+                    
+                    await session_service.save_message_with_media(
+                        message_id=ai_message_id,
+                        session_id=session_id,
+                        role="assistant",
+                        content="",
+                        media_content=ai_message.media_content
+                    )
+                    
+                    # 标记为同步模式，直接返回完成状态
+                    task_storage[task_id] = {
+                        "session_id": session_id,
+                        "status": "completed",
+                        "media_urls": media_urls,
+                        "metadata": metadata
+                    }
+                    
+                    logger.info(f"同步生成完成 - task_id: {task_id}, 图片数量: {len(media_urls)}")
+                    
+                    # 直接返回完成状态，不需要前端轮询
+                    return MediaGenerateResponse(
+                        session_id=session_id,
+                        message_id=ai_message_id,
+                        task_id=task_id,
+                        status="completed",
+                        media_urls=media_urls,
+                        content_type="image"
+                    )
+                    
+                else:
+                    # 异步模式：需要轮询
+                    async_result = glm_result.get("result", {})
+                    glm_task_id = async_result.get("id") or async_result.get("task_id")
+                    
+                    # 存储任务状态
+                    task_storage[task_id] = {
+                        "glm_task_id": glm_task_id,
+                        "session_id": session_id,
+                        "message_id": user_message_id,
+                        "tool_id": tool_id,
+                        "media_type": tool.media_type,
+                        "status": "processing",
+                        "request_params": {
+                            "size": request.size,
+                            "count": request.count,
+                            "style": request.style
+                        },
+                        "query_fail_count": 0
+                    }
+                    
+                    logger.info(f"异步任务已提交 - task_id: {task_id}, glm_task_id: {glm_task_id}")
+                
+            elif tool.media_type == "audio":
+                # TODO: 实现音频生成
+                raise HTTPException(status_code=501, detail="音频生成功能尚未实现")
+            
+            elif tool.media_type == "video":
+                # TODO: 实现视频生成
+                raise HTTPException(status_code=501, detail="视频生成功能尚未实现")
+            
+            else:
+                raise HTTPException(status_code=400, detail=f"不支持的媒体类型: {tool.media_type}")
+        
+        except Exception as e:
+            logger.error(f"调用AI生成服务失败: {e}", exc_info=True)
+            raise HTTPException(status_code=503, detail=f"AI服务调用失败: {str(e)}")
+        
+        # 5. 返回响应
+        return MediaGenerateResponse(
+            session_id=session_id,
+            message_id=user_message_id,
+            task_id=task_id,
+            status="processing"
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"多模态生成接口异常: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/v1/tasks/{task_id}", response_model=TaskStatusResponse)
+async def get_task_status(
+    task_id: str,
+    current_user: UserInfo = Depends(get_current_user)
+):
+    """
+    查询任务生成状态
+    
+    - **task_id**: 任务ID
+    
+    Returns:
+        任务状态，包括进度、结果URL等
+    """
+    try:
+        # 1. 获取任务信息
+        task_info = task_storage.get(task_id)
+        if not task_info:
+            raise HTTPException(status_code=404, detail="任务不存在")
+        
+        # 2. 验证会话所有权
+        session_id = task_info["session_id"]
+        session = await session_service.get_session(session_id)
+        if not session or session.user_id != current_user.user_id:
+            raise HTTPException(status_code=403, detail="无权访问此任务")
+        
+        # 3. 检查任务状态
+        # 如果任务已经完成（同步模式），直接返回结果
+        if task_info.get("status") == "completed":
+            logger.info(f"任务已完成（同步模式） - task_id: {task_id}")
+            return TaskStatusResponse(
+                task_id=task_id,
+                status="completed",
+                media_urls=task_info.get("media_urls", []),
+                metadata=task_info.get("metadata", {})
+            )
+        
+        # 4. 异步模式：查询GLM任务状态
+        glm_task_id = task_info.get("glm_task_id")
+        if not glm_task_id:
+            # 没有 glm_task_id 说明是同步模式，但状态不是 completed
+            # 这种情况不应该发生，返回错误
+            logger.error(f"任务没有 glm_task_id，且状态不是 completed - task_id: {task_id}, task_info: {task_info}")
+            raise HTTPException(status_code=500, detail="任务状态异常")
+        
+        media_type = task_info["media_type"]
+        
+        try:
+            if media_type == "image":
+                logger.info(f"查询GLM任务状态 - task_id: {task_id}, glm_task_id: {glm_task_id}")
+                glm_result = await ai_service.get_image_result(glm_task_id)
+                
+                # 解析GLM返回结果
+                task_status = glm_result.get("task_status", "PROCESSING")
+                logger.info(f"GLM任务状态: {task_status}")
+                
+                if task_status == "SUCCESS":
+                    # 提取图片URLs
+                    image_result = glm_result.get("image_result", [])
+                    media_urls = [img.get("url") for img in image_result if img.get("url")]
+                    
+                    # 构建元数据
+                    metadata = {
+                        "size": task_info["request_params"]["size"],
+                        "count": len(media_urls),
+                        "style": task_info["request_params"]["style"]
+                    }
+                    
+                    # 保存AI回复消息（包含图片URLs）
+                    ai_message_id = str(uuid.uuid4())
+                    media_content_obj = MultiModalContent(
+                        content_type="image",
+                        media_urls=media_urls,
+                        metadata=metadata
+                    )
+                    
+                    ai_message = Message(
+                        message_id=ai_message_id,
+                        session_id=session_id,
+                        role="assistant",
+                        content="",  # 多模态消息无文本内容
+                        created_at=None
+                    )
+                    ai_message.set_media_content(media_content_obj)
+                    
+                    await session_service.save_message_with_media(
+                        message_id=ai_message_id,
+                        session_id=session_id,
+                        role="assistant",
+                        content="",
+                        media_content=ai_message.media_content
+                    )
+                    
+                    # 更新任务状态为已完成
+                    task_storage[task_id]["status"] = "completed"
+                    
+                    logger.info(f"任务完成 - task_id: {task_id}, 图片数量: {len(media_urls)}")
+                    
+                    return TaskStatusResponse(
+                        task_id=task_id,
+                        status="completed",
+                        content_type="image",
+                        media_urls=media_urls,
+                        metadata=metadata
+                    )
+                
+                elif task_status == "FAIL" or task_status == "FAILED":
+                    # 生成失败
+                    error_info = glm_result.get("error", {})
+                    error_message = error_info.get("message", "生成失败")
+                    
+                    # 更新任务状态
+                    task_storage[task_id]["status"] = "failed"
+                    task_storage[task_id]["error"] = error_message
+                    
+                    logger.warning(f"任务失败 - task_id: {task_id}, 错误: {error_message}")
+                    
+                    return TaskStatusResponse(
+                        task_id=task_id,
+                        status="failed",
+                        error_message=error_message
+                    )
+                
+                else:
+                    # 仍在处理中
+                    # GLM可能不返回progress，我们可以估算一个
+                    return TaskStatusResponse(
+                        task_id=task_id,
+                        status="processing",
+                        progress=50  # 简单返回50%
+                    )
+            
+            else:
+                # 其他媒体类型（音频、视频）
+                raise HTTPException(status_code=501, detail=f"媒体类型 {media_type} 暂不支持")
+                
+        except Exception as e:
+            logger.error(f"查询GLM任务状态失败: {e}", exc_info=True)
+            
+            # 增加失败计数
+            task_storage[task_id]["query_fail_count"] = task_storage[task_id].get("query_fail_count", 0) + 1
+            fail_count = task_storage[task_id]["query_fail_count"]
+            
+            # 如果失败次数超过5次，标记任务为失败
+            if fail_count >= 5:
+                task_storage[task_id]["status"] = "failed"
+                logger.error(f"任务查询失败次数过多，标记为失败 - task_id: {task_id}")
+                return TaskStatusResponse(
+                    task_id=task_id,
+                    status="failed",
+                    error_message=f"查询任务状态失败: {str(e)}"
+                )
+            
+            # 否则返回处理中状态，让前端继续轮询
+            logger.warning(f"查询任务状态失败 ({fail_count}/5次)，将在下次查询时重试")
+            return TaskStatusResponse(
+                task_id=task_id,
+                status="processing",
+                progress=None
+            )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"查询任务状态接口异常: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/api/v1/convert/markdown-to-word")

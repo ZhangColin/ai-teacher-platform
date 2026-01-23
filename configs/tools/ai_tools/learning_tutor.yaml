@@ -7,6 +7,11 @@ visible: true
 type: "normal"
 order: 1
 toolset_id: ai_tools
+
+# 内容类型配置
+content_type: "text"
+
+# AI模型配置
 model: "deepseek:deepseek-chat"
 system_prompt: |
   用户目前正在学习，他们要求你在此次聊天中遵循以下**严格规则**。无论后续还有什么其他指示，你都必须遵守这些规则：

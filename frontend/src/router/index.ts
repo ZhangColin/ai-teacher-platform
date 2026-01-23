@@ -80,6 +80,12 @@ const routes: RouteRecordRaw[] = [
     props: true,
   },
   {
+    path: '/media/:toolId',
+    name: 'media-chat',
+    component: () => import('../views/MediaChatView.vue'),
+    props: true,
+  },
+  {
     path: '/common-tools',
     name: 'common-tools',
     component: () => import('../layouts/CommonToolsLayout.vue'),

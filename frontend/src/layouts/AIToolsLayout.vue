@@ -20,12 +20,24 @@
     </button>
     
     <!-- 右侧：聊天区域或敬请期待页面 -->
+    <!-- 文本工具：使用 ChatArea -->
     <ChatArea 
-      v-if="currentTool && currentTool.type === 'normal'" 
+      v-if="currentTool && currentTool.type === 'normal' && currentTool.content_type === 'text'" 
       :tool-id="currentTool.tool_id"
       :welcome-message="currentTool.welcome_message"
       class="chat-area" 
     />
+    
+    <!-- 多模态工具：使用 MediaChatArea -->
+    <MediaChatArea
+      v-else-if="currentTool && currentTool.type === 'normal' && currentTool.content_type === 'multimodal'"
+      :tool-id="currentTool.tool_id"
+      :tool-name="currentTool.name"
+      :welcome-message="currentTool.welcome_message || '你好！'"
+      class="chat-area"
+    />
+    
+    <!-- 占位工具：显示敬请期待 -->
     <ComingSoon 
       v-else-if="currentTool && currentTool.type === 'placeholder'"
       :tool-name="currentTool.name"
@@ -41,6 +53,7 @@ import { ref } from 'vue'
 import { ChevronLeftIcon, SparklesIcon } from '@heroicons/vue/24/outline'
 import AIToolSelector from '../components/AIToolSelector.vue'
 import ChatArea from '../components/ChatArea.vue'
+import MediaChatArea from '../components/MediaChatArea.vue'
 import ComingSoon from '../components/ComingSoon.vue'
 import type { ToolListItem } from '../types'
 
@@ -56,6 +69,7 @@ function toggleSidebar() {
 }
 
 function handleToolChange(tool: ToolListItem) {
+  // 所有工具都在当前Layout中显示
   currentTool.value = tool
 }
 </script>

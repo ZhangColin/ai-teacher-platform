@@ -63,6 +63,9 @@ class MessageModel(Base):
     content = Column(Text, nullable=False)
     created_at = Column(DateTime, nullable=False, default=datetime.now, index=True)
     
+    # 多模态支持字段（新增）
+    media_content = Column(Text, nullable=True, comment="多模态内容JSON字符串")
+    
     # 关系
     session = relationship("SessionModel", back_populates="messages")
     artifacts = relationship("ArtifactModel", back_populates="message", cascade="all, delete-orphan")

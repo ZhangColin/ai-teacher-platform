@@ -4,14 +4,15 @@
       ref="textareaRef"
       v-model="inputText"
       class="input-textarea"
-      placeholder="输入消息..."
+      :placeholder="placeholder || '输入消息...'"
+      :disabled="disabled"
       rows="1"
       @keydown="handleKeyDown"
       @input="handleInput"
       @compositionstart="handleCompositionStart"
       @compositionend="handleCompositionEnd"
     ></textarea>
-    <button class="send-button" :disabled="!inputText.trim()" @click="handleSend">
+    <button class="send-button" :disabled="!inputText.trim() || disabled" @click="handleSend">
       发送
     </button>
   </div>
@@ -19,6 +20,11 @@
 
 <script setup lang="ts">
 import { ref, nextTick, watch } from 'vue'
+
+const props = defineProps<{
+  placeholder?: string
+  disabled?: boolean
+}>()
 
 const emit = defineEmits<{
   send: [content: string]

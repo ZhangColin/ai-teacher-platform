@@ -118,7 +118,7 @@ const rules: FormRules = {
   htmlFile: [
     { 
       required: true, 
-      validator: (rule, value, callback) => {
+      validator: (_rule, _value, callback) => {
         if (!form.htmlFile) {
           callback(new Error('请上传 HTML 文件'))
         } else {

@@ -2,6 +2,8 @@
 import os
 import logging
 import asyncio
+import httpx
+import json
 from typing import Optional, Tuple, List, Dict, AsyncGenerator
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -64,6 +66,11 @@ class AIService:
             base_url = os.getenv("KIMI_BASE_URL", "https://api.moonshot.cn/v1")
             if not model_name:
                 model_name = os.getenv("KIMI_MODEL", "moonshot-v1-8k")
+        elif provider == "glm":
+            api_key = os.getenv("GLM_API_KEY")
+            base_url = os.getenv("GLM_BASE_URL", "https://open.bigmodel.cn/api/paas/v4")
+            if not model_name:
+                model_name = os.getenv("GLM_MODEL", "glm-4")
         else:
             logger.warning(f"未知的服务商 [{provider}]，将使用 Mock 模式。")
             return None, "mock-model"
@@ -723,4 +730,176 @@ class AIService:
                 yield "⚠️ 无法连接到AI服务，请检查：\n1. 网络是否正常\n2. API密钥是否正确\n3. 服务提供商是否可用"
             else:
                 yield f"⚠️ AI服务调用失败: {str(e)[:100]}\n请稍后重试或联系管理员。"
+    
+    # ==================== 多模态生成功能 ====================
+    
+    async def generate_image(
+        self,
+        prompt: str,
+        model_config: str,  # "glm:cogview-4"
+        size: str = "1024x1024",
+        count: int = 1,
+        style: Optional[str] = None
+    ) -> Dict[str, any]:
+        """
+        调用GLM图像生成API（异步）
+        
+        Args:
+            prompt: 图片描述提示词
+            model_config: 模型配置（格式：glm:model_name）
+            size: 图片尺寸（如 "1024x1024", "512x512"）
+            count: 生成数量（1-4）
+            style: 生成风格（可选）
+        
+        Returns:
+            {"task_id": "xxx", "request_id": "xxx"}
+        
+        Raises:
+            ValueError: 不支持的服务商或参数错误
+            Exception: API调用失败
+        """
+        # 解析模型配置
+        if not model_config or ":" not in model_config:
+            raise ValueError(f"模型配置格式错误: {model_config}")
+        
+        provider, model_name = model_config.split(":", 1)
+        provider = provider.lower()
+        
+        if provider != "glm":
+            raise ValueError(f"图像生成仅支持GLM服务商，当前配置: {provider}")
+        
+        # 获取GLM配置
+        api_key = os.getenv("GLM_API_KEY")
+        base_url = os.getenv("GLM_BASE_URL", "https://open.bigmodel.cn/api/paas/v4")
+        
+        if not api_key:
+            raise ValueError("未配置GLM_API_KEY")
+        
+        # 构建请求
+        url = f"{base_url}/images/generations"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        # 构建请求体
+        payload = {
+            "model": model_name,
+            "prompt": prompt
+        }
+        
+        # 添加可选参数
+        # 注意：GLM API可能不支持所有这些参数，我们需要通过日志观察实际支持的参数
+        if size:
+            payload["size"] = size
+        
+        # count 参数：移除 count > 1 的限制，始终传递
+        if count:
+            payload["n"] = count  # DALL-E风格的参数名
+        
+        if style:
+            payload["style"] = style
+        
+        try:
+            print("\n" + "-"*50)
+            print("【调用GLM API】")
+            print(f"模型: {model_name}")
+            print(f"提示词: {prompt[:100]}...")
+            print(f"参数 - size: {size}, count: {count}, style: {style}")
+            print(f"完整payload: {payload}")
+            print("-"*50 + "\n")
+            
+            logger.info(f"调用GLM图像生成API - 模型: {model_name}, payload: {payload}")
+            
+            async with httpx.AsyncClient(timeout=60.0) as client:  # 延长超时到60秒，因为图片生成需要时间
+                response = await client.post(url, headers=headers, json=payload)
+                response.raise_for_status()
+                
+                result = response.json()
+                
+                print("\n" + "~"*50)
+                print("【GLM API 返回结果】")
+                print(f"状态码: {response.status_code}")
+                print(f"返回数据: {result}")
+                print(f"data字段存在: {'data' in result}")
+                if "data" in result:
+                    print(f"data内容: {result['data']}")
+                    print(f"图片数量: {len(result.get('data', []))}")
+                print("~"*50 + "\n")
+                
+                logger.info(f"GLM图像生成API调用成功，完整返回: {result}")
+                
+                # 检查GLM是否直接返回了图片（同步模式）
+                if "data" in result:
+                    # 同步模式：{"data": [{"url": "..."}, ...]}
+                    print(f"✓ GLM同步模式，返回了 {len(result['data'])} 张图片")
+                    logger.info("GLM返回了同步结果（直接包含图片）")
+                    return {
+                        "mode": "sync",
+                        "data": result["data"]
+                    }
+                else:
+                    # 异步模式：{"id": "task_xxx", ...}
+                    print(f"✓ GLM异步模式，任务ID: {result.get('id')}")
+                    logger.info(f"GLM返回了异步任务ID: {result}")
+                    return {
+                        "mode": "async",
+                        "result": result
+                    }
+                
+        except httpx.HTTPStatusError as e:
+            logger.error(f"GLM API返回错误: {e.response.status_code} - {e.response.text}")
+            raise Exception(f"图像生成失败: {e.response.text}")
+        except httpx.TimeoutException:
+            logger.error("GLM API请求超时")
+            raise Exception("图像生成请求超时，请稍后重试")
+        except Exception as e:
+            logger.error(f"GLM图像生成异常: {e}", exc_info=True)
+            raise
+    
+    async def get_image_result(self, task_id: str) -> Dict[str, any]:
+        """
+        查询GLM图像生成结果
+        
+        Args:
+            task_id: 任务ID
+        
+        Returns:
+            {
+                "status": "completed" | "processing" | "failed",
+                "data": [{"url": "https://..."}, ...],
+                "metadata": {...}
+            }
+        
+        Raises:
+            Exception: API调用失败
+        """
+        api_key = os.getenv("GLM_API_KEY")
+        base_url = os.getenv("GLM_BASE_URL", "https://open.bigmodel.cn/api/paas/v4")
+        
+        if not api_key:
+            raise ValueError("未配置GLM_API_KEY")
+        
+        # 构建请求
+        url = f"{base_url}/async-result/{task_id}"
+        headers = {
+            "Authorization": f"Bearer {api_key}"
+        }
+        
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url, headers=headers)
+                response.raise_for_status()
+                
+                result = response.json()
+                logger.info(f"查询任务状态: {task_id} - {result.get('task_status')} - 完整结果: {result}")
+                
+                return result
+                
+        except httpx.HTTPStatusError as e:
+            logger.error(f"GLM查询结果失败: {e.response.status_code} - {e.response.text}")
+            raise Exception(f"查询生成结果失败: {e.response.text}")
+        except Exception as e:
+            logger.error(f"查询GLM任务状态异常: {e}", exc_info=True)
+            raise
 

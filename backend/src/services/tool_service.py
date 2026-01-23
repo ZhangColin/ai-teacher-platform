@@ -76,7 +76,10 @@ class ToolService:
                 welcome_message=config_data.get('welcome_message', ''),
                 order=config_data.get('order', 999),  # 默认值为 999
                 toolset_id=tool_toolset_id,
-                system_prompt_file=system_prompt_file
+                system_prompt_file=system_prompt_file,
+                model=config_data.get('model'),  # 新增：AI模型配置
+                content_type=config_data.get('content_type', 'text'),  # 新增：内容类型，默认text
+                media_type=config_data.get('media_type')  # 新增：媒体类型
             )
             
             # 验证配置

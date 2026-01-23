@@ -1,9 +1,12 @@
 """Domain models for Agent platform."""
 import uuid
 import bcrypt
+import logging
 from datetime import datetime
 from typing import List, Optional, Literal, Union
 from pydantic import BaseModel, Field, ConfigDict
+
+logger = logging.getLogger(__name__)
 
 
 class NavigationModule(BaseModel):
@@ -49,6 +52,16 @@ class Tool(BaseModel):
     system_prompt_file: Optional[str] = Field(None, description="系统提示词文件路径（相对于工具集配置目录），如果指定则从文件加载system_prompt")
     model: Optional[str] = Field(None, description="使用的AI模型（格式：provider:model_name，如 deepseek:deepseek-coder），如果未指定则使用系统默认")
     
+    # 多模态支持字段（新增）
+    content_type: Optional[Literal["text", "multimodal"]] = Field(
+        "text", 
+        description="内容类型：text=文本对话，multimodal=多模态生成（图片、音频、视频）"
+    )
+    media_type: Optional[Literal["image", "audio", "video"]] = Field(
+        None, 
+        description="媒体类型（仅当content_type=multimodal时有效）"
+    )
+    
     def validate(self) -> bool:
         """验证工具配置是否完整有效"""
         if not self.tool_id or not self.name:
@@ -57,6 +70,9 @@ class Tool(BaseModel):
             return False
         # system_prompt 和 system_prompt_file 至少有一个
         if not self.system_prompt and not self.system_prompt_file:
+            return False
+        # 如果是多模态工具，必须指定media_type
+        if self.content_type == "multimodal" and not self.media_type:
             return False
         return True
 
@@ -118,6 +134,16 @@ class ToolListItem(BaseModel):
     type: Literal["normal", "placeholder"] = Field("normal", description="工具类型")
     welcome_message: Optional[str] = Field(None, description="欢迎语（可选，用于占位工具）")
     toolset_id: str = Field(..., description="所属工具集ID")
+    
+    # 多模态支持字段（新增）
+    content_type: Optional[Literal["text", "multimodal"]] = Field(
+        "text", 
+        description="内容类型：text=文本对话，multimodal=多模态生成"
+    )
+    media_type: Optional[Literal["image", "audio", "video"]] = Field(
+        None, 
+        description="媒体类型（仅当content_type=multimodal时有效）"
+    )
 
 
 class CategoryGroup(BaseModel):
@@ -180,18 +206,78 @@ class Session(BaseModel):
         self.updated_at = datetime.now()
 
 
+class MultiModalContent(BaseModel):
+    """多模态内容结构（用于JSON序列化）"""
+    content_type: Literal["image", "audio", "video"] = Field(..., description="内容类型")
+    media_urls: List[str] = Field(..., description="媒体文件URL列表（支持多个）")
+    metadata: Optional[dict] = Field(None, description="额外元数据")
+    
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "content_type": "image",
+                "media_urls": ["https://example.com/image1.png", "https://example.com/image2.png"],
+                "metadata": {
+                    "size": "1024x1024",
+                    "count": 2,
+                    "style": "auto",
+                    "cost": {
+                        "tokens": 0,
+                        "amount": 0.0,
+                        "currency": "CNY"
+                    }
+                }
+            }
+        }
+    )
+
+
 class Message(BaseModel):
-    """消息实体"""
+    """消息实体（支持文本和多模态）"""
     message_id: Optional[str] = Field(None, description="消息 UUID（可选，用于数据库存储）")
     session_id: Optional[str] = Field(None, description="关联的会话ID（可选，用于数据库存储）")
     role: Literal["user", "assistant"] = Field(..., description="消息角色")
-    content: str = Field(..., description="消息内容（Markdown 格式）")
+    content: str = Field(..., description="消息内容（文本消息为Markdown格式，多模态消息为用户提示词）")
     created_at: Optional[datetime] = Field(None, description="消息创建时间（可选，用于数据库存储）")
     timestamp: Optional[datetime] = Field(None, description="消息时间戳（API 响应使用，兼容前端）")
     artifacts: List[Artifact] = Field(
         default_factory=list,
         description="消息中包含的成果物列表（从 content 中解析）"
     )
+    
+    # 多模态支持字段（新增）
+    media_content: Optional[str] = Field(
+        None, 
+        description="多模态内容JSON字符串（图片、音频、视频等）。存储MultiModalContent的JSON序列化结果"
+    )
+    
+    @property
+    def parsed_media_content(self) -> Optional[MultiModalContent]:
+        """
+        解析多模态内容JSON为对象
+        
+        Returns:
+            MultiModalContent对象，如果media_content为空则返回None
+        """
+        if self.media_content:
+            try:
+                import json
+                data = json.loads(self.media_content)
+                return MultiModalContent(**data)
+            except Exception as e:
+                logger.warning(f"解析多模态内容失败: {e}")
+                return None
+        return None
+    
+    def set_media_content(self, media: MultiModalContent) -> None:
+        """
+        设置多模态内容
+        
+        Args:
+            media: MultiModalContent对象
+        """
+        import json
+        self.media_content = json.dumps(media.model_dump(), ensure_ascii=False)
 
 
 class SessionInitResponse(BaseModel):
@@ -916,4 +1002,68 @@ class MoveCourseDocumentResponse(BaseModel):
     """移动文档响应"""
     message: str = Field(..., description="操作结果消息")
     document: AdminCourseDocumentListItem = Field(..., description="移动后的文档信息")
+
+
+# ==================== 多模态生成模块 ====================
+
+class MediaGenerateRequest(BaseModel):
+    """多模态生成请求"""
+    message: str = Field(..., description="用户提示词", min_length=1)
+    session_id: Optional[str] = Field(None, description="会话ID（可选）。首次为空，后续传入")
+    
+    # 可选参数（有默认值）
+    size: Optional[str] = Field("1024x1024", description="生成尺寸（图片适用）")
+    count: Optional[int] = Field(1, description="生成数量", ge=1, le=4)
+    style: Optional[str] = Field("auto", description="生成风格")
+
+
+class MediaGenerateResponse(BaseModel):
+    """多模态生成响应（立即返回）"""
+    session_id: str = Field(..., description="会话ID")
+    message_id: str = Field(..., description="消息ID")
+    task_id: str = Field(..., description="生成任务ID，用于轮询状态")
+    status: Literal["pending", "processing", "completed"] = Field("pending", description="任务状态（同步模式可能直接返回completed）")
+    
+    # 同步模式下直接返回的字段
+    media_urls: Optional[List[str]] = Field(None, description="媒体URLs（同步模式）")
+    content_type: Optional[Literal["image", "audio", "video"]] = Field(None, description="内容类型（同步模式）")
+
+
+class TaskStatusResponse(BaseModel):
+    """任务状态查询响应"""
+    task_id: str = Field(..., description="任务ID")
+    status: Literal["pending", "processing", "completed", "failed"] = Field(..., description="任务状态")
+    progress: Optional[int] = Field(None, description="进度百分比（0-100）", ge=0, le=100)
+    
+    # 完成时返回
+    content_type: Optional[Literal["image", "audio", "video"]] = Field(None, description="内容类型（完成时）")
+    media_urls: Optional[List[str]] = Field(None, description="媒体文件URL列表（完成时）")
+    metadata: Optional[dict] = Field(None, description="额外元数据（完成时）")
+    
+    # 失败时返回
+    error_message: Optional[str] = Field(None, description="错误信息（失败时）")
+    
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "task_id": "task_123",
+                    "status": "processing",
+                    "progress": 50
+                },
+                {
+                    "task_id": "task_123",
+                    "status": "completed",
+                    "content_type": "image",
+                    "media_urls": ["https://example.com/image1.png", "https://example.com/image2.png"],
+                    "metadata": {"size": "1024x1024", "count": 2}
+                },
+                {
+                    "task_id": "task_123",
+                    "status": "failed",
+                    "error_message": "生成失败：内容违规"
+                }
+            ]
+        }
+    )
 

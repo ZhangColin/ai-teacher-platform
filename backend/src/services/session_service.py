@@ -301,5 +301,147 @@ class SessionService:
             content=message_model.content,
             created_at=message_model.created_at,
             timestamp=message_model.created_at,  # 兼容前端
-            artifacts=[]  # 成果物需要单独查询
+            artifacts=[],  # 成果物需要单独查询
+            media_content=getattr(message_model, 'media_content', None)  # 多模态内容
         )
+    
+    # ==================== 多模态支持方法 ====================
+    
+    async def create_session_with_id(
+        self, 
+        session_id: str,
+        user_id: str, 
+        tool_id: str, 
+        title: str
+    ) -> SessionDomain:
+        """
+        创建新会话（异步版本，指定 session_id）
+        
+        Args:
+            session_id: 会话ID
+            user_id: 用户ID
+            tool_id: 工具ID
+            title: 会话标题
+            
+        Returns:
+            Session 领域模型实例
+        """
+        with self._get_db_session() as db:
+            # 创建数据库模型
+            session_model = SessionModel(
+                session_id=session_id,
+                user_id=user_id,
+                tool_id=tool_id,
+                title=title,
+                created_at=datetime.now(),
+                updated_at=datetime.now()
+            )
+            
+            db.add(session_model)
+            db.commit()
+            db.refresh(session_model)
+            
+            return self._to_domain_model(session_model)
+    
+    async def get_session(self, session_id: str) -> Optional[SessionDomain]:
+        """
+        获取会话（异步版本，简化接口）
+        
+        Args:
+            session_id: 会话ID
+            
+        Returns:
+            Session 领域模型实例
+        """
+        return self.get_session_by_id(session_id)
+    
+    async def save_message(
+        self,
+        message_id: str,
+        session_id: str,
+        role: str,
+        content: str
+    ) -> MessageDomain:
+        """
+        保存消息（文本消息）
+        
+        Args:
+            message_id: 消息ID
+            session_id: 会话ID
+            role: 角色（user/assistant）
+            content: 消息内容
+            
+        Returns:
+            Message 领域模型实例
+        """
+        with self._get_db_session() as db:
+            # 创建消息模型
+            message_model = MessageModel(
+                message_id=message_id,
+                session_id=session_id,
+                role=MessageRole(role),
+                content=content,
+                created_at=datetime.now()
+            )
+            
+            db.add(message_model)
+            db.commit()
+            db.refresh(message_model)
+            
+            # 更新会话的updated_at
+            session_model = db.query(SessionModel).filter(
+                SessionModel.session_id == session_id
+            ).first()
+            if session_model:
+                session_model.updated_at = datetime.now()
+                db.commit()
+            
+            return self._to_domain_model_message(message_model)
+    
+    async def save_message_with_media(
+        self,
+        message_id: str,
+        session_id: str,
+        role: str,
+        content: str,
+        media_content: str
+    ) -> MessageDomain:
+        """
+        保存多模态消息
+        
+        Args:
+            message_id: 消息ID
+            session_id: 会话ID
+            role: 角色（user/assistant）
+            content: 文本内容（可为空）
+            media_content: 多模态内容JSON字符串
+            
+        Returns:
+            Message 领域模型实例
+        """
+        with self._get_db_session() as db:
+            # 创建消息模型
+            message_model = MessageModel(
+                message_id=message_id,
+                session_id=session_id,
+                role=MessageRole(role),
+                content=content,
+                created_at=datetime.now()
+            )
+            
+            # 设置多模态内容
+            message_model.media_content = media_content
+            
+            db.add(message_model)
+            db.commit()
+            db.refresh(message_model)
+            
+            # 更新会话的updated_at
+            session_model = db.query(SessionModel).filter(
+                SessionModel.session_id == session_id
+            ).first()
+            if session_model:
+                session_model.updated_at = datetime.now()
+                db.commit()
+            
+            return self._to_domain_model_message(message_model)

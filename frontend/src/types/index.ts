@@ -29,6 +29,10 @@ export interface ToolListItem {
   visible: boolean // 是否在工具选择器中显示
   type: 'normal' | 'placeholder' // 工具类型
   welcome_message?: string // 欢迎语（可选，用于占位工具）
+  
+  // 多模态支持字段（新增）
+  content_type?: 'text' | 'multimodal' // 内容类型（默认text）
+  media_type?: 'image' | 'audio' | 'video' // 媒体类型（仅multimodal时有效）
 }
 
 /**
@@ -66,15 +70,21 @@ export interface Artifact {
 }
 
 /**
- * 消息实体
+ * 消息实体（支持文本和多模态）
  */
 export interface Message {
+  message_id?: string // 消息 UUID（可选，用于数据库存储）
+  session_id?: string // 关联的会话ID（可选，用于数据库存储）
   role: 'user' | 'assistant' // 消息角色
-  content: string // 消息内容（Markdown 格式）
+  content: string // 消息内容（Markdown 格式或用户提示词）
+  created_at?: string // 消息创建时间（ISO 8601 格式）
   timestamp?: string // 消息时间戳（ISO 8601 格式，可选）
   artifacts?: Artifact[] // 消息中包含的成果物列表（可选）
   error?: string // 错误信息（可选，用于显示发送失败）
   pending?: boolean // 是否正在发送（可选，用于显示加载状态）
+  
+  // 多模态支持字段
+  media_content?: string // 多模态内容JSON字符串（图片、音频、视频等）
 }
 
 /**
