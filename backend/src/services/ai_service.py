@@ -958,13 +958,18 @@ class AIService:
             "Content-Type": "application/json"
         }
         
-        # 构建请求体 - 使用对话格式
+        # 构建请求体 - GLM-4-Voice的content必须是列表格式
         payload = {
             "model": model_name,
             "messages": [
                 {
                     "role": "user",
-                    "content": prompt
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": prompt
+                        }
+                    ]
                 }
             ],
             "stream": False  # 同步调用
