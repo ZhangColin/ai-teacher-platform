@@ -2494,11 +2494,13 @@ async def get_task_status(
                     )
             
             elif media_type == "video":
+                print(f"\n【查询视频任务状态】task_id: {task_id}, glm_task_id: {glm_task_id}")
                 logger.info(f"查询GLM视频任务状态 - task_id: {task_id}, glm_task_id: {glm_task_id}")
                 glm_result = await ai_service.get_video_result(glm_task_id)
                 
                 # 解析GLM返回结果（视频使用与图片相同的接口）
                 task_status = glm_result.get("task_status", "PROCESSING")
+                print(f"GLM视频任务状态: {task_status}, 完整结果: {glm_result}")
                 logger.info(f"GLM视频任务状态: {task_status}")
                 
                 if task_status == "SUCCESS":
