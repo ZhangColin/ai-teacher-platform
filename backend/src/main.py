@@ -80,6 +80,11 @@ if static_dir.exists():
 else:
     logger.warning(f"静态文件目录不存在: {static_dir}")
 
+# 挂载媒体文件目录（生成的音频、视频等）
+media_dir = Path(project_root / "backend" / "media")
+media_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/media", StaticFiles(directory=str(media_dir)), name="media")
+
 # 初始化服务
 config_loader = ConfigLoader(config_root=str(project_root / "configs"))
 agent_service = AgentService(config_dir=str(project_root / "configs" / "agents"))

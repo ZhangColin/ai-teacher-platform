@@ -4,6 +4,9 @@ import logging
 import asyncio
 import httpx
 import json
+import base64
+import uuid
+from pathlib import Path
 from typing import Optional, Tuple, List, Dict, AsyncGenerator
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -1008,8 +1011,22 @@ class AIService:
                     # 检查是否有音频数据
                     audio_data = message.get("audio")
                     if audio_data and isinstance(audio_data, dict):
+                        # 检查是否是URL
                         audio_url = audio_data.get("url")
                         if audio_url:
+                            return {
+                                "mode": "sync",
+                                "data": [{"url": audio_url}]
+                            }
+                        
+                        # 检查是否是base64编码的音频
+                        audio_base64 = audio_data.get("data") or audio_data.get("audio")
+                        if audio_base64:
+                            print(f"检测到base64音频数据，长度: {len(audio_base64)}")
+                            
+                            # 保存base64音频到文件
+                            audio_url = await self._save_base64_audio(audio_base64, audio_data.get("format", "mp3"))
+                            
                             return {
                                 "mode": "sync",
                                 "data": [{"url": audio_url}]
@@ -1023,15 +1040,17 @@ class AIService:
                 
                 # 尝试其他可能的格式
                 if "data" in result:
-                    audio_url = result["data"].get("url")
-                    if audio_url:
-                        return {
-                            "mode": "sync",
-                            "data": [{"url": audio_url}]
-                        }
+                    data_obj = result["data"]
+                    if isinstance(data_obj, dict):
+                        audio_url = data_obj.get("url")
+                        if audio_url:
+                            return {
+                                "mode": "sync",
+                                "data": [{"url": audio_url}]
+                            }
                 
                 # 如果都不匹配，抛出异常
-                raise Exception(f"无法从GLM响应中提取音频URL，返回格式: {result}")
+                raise Exception(f"无法从GLM响应中提取音频数据，返回格式: {result}")
                 
         except httpx.HTTPStatusError as e:
             logger.error(f"GLM API返回错误: {e.response.status_code} - {e.response.text}")
@@ -1042,6 +1061,44 @@ class AIService:
         except Exception as e:
             logger.error(f"GLM音频生成异常: {e}", exc_info=True)
             raise
+    
+    async def _save_base64_audio(self, base64_data: str, audio_format: str = "mp3") -> str:
+        """
+        保存base64编码的音频到本地文件
+        
+        Args:
+            base64_data: base64编码的音频数据
+            audio_format: 音频格式（mp3, wav等）
+        
+        Returns:
+            可访问的音频URL路径
+        """
+        try:
+            # 创建media目录（如果不存在）
+            media_dir = Path(__file__).parent.parent.parent / "media" / "audio"
+            media_dir.mkdir(parents=True, exist_ok=True)
+            
+            # 生成唯一文件名
+            file_name = f"{uuid.uuid4()}.{audio_format}"
+            file_path = media_dir / file_name
+            
+            # 解码base64并保存
+            audio_bytes = base64.b64decode(base64_data)
+            with open(file_path, "wb") as f:
+                f.write(audio_bytes)
+            
+            # 返回可访问的URL（相对路径）
+            audio_url = f"/media/audio/{file_name}"
+            
+            logger.info(f"Base64音频已保存: {file_path}, URL: {audio_url}")
+            print(f"✓ Base64音频已保存到: {file_path}")
+            print(f"✓ 访问URL: {audio_url}")
+            
+            return audio_url
+            
+        except Exception as e:
+            logger.error(f"保存base64音频失败: {e}", exc_info=True)
+            raise Exception(f"保存音频文件失败: {str(e)}")
     
     async def generate_video(
         self,

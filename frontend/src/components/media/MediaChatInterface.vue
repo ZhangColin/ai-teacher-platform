@@ -25,7 +25,7 @@
               <span></span>
               <span></span>
             </div>
-            <span class="loading-text">AI 正在生成图片...</span>
+            <span class="loading-text">{{ getLoadingText() }}</span>
           </div>
           
           <!-- 生成失败 -->
@@ -418,6 +418,20 @@ function parseMediaUrls(mediaContent?: string): string[] {
     return parsed?.mediaUrls || []
   } catch {
     return []
+  }
+}
+
+function getLoadingText(): string {
+  // 根据工具ID推断媒体类型并返回对应的加载文案
+  const toolId = props.toolId.toLowerCase()
+  if (toolId.includes('image') || toolId.includes('图')) {
+    return 'AI 正在生成图片...'
+  } else if (toolId.includes('audio') || toolId.includes('音频')) {
+    return 'AI 正在生成音频...'
+  } else if (toolId.includes('video') || toolId.includes('视频')) {
+    return 'AI 正在生成视频...'
+  } else {
+    return 'AI 正在生成内容...'
   }
 }
 
