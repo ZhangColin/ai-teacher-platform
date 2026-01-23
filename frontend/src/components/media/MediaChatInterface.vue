@@ -126,7 +126,7 @@
 <script setup lang="ts">
 import { ref, onMounted, nextTick, watch } from 'vue'
 import type { MediaMessage, MediaGenerateParams, TaskStatusResponse } from '../../types/media'
-import { parseMediaContent, DEFAULT_GENERATE_PARAMS, IMAGE_SIZE_OPTIONS, IMAGE_COUNT_OPTIONS, IMAGE_STYLE_OPTIONS } from '../../types/media'
+import { parseMediaContent, DEFAULT_GENERATE_PARAMS } from '../../types/media'
 import { generateMedia, pollTaskStatus } from '../../services/mediaApi'
 import { downloadImage } from '../../services/mediaApi'
 import { ApiService } from '../../services/apiClient'
@@ -381,13 +381,9 @@ async function handleDownloadImage(url: string, index: number) {
   }
 }
 
-async function handleDownloadMedia(url: string, index: number, type: string) {
+async function handleDownloadMedia(url: string, _index: number, _type: string) {
   try {
-    const extensions = {
-      audio: 'mp3',
-      video: 'mp4'
-    }
-    const ext = extensions[type as keyof typeof extensions] || type
+    // 直接在新标签页打开，让浏览器处理下载
     window.open(url, '_blank')
   } catch (error) {
     console.error('下载失败:', error)
