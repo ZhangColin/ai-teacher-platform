@@ -2043,12 +2043,12 @@ async def generate_media(
         print(f"工具ID: {tool_id}")
         print(f"提示词: {media_request.message[:100]}")
         print(f"size: {media_request.size} (类型: {type(media_request.size).__name__})")
-        print(f"count: {media_media_request.count} (类型: {type(media_media_request.count).__name__})")
-        print(f"style: {media_media_request.style} (类型: {type(media_media_request.style).__name__})")
-        print(f"session_id: {media_media_request.session_id}")
+        print(f"count: {media_request.count} (类型: {type(media_request.count).__name__})")
+        print(f"style: {media_request.style} (类型: {type(media_request.style).__name__})")
+        print(f"session_id: {media_request.session_id}")
         print("="*50 + "\n")
         
-        logger.info(f"收到多模态生成请求 - 工具: {tool_id}, size={media_media_request.size}, count={media_media_request.count}, style={media_media_request.style}")
+        logger.info(f"收到多模态生成请求 - 工具: {tool_id}, size={media_request.size}, count={media_request.count}, style={media_request.style}")
         
         # 1. 获取工具配置
         tool = tool_service.get_tool_by_id(tool_id)
