@@ -165,12 +165,16 @@ async function handleSendMessage(prompt: string) {
 }
 
 async function handleSend(prompt: string, params: MediaGenerateParams) {
+  console.log(`[handleSend] 开始发送 - isGenerating: ${isGenerating.value}, prompt: ${prompt}`)
+  
   if (isGenerating.value || !prompt.trim()) {
+    console.log(`[handleSend] 跳过发送 - isGenerating: ${isGenerating.value}, prompt empty: ${!prompt.trim()}`)
     return
   }
   
   try {
     isGenerating.value = true
+    console.log(`[handleSend] 设置 isGenerating = true`)
     
     // 1. 添加用户消息到界面
     const userMessage: MediaMessage = {
@@ -231,18 +235,22 @@ async function handleSend(prompt: string, params: MediaGenerateParams) {
       }
     } else {
       // 异步模式：需要轮询任务状态
-      console.log('异步生成，开始轮询')
+      console.log(`[handleSend] 异步生成，开始轮询 - task_id: ${response.task_id}`)
       result = await pollTaskStatus(
         response.task_id,
         (status: TaskStatusResponse) => {
           // 更新进度
+          console.log(`[handleSend] 轮询进度回调 - status: ${status.status}, progress: ${status.progress}`)
           aiMessage.progress = status.progress
           scrollToBottom()
         }
       )
+      console.log(`[handleSend] 轮询结束 - 最终状态: ${result.status}`)
     }
     
     // 5. 处理结果
+    console.log(`[handleSend] 处理结果 - status: ${result.status}, content_type: ${result.content_type}, media_urls: ${result.media_urls}`)
+    
     if (result.status === 'completed') {
       // 生成成功
       const mediaContent = {
@@ -251,6 +259,7 @@ async function handleSend(prompt: string, params: MediaGenerateParams) {
         metadata: result.metadata
       }
       
+      console.log(`[handleSend] 生成成功，更新消息 - mediaContent:`, mediaContent)
       aiMessage.media_content = JSON.stringify(mediaContent)
       aiMessage.generation_status = 'completed'
       aiMessage.created_at = new Date().toISOString()
@@ -259,12 +268,13 @@ async function handleSend(prompt: string, params: MediaGenerateParams) {
       
     } else if (result.status === 'failed') {
       // 生成失败
+      console.log(`[handleSend] 生成失败 - error: ${result.error_message}`)
       aiMessage.generation_status = 'failed'
       aiMessage.error_message = result.error_message || '生成失败，请重试'
     }
     
   } catch (error: any) {
-    console.error('生成失败:', error)
+    console.error('[handleSend] 生成失败:', error)
     
     // 更新最后一条AI消息为失败状态
     const lastAiMessage = messages.value[messages.value.length - 1]
@@ -274,6 +284,7 @@ async function handleSend(prompt: string, params: MediaGenerateParams) {
     }
     
   } finally {
+    console.log(`[handleSend] 完成，设置 isGenerating = false`)
     isGenerating.value = false
   }
 }
