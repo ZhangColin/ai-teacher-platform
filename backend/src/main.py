@@ -2248,7 +2248,7 @@ async def generate_media(
                     # 构建元数据
                     metadata = {
                         "text_length": len(media_request.message),
-                        "voice": media_request.voice if hasattr(request, 'voice') else "default"
+                        "voice": media_request.voice if hasattr(media_request, 'voice') else "default"
                     }
                     
                     # 保存AI回复消息（包含音频URLs）
@@ -2303,9 +2303,9 @@ async def generate_media(
                     prompt=media_request.message,
                     model_config=tool.model or "glm:cogvideox-2",
                     size=media_request.size,
-                    fps=media_request.fps if hasattr(request, 'fps') else None,
-                    quality=media_request.quality if hasattr(request, 'quality') else None,
-                    with_audio=media_request.with_audio if hasattr(request, 'with_audio') else False
+                    fps=media_request.fps if hasattr(media_request, 'fps') else None,
+                    quality=media_request.quality if hasattr(media_request, 'quality') else None,
+                    with_audio=media_request.with_audio if hasattr(media_request, 'with_audio') else False
                 )
                 
                 print("\n" + "*"*50)
@@ -2332,8 +2332,8 @@ async def generate_media(
                         "status": "processing",
                         "request_params": {
                             "size": media_request.size,
-                            "fps": media_request.fps if hasattr(request, 'fps') else None,
-                            "quality": media_request.quality if hasattr(request, 'quality') else None
+                            "fps": media_request.fps if hasattr(media_request, 'fps') else None,
+                            "quality": media_request.quality if hasattr(media_request, 'quality') else None
                         },
                         "query_fail_count": 0
                     }
