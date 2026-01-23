@@ -49,9 +49,13 @@ export async function pollTaskStatus(
   maxAttempts: number = 60,
   interval: number = 3000
 ): Promise<TaskStatusResponse> {
+  console.log(`开始轮询任务状态 - taskId: ${taskId}, 最大尝试次数: ${maxAttempts}`)
+  
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
+      console.log(`轮询第 ${attempt + 1}/${maxAttempts} 次...`)
       const result = await getTaskStatus(taskId)
+      console.log(`轮询结果:`, result)
       
       // 调用进度回调
       if (onProgress) {
@@ -60,8 +64,11 @@ export async function pollTaskStatus(
       
       // 如果完成或失败，返回结果
       if (result.status === 'completed' || result.status === 'failed') {
+        console.log(`任务${result.status}，停止轮询`)
         return result
       }
+      
+      console.log(`任务仍在处理中(${result.status})，${interval/1000}秒后继续轮询...`)
       
       // 等待一段时间后继续轮询
       await sleep(interval)
