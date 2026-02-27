@@ -17,34 +17,36 @@
 
     <button
       v-if="showMarkdownDownload"
-      class="toolbar-btn"
+      class="toolbar-btn toolbar-btn-coming-soon"
       @click="handleDownloadWord"
       :disabled="isDownloadingWord"
       data-testid="btn-download-word"
-      title="下载 Word"
+      title="Word 导出功能即将推出"
     >
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
         <polyline points="7 10 12 15 17 10"></polyline>
         <line x1="12" y1="15" x2="12" y2="3"></line>
       </svg>
-      <span class="btn-text">{{ isDownloadingWord ? '转换中...' : 'Word' }}</span>
+      <span class="btn-text">Word</span>
+      <span class="coming-soon-badge">即将推出</span>
     </button>
 
     <button
       v-if="showMarkdownDownload"
-      class="toolbar-btn"
+      class="toolbar-btn toolbar-btn-coming-soon"
       @click="handleDownloadPDF"
       :disabled="isDownloadingPDF"
       data-testid="btn-download-pdf"
-      title="下载 PDF"
+      title="PDF 导出功能即将推出"
     >
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
         <polyline points="7 10 12 15 17 10"></polyline>
         <line x1="12" y1="15" x2="12" y2="3"></line>
       </svg>
-      <span class="btn-text">{{ isDownloadingPDF ? '生成中...' : 'PDF' }}</span>
+      <span class="btn-text">PDF</span>
+      <span class="coming-soon-badge">即将推出</span>
     </button>
 
     <button
@@ -96,6 +98,7 @@ const emit = defineEmits<{
   downloadPDF: [];
   downloadSvg: [];
   toggleFullscreen: [];
+  comingSoon: [feature: string];
 }>();
 
 const isDownloadingWord = ref(false);
@@ -113,27 +116,12 @@ const handleDownloadMarkdown = () => {
   emit('downloadMarkdown');
 };
 
-const handleDownloadWord = async () => {
-  isDownloadingWord.value = true;
-  try {
-    emit('downloadWord');
-  } finally {
-    // 延迟重置状态，避免闪烁
-    setTimeout(() => {
-      isDownloadingWord.value = false;
-    }, 1000);
-  }
+const handleDownloadWord = () => {
+  emit('comingSoon', 'Word 导出功能即将推出，敬请期待！');
 };
 
-const handleDownloadPDF = async () => {
-  isDownloadingPDF.value = true;
-  try {
-    emit('downloadPDF');
-  } finally {
-    setTimeout(() => {
-      isDownloadingPDF.value = false;
-    }, 1000);
-  }
+const handleDownloadPDF = () => {
+  emit('comingSoon', 'PDF 导出功能即将推出，敬请期待！');
 };
 
 const handleDownloadSvg = () => {
@@ -178,6 +166,19 @@ const handleToggleFullscreen = () => {
 .toolbar-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.toolbar-btn-coming-soon {
+  position: relative;
+}
+
+.coming-soon-badge {
+  font-size: 10px;
+  background-color: #faad14;
+  color: white;
+  padding: 1px 4px;
+  border-radius: 2px;
+  margin-left: 2px;
 }
 
 .btn-text {

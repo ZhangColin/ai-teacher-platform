@@ -20,7 +20,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue';
+import { ref, watch, nextTick, onUnmounted } from 'vue';
 import MessageItem from './MessageItem.vue';
 import StreamingMessage from './StreamingMessage.vue';
 import type { Message } from '@/types';
@@ -37,13 +37,24 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const scrollContainer = ref<HTMLElement>();
+let scrollFrameId: number | null = null;
 
-// 自动滚动到底部
+// 自动滚动到底部（带节流）
 const scrollToBottom = async () => {
-  await nextTick();
-  if (scrollContainer.value && props.autoScroll) {
-    scrollContainer.value.scrollTop = scrollContainer.value.scrollHeight;
+  // 如果已经有待处理的滚动请求，取消它
+  if (scrollFrameId !== null) {
+    cancelAnimationFrame(scrollFrameId);
   }
+
+  // 使用 requestAnimationFrame 节流滚动操作
+  scrollFrameId = requestAnimationFrame(() => {
+    nextTick(() => {
+      if (scrollContainer.value && props.autoScroll) {
+        scrollContainer.value.scrollTop = scrollContainer.value.scrollHeight;
+      }
+      scrollFrameId = null;
+    });
+  });
 };
 
 // 监听消息变化，自动滚动
@@ -63,6 +74,13 @@ watch(
   },
   { flush: 'post' }
 );
+
+// 组件卸载时清理
+onUnmounted(() => {
+  if (scrollFrameId !== null) {
+    cancelAnimationFrame(scrollFrameId);
+  }
+});
 
 // 暴露方法供外部调用
 defineExpose({

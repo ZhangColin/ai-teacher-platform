@@ -8,7 +8,18 @@
       @download-pdf="handleDownloadPDF"
       @download-svg="handleDownloadSvg"
       @toggle-fullscreen="toggleFullscreen"
+      @coming-soon="handleComingSoon"
     />
+
+    <!-- 简单的通知提示 -->
+    <div
+      v-if="notification"
+      class="notification"
+      :class="{ 'notification-show': notification }"
+      data-testid="notification"
+    >
+      {{ notification }}
+    </div>
 
     <div class="preview-content" data-testid="preview-content">
       <MarkdownPreview
@@ -35,11 +46,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import MarkdownPreview from './preview/MarkdownPreview.vue';
 import HtmlPreview from './preview/HtmlPreview.vue';
 import SvgPreview from './preview/SvgPreview.vue';
 import PreviewToolbar from './preview/PreviewToolbar.vue';
+import { useFileDownload } from '@/composables/useFileDownload';
 import type { Artifact } from '@/types';
 
 interface Props {
@@ -49,6 +61,9 @@ interface Props {
 const props = defineProps<Props>();
 
 const isFullscreen = ref(false);
+const notification = ref('');
+const notificationTimer = ref<number | null>(null);
+const { downloadBlob } = useFileDownload();
 
 const isSvgArtifact = (artifact: Artifact | null): boolean => {
   return artifact?.type === 'svg' || artifact?.type === 'image/svg+xml';
@@ -66,13 +81,26 @@ const handleDownloadMarkdown = () => {
 };
 
 const handleDownloadWord = async () => {
-  // TODO: 实现Word转换逻辑
-  console.log('Download Word - to be implemented');
+  // 由 PreviewToolbar 触发 comingSoon 事件
 };
 
 const handleDownloadPDF = async () => {
-  // TODO: 实现PDF生成逻辑
-  console.log('Download PDF - to be implemented');
+  // 由 PreviewToolbar 触发 comingSoon 事件
+};
+
+const handleComingSoon = (message: string) => {
+  // 显示通知
+  notification.value = message;
+
+  // 清除之前的定时器
+  if (notificationTimer.value) {
+    clearTimeout(notificationTimer.value);
+  }
+
+  // 3秒后自动隐藏
+  notificationTimer.value = window.setTimeout(() => {
+    notification.value = '';
+  }, 3000);
 };
 
 const handleDownloadSvg = () => {
@@ -80,17 +108,6 @@ const handleDownloadSvg = () => {
 
   const blob = new Blob([props.artifact.content], { type: 'image/svg+xml' });
   downloadBlob(blob, 'artifact.svg');
-};
-
-const downloadBlob = (blob: Blob, filename: string) => {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
 };
 </script>
 
@@ -102,6 +119,7 @@ const downloadBlob = (blob: Blob, filename: string) => {
   background-color: #fff;
   border-radius: 8px;
   overflow: hidden;
+  position: relative;
 }
 
 .preview-panel.is-fullscreen {
@@ -127,5 +145,26 @@ const downloadBlob = (blob: Blob, filename: string) => {
   height: 100%;
   color: #999;
   font-style: italic;
+}
+
+.notification {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background-color: #1890ff;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  opacity: 0;
+  transition: all 0.3s ease;
+  pointer-events: none;
+  z-index: 100;
+}
+
+.notification-show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
 </style>

@@ -4,10 +4,13 @@
     v-html="renderedHtml"
     data-testid="markdown-preview"
   />
+  <div v-if="hasError" class="markdown-error" data-testid="markdown-error">
+    Markdown 渲染失败，请检查内容格式
+  </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { renderMarkdown } from '@/utils/markdownRenderer';
 
 interface Props {
@@ -15,10 +18,20 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const hasError = ref(false);
 
 const renderedHtml = computed(() => {
   if (!props.content) return '';
-  return renderMarkdown(props.content);
+
+  try {
+    const result = renderMarkdown(props.content);
+    hasError.value = false;
+    return result;
+  } catch (error) {
+    console.error('Markdown rendering failed:', error);
+    hasError.value = true;
+    return '';
+  }
 });
 </script>
 
