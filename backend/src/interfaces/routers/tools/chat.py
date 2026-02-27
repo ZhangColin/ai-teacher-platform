@@ -1,0 +1,255 @@
+# -*- coding: utf-8 -*-
+"""
+工具对话路由
+
+提供工具对话接口，支持流式和非流式两种模式
+"""
+import logging
+import json
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
+from src.models import ChatRequest, ChatResponse, Message, Artifact
+from src.interfaces.dependencies import (
+    get_ai_service,
+    get_session_service,
+    get_tool_service,
+    get_artifact_parser,
+    get_title_generator,
+)
+from src.services.ai_service import AIService
+from src.services.session_service import SessionService
+from src.services.tool_service import ToolService
+from typing import Annotated
+from src.routers.auth import get_current_user, UserInfo
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter()
+
+
+@router.post("/tools/{tool_id}/chat/stream", tags=["对话"])
+async def chat_stream(
+    tool_id: str,
+    request: ChatRequest,
+    current_user: Annotated[UserInfo, Depends(get_current_user)],
+    ai_service: AIService = Depends(get_ai_service),
+    session_service: SessionService = Depends(get_session_service),
+    tool_service: ToolService = Depends(get_tool_service),
+    title_generator = Depends(get_title_generator),
+):
+    """
+    流式对话接口
+
+    使用Server-Sent Events (SSE)返回AI的流式响应
+    """
+    # 获取工具配置
+    tool = tool_service.get_tool_by_id(tool_id)
+    if not tool:
+        raise HTTPException(status_code=404, detail=f"Tool '{tool_id}' not found")
+
+    if not tool.visible:
+        raise HTTPException(status_code=403, detail="Tool is not available")
+
+    try:
+        # 处理会话：如果 session_id 不存在，创建新会话
+        session_id = request.session_id
+        session = None
+
+        if not session_id:
+            # 创建新会话
+            session = session_service.create_session(
+                user_id=current_user.user_id,
+                tool_id=tool_id,
+                title=request.message[:50]  # 使用消息前50字作为临时标题
+            )
+            session_id = session.session_id
+            logger.info(f"✅ 创建新会话: {session_id}")
+        else:
+            # 获取现有会话
+            session = session_service.get_session(session_id)
+            if not session:
+                raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
+            if session.user_id != current_user.user_id:
+                raise HTTPException(status_code=403, detail="Access denied")
+
+        # 准备消息历史
+        if request.history:
+            # 使用请求中提供的历史
+            history_messages = [
+                {"role": msg.role, "content": msg.content}
+                for msg in request.history
+            ]
+        else:
+            # 从数据库读取历史
+            db_messages = session_service.get_session_messages(session_id)
+            history_messages = [
+                {"role": msg.role, "content": msg.content}
+                for msg in db_messages
+            ]
+
+        # 保存用户消息
+        user_message = Message(
+            role="user",
+            content=request.message,
+            session_id=session_id
+        )
+        session_service.add_message(user_message)
+
+        # 准备模型配置
+        model_config = tool.model if tool.model else None
+
+        # 获取流式响应
+        async def generate():
+            try:
+                full_response = ""
+                async for chunk in ai_service.chat_stream(
+                    system_prompt=tool.system_prompt,
+                    history=history_messages,
+                    user_message=request.message,
+                    model_config=model_config
+                ):
+                    full_response += chunk
+                    # 发送SSE格式数据
+                    yield f"data: {json.dumps({'content': chunk}, ensure_ascii=False)}\n\n"
+
+                # 发送结束标记
+                yield "data: [DONE]\n\n"
+
+                # 保存AI消息
+                ai_message = Message(
+                    role="assistant",
+                    content=full_response,
+                    session_id=session_id
+                )
+                session_service.add_message(ai_message)
+
+                # 更新会话标题（使用title_generator）
+                if not session.title or session.title.startswith("新会话"):
+                    new_title = title_generator.generate_title(history_messages, full_response)
+                    session_service.update_session_title(session_id, new_title)
+
+            except Exception as e:
+                logger.error(f"Chat stream error: {e}")
+                error_data = json.dumps({"error": str(e)}, ensure_ascii=False)
+                yield f"data: {error_data}\n\n"
+
+        return StreamingResponse(
+            generate(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            }
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Chat endpoint error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/tools/{tool_id}/chat", response_model=ChatResponse, tags=["对话"])
+async def chat_non_stream(
+    tool_id: str,
+    request: ChatRequest,
+    current_user: Annotated[UserInfo, Depends(get_current_user)],
+    ai_service: AIService = Depends(get_ai_service),
+    session_service: SessionService = Depends(get_session_service),
+    tool_service: ToolService = Depends(get_tool_service),
+    artifact_parser = Depends(get_artifact_parser),
+    title_generator = Depends(get_title_generator),
+):
+    """
+    非流式对话接口
+
+    返回完整的AI响应
+    """
+    # 获取工具配置
+    tool = tool_service.get_tool_by_id(tool_id)
+    if not tool:
+        raise HTTPException(status_code=404, detail=f"Tool '{tool_id}' not found")
+
+    if not tool.visible:
+        raise HTTPException(status_code=403, detail="Tool is not available")
+
+    try:
+        # 处理会话
+        session_id = request.session_id
+        session = None
+
+        if not session_id:
+            # 创建新会话
+            session = session_service.create_session(
+                user_id=current_user.user_id,
+                tool_id=tool_id,
+                title=request.message[:50]
+            )
+            session_id = session.session_id
+        else:
+            # 获取现有会话
+            session = session_service.get_session(session_id)
+            if not session:
+                raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
+            if session.user_id != current_user.user_id:
+                raise HTTPException(status_code=403, detail="Access denied")
+
+        # 准备消息历史
+        if request.history:
+            history_messages = [
+                {"role": msg.role, "content": msg.content}
+                for msg in request.history
+            ]
+        else:
+            # 从数据库读取历史
+            db_messages = session_service.get_session_messages(session_id)
+            history_messages = [
+                {"role": msg.role, "content": msg.content}
+                for msg in db_messages
+            ]
+
+        # 保存用户消息
+        user_message = Message(
+            role="user",
+            content=request.message,
+            session_id=session_id
+        )
+        session_service.add_message(user_message)
+
+        # 获取AI响应
+        model_config = tool.model if tool.model else None
+        response = await ai_service.chat(
+            system_prompt=tool.system_prompt,
+            history=history_messages,
+            user_message=request.message,
+            model_config=model_config
+        )
+
+        # 保存AI消息
+        ai_message = Message(
+            role="assistant",
+            content=response,
+            session_id=session_id
+        )
+        session_service.add_message(ai_message)
+
+        # 解析成果物
+        artifacts = artifact_parser.parse_from_markdown(response)
+
+        # 更新会话标题
+        if not session.title or session.title.startswith("新会话"):
+            new_title = title_generator.generate_title(history_messages, response)
+            session_service.update_session_title(session_id, new_title)
+
+        return ChatResponse(
+            message=response,
+            artifacts=artifacts,
+            session_id=session_id
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Chat endpoint error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

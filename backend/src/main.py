@@ -26,6 +26,14 @@ from src.routers import (
     common_router,
 )
 
+# 导入新的模块化路由（interfaces层）
+from src.interfaces.routers.tools import list as tools_list_router
+from src.interfaces.routers.tools import chat as tools_chat_router
+from src.interfaces.routers.tools import conversations as tools_conversations_router
+
+# 导入错误处理中间件
+from src.interfaces.middleware.error_handler import error_handler
+
 # 创建 FastAPI 应用
 app = FastAPI(title="AI Teacher Platform Backend")
 
@@ -44,7 +52,18 @@ media_dir = static_dir / "media"
 media_dir.mkdir(parents=True, exist_ok=True)
 
 
+# ==================== 中间件注册 ====================
+
+# 注册统一错误处理中间件
+app.middleware("http")(error_handler)
+
+
 # ==================== 路由注册 ====================
+
+# 新的工具路由（interfaces层）- 使用前缀
+app.include_router(tools_list_router.router, prefix="/api/v1")
+app.include_router(tools_chat_router.router, prefix="/api/v1")
+app.include_router(tools_conversations_router.router, prefix="/api/v1")
 
 # 认证相关路由
 app.include_router(auth_router)
@@ -52,7 +71,18 @@ app.include_router(auth_router)
 # 用户管理路由
 app.include_router(users_router)
 
-# AI 工具路由
+# AI 工具路由（旧路由）
+# 已迁移到 interfaces 层的端点：
+#   - GET /tools -> interfaces/routers/tools/list.py
+#   - GET /toolsets/{toolset_id}/tools -> interfaces/routers/tools/list.py
+#   - POST /tools/{tool_id}/chat -> interfaces/routers/tools/chat.py
+#   - POST /tools/{tool_id}/chat/stream -> interfaces/routers/tools/chat.py
+#   - GET /tools/{tool_id}/conversations -> interfaces/routers/tools/conversations.py
+#   - DELETE /tools/{tool_id}/conversations/{conv_id} -> interfaces/routers/tools/conversations.py
+# 未迁移的端点（仍需要旧 tools.py）：
+#   - GET /common-tools - 通用工具列表（被前端 CommonToolsView 使用）
+#   - POST /tools/{tool_id}/generate-media - 媒体生成
+# TODO: 未来迁移剩余端点到新架构，然后完全删除 tools.py
 app.include_router(tools_router)
 
 # 会话管理路由
