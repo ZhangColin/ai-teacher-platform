@@ -1,0 +1,275 @@
+# CLAUDE.md
+
+此文件为 Claude Code (claude.ai/code) 提供在此代码库中工作的指导。
+
+## 项目概述
+
+AI 智能备课平台是一个基于大语言模型（Kimi/DeepSeek）的教育辅助平台，帮助教师通过自然语言对话创建交互式 HTML5 课件、SVG 可视化图表和 Markdown 教学设计。平台采用模块化工具集架构，AI 工具通过 YAML 配置文件定义，而非硬编码。
+
+## 开发命令
+
+### 后端 (FastAPI + Python 3.10+)
+```bash
+cd backend
+
+# 安装依赖
+pip install -r requirements.txt
+
+# 环境配置
+cp .env.example .env  # 编辑 .env 填入 API 密钥和数据库 URL
+
+# 运行开发服务器
+python -m src.main  # 运行在 http://localhost:8000
+
+# 运行测试
+pytest                          # 运行所有测试
+pytest tests/test_auth_api.py   # 运行指定测试文件
+pytest -v                       # 详细输出
+pytest -k "test_login"          # 运行匹配模式的测试
+
+# 数据库迁移
+alembic upgrade head            # 应用迁移
+alembic revision --autogenerate -m "描述"  # 创建迁移
+```
+
+### 前端 (Vue 3 + TypeScript + Vite)
+```bash
+cd frontend
+
+# 安装依赖
+npm install
+
+# 运行开发服务器
+npm run dev          # 运行在 http://localhost:5173
+
+# 生产构建
+npm run build        # 类型检查 + 构建
+
+# 运行测试
+npm run test         # 运行 Vitest
+npm run test:ui      # Vitest UI 模式
+npm run test:coverage # 覆盖率报告
+
+# 类型检查
+npx vue-tsc --noEmit # 检查类型但不构建
+```
+
+## 架构设计
+
+### 模块化工具集系统
+
+平台的核心创新是**配置驱动的工具集架构**。AI 工具不是硬编码的，而是通过 `configs/` 目录中的 YAML 配置文件定义：
+
+```
+configs/
+├── navigation.yaml           # 顶部导航模块配置
+└── tools/
+    ├── ai_tools/             # AI模型能力工具集
+    │   ├── categories.yaml
+    │   └── *.yaml           # 各个工具的配置
+    └── teaching_researcher/  # AI教研员工具集
+        ├── categories.yaml
+        ├── prompts/          # 系统提示词 markdown 文件
+        └── *.yaml           # 各个工具的配置
+```
+
+**添加新工具的步骤：**
+1. 在 `configs/tools/<toolset>/tool_name.yaml` 创建 YAML 配置
+2. 创建系统提示词文件（通过 `system_prompt_file` 引用）
+3. 如需要，在 `categories.yaml` 中添加分类
+4. 后端通过 `src/services/tool_service.py` 中的 `ToolService` 自动加载配置
+
+**工具配置结构：**
+```yaml
+tool_id: unique_identifier
+name: "显示名称"
+description: "工具描述"
+category: "分类名称"
+icon: "heroicon-name"
+visible: true
+type: "normal" | "media"  # media 工具支持多模态输入输出
+order: 1
+toolset_id: toolset_name
+system_prompt_file: "prompts/file.md"
+model: "deepseek:deepseek-chat"  # provider:module 格式
+welcome_message: |
+  多行欢迎消息
+```
+
+### 后端结构 (FastAPI)
+
+```
+backend/src/
+├── main.py                    # 应用入口，路由注册
+├── database.py                # SQLAlchemy 会话管理
+├── db_models.py              # ORM 模型（用户、会话、消息、成果物等）
+├── models.py                 # API 请求/响应的 Pydantic 模型
+├── config_loader.py          # YAML 配置加载工具
+│
+├── routers/                  # API 端点
+│   ├── auth.py              # /api/v1/auth/* (登录、注册)
+│   ├── users.py             # /api/v1/admin/users/*
+│   ├── tools.py             # /api/v1/tools/*, /api/v1/toolsets/*
+│   ├── sessions.py          # /api/v1/sessions/*
+│   ├── admin_tools.py       # /api/v1/admin/common-tools/*
+│   ├── works.py             # /api/v1/works/*
+│   ├── courses.py           # /api/v1/documents/*
+│   ├── common.py            # 媒体生成端点
+│   └── dependencies.py      # FastAPI 依赖（认证、数据库会话）
+│
+└── services/                 # 业务逻辑层
+    ├── ai_service.py        # LLM 集成（OpenAI SDK）
+    ├── auth_service.py      # JWT、密码哈希
+    ├── session_service.py   # 会话/消息管理
+    ├── tool_service.py      # 从 YAML 加载工具配置
+    ├── common_tool_service.py # 内置/HTML 工具 CRUD
+    ├── work_service.py      # 教案作品 CRUD
+    ├── course_service.py    # 课程文档 CRUD
+    ├── artifact_parser.py   # 从 LLM 响应中提取成果物
+    └── title_generator.py   # AI 驱动的会话标题生成
+```
+
+**关键架构模式：**
+- **路由 → 服务 → 模型**：路由层处理 HTTP，服务层包含业务逻辑，模型层处理数据
+- **依赖注入**：`dependencies.py` 中的 `get_current_user()` 和 `get_db()`
+- **成果物解析**：LLM 响应可包含结构化的"成果物"（HTML、SVG、Markdown），通过 `artifact_parser.py` 中的正则表达式提取
+- **多提供商 AI**：通过环境变量配置支持 Kimi 和 DeepSeek
+
+### 前端结构 (Vue 3 Composition API)
+
+```
+frontend/src/
+├── main.ts                   # 应用入口
+├── App.vue                   # 根组件
+│
+├── router/index.ts          # Vue Router 配置（hash 模式）
+├── services/apiClient.ts    # Axios 封装，带认证拦截器
+│
+├── stores/                  # Pinia 状态管理
+│   ├── authStore.ts        # 用户认证状态、令牌管理
+│   ├── sessionStore.ts     # 当前会话、消息、成果物
+│   ├── agentStore.ts       # 已废弃，使用 toolStore
+│   ├── navigationStore.ts  # 顶部导航模块，来自 /api/v1/navigation
+│   ├── coursesStore.ts     # 课程文档状态
+│   └── worksStore.ts       # 教案作品状态
+│
+├── layouts/                 # 页面布局组件
+│   ├── MainLayout.vue      # 工具集布局（侧边栏 + 聊天区）
+│   ├── AdminLayout.vue     # 管理后台布局
+│   ├── CommonToolsLayout.vue # 内置工具查看器
+│   ├── WorksLayout.vue     # 教案展示区
+│   └── DocumentsLayout.vue # 课程文档树形视图
+│
+├── views/                   # 页面组件
+│   ├── LoginPage.vue
+│   ├── AgentListView.vue    # 已废弃
+│   ├── AgentDetailView.vue  # 已废弃
+│   ├── MediaChatView.vue    # 多模态聊天（图片生成）
+│   ├── HtmlToolView.vue     # HTML 工具预览
+│   └── admin/               # 管理 CRUD 页面
+│
+├── components/
+│   ├── ChatInterface.vue   # 聊天区 + 输入 + 会话列表
+│   ├── MediaChatInterface.vue  # 多模态变体
+│   ├── ChatPanel.vue       # 聊天消息显示
+│   ├── PreviewPanel.vue    # 成果物渲染（HTML/SVG/Markdown）
+│   ├── SidebarMenu.vue     # 工具分类侧边栏
+│   ├── AIToolSelector.vue  # 工具选择下拉框
+│   ├── ModuleSwitcher.vue  # 顶部导航模块切换器
+│   └── media/              # 媒体专用组件
+│       ├── ImageGallery.vue
+│       ├── ImageLightbox.vue
+│       └── GeneratingIndicator.vue
+│
+├── types/                   # TypeScript 类型定义
+│   ├── index.ts            # 主要 API 类型
+│   ├── media.ts            # 多模态类型
+│   └── navigation.ts       # 导航配置类型
+│
+└── utils/
+    ├── markdownRenderer.ts # Markdown 转 HTML，支持 KaTeX
+    └── sessionStorage.ts   # Session storage 工具
+```
+
+**关键前端模式：**
+- **基于路由的模块**：`/modules/:moduleId` 映射到 `configs/navigation.yaml` 中的工具集
+- **流式聊天**：使用 SSE（`ApiService.chatStream()`）实现实时 LLM 响应
+- **成果物渲染**：`PreviewPanel.vue` 检测成果物类型并相应渲染
+- **管理员权限守卫**：路由守卫检查 `authStore.user?.is_admin` 用于 `/admin/*` 路由
+
+### 数据库模型 (SQLAlchemy)
+
+`backend/src/db_models.py` 中的核心模型：
+
+```
+UserModel (users)
+  ├── SessionModel (sessions) ──┬──> MessageModel (messages)
+  │                             └──> ArtifactModel (artifacts)
+  │
+ToolCategoryModel (tool_categories)
+  └──> CommonToolModel (common_tools)
+
+WorkCategoryModel (work_categories)
+  └──> WorkModel (works)
+
+CourseCategoryModel (course_categories)  # 自引用树形结构
+  └──> CourseDocumentModel (course_documents)
+```
+
+**关系说明：**
+- 用户 → 会话 → 消息 → 成果物（级联删除）
+- 所有分类模型都有 order 字段用于手动排序
+- CourseCategory 通过 `parent_id` 自引用形成树形结构
+
+### 认证与授权
+
+- **基于 JWT**：令牌存储在 `localStorage`/`sessionStorage`
+- **管理员检查**：`UserModel.is_admin` 布尔字段
+- **受保护路由**：路由守卫检查 `authStore.isAuthenticated`
+- **API 中间件**：`dependencies.py:get_current_user()` 验证 JWT 并返回用户
+- **自动刷新**：`apiClient.ts` 中的响应拦截器在 401 时清除令牌
+
+## 配置文件
+
+### 后端环境变量 (.env)
+必需变量：
+- `DATABASE_URL`：MySQL 连接字符串
+- `JWT_SECRET_KEY`：JWT 签名密钥
+- `CURRENT_PROVIDER`："kimi" 或 "deepseek"
+- `KIMI_API_KEY` 或 `DEEPSEEK_API_KEY`：LLM 提供商凭证
+
+完整模板见 `backend/.env.example`。
+
+### 前端 (vite.config.ts)
+- 代理 `/api` → `http://127.0.0.1:8000`（后端）
+- 代理 `/static` → `http://127.0.0.1:8000`（静态文件）
+- 别名 `@` → `./src`
+
+## 测试
+
+- **后端**：pytest 配合 `pytest-asyncio` 进行异步测试
+- **前端**：Vitest 配合 `@vue/test-utils` 和 `@testing-library/jest-dom`
+- 测试配置：`backend/pytest.ini`、`frontend/vite.config.ts`（test: 部分）
+
+## 常见任务
+
+### 添加新的 AI 工具（工具集）
+1. 创建目录：`configs/tools/my_toolset/`
+2. 创建 `categories.yaml` 定义工具分类
+3. 创建 `my_tool.yaml` 定义工具配置
+4. 创建 `prompts/my_prompt.md` 定义系统提示词
+5. 在 `configs/navigation.yaml` 的 `modules` 下添加工具集
+6. 重启后端以加载新配置
+
+### 调试 LLM 响应
+- 检查 `backend/src/services/ai_service.py` 了解提供商逻辑
+- 成果物解析在 `artifact_parser.py` - 提取 HTML/SVG 的正则模式
+- 前端流式处理在 `services/apiClient.ts:chatStream()`
+
+### 数据库迁移
+修改 `db_models.py` 后：
+```bash
+cd backend
+alembic revision --autogenerate -m "描述"
+alembic upgrade head
+```

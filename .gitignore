@@ -1,29 +1,39 @@
-# Python 编译文件 (类似 Java .class)
+# Python 编译文件
 __pycache__/
 *.py[cod]
+*.pyo
+*.pyd
 
-# 虚拟环境 (类似 node_modules，绝对不能提交！)
+# 虚拟环境
 ai-teacher-platform-backend/
 .ai-teacher-platform-backend/
 env/
+venv/
 
 # 环境变量 (包含 API Key，绝对不能提交！)
 .env
+.env.*
 
-# IDE 配置 (Cursor/VSCode)
+# IDE 配置
 .vscode/
 .idea/
-# .cursorrules 已改为项目通用规则，需要提交到版本控制
 
 # Mac 系统文件
-.DS_Storebackend_bak/
-
-.cursorrules
-backend/static
-
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
 
-.DS_Storebackend_bak
+# 前端依赖和构建产物
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/package-lock.json
 
+# 后端静态文件
+backend/static/
+
+# Claude 本地配置
 .claude/settings.local.json
 
