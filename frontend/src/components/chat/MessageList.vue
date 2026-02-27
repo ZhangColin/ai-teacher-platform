@@ -5,8 +5,8 @@
     data-testid="message-list"
   >
     <MessageItem
-      v-for="message in messages"
-      :key="message.id"
+      v-for="(message, index) in messages"
+      :key="message.message_id || index"
       :message="message"
       data-testid="message-item"
     />
