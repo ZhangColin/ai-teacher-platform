@@ -25,6 +25,7 @@ urllib3==2.6.2
 uvicorn==0.38.0
 pytest==8.3.4
 pytest-asyncio==0.24.0
+pytest-cov==6.0.0
 pyyaml==6.0.2
 sqlalchemy==2.0.23
 pymysql==1.1.0
