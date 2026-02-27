@@ -9,7 +9,10 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest --coverage"
+    "test:coverage": "vitest --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug"
   },
   "dependencies": {
     "@codemirror/commands": "^6.10.1",
@@ -21,6 +24,8 @@
     "@element-plus/icons-vue": "^2.3.2",
     "@heroicons/vue": "^2.2.0",
     "@traptitech/markdown-it-katex": "^3.6.0",
+    "@types/dompurify": "^3.0.5",
+    "dompurify": "^3.3.1",
     "element-plus": "^2.13.1",
     "html2pdf.js": "^0.13.0",
     "katex": "^0.16.27",
