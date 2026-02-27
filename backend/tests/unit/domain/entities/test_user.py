@@ -13,7 +13,7 @@ class TestUser:
         """测试管理员可以访问所有工具"""
         # Arrange
         admin = User(
-            id=1,
+            id="admin-uuid-1",
             username="admin",
             email="admin@example.com",
             is_admin=True,
@@ -28,7 +28,7 @@ class TestUser:
         """测试普通用户权限检查（当前默认返回True）"""
         # Arrange
         user = User(
-            id=2,
+            id="user-uuid-2",
             username="user",
             email="user@example.com",
             is_admin=False,
@@ -43,7 +43,7 @@ class TestUser:
         """测试付费用户检查（当前默认返回False）"""
         # Arrange
         user = User(
-            id=3,
+            id="user-uuid-3",
             username="user",
             email="user@example.com",
             is_admin=False,
@@ -66,7 +66,7 @@ class TestUser:
         assert new_user.username == "newuser"
         assert new_user.email == "new@example.com"
         assert new_user.is_admin is False
-        assert new_user.id == 0  # 数据库生成
+        assert new_user.id == "0"  # 数据库生成UUID
         assert isinstance(new_user.created_at, datetime)
 
     def test_user_dataclass_attributes(self):
@@ -74,7 +74,7 @@ class TestUser:
         # Arrange
         created_at = datetime(2024, 1, 1, 12, 0, 0)
         user = User(
-            id=1,
+            id="test-uuid-1",
             username="testuser",
             email="test@example.com",
             is_admin=False,
@@ -82,8 +82,24 @@ class TestUser:
         )
 
         # Assert
-        assert user.id == 1
+        assert user.id == "test-uuid-1"
         assert user.username == "testuser"
         assert user.email == "test@example.com"
         assert user.is_admin is False
         assert user.created_at == created_at
+
+    def test_create_new_user_with_custom_created_at(self):
+        """测试创建新用户时可以指定创建时间"""
+        # Arrange
+        fixed_time = datetime(2024, 6, 15, 10, 30, 0)
+
+        # Act
+        new_user = User.create_new(
+            username="testuser",
+            email="test@example.com",
+            created_at=fixed_time
+        )
+
+        # Assert
+        assert new_user.created_at == fixed_time
+        assert isinstance(new_user.created_at, datetime)

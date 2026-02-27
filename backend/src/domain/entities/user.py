@@ -14,13 +14,13 @@ class User:
     用户实体
 
     Attributes:
-        id: 用户唯一标识
+        id: 用户唯一标识（UUID字符串）
         username: 用户名
         email: 邮箱地址
         is_admin: 是否为管理员
         created_at: 创建时间
     """
-    id: int
+    id: str
     username: str
     email: str
     is_admin: bool
@@ -32,7 +32,8 @@ class User:
 
         业务规则：
         - 管理员可以访问所有工具
-        - 普通用户的权限检查在后续实现
+        - 普通用户当前可以访问所有工具（临时实现）
+          TODO: 后续需要实现基于用户角色和工具可见性的权限控制
 
         Args:
             tool_id: 工具ID
@@ -44,8 +45,8 @@ class User:
         if self.is_admin:
             return True
 
-        # 普通用户权限检查（后续实现）
         # TODO: 实现基于用户角色的权限控制
+        # 当前临时实现：所有普通用户可以访问所有工具
         return True
 
     def is_premium_user(self) -> bool:
@@ -59,21 +60,22 @@ class User:
         return False
 
     @classmethod
-    def create_new(cls, username: str, email: str) -> "User":
+    def create_new(cls, username: str, email: str, created_at: Optional[datetime] = None) -> "User":
         """
         创建新用户（工厂方法）
 
         Args:
             username: 用户名
             email: 邮箱
+            created_at: 创建时间（可选，默认使用当前时间）
 
         Returns:
             User: 新用户实例
         """
         return cls(
-            id=0,  # 数据库生成
+            id="0",  # 数据库生成UUID
             username=username,
             email=email,
             is_admin=False,
-            created_at=datetime.now()
+            created_at=created_at or datetime.now()
         )
