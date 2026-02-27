@@ -393,15 +393,16 @@ function handleDownloadHTML() {
     return
   }
 
-  const content = props.artifact.content
-  
+  // 修复 AI 生成时的常见错误后再下载
+  let content = fixCommonAIHTMLErrors(props.artifact.content)
+
   // 生成文件名
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')
   const filename = `html_${timestamp[0]}_${timestamp[1]?.split('-').slice(0, 3).join('') || 'unknown'}.html`
-  
+
   // 创建 Blob 对象（UTF-8 编码）
   const blob = new Blob([content], { type: 'text/html;charset=utf-8' })
-  
+
   // 创建下载链接并触发下载
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
@@ -409,7 +410,7 @@ function handleDownloadHTML() {
   link.download = filename
   document.body.appendChild(link)
   link.click()
-  
+
   // 清理
   document.body.removeChild(link)
   URL.revokeObjectURL(url)
@@ -444,6 +445,240 @@ function escapeHtml(text: string): string {
     "'": '&#039;',
   }
   return text.replace(/[&<>"']/g, (m) => map[m] || m)
+}
+
+/**
+ * 修复 AI 生成 HTML 时的常见错误
+ * 在流式输出完成后，对完整 HTML 进行清洗
+ */
+function fixCommonAIHTMLErrors(html: string): string {
+  if (!html) return html
+
+  let content = html
+  const fixes: string[] = []
+  let prevLength: number
+  let maxIterations = 10
+  let iteration: number
+
+  // 调试：始终打印（无论是否开发模式）
+  console.log('🔍 [HTML 修复] 函数被调用，内容长度:', html.length)
+  const hasEmptyStringError = html.includes("===''")
+  console.log('🔍 [HTML 修复] 是否包含 ===\'\' 错误:', hasEmptyStringError)
+
+  // 调试：检查是否包含目标错误模式
+  const hasErrorPattern = /'bg-[\w-]+':\s*\w+\s*===/.test(html)
+  if (hasErrorPattern && import.meta.env.DEV) {
+    console.log('🔍 [HTML 修复] 检测到错误模式，开始修复...')
+  }
+
+  // 0. 最简单直接的修复：直接字符串替换（在其他修复之前执行）
+  // 修复 === 后面跟空字符串的错误：==='' -> ==='
+  // 原始错误: t.type===''success' (=== 后面是空字符串 '')
+  // 修复后: t.type==='success'
+
+  console.log('🔍 [修复0] 开始检查 === 模式...')
+
+  const beforeFix0 = content
+  // 使用 split/join 方法进行全局替换
+  // ==='' 是5个字符：= = = ' '
+  content = content.split("==='").join("==='")
+  // 计算修复次数：用原始长度减去修复后长度
+  const count0 = beforeFix0.length - content.length
+  console.log('🔍 [修复0] 修复次数:', count0, '(每个修复减少1个字符)')
+  if (count0 > 0) {
+    console.log(`✅ [修复0] 修复了 ${count0} 处 ==='' 为 ==='`)
+    fixes.push(`修复 === 后的空字符串语法错误 (${count0} 处)`)
+  }
+
+  // 同样处理双引号：===""
+  const beforeFix0b = content
+  content = content.split('===""').join('==="')
+  const count0b = beforeFix0b.length - content.length
+  if (count0b > 0) {
+    console.log(`✅ [修复0b] 修复了 ${count0b} 处 =="" 为 ==="`)
+    fixes.push(`修复 === 后的空字符串语法错误 (${count0b} 处)`)
+  }
+
+  // 1. 修复常见的 Vue :class 三元表达式错误
+  // 例如: 'bgt.type==='success' 应该是 'bg-green-600':t.type==='success'
+  // 模式: 'bgt.  => 这是一个拼写错误，应该被替换为正确的 class
+
+  // 修复模式1: 'bgt.type ===> 这通常是 'bg-green-600':t.type 的错误写法
+  content = content.replace(/'bgt\.type===/g, () => {
+    fixes.push('修复 :class 三元表达式中的 bgt.type 拼写错误')
+    return `'bg-green-600':t.type==='`
+  })
+
+  // 修复模式2: "bgt.type ===>
+  content = content.replace(/"bgt\.type ===/g, () => {
+    fixes.push('修复 :class 三元表达式中的 bgt.type 拼写错误')
+    return `"bg-green-600":t.type ===`
+  })
+
+  // 修复模式3: 兜底 - 匹配更复杂的情况 : 'bgt.type=== 或 :"bgt.type===
+  content = content.replace(/:\s*'\s*bgt\.type===/g, () => {
+    fixes.push('修复 :class 三元表达式中的 bgt.type 拼写错误（带冒号单引号）')
+    return `:'bg-green-600':t.type==='`
+  })
+  content = content.replace(/:\s*"\s*bgt\.type===/g, () => {
+    fixes.push('修复 :class 三元表达式中的 bgt.type 拼写错误（带冒号双引号）')
+    return `:"bg-green-600":t.type==='`
+  })
+
+  // 修复模式3.5: 修复 === 后面跟空字符串的语法错误
+  // 错误: var===''value' (=== 后面是空字符串 '') 应该是 var==='value'
+  // 这种模式会导致解析为 var === '' 然后 'value' 形成语法错误
+  iteration = 0
+  do {
+    prevLength = content.length
+    const before = content
+    content = content.replace(/===''(?=[\w"'])/g, "==='")
+    content = content.replace(/===""(?=[\w"'])/g, '==="')
+    if (before !== content) {
+      fixes.push('修复 === 后面的空字符串语法错误')
+    }
+    iteration++
+  } while (content.length !== prevLength && iteration < maxIterations)
+
+  // 修复模式4: 处理更复杂的三元表达式链接错误（先执行，处理外层结构）
+  // 例如: ?'bg-red-500':'bg-green-600':t.type=== 应该改为 ?'bg-red-500':t.type==='
+  // 这个模式修复 AI 生成的错误三元表达式链接
+  // 注意：变量名可能包含点号（如 t.type），所以用 [\w.]+ 或 [^?:']+
+  // 需要循环应用，因为一次 replace 只修复最左边的匹配
+  iteration = 0
+  do {
+    prevLength = content.length
+    content = content.replace(/\?'([\w-]+)':'([\w-]+)':\s*([\w.]+)\s*===/g, (_match, trueClass, _falseClass, varName) => {
+      fixes.push(`修复三元表达式链接错误: ?'${trueClass}'...':${varName}`)
+      return `?'${trueClass}':${varName}==='`
+    })
+    content = content.replace(/\?"([\w-]+)":"([\w-]+)":\s*([\w.]+)\s*===/g, (_match, trueClass, _falseClass, varName) => {
+      fixes.push(`修复三元表达式链接错误: ?"${trueClass}"...":${varName}`)
+      return `?"${trueClass}":${varName}===`
+    })
+    iteration++
+  } while (content.length !== prevLength && iteration < maxIterations)
+
+  // 修复模式5: 修复三元表达式中的 'class':var=== 结构错误（后执行，处理剩余）
+  // 错误: 'bg-green-600':t.type==='success'? 应该是: t.type==='success'?'bg-green-600':
+  // 注意：变量名可能包含点号（如 t.type）
+  // 需要循环应用
+  iteration = 0
+  do {
+    prevLength = content.length
+    content = content.replace(/'([\w-]+)':\s*([\w.]+)\s*===\s*'([\w-]+)'\?/g, (_match, className, varName, value) => {
+      fixes.push(`修复三元表达式语法错误: '${className}':${varName}===`)
+      return `${varName}==='${value}'?'${className}':`
+    })
+    content = content.replace(/"([\w-]+)":\s*([\w.]+)\s*===\s*"([\w-]+)"\?/g, (_match, className, varName, value) => {
+      fixes.push(`修复三元表达式语法错误: "${className}":${varName}===`)
+      return `${varName}==="${value}"?"${className}":`
+    })
+    iteration++
+  } while (content.length !== prevLength && iteration < maxIterations)
+
+  // 修复模式6: 处理三元表达式中冒号后的 class:var=== 模式
+  // 例如: :class="...'bg-green-600':t.type==='success'?..." 应该是: t.type==='success'?'bg-green-600':...
+  // 注意：变量名可能包含点号（如 t.type）
+  // 需要循环应用
+  iteration = 0
+  do {
+    prevLength = content.length
+    content = content.replace(/:'([\w-]+)'\s*:\s*([\w.]+)\s*===\s*'([\w-]+)'\s*\?/g, (_match, className, varName, value) => {
+      fixes.push(`修复三元表达式冒号后语法: :'${className}':${varName}===`)
+      return `${varName}==='${value}'?'${className}'`
+    })
+    content = content.replace(/:"([\w-]+)"\s*:\s*([\w.]+)\s*===\s*"([\w-]+)"\s*\?/g, (_match, className, varName, value) => {
+      fixes.push(`修复三元表达式冒号后语法: :"${className}":${varName}===`)
+      return `${varName}==="${value}"?"${className}"`
+    })
+    iteration++
+  } while (content.length !== prevLength && iteration < maxIterations)
+
+  // 修复模式7: 清理修复后可能出现的重复 class
+  // 例如: 'bg-green-600'?'bg-green-600': 应该简化为 'bg-green-600':
+  iteration = 0
+  do {
+    prevLength = content.length
+    content = content.replace(/'([\w-]+)'\s*\?\s*'([\w-]+)'\s*:/g, (_match, class1, class2) => {
+      if (class1 === class2) {
+        fixes.push(`移除重复的 class: '${class1}'?'${class2}':`)
+        return `'${class1}':`
+      }
+      return _match
+    })
+    content = content.replace(/"([\w-]+)"\s*\?\s*"([\w-]+)"\s*:/g, (_match, class1, class2) => {
+      if (class1 === class2) {
+        fixes.push(`移除重复的 class: "${class1}"?"${class2}":`)
+        return `"${class1}":`
+      }
+      return _match
+    })
+    iteration++
+  } while (content.length !== prevLength && iteration < maxIterations)
+
+  // 2. 修复重复的 </html> 标签
+  const htmlCloseCount = (content.match(/<\/html>/gi) || []).length
+  if (htmlCloseCount > 1) {
+    fixes.push(`移除多余的 </html> 标签 (${htmlCloseCount - 1} 个)`)
+    // 只保留最后一个 </html>
+    const lastHtmlEndIndex = content.lastIndexOf('</html>')
+    const beforeLastHtml = content.substring(0, lastHtmlEndIndex)
+    const afterLastHtml = content.substring(lastHtmlEndIndex + 7)
+    // 移除之前的所有 </html> 标签
+    content = beforeLastHtml.replace(/<\/html>/gi, '') + '</html>' + afterLastHtml
+  }
+
+  // 3. 修复 </html> 标签后的多余内容
+  const htmlEndMatch = content.match(/<\/html>\s*[\s\S]*$/i)
+  if (htmlEndMatch) {
+    const afterHtml = htmlEndMatch[0].substring(7).trim()
+    // 如果 </html> 后面有实质性内容（不只是空白）
+    if (afterHtml && afterHtml.length > 10) {
+      fixes.push('移除 </html> 标签后的多余内容')
+      content = content.substring(0, content.lastIndexOf('</html>') + 7)
+    }
+  }
+
+  // 4. 修复未闭合的 <style> 标签
+  const styleOpenCount = (content.match(/<style[^>]*>/gi) || []).length
+  const styleCloseCount = (content.match(/<\/style>/gi) || []).length
+  if (styleOpenCount > styleCloseCount) {
+    fixes.push(`添加缺失的 </style> 标签 (${styleOpenCount - styleCloseCount} 个)`)
+    // 找到 </head> 的位置，在它之前添加缺失的 </style>
+    for (let i = 0; i < styleOpenCount - styleCloseCount; i++) {
+      const headClosePos = content.indexOf('</head>')
+      if (headClosePos > 0) {
+        content = content.substring(0, headClosePos) + '</style>' + content.substring(headClosePos)
+      }
+    }
+  }
+
+  // 5. 修复 :class 中的常见错误模式
+  // 例如: :class="cond?'class1':'class2'" 缺少空格或引号不匹配
+  content = content.replace(/:class="([^"]*?)\?'([^']*?)'([^']*?)'([^"]*?)"/g, (match, _p1, _p2, _p3, _p4) => {
+    // 检查是否有语法错误
+    // 这里的正则很难写全，主要依靠后续的浏览器验证
+    return match
+  })
+
+  // 记录修复信息（开发环境）
+  if (fixes.length > 0 && import.meta.env.DEV) {
+    console.log('🔧 [HTML 修复]', fixes)
+  }
+
+  // 调试：始终打印修复前后的关键部分（开发环境）
+  if (import.meta.env.DEV) {
+    const original = html.substring(0, 500)
+    const fixed = content.substring(0, 500)
+    if (original !== fixed) {
+      console.log('🔍 [HTML 修复] 修复前后对比:')
+      console.log('修复前:', original)
+      console.log('修复后:', fixed)
+    }
+  }
+
+  return content
 }
 
 /**
@@ -498,15 +733,29 @@ const htmlBlobUrl = computed(() => {
   if (props.artifact?.type === 'html') {
     try {
       previewError.value = null
-      
+
       // 清理旧的 Blob URL
       if (htmlBlobUrlRef.value) {
         URL.revokeObjectURL(htmlBlobUrlRef.value)
         htmlBlobUrlRef.value = null
       }
-      
+
       let content = props.artifact.content.trim()
-      
+
+      // 修复 AI 生成时的常见错误
+      content = fixCommonAIHTMLErrors(content)
+
+      // 验证：检查修复后的内容是否还包含错误
+      if (content.includes("=='") || content.includes('=="')) {
+        console.warn('⚠️ [HTML 修复] 修复后仍包含可能的错误模式')
+      }
+      // 打印修复后包含 t.type 的行，用于验证
+      const typeIndex = content.indexOf('t.type')
+      if (typeIndex >= 0) {
+        const snippet = content.substring(typeIndex, typeIndex + 100)
+        console.log('📝 [HTML 修复] 修复后的 t.type 片段:', snippet)
+      }
+
       // 如果不是完整的 HTML 文档，包装成完整文档
       if (!content.toLowerCase().includes('<!doctype') && !content.toLowerCase().includes('<html')) {
         content = `<!DOCTYPE html>
@@ -523,13 +772,13 @@ ${content}
 </body>
 </html>`
       }
-      
+
       // 创建 Blob 对象
       const blob = new Blob([content], { type: 'text/html;charset=utf-8' })
       // 生成 Blob URL
       const blobUrl = URL.createObjectURL(blob)
       htmlBlobUrlRef.value = blobUrl
-      
+
       return blobUrl
     } catch (error) {
       previewError.value = 'HTML 内容处理失败'

@@ -32,15 +32,16 @@
     
         <!-- AI 消息：直接渲染 Markdown，充分利用页面 -->
         <div v-else class="assistant-message-wrapper">
-          <div 
+          <div
+            v-if="message.content"
             class="markdown-content prose prose-slate max-w-none"
             v-html="renderMarkdown(message.content, message.artifacts || [])"
             @click="handleMarkdownClick"
           ></div>
           <!-- AI 消息工具栏：显示在消息下方 -->
           <div class="assistant-message-toolbar">
-            <button 
-              class="assistant-toolbar-button" 
+            <button
+              class="assistant-toolbar-button"
               @click="copyMessage(message.content)"
               title="复制消息"
             >

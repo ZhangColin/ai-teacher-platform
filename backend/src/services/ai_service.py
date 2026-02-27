@@ -706,17 +706,62 @@ class AIService:
             if should_auto_continue:
                 logger.info(f"检测到长内容因token限制被截断，自动继续生成（剩余次数: {max_continue}，内容长度: {len(accumulated_content)}）...")
                 logger.debug(f"已生成内容预览（最后500字符）: {accumulated_content[-500:]}")
+                
                 # 将已生成的内容添加到历史消息中
                 new_history = history + [
                     {"role": "user", "content": user_message},
                     {"role": "assistant", "content": accumulated_content}
                 ]
-                # 继续生成（使用"继续"作为提示，传递 model_config）
-                continue_message = "请继续完成上面的内容，不要重复已生成的部分。"
+                
+                # 更明确的续写提示：要求AI不要输出代码块标记
+                continue_message = "请继续完成上面的内容。重要：直接输出代码内容，不要包含```标记，不要重复已生成的部分，从上一次截断的地方继续。"
+                
+                # 用于检测和清理续写内容开头的代码块标记
+                continue_buffer = ""
+                first_chunk_processed = False
                 continue_count = 0
+                
                 async for chunk in self.chat_stream(system_prompt, new_history, continue_message, max_continue - 1, model_config):
-                    continue_count += len(chunk) if chunk else 0
-                    yield chunk
+                    if not first_chunk_processed:
+                        # 累积前几个chunk，用于检测开头是否有代码块标记
+                        continue_buffer += chunk
+                        
+                        # 当累积了足够的字符时（至少20个字符），进行检测
+                        if len(continue_buffer) >= 20:
+                            import re
+                            # 检测开头是否有 ```语言\n 格式的代码块标记
+                            fence_match = re.match(r'^```\w*\s*\n', continue_buffer)
+                            if fence_match:
+                                # 去除开头的代码块标记
+                                continue_buffer = continue_buffer[fence_match.end():]
+                                logger.info(f"检测到续写内容开头有代码块标记（{fence_match.group()}），已自动去除")
+                            
+                            # 输出缓冲区内容
+                            if continue_buffer:
+                                continue_count += len(continue_buffer)
+                                yield continue_buffer
+                            
+                            # 标记已处理完第一个chunk
+                            first_chunk_processed = True
+                            continue_buffer = ""
+                    else:
+                        # 后续chunk直接输出
+                        continue_count += len(chunk)
+                        yield chunk
+                
+                # 如果还有剩余的缓冲区内容（累积的字符不足20个），输出
+                if continue_buffer:
+                    # 对剩余内容也检查一次
+                    import re
+                    fence_match = re.match(r'^```\w*\s*\n', continue_buffer)
+                    if fence_match:
+                        continue_buffer = continue_buffer[fence_match.end():]
+                        logger.info(f"检测到续写内容开头有代码块标记（短内容），已自动去除")
+                    
+                    if continue_buffer:
+                        continue_count += len(continue_buffer)
+                        yield continue_buffer
+                
                 logger.info(f"自动继续生成完成，继续部分长度: {continue_count} 字符")
             elif finish_reason == 'length':
                 logger.info(f"检测到内容因token限制被截断，但判断为AI追问或短内容，不自动继续（内容长度: {len(accumulated_content)}）")

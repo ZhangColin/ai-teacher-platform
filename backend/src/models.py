@@ -326,7 +326,11 @@ class User(BaseModel):
     def verify_password(self, password: str) -> bool:
         """验证密码是否正确"""
         return bcrypt.checkpw(password.encode('utf-8'), self.password_hash.encode('utf-8'))
-    
+
+    def _hash_password(self, password: str) -> str:
+        """哈希密码（内部方法）"""
+        return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
     def is_administrator(self) -> bool:
         """判断是否为管理员"""
         return self.is_admin

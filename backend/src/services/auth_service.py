@@ -1,14 +1,18 @@
 """认证服务：JWT Token生成和验证"""
 import os
+import logging
 from datetime import datetime, timedelta
 from typing import Optional, Dict
 from jose import jwt, JWTError
 from ..models import User
 
 
+logger = logging.getLogger(__name__)
+
+
 class AuthService:
     """认证服务类"""
-    
+
     def __init__(self):
         """初始化认证服务"""
         # 从环境变量获取JWT密钥
@@ -50,10 +54,10 @@ class AuthService:
     def verify_token(self, token: str) -> Optional[Dict]:
         """
         验证JWT Token
-        
+
         Args:
             token: JWT Token字符串
-            
+
         Returns:
             Dict: Token Payload（包含user_id, exp, iat），如果Token无效或过期返回None
         """

@@ -13,8 +13,16 @@ const md = new MarkdownIt({
  * 渲染 Markdown 内容，并为可预览的代码块添加预览按钮
  */
 export function renderMarkdown(content: string, artifacts: Artifact[] = []): string {
+  // 【最后防线】清理可能的重复代码块标记
+  // 模式1：```结束后紧接着又开始```（中间可能有空白）
+  // 例如：```\n```html\n 或 ```\n\n```python\n
+  let cleanedContent = content.replace(/```\s*\n\s*```(\w+)?\s*\n/g, '\n')
+  
+  // 模式2：代码块内部出现的```标记（非常规情况）
+  // 这种情况比较复杂，暂时不处理，因为可能是用户真实需要的内容
+  
   // 先渲染 Markdown
-  let html = md.render(content)
+  let html = md.render(cleanedContent)
 
   // 匹配所有代码块的正则表达式
   const codeBlockRegex = /<pre><code(?:\s+class="language-([^"]+)")?>([\s\S]*?)<\/code><\/pre>/gi

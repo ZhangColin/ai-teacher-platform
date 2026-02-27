@@ -20,3 +20,10 @@ env/
 
 .cursorrules
 backend/static
+
+.DS_Store
+
+.DS_Storebackend_bak
+
+.claude/settings.local.json
+
