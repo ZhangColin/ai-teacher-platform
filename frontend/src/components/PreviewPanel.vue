@@ -10,8 +10,8 @@
       @download-pdf="handleDownloadPDF"
       @download-svg="handleDownloadSvg"
       @toggle-fullscreen="toggleFullscreen"
-      @update:is-downloading-word="val => isDownloadingWord = val"
-      @update:is-downloading-pdf="val => isDownloadingPDF = val"
+      @update:is-downloading-word="(val: boolean) => isDownloadingWord = val"
+      @update:is-downloading-pdf="(val: boolean) => isDownloadingPDF = val"
     />
 
     <!-- 简单的通知提示 -->
@@ -36,9 +36,9 @@
       />
 
       <SvgPreview
-        v-else-if="isSvgArtifact(artifact)"
+        v-else-if="artifact && isSvgArtifact(artifact)"
         :content="artifact.content"
-        :filename="artifact.filename || 'artifact.svg'"
+        :filename="(artifact as any).filename || 'artifact.svg'"
       />
 
       <div v-else class="preview-empty" data-testid="preview-empty">

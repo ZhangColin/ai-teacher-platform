@@ -13,7 +13,7 @@
 
     <div class="message-content">
       <div
-        class="message-text"
+        class="message-text markdown-content"
         v-html="renderedContent"
         data-testid="streaming-text"
       />
@@ -43,6 +43,8 @@ const renderedContent = computed(() => {
 </script>
 
 <style scoped>
+@import '@/styles/markdown.css';
+
 .message-item.streaming {
   opacity: 0.9;
 }

@@ -8,7 +8,7 @@
     />
 
     <Transition name="fade">
-      <div v-if="error" class="error-message" role="alert" aria-live="assertive">
+      <div v-if="error" class="error-message" role="alert" aria-live="assertive" data-testid="error-message">
         <svg class="error-icon" role="img" aria-label="警告" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M12 9V13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
           <circle cx="12" cy="17" r="1" fill="currentColor"/>
@@ -17,7 +17,7 @@
         <div class="error-content">
           <div class="error-title">出错了</div>
           <div class="error-detail">{{ error }}</div>
-          <button class="retry-button" @click="handleRetry">
+          <button class="retry-button" @click="handleRetry" data-testid="retry-button">
             重试
           </button>
         </div>
@@ -81,7 +81,7 @@ watch(() => props.toolId, (newToolId) => {
 watch(() => props.sessionId, async (newSessionId) => {
   if (newSessionId) {
     // 如果正在流式输出，跳过 restoreSession（避免替换数组导致引用失效）
-    if (sessionStore.loading.value) {
+    if (sessionStore.loading) {
       console.log('[ChatPanel] Skipping restoreSession: currently loading');
       return;
     }

@@ -3,6 +3,7 @@
     class="message-item"
     :class="messageClass"
     data-testid="message-item"
+    :data-role="message.role"
     @mouseenter="showToolbar = true"
     @mouseleave="showToolbar = false"
   >
@@ -18,6 +19,7 @@
     <div class="message-content">
       <div
         class="message-text"
+        :class="{ 'markdown-content': message.role === 'assistant' }"
         v-html="renderedContent"
         data-testid="message-text"
       />
@@ -75,6 +77,7 @@ const renderedContent = computed(() => {
 });
 
 const formattedTime = computed(() => {
+  if (!props.message.created_at) return '';
   const date = new Date(props.message.created_at);
   return date.toLocaleTimeString('zh-CN', {
     hour: '2-digit',
@@ -88,6 +91,8 @@ async function handleCopy() {
 </script>
 
 <style scoped>
+@import '@/styles/markdown.css';
+
 .message-item {
   display: flex;
   gap: 12px;
@@ -151,15 +156,8 @@ async function handleCopy() {
   color: #333;
 }
 
-.message-text :deep(p) {
-  margin: 0;
-}
-
-.message-text :deep(pre) {
-  background-color: #2d2d2d;
-  color: #ccc;
-  padding: 12px;
-  border-radius: 6px;
+/* Assistant messages use markdown-content class for rich formatting */
+.message-assistant .message-text {
   overflow-x: auto;
 }
 
