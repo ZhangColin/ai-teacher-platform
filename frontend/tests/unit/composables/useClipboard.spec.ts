@@ -20,13 +20,18 @@ describe('useClipboard', () => {
   })
 
   it('should show success toast', async () => {
+    vi.useFakeTimers()
+
     const { copy, showSuccessToast } = useClipboard()
 
     await copy('test')
 
     expect(showSuccessToast.value).toBe(true)
-    setTimeout(() => {
-      expect(showSuccessToast.value).toBe(false)
-    }, 2100)
+
+    // Fast-forward 2 seconds
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(showSuccessToast.value).toBe(false)
+
+    vi.useRealTimers()
   })
 })
