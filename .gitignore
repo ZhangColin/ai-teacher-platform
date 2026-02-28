@@ -53,4 +53,5 @@ scripts/verify_test_db.sh
 package.json
 package-lock.json
 node_modules/
+tests/
 
