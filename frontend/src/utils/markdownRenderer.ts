@@ -67,31 +67,35 @@ export function renderMarkdown(content: string, artifacts: Artifact[] = []): str
     const codeContentForCopy = escapeHtml(rawContent)
     
     // 返回带预览和复制按钮的代码块
-          return `<div class="code-block-wrapper">
-      <pre><code class="language-${lang}">${codeContent}</code></pre>
-      <div class="code-block-actions">
-        <button 
-          class="copy-code-button" 
-          data-code-content="${codeContentForCopy}"
-          title="复制代码"
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-          </svg>
-        </button>
-            <button 
-              class="preview-button" 
-          data-artifact-type="${artifactType}"
-              data-artifact-content="${artifactJson}"
-          title="预览 ${artifactType.toUpperCase()} 内容"
-            >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-          </svg>
-            </button>
+    return `<div class="code-block-wrapper">
+      <div class="code-block-header">
+        <span class="code-language">${lang}</span>
+        <div class="code-block-actions">
+          <button
+            class="preview-button"
+            data-artifact-type="${artifactType}"
+            data-artifact-content="${artifactJson}"
+            title="预览 ${artifactType.toUpperCase()} 内容"
+          >
+            <svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+              <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
+              <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
+            </svg>
+          </button>
+          <button
+            class="copy-code-button"
+            data-code-content="${codeContentForCopy}"
+            title="复制代码"
+          >
+            <svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+              <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z"/>
+              <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z"/>
+            </svg>
+          </button>
+        </div>
       </div>
-          </div>`
+      <pre><code class="language-${lang}">${codeContent}</code></pre>
+    </div>`
   })
 
   return html
