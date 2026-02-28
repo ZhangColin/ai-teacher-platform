@@ -7,6 +7,19 @@
       :auto-scroll="autoScroll"
     />
 
+    <Transition name="fade">
+      <div v-if="error" class="error-message">
+        <div class="error-icon">⚠️</div>
+        <div class="error-content">
+          <div class="error-title">出错了</div>
+          <div class="error-detail">{{ error }}</div>
+          <button class="retry-button" @click="handleRetry">
+            重试
+          </button>
+        </div>
+      </div>
+    </Transition>
+
     <ChatInput
       ref="chatInputRef"
       :disabled="disabled"
@@ -17,17 +30,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import MessageList from './chat/MessageList.vue';
 import ChatInput from './chat/ChatInput.vue';
+import { useSessionStore } from '../stores/sessionStore';
 import type { Message } from '@/types';
 
 interface Props {
+  toolId?: string;
+  welcomeMessage?: string;
+  sessionId?: string;
+  conversationCollapsed?: boolean;
   messages?: Message[];
   streamingContent?: string;
   disabled?: boolean;
   isLoading?: boolean;
   autoScroll?: boolean;
+  error?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -40,13 +59,45 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   send: [content: string];
+  retry: [];
 }>();
 
+const sessionStore = useSessionStore();
 const messageListRef = ref<InstanceType<typeof MessageList>>();
 const chatInputRef = ref<InstanceType<typeof ChatInput>>();
 
+// 初始化工具
+watch(() => props.toolId, (newToolId) => {
+  if (newToolId) {
+    sessionStore.initTool(newToolId);
+  }
+}, { immediate: true });
+
+// 恢复会话 - 当 sessionId prop 变化时
+watch(() => props.sessionId, async (newSessionId) => {
+  if (newSessionId) {
+    // 如果正在流式输出，跳过 restoreSession（避免替换数组导致引用失效）
+    if (sessionStore.loading.value) {
+      console.log('[ChatPanel] Skipping restoreSession: currently loading');
+      return;
+    }
+    try {
+      console.log('[ChatPanel] Restoring session:', newSessionId);
+      await sessionStore.restoreSession(newSessionId);
+      // 恢复会话后，滚动到底部
+      messageListRef.value?.scrollToBottom();
+    } catch (err) {
+      console.error('[ChatPanel] Failed to restore session:', err);
+    }
+  }
+}, { immediate: true });
+
 const handleSend = (content: string) => {
   emit('send', content);
+};
+
+const handleRetry = () => {
+  emit('retry');
 };
 
 // 聚焦输入框
@@ -71,5 +122,63 @@ defineExpose({
   flex-direction: column;
   height: 100%;
   background-color: #f5f5f5;
+}
+
+.error-message {
+  display: flex;
+  gap: 16px;
+  padding: 16px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  margin: 16px;
+}
+
+.error-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.error-content {
+  flex: 1;
+}
+
+.error-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #991b1b;
+  margin-bottom: 4px;
+}
+
+.error-detail {
+  font-size: 14px;
+  color: #b91c1c;
+  margin-bottom: 12px;
+}
+
+.retry-button {
+  padding: 8px 16px;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.retry-button:hover {
+  background: #dc2626;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>

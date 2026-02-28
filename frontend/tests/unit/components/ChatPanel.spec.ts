@@ -1,12 +1,46 @@
 /**
  * ChatPanel组件单元测试
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mount } from '@vue/test-utils';
+import { ref } from 'vue';
+import { useSessionStore } from '@/stores/sessionStore';
 import ChatPanel from '@/components/ChatPanel.vue';
 import type { Message } from '@/types';
 
+// Mock sessionStore
+vi.mock('@/stores/sessionStore', () => ({
+  useSessionStore: vi.fn(),
+}));
+
+// 辅助函数：创建默认的 mock sessionStore
+function createMockSessionStore() {
+  return {
+    sessionId: ref(null),
+    toolId: ref(null),
+    messages: ref([]),
+    loading: ref(false),
+    error: ref(null),
+    titleGenerated: ref(false),
+    initTool: vi.fn(),
+    sendMessage: vi.fn(),
+    restoreSession: vi.fn().mockResolvedValue(undefined),
+    clearSession: vi.fn(),
+    setPreviewArtifact: vi.fn(),
+    reset: vi.fn(),
+    hasSession: ref(false),
+    messageCount: ref(0),
+    showPreview: ref(false),
+    currentPreviewArtifact: ref(null),
+  };
+}
+
 describe('ChatPanel', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // 设置默认 mock
+    vi.mocked(useSessionStore).mockReturnValue(createMockSessionStore());
+  });
   // 测试修复：messages属性应该有默认值，避免"Cannot read properties of undefined"错误
   it('should have default messages prop as empty array', () => {
     const wrapper = mount(ChatPanel, {
@@ -133,5 +167,164 @@ describe('ChatPanel', () => {
     });
 
     expect(typeof (wrapper.vm as any).scrollToBottom).toBe('function');
+  });
+
+  // ========== 测试错误处理 UI ==========
+  describe('Error Handling', () => {
+    it('should show error message when error exists', () => {
+      const wrapper = mount(ChatPanel, {
+        props: {
+          messages: [],
+          error: '网络错误'
+        }
+      })
+
+      expect(wrapper.text()).toContain('网络错误')
+      expect(wrapper.find('.error-message').exists()).toBe(true)
+    })
+
+    it('should not show error when no error', () => {
+      const wrapper = mount(ChatPanel, {
+        props: {
+          messages: [],
+          error: undefined
+        }
+      })
+
+      expect(wrapper.find('.error-message').exists()).toBe(false)
+    })
+
+    it('should emit retry event when retry button clicked', async () => {
+      const wrapper = mount(ChatPanel, {
+        props: {
+          messages: [],
+          error: '网络错误'
+        }
+      })
+
+      await wrapper.find('.retry-button').trigger('click')
+
+      expect(wrapper.emitted('retry')).toBeTruthy()
+      expect(wrapper.emitted('retry')?.[0]).toEqual([])
+    })
+
+    it('should display error icon and title', () => {
+      const wrapper = mount(ChatPanel, {
+        props: {
+          messages: [],
+          error: '连接失败'
+        }
+      })
+
+      expect(wrapper.find('.error-icon').exists()).toBe(true)
+      expect(wrapper.text()).toContain('出错了')
+      expect(wrapper.text()).toContain('连接失败')
+    })
+  });
+
+  // ========== 测试会话恢复功能（防止回归） ==========
+  describe('Session Restoration', () => {
+    it('should call sessionStore.restoreSession when sessionId prop changes', async () => {
+      const mockRestoreSession = vi.fn().mockResolvedValue(undefined);
+      const mockStore = createMockSessionStore();
+      mockStore.restoreSession = mockRestoreSession;
+
+      vi.mocked(useSessionStore).mockReturnValue(mockStore);
+
+      const wrapper = mount(ChatPanel, {
+        props: {
+          toolId: 'test-tool',
+          sessionId: undefined,
+        },
+      });
+
+      // 设置 sessionId
+      await wrapper.setProps({ sessionId: 'session-123' });
+
+      // 等待 watch 执行
+      await wrapper.vm.$nextTick();
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      // 验证 restoreSession 被调用
+      expect(mockRestoreSession).toHaveBeenCalledWith('session-123');
+      expect(mockRestoreSession).toHaveBeenCalledTimes(1);
+    });
+
+    it('should not call restoreSession when loading is true', async () => {
+      const mockRestoreSession = vi.fn().mockResolvedValue(undefined);
+      const mockStore = createMockSessionStore();
+      mockStore.loading = ref(true); // 正在加载
+      mockStore.restoreSession = mockRestoreSession;
+
+      vi.mocked(useSessionStore).mockReturnValue(mockStore);
+
+      const wrapper = mount(ChatPanel, {
+        props: {
+          toolId: 'test-tool',
+        },
+      });
+
+      // 设置 sessionId
+      await wrapper.setProps({ sessionId: 'session-456' });
+
+      // 等待 watch 执行
+      await wrapper.vm.$nextTick();
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      // 验证 restoreSession 没有被调用（因为 loading=true）
+      expect(mockRestoreSession).not.toHaveBeenCalled();
+    });
+
+    it('should call sessionStore.initTool when toolId prop changes', async () => {
+      const mockInitTool = vi.fn();
+      const mockStore = createMockSessionStore();
+      mockStore.initTool = mockInitTool;
+
+      vi.mocked(useSessionStore).mockReturnValue(mockStore);
+
+      const wrapper = mount(ChatPanel, {
+        props: {
+          toolId: 'tool-a',
+        },
+      });
+
+      // 等待 watch 执行（immediate: true）
+      await wrapper.vm.$nextTick();
+
+      // 验证 initTool 被调用
+      expect(mockInitTool).toHaveBeenCalledWith('tool-a');
+    });
+
+    it('should handle restoreSession errors gracefully', async () => {
+      const mockError = new Error('Network error');
+      const mockRestoreSession = vi.fn().mockRejectedValue(mockError);
+      const mockStore = createMockSessionStore();
+      mockStore.restoreSession = mockRestoreSession;
+
+      vi.mocked(useSessionStore).mockReturnValue(mockStore);
+
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      const wrapper = mount(ChatPanel, {
+        props: {
+          toolId: 'test-tool',
+        },
+      });
+
+      // 设置 sessionId
+      await wrapper.setProps({ sessionId: 'session-789' });
+
+      // 等待 watch 执行
+      await wrapper.vm.$nextTick();
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      // 验证错误被记录
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[ChatPanel] Failed to restore session:',
+        mockError
+      );
+
+      consoleSpy.mockRestore();
+    });
   });
 });
