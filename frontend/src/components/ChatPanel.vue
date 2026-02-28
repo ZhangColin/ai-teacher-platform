@@ -23,7 +23,7 @@ import ChatInput from './chat/ChatInput.vue';
 import type { Message } from '@/types';
 
 interface Props {
-  messages: Message[];
+  messages?: Message[];
   streamingContent?: string;
   disabled?: boolean;
   isLoading?: boolean;
@@ -31,6 +31,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  messages: () => [],
   streamingContent: '',
   disabled: false,
   isLoading: false,

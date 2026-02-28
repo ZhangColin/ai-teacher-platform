@@ -23,6 +23,7 @@ export const useSessionStore = defineStore('session', () => {
    * 初始化工具（不创建会话，仅设置工具ID）
    */
   function initTool(toolIdParam: string) {
+    console.log('[sessionStore] initTool called with:', toolIdParam)
     // 如果正在流式输出，拒绝清空 messages
     if (loading.value) {
       console.warn('正在流式输出，拒绝重新初始化工具')
@@ -31,10 +32,12 @@ export const useSessionStore = defineStore('session', () => {
 
     // 如果 toolId 相同且 messages 不为空，不需要重新初始化
     if (toolId.value === toolIdParam && messages.value.length > 0) {
+      console.log('[sessionStore] Tool already initialized, skipping')
       return
     }
 
     toolId.value = toolIdParam
+    console.log('[sessionStore] Tool ID set to:', toolId.value)
     // 不创建会话，等待用户发送第一条消息
     sessionId.value = null
     messages.value = []

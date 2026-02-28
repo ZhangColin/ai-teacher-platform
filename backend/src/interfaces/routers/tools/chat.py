@@ -88,12 +88,12 @@ async def chat_stream(
             ]
 
         # 保存用户消息
-        user_message = Message(
+        session_service.add_message(
+            session_id=session_id,
             role="user",
             content=request.message,
-            session_id=session_id
+            user_id=current_user.user_id
         )
-        session_service.add_message(user_message)
 
         # 准备模型配置
         model_config = tool.model if tool.model else None
@@ -116,12 +116,12 @@ async def chat_stream(
                 yield "data: [DONE]\n\n"
 
                 # 保存AI消息
-                ai_message = Message(
+                session_service.add_message(
+                    session_id=session_id,
                     role="assistant",
                     content=full_response,
-                    session_id=session_id
+                    user_id=current_user.user_id
                 )
-                session_service.add_message(ai_message)
 
                 # 更新会话标题（使用title_generator）
                 if not session.title or session.title.startswith("新会话"):
@@ -210,12 +210,12 @@ async def chat_non_stream(
             ]
 
         # 保存用户消息
-        user_message = Message(
+        session_service.add_message(
+            session_id=session_id,
             role="user",
             content=request.message,
-            session_id=session_id
+            user_id=current_user.user_id
         )
-        session_service.add_message(user_message)
 
         # 获取AI响应
         model_config = tool.model if tool.model else None
@@ -227,12 +227,12 @@ async def chat_non_stream(
         )
 
         # 保存AI消息
-        ai_message = Message(
+        session_service.add_message(
+            session_id=session_id,
             role="assistant",
             content=response,
-            session_id=session_id
+            user_id=current_user.user_id
         )
-        session_service.add_message(ai_message)
 
         # 解析成果物
         artifacts = artifact_parser.parse_from_markdown(response)

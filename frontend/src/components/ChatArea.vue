@@ -13,15 +13,16 @@
     
     
     <!-- 中间：当前对话区域 -->
-    <ChatPanel 
+    <ChatPanel
       :tool-id="toolId"
+      :messages="sessionStore.messages"
       :welcome-message="welcomeMessage"
       :session-id="currentSessionId ?? undefined"
       :conversation-collapsed="conversationListCollapsed"
       class="chat-panel"
       :style="showPreview ? { width: chatPanelWidth + 'px' } : {}"
-      @send="handleSendMessage" 
-      @preview="openPreview" 
+      @send="handleSendMessage"
+      @preview="openPreview"
     />
     
     <!-- 可拖拽的分隔条 -->
@@ -74,13 +75,14 @@ const containerWidth = ref<number>(0)
 
 // 监听工具切换，清空当前会话
 watch(() => props.toolId, (newToolId) => {
+  console.log('[ChatArea] toolId changed to:', newToolId)
   if (newToolId) {
     currentSessionId.value = null
     showPreview.value = false
     currentArtifact.value = null
     sessionStore.initTool(newToolId)
   }
-})
+}, { immediate: true })
 
 // 监听 sessionStore 的 sessionId 变化（新会话创建）
 watch(() => sessionStore.sessionId, async (newId, oldId) => {
@@ -117,9 +119,14 @@ function handleNewConversation() {
   sessionStore.clearSession()
 }
 
-function handleSendMessage(_content: string) {
-  // 消息发送由 ChatPanel 通过 sessionStore 处理
-  // 这里可以添加额外的处理逻辑
+async function handleSendMessage(content: string) {
+  console.log('[ChatArea] handleSendMessage called with:', content)
+  try {
+    await sessionStore.sendMessage(content)
+    console.log('[ChatArea] Message sent successfully')
+  } catch (err) {
+    console.error('[ChatArea] Failed to send message:', err)
+  }
 }
 
 function openPreview(artifact: Artifact) {

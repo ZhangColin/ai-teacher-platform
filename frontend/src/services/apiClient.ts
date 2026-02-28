@@ -279,14 +279,21 @@ export class ApiService {
         for (const line of lines) {
           const trimmedLine = line.trim()
           if (trimmedLine.startsWith('data: ')) {
-            try {
-              const jsonStr = trimmedLine.slice(6).trim()
-              if (jsonStr) {
+            const jsonStr = trimmedLine.slice(6).trim()
+
+            // 处理 [DONE] 标记
+            if (jsonStr === '[DONE]') {
+              onChunk({ type: 'done' })
+              continue
+            }
+
+            if (jsonStr) {
+              try {
                 const data = JSON.parse(jsonStr)
-                onChunk(data)
+                onChunk({ type: 'content', ...data })
+              } catch (e) {
+                console.error('解析 SSE 数据失败:', e, trimmedLine)
               }
-            } catch (e) {
-              console.error('解析 SSE 数据失败:', e, trimmedLine)
             }
           } else if (trimmedLine === '') {
             // 空行，跳过
@@ -298,14 +305,18 @@ export class ApiService {
       // 处理最后一行
       const trimmedBuffer = buffer.trim()
       if (trimmedBuffer.startsWith('data: ')) {
-        try {
-          const jsonStr = trimmedBuffer.slice(6).trim()
-          if (jsonStr) {
+        const jsonStr = trimmedBuffer.slice(6).trim()
+
+        // 处理 [DONE] 标记
+        if (jsonStr === '[DONE]') {
+          onChunk({ type: 'done' })
+        } else if (jsonStr) {
+          try {
             const data = JSON.parse(jsonStr)
-            onChunk(data)
+            onChunk({ type: 'content', ...data })
+          } catch (e) {
+            console.error('解析 SSE 数据失败:', e, trimmedBuffer)
           }
-        } catch (e) {
-          console.error('解析 SSE 数据失败:', e, trimmedBuffer)
         }
       }
     } finally {

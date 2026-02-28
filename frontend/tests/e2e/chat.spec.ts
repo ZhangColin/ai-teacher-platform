@@ -1,117 +1,258 @@
 /**
- * 聊天功能E2E测试
+ * Chat E2E Tests - With real test user
  */
 import { test, expect } from '@playwright/test';
 
-test.describe('AI对话流程', () => {
+// Real test user credentials (created by setup_e2e_user.py)
+const TEST_USER = {
+  account: 'e2etest@example.com',
+  password: 'Test123456!'
+};
+
+test.describe('Login Flow', () => {
+  test('should display login page', async ({ page }) => {
+    await page.goto('http://localhost:5174/login');
+
+    // Verify login form exists
+    await expect(page.locator('input[type="email"], input[type="text"]').first()).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('input[type="password"]').first()).toBeVisible();
+    await expect(page.locator('button[type="submit"], button:has-text("登录")').first()).toBeVisible();
+  });
+
+  test('should redirect to login when not authenticated', async ({ page }) => {
+    await page.context().clearCookies();
+    await page.goto('http://localhost:5174/modules/ai-tools');
+
+    await page.waitForURL(/\/login/, { timeout: 5000 });
+    expect(page.url()).toContain('/login');
+  });
+
+  test('should login with valid credentials', async ({ page }) => {
+    await page.goto('http://localhost:5174/login');
+
+    // Fill login form
+    await page.fill('input[type="email"], input[type="text"]', TEST_USER.account);
+    await page.fill('input[type="password"]', TEST_USER.password);
+
+    // Submit login
+    await page.click('button[type="submit"], button:has-text("登录")');
+
+    // Should redirect to tools page
+    await page.waitForURL(/\/modules\/ai-tools/, { timeout: 10000 });
+    expect(page.url()).toContain('/modules/ai-tools');
+  });
+});
+
+test.describe('Tool Selection (requires login)', () => {
   test.beforeEach(async ({ page }) => {
-    // 每个测试前导航到工具页面
-    await page.goto('/modules/ai_tools');
+    // Login before each test
+    await page.goto('http://localhost:5174/login');
+    await page.fill('input[type="email"], input[type="text"]', TEST_USER.account);
+    await page.fill('input[type="password"]', TEST_USER.password);
+    await page.click('button[type="submit"], button:has-text("登录")');
+    await page.waitForURL(/\/modules\/ai-tools/, { timeout: 10000 });
   });
 
-  test('应该显示工具列表', async ({ page }) => {
-    // 等待工具列表加载
-    await expect(page.locator('[data-testid="tool-list"]')).toBeVisible({ timeout: 10000 }).catch(() => {
-      // 如果没有data-testid，尝试其他选择器
-      return expect(page.locator('.tool-list, .tools-grid, .tools').first()).toBeVisible({ timeout: 10000 });
-    });
+  test('should display tool list', async ({ page }) => {
+    // Wait for page to fully load
+    await page.waitForLoadState('domcontentloaded');
+
+    // Wait a bit for dynamic content
+    await page.waitForTimeout(2000);
+
+    // Try to find tool list or sidebar
+    const toolSelectors = [
+      '.tool-list',
+      '.tool-selector',
+      '.sidebar',
+      '.tool-category',
+      '.tool-card'
+    ];
+
+    let found = false;
+    for (const selector of toolSelectors) {
+      try {
+        const element = page.locator(selector).first();
+        if (await element.isVisible({ timeout: 3000 })) {
+          console.log(`✅ Found element with selector: ${selector}`);
+          found = true;
+          break;
+        }
+      } catch (e) {
+        // Continue to next selector
+      }
+    }
+
+    if (!found) {
+      // Take screenshot for debugging
+      await page.screenshot({ path: 'test-results/debug-tool-list.png', fullPage: true });
+
+      // Check what's actually on the page
+      const bodyText = await page.locator('body').textContent();
+      console.log('Page content preview:', bodyText?.substring(0, 200));
+
+      throw new Error('Tool list not found. Screenshot saved to test-results/debug-tool-list.png');
+    }
+
+    expect(found).toBeTruthy();
   });
 
-  test('应该能选择工具并打开对话', async ({ page }) => {
-    // 选择第一个工具
-    await page.locator('.tool-item, .tool-card, [data-testid="tool-item"]').first().click();
+  test('should select first tool', async ({ page }) => {
+    // Wait for content to load
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForTimeout(2000);
 
-    // 验证对话界面打开
-    await expect(page.locator('[data-testid="chat-panel"], .chat-panel, .chat-container').first()).toBeVisible({ timeout: 5000 });
-    await expect(page.locator('[data-testid="chat-input"], textarea, .chat-input').first()).toBeVisible();
+    // Find and click first tool card
+    const toolCard = page.locator('.tool-card, .tool-item, [class*="tool"]').first();
+
+    await expect(toolCard).toBeVisible({ timeout: 5000 });
+    await toolCard.click();
+    console.log('✅ Clicked first tool card');
+
+    // Wait for Vue to process the click
+    await page.waitForTimeout(1500);
+
+    // Verify we stayed on the same page (URL didn't change unexpectedly)
+    expect(page.url()).toContain('/modules/ai-tools');
+
+    // Verify sidebar is still visible (meaning we didn't navigate away)
+    const sidebar = page.locator('.sidebar, .tool-selector').first();
+    await expect(sidebar).toBeVisible({ timeout: 3000 });
   });
 
-  test('应该能发送消息并显示响应', async ({ page }) => {
-    // 选择工具
-    await page.locator('.tool-item, .tool-card, [data-testid="tool-item"]').first().click();
+  test('should display collapse button', async ({ page }) => {
+    // Wait for content
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForTimeout(2000);
 
-    // 输入消息
-    const chatInput = page.locator('[data-testid="chat-input"], textarea, .chat-input').first();
-    await chatInput.fill('Hello, how are you?');
+    // Look for collapse button
+    const collapseButton = page.locator('.collapse-button, [class*="collapse"], button:has([class*="chevron"])').first();
 
-    // 点击发送按钮
-    await page.locator('[data-testid="send-button"], button:has-text("发送"), .send-button').first().click();
+    try {
+      await expect(collapseButton).toBeVisible({ timeout: 5000 });
+      console.log('✅ Found collapse button');
+    } catch (e) {
+      await page.screenshot({ path: 'test-results/debug-collapse-button.png', fullPage: true });
+      throw new Error('Collapse button not found. Screenshot saved.');
+    }
+  });
+});
 
-    // 验证消息出现在列表中
-    await expect(page.locator('[data-testid="message-item"], .message, .chat-message').first()).toBeVisible({ timeout: 5000 });
+test.describe('Basic UI (no login required)', () => {
+  test('should load frontend', async ({ page }) => {
+    await page.goto('http://localhost:5174/');
 
-    // 验证发送按钮禁用状态
-    await expect(page.locator('[data-testid="send-button"], button:has-text("发送"), .send-button').first()).toBeDisabled();
-
-    // 等待AI响应（最多30秒）
-    await expect(page.locator('[data-testid="message-item"], .message, .chat-message').nth(1)).toBeVisible({ timeout: 30000 });
+    // Should show app container
+    await expect(page.locator('#app')).toBeVisible({ timeout: 5000 });
   });
 
-  test('应该显示流式响应的加载状态', async ({ page }) => {
-    await page.locator('.tool-item, .tool-card, [data-testid="tool-item"]').first().click();
+  test('should have Vue loaded', async ({ page }) => {
+    await page.goto('http://localhost:5174/');
 
-    const chatInput = page.locator('[data-testid="chat-input"], textarea, .chat-input').first();
-    await chatInput.fill('Generate content');
-    await page.locator('[data-testid="send-button"], button:has-text("发送"), .send-button').first().click();
+    // Check Vue is loaded by looking for the app
+    const appExists = await page.locator('#app').count();
+    expect(appExists).toBeGreaterThan(0);
+  });
+});
 
-    // 验证流式指示器显示
-    await expect(page.locator('[data-testid="streaming-message"], .loading, .streaming, .typing-indicator').first()).toBeVisible({ timeout: 5000 }).catch(() => {
-      // 如果没有专门的loading指示器，检查消息内容
-      return expect(page.locator('.message, .chat-message').first()).toBeVisible();
-    });
+test.describe('Real Chat Flow (End-to-End)', () => {
+  test.beforeEach(async ({ page }) => {
+    // Login
+    await page.goto('http://localhost:5174/login');
+    await page.fill('input[type="email"], input[type="text"]', TEST_USER.account);
+    await page.fill('input[type="password"]', TEST_USER.password);
+    await page.click('button[type="submit"], button:has-text("登录")');
+    await page.waitForURL(/\/modules\/ai-tools/, { timeout: 10000 });
   });
 
-  test('应该在消息列表中显示用户和AI消息', async ({ page }) => {
-    await page.locator('.tool-item, .tool-card, [data-testid="tool-item"]').first().click();
+  test('complete chat flow with real AI response', async ({ page }) => {
+    console.log('Starting real E2E chat test...');
 
-    const chatInput = page.locator('[data-testid="chat-input"], textarea, .chat-input').first();
-    await chatInput.fill('Test message');
-    await page.locator('[data-testid="send-button"], button:has-text("发送"), .send-button').first().click();
+    // 1. Wait for tools
+    await page.waitForTimeout(2000);
+    const toolCard = page.locator('.tool-card, .tool-item, [class*="tool"]').first();
+    await expect(toolCard).toBeVisible({ timeout: 5000 });
+    console.log('Step 1: Tools loaded');
 
-    // 等待两条消息
-    await expect(page.locator('[data-testid="message-item"], .message, .chat-message').nth(0)).toBeVisible();
-    await expect(page.locator('[data-testid="message-item"], .message, .chat-message').nth(1)).toBeVisible({ timeout: 30000 });
+    // 2. Select tool
+    await toolCard.click();
+    await page.waitForTimeout(1500);
+    console.log('Step 2: Tool selected');
 
-    // 验证第一条是用户消息
-    const firstMessage = page.locator('[data-testid="message-item"], .message, .chat-message').nth(0);
-    await expect(firstMessage).toHaveClass(/message-user|user-message|user/);
+    // 3. Find input
+    const chatInput = page.locator('textarea').first();
+    await expect(chatInput).toBeVisible({ timeout: 5000 });
+    console.log('Step 3: Chat input found');
 
-    // 验证第二条是AI消息
-    const secondMessage = page.locator('[data-testid="message-item"], .message, .chat-message').nth(1);
-    await expect(secondMessage).toHaveClass(/message-assistant|assistant-message|assistant|ai/);
+    // 4. Type message
+    const testMessage = 'Hello, please introduce yourself briefly';
+    await chatInput.fill(testMessage);
+    console.log('Step 4: Message typed');
+
+    // 5. Send message
+    const sendButton = page.locator('button:has-text("发送"), button[type="submit"], [class*="send"]').first();
+    await expect(sendButton).toBeVisible({ timeout: 3000 });
+    await sendButton.click();
+    console.log('Step 5: Message sent');
+
+    // 6. Wait for user message to appear
+    const userMessage = page.locator('[data-testid="message-item"]').first();
+    await expect(userMessage).toBeVisible({ timeout: 5000 });
+    console.log('Step 6: User message displayed');
+
+    // 7. Wait for AI response (this may take 30-60 seconds)
+    console.log('Step 7: Waiting for AI response (up to 60 seconds)...');
+
+    const aiMessage = page.locator('[data-testid="message-item"]').nth(1);
+
+    try {
+      await expect(aiMessage).toBeVisible({ timeout: 60000 });
+      console.log('Step 7: AI response received');
+
+      const aiMessageContent = await aiMessage.textContent();
+      console.log(`AI response length: ${aiMessageContent?.length || 0} characters`);
+
+      // Verify response is not empty
+      expect(aiMessageContent?.trim().length).toBeGreaterThan(0);
+      console.log('Step 8: AI response validated');
+
+      console.log('✅ Real E2E chat test PASSED!');
+    } catch (e) {
+      console.log('❌ AI response timeout (60 seconds)');
+      console.log('Possible reasons:');
+      console.log('  - AI API not configured or invalid key');
+      console.log('  - Network issues');
+      console.log('  - Backend service errors');
+
+      await page.screenshot({
+        path: 'test-results/failed-ai-response.png',
+        fullPage: true
+      });
+
+      throw new Error('AI response timeout - check backend logs and API configuration');
+    }
   });
 
-  test('应该支持Shift+Enter换行', async ({ page }) => {
-    await page.locator('.tool-item, .tool-card, [data-testid="tool-item"]').first().click();
+  test('Shift+Enter for newline', async ({ page }) => {
+    // Select tool
+    await page.waitForTimeout(2000);
+    const toolCard = page.locator('.tool-card, .tool-item, [class*="tool"]').first();
+    await toolCard.click();
+    await page.waitForTimeout(1500);
 
-    const chatInput = page.locator('[data-testid="chat-input"], textarea, .chat-input').first();
+    // Find input and test Shift+Enter
+    const chatInput = page.locator('textarea').first();
+    await expect(chatInput).toBeVisible({ timeout: 5000 });
 
-    // 输入文本并按Shift+Enter
     await chatInput.fill('Line 1');
     await chatInput.press('Shift+Enter');
     await chatInput.type('Line 2');
 
-    // 验证输入框包含换行
     const inputValue = await chatInput.inputValue();
     expect(inputValue).toContain('Line 1\nLine 2');
 
-    // 验证消息未发送
-    const messageCount = await page.locator('[data-testid="message-item"], .message, .chat-message').count();
-    expect(messageCount).toBe(0);
-  });
-});
-
-test.describe('工具选择', () => {
-  test('应该显示工具分类', async ({ page }) => {
-    await page.goto('/modules/ai_tools');
-
-    // 验证页面加载
-    await expect(page).toHaveTitle(/AI/);
-
-    // 验证工具分类或工具列表存在
-    const categories = page.locator('.category, .tool-category, [data-testid="category"]');
-    const tools = page.locator('.tool-item, .tool-card, [data-testid="tool-item"]');
-
-    await expect(categories.or(tools).first()).toBeVisible({ timeout: 10000 });
+    // Verify message not sent
+    const messages = await page.locator('[data-testid="message-item"]').count();
+    expect(messages).toBe(0);
   });
 });

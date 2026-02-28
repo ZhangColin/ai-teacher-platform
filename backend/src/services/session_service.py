@@ -280,7 +280,21 @@ class SessionService:
             ).order_by(MessageModel.created_at).all()
             
             return [self._to_domain_model_message(mm) for mm in message_models]
-    
+
+    # 别名方法：为了保持API一致性，提供 get_session_messages 别名
+    def get_session_messages(
+        self,
+        session_id: str,
+        user_id: Optional[str] = None
+    ) -> List[MessageDomain]:
+        """
+        获取会话的所有消息（别名方法）
+
+        这是 get_messages_by_session 的别名，用于保持API命名一致性。
+        详见 get_messages_by_session 的文档。
+        """
+        return self.get_messages_by_session(session_id, user_id)
+
     def _to_domain_model(self, session_model: SessionModel) -> SessionDomain:
         """将数据库模型转换为领域模型"""
         return SessionDomain(

@@ -7,6 +7,32 @@ import ChatPanel from '@/components/ChatPanel.vue';
 import type { Message } from '@/types';
 
 describe('ChatPanel', () => {
+  // 测试修复：messages属性应该有默认值，避免"Cannot read properties of undefined"错误
+  it('should have default messages prop as empty array', () => {
+    const wrapper = mount(ChatPanel, {
+      props: {
+        toolId: 'test-tool'
+      }
+    })
+
+    // 验证messages属性有默认值，不会抛出undefined错误
+    expect(wrapper.props()).toHaveProperty('messages')
+    expect(wrapper.vm.messages).toEqual([])
+  })
+
+  // 测试修复：ChatPanel可以在不传递messages prop的情况下正常渲染
+  it('should render without errors when messages not provided', () => {
+    // 修复前：会因为messages为undefined而导致子组件错误
+    const wrapper = mount(ChatPanel, {
+      props: {
+        toolId: 'test-tool'
+      }
+    })
+
+    expect(wrapper.exists()).toBe(true)
+    expect(wrapper.find('[data-testid="chat-panel"]').exists()).toBe(true)
+  })
+
   it('should render MessageList and ChatInput', () => {
     const wrapper = mount(ChatPanel, {
       props: {
