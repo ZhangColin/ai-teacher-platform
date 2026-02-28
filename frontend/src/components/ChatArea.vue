@@ -19,7 +19,7 @@
       :welcome-message="welcomeMessage"
       :session-id="currentSessionId ?? undefined"
       :conversation-collapsed="conversationListCollapsed"
-      :error="sessionStore.error"
+      :error="sessionStore.error ?? undefined"
       :is-loading="sessionStore.loading"
       class="chat-panel"
       :style="showPreview ? { width: chatPanelWidth + 'px' } : {}"

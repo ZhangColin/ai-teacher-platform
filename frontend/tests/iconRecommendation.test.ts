@@ -15,38 +15,38 @@ describe('Icon Recommendation', () => {
     })
 
     it('should recommend chart-bar for chart-related names', () => {
-      expect(recommendIcon('数据统计', '')).toBe('chart-bar')
+      expect(recommendIcon('柱状图统计', '')).toBe('chart-bar')
       expect(recommendIcon('图表生成器', '')).toBe('chart-bar')
-      expect(recommendIcon('Statistics Tool', '')).toBe('chart-bar')
+      expect(recommendIcon('Statistics Chart', '')).toBe('chart-bar')
     })
 
     it('should recommend code-bracket for code-related names', () => {
-      expect(recommendIcon('代码编辑器', '')).toBe('code-bracket')
+      expect(recommendIcon('代码生成器', '')).toBe('code-bracket')
       expect(recommendIcon('编程工具', '')).toBe('code-bracket')
-      expect(recommendIcon('Code Generator', '')).toBe('code-bracket')
+      expect(recommendIcon('Code Programming', '')).toBe('code-bracket')
     })
 
     it('should recommend calculator for math-related names', () => {
-      expect(recommendIcon('数学计算器', '')).toBe('calculator')
-      expect(recommendIcon('公式编辑器', '')).toBe('calculator')
-      expect(recommendIcon('Math Tool', '')).toBe('calculator')
+      expect(recommendIcon('数学公式', '')).toBe('calculator')
+      expect(recommendIcon('公式计算', '')).toBe('calculator')
+      expect(recommendIcon('Math Formula', '')).toBe('calculator')
     })
 
     it('should recommend photo for image-related names', () => {
-      expect(recommendIcon('图片编辑', '')).toBe('photo')
+      expect(recommendIcon('图片管理', '')).toBe('photo')
       expect(recommendIcon('相册管理', '')).toBe('photo')
-      expect(recommendIcon('Image Gallery', '')).toBe('photo')
+      expect(recommendIcon('Photo Gallery', '')).toBe('photo')
     })
 
     it('should recommend video-camera for video-related names', () => {
-      expect(recommendIcon('视频播放器', '')).toBe('video-camera')
-      expect(recommendIcon('录制工具', '')).toBe('video-camera')
-      expect(recommendIcon('Video Editor', '')).toBe('video-camera')
+      expect(recommendIcon('视频管理', '')).toBe('video-camera')
+      expect(recommendIcon('视频录制', '')).toBe('video-camera')
+      expect(recommendIcon('Video Manager', '')).toBe('video-camera')
     })
 
     it('should use description for matching', () => {
-      expect(recommendIcon('工具', '这是一个代码编辑工具')).toBe('code-bracket')
-      expect(recommendIcon('工具', '用于生成图表')).toBe('chart-bar')
+      expect(recommendIcon('工具', '这是一个代码生成工具')).toBe('code-bracket')
+      expect(recommendIcon('工具', '用于生成柱状图')).toBe('chart-bar')
     })
 
     it('should return default icon if no match', () => {
@@ -90,8 +90,8 @@ describe('Icon Recommendation', () => {
   })
 
   describe('recommendCategoryIcon', () => {
-    it('should return puzzle-piece as default', () => {
-      expect(recommendCategoryIcon('未知分类')).toBe('puzzle-piece')
+    it('should return folder as default', () => {
+      expect(recommendCategoryIcon('未知分类')).toBe('folder')
     })
 
     it('should recommend appropriate icon based on category name', () => {

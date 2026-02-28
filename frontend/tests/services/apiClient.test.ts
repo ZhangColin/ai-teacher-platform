@@ -124,10 +124,10 @@ describe('ApiService', () => {
       expect(result).toEqual(mockResponse)
       expect(result.reply).toBe('好的，我来帮你打造一个专业的提示词。')
       expect(result.artifacts).toHaveLength(1)
-      expect(mockPost).toHaveBeenCalledWith('/sessions/session-id/chat', {
+      expect(mockPost).toHaveBeenCalledWith('/tools/session-id/chat', {
         message: '我想让 AI 帮我写文案',
         history: [],
-      })
+      }, { timeout: 300000 })
     })
 
     it('应该正确处理包含历史消息的请求', async () => {
@@ -149,7 +149,7 @@ describe('ApiService', () => {
       })
 
       expect(result).toEqual(mockResponse)
-      expect(mockPost).toHaveBeenCalledWith('/sessions/session-id/chat', {
+      expect(mockPost).toHaveBeenCalledWith('/tools/session-id/chat', {
         message: '继续',
         history: [
           {
@@ -157,7 +157,7 @@ describe('ApiService', () => {
             content: '你好！',
           },
         ],
-      })
+      }, { timeout: 300000 })
     })
   })
 })

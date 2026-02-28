@@ -81,7 +81,7 @@ watch(() => props.toolId, (newToolId) => {
 watch(() => props.sessionId, async (newSessionId) => {
   if (newSessionId) {
     // 如果正在流式输出，跳过 restoreSession（避免替换数组导致引用失效）
-    if (sessionStore.loading.value) {
+    if (sessionStore.loading) {
       return;
     }
     try {
