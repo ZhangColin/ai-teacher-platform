@@ -1,105 +1,83 @@
+# -*- coding: utf-8 -*-
 """
-User实体单元测试
+User领域实体单元测试
 """
 import pytest
 from datetime import datetime
 from src.domain.entities.user import User
 
 
+@pytest.mark.unit
 class TestUser:
     """User实体测试类"""
 
-    def test_admin_can_access_all_tools(self):
-        """测试管理员可以访问所有工具"""
-        # Arrange
-        admin = User(
-            id="admin-uuid-1",
-            username="admin",
-            email="admin@example.com",
-            is_admin=True,
-            created_at=datetime.now()
-        )
-
-        # Act & Assert
-        assert admin.can_access_tool("any_tool") is True
-        assert admin.can_access_tool("restricted_tool") is True
-
-    def test_regular_user_can_access_tools(self):
-        """测试普通用户权限检查（当前默认返回True）"""
-        # Arrange
-        user = User(
-            id="user-uuid-2",
-            username="user",
-            email="user@example.com",
-            is_admin=False,
-            created_at=datetime.now()
-        )
-
-        # Act & Assert
-        # 当前实现默认返回True，后续添加权限逻辑
-        assert user.can_access_tool("public_tool") is True
-
-    def test_is_premium_user(self):
-        """测试付费用户检查（当前默认返回False）"""
-        # Arrange
-        user = User(
-            id="user-uuid-3",
-            username="user",
-            email="user@example.com",
-            is_admin=False,
-            created_at=datetime.now()
-        )
-
-        # Act & Assert
-        # 当前实现默认返回False，后续添加付费逻辑
-        assert user.is_premium_user() is False
-
-    def test_create_new_user_factory_method(self):
-        """测试创建新用户的工厂方法"""
-        # Act
-        new_user = User.create_new(
-            username="newuser",
-            email="new@example.com"
-        )
-
-        # Assert
-        assert new_user.username == "newuser"
-        assert new_user.email == "new@example.com"
-        assert new_user.is_admin is False
-        assert new_user.id == "0"  # 数据库生成UUID
-        assert isinstance(new_user.created_at, datetime)
-
-    def test_user_dataclass_attributes(self):
-        """测试User数据类属性"""
-        # Arrange
-        created_at = datetime(2024, 1, 1, 12, 0, 0)
-        user = User(
-            id="test-uuid-1",
+    def test_create_new_user(self):
+        """测试工厂方法创建用户"""
+        user = User.create_new(
             username="testuser",
-            email="test@example.com",
-            is_admin=False,
-            created_at=created_at
+            email="test@example.com"
         )
 
-        # Assert
-        assert user.id == "test-uuid-1"
         assert user.username == "testuser"
         assert user.email == "test@example.com"
         assert user.is_admin is False
-        assert user.created_at == created_at
+        assert isinstance(user.created_at, datetime)
+        assert user.id == "0"  # 数据库生成UUID
 
     def test_create_new_user_with_custom_created_at(self):
-        """测试创建新用户时可以指定创建时间"""
-        # Arrange
-        fixed_time = datetime(2024, 6, 15, 10, 30, 0)
-
-        # Act
-        new_user = User.create_new(
+        """测试使用自定义创建时间创建用户"""
+        custom_time = datetime(2026, 2, 28, 12, 0, 0)
+        user = User.create_new(
             username="testuser",
             email="test@example.com",
-            created_at=fixed_time
+            created_at=custom_time
         )
 
-        # Assert
-        assert new_user.created_at == fixed_time
-        assert isinstance(new_user.created_at, datetime)
+        assert user.created_at == custom_time
+
+    def test_admin_can_access_all_tools(self):
+        """测试管理员可以访问所有工具"""
+        admin = User.create_new("admin", "admin@example.com")
+        admin.is_admin = True
+
+        assert admin.can_access_tool("any-tool") is True
+        assert admin.can_access_tool("restricted-tool") is True
+        assert admin.can_access_tool("admin-only-tool") is True
+
+    def test_normal_user_can_access_tools(self):
+        """测试普通用户可以访问工具（临时实现）"""
+        user = User.create_new("user", "user@example.com")
+
+        # 当前临时实现：普通用户可以访问所有工具
+        assert user.can_access_tool("any-tool") is True
+        assert user.can_access_tool("some-tool") is True
+
+    def test_is_premium_user_returns_false(self):
+        """测试付费用户检查（待实现功能）"""
+        user = User.create_new("user", "user@example.com")
+
+        # TODO: 实现付费用户逻辑
+        assert user.is_premium_user() is False
+
+    def test_admin_is_premium_user_also_false(self):
+        """测试管理员也不是付费用户（待实现功能）"""
+        admin = User.create_new("admin", "admin@example.com")
+        admin.is_admin = True
+
+        # TODO: 实现付费用户逻辑
+        assert admin.is_premium_user() is False
+
+    def test_user_attributes(self):
+        """测试用户属性设置"""
+        user = User(
+            id="123",
+            username="testuser",
+            email="test@example.com",
+            is_admin=False,
+            created_at=datetime.now()
+        )
+
+        assert user.id == "123"
+        assert user.username == "testuser"
+        assert user.email == "test@example.com"
+        assert user.is_admin is False
