@@ -64,6 +64,7 @@ export const useSessionStore = defineStore('session', () => {
       role: 'user',
       content,
       pending: true,
+      created_at: new Date().toISOString(),
     })
     const userMsgIndex = messages.value.length - 1
 
@@ -73,6 +74,7 @@ export const useSessionStore = defineStore('session', () => {
       content: '',
       artifacts: [],
       pending: true, // 标记为加载中
+      created_at: new Date().toISOString(),
     })
     const aiMsgIndex = messages.value.length - 1
 

@@ -19,9 +19,12 @@
       :welcome-message="welcomeMessage"
       :session-id="currentSessionId ?? undefined"
       :conversation-collapsed="conversationListCollapsed"
+      :error="sessionStore.error"
+      :is-loading="sessionStore.loading"
       class="chat-panel"
       :style="showPreview ? { width: chatPanelWidth + 'px' } : {}"
       @send="handleSendMessage"
+      @retry="handleRetry"
       @preview="openPreview"
     />
     
@@ -127,6 +130,12 @@ async function handleSendMessage(content: string) {
   } catch (err) {
     console.error('[ChatArea] Failed to send message:', err)
   }
+}
+
+async function handleRetry() {
+  console.log('[ChatArea] Retry requested')
+  // Clear the error and let the user resend
+  sessionStore.error = null
 }
 
 function openPreview(artifact: Artifact) {
