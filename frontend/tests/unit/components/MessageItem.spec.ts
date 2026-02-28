@@ -142,4 +142,123 @@ describe('MessageItem', () => {
     const avatar = wrapper.find('.avatar-image');
     expect(avatar.attributes('src')).toContain('ai-avatar');
   });
+
+  it('should not show copy button initially', () => {
+    const message: Message = {
+      id: 1,
+      session_id: 1,
+      role: 'user',
+      content: 'test message',
+      created_at: '2024-01-01T12:00:00Z',
+    };
+
+    const wrapper = mount(MessageItem, {
+      props: {
+        message,
+      },
+    });
+
+    expect(wrapper.find('.copy-button').exists()).toBe(false);
+  });
+
+  it('should show copy button on hover', async () => {
+    const message: Message = {
+      id: 1,
+      session_id: 1,
+      role: 'user',
+      content: 'test message',
+      created_at: '2024-01-01T12:00:00Z',
+    };
+
+    const wrapper = mount(MessageItem, {
+      props: {
+        message,
+      },
+    });
+
+    expect(wrapper.find('.copy-button').exists()).toBe(false);
+
+    await wrapper.trigger('mouseenter');
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find('.copy-button').exists()).toBe(true);
+  });
+
+  it('should hide copy button when mouse leaves', async () => {
+    const message: Message = {
+      id: 1,
+      session_id: 1,
+      role: 'user',
+      content: 'test message',
+      created_at: '2024-01-01T12:00:00Z',
+    };
+
+    const wrapper = mount(MessageItem, {
+      props: {
+        message,
+      },
+    });
+
+    await wrapper.trigger('mouseenter');
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find('.copy-button').exists()).toBe(true);
+
+    await wrapper.trigger('mouseleave');
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find('.copy-button').exists()).toBe(false);
+  });
+
+  it('should copy message content when copy button clicked', async () => {
+    const message: Message = {
+      id: 1,
+      session_id: 1,
+      role: 'user',
+      content: 'test message',
+      created_at: '2024-01-01T12:00:00Z',
+    };
+
+    // Mock the clipboard API
+    const mockClipboard = {
+      writeText: vi.fn().mockResolvedValue(undefined),
+    };
+
+    // Store original clipboard
+    const originalClipboard = global.navigator.clipboard;
+
+    // Set mock clipboard
+    Object.defineProperty(global.navigator, 'clipboard', {
+      value: mockClipboard,
+      writable: true,
+      configurable: true,
+    });
+
+    const wrapper = mount(MessageItem, {
+      props: {
+        message,
+      },
+      global: {
+        stubs: {
+          Transition: false,
+        },
+      },
+    });
+
+    await wrapper.trigger('mouseenter');
+    await wrapper.vm.$nextTick();
+
+    await wrapper.find('[data-testid="copy-button"]').trigger('click');
+
+    expect(mockClipboard.writeText).toHaveBeenCalledWith('test message');
+
+    // Restore original clipboard
+    if (originalClipboard) {
+      Object.defineProperty(global.navigator, 'clipboard', {
+        value: originalClipboard,
+        writable: true,
+        configurable: true,
+      });
+    }
+  });
 });

@@ -3,6 +3,8 @@
     class="message-item"
     :class="messageClass"
     data-testid="message-item"
+    @mouseenter="showToolbar = true"
+    @mouseleave="showToolbar = false"
   >
     <div class="message-avatar">
       <img
@@ -23,12 +25,27 @@
         {{ formattedTime }}
       </div>
     </div>
+
+    <Transition name="fade">
+      <div v-if="showToolbar" class="message-toolbar">
+        <button
+          class="copy-button"
+          @click="handleCopy"
+          title="复制"
+          data-testid="copy-button"
+        >
+          <DocumentDuplicateIcon />
+        </button>
+      </div>
+    </Transition>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
+import { DocumentDuplicateIcon } from '@heroicons/vue/24/outline';
 import { renderMarkdown } from '@/utils/markdownRenderer';
+import { useClipboard } from '@/composables/useClipboard';
 import type { Message } from '@/types';
 
 interface Props {
@@ -36,6 +53,9 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+
+const showToolbar = ref(false);
+const { copy } = useClipboard();
 
 const messageClass = computed(() => {
   return `message-${props.message.role}`;
@@ -61,6 +81,10 @@ const formattedTime = computed(() => {
     minute: '2-digit',
   });
 });
+
+async function handleCopy() {
+  await copy(props.message.content);
+}
 </script>
 
 <style scoped>
@@ -69,6 +93,7 @@ const formattedTime = computed(() => {
   gap: 12px;
   margin-bottom: 16px;
   animation: fadeIn 0.3s ease-in;
+  position: relative;
 }
 
 @keyframes fadeIn {
@@ -142,5 +167,53 @@ const formattedTime = computed(() => {
   font-size: 12px;
   color: #999;
   padding: 0 4px;
+}
+
+.message-toolbar {
+  position: absolute;
+  top: -30px;
+  right: 0;
+  display: flex;
+  gap: 4px;
+  z-index: 10;
+}
+
+.message-user .message-toolbar {
+  right: auto;
+  left: 0;
+}
+
+.copy-button {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+  padding: 0;
+}
+
+.copy-button:hover {
+  background: rgba(0, 0, 0, 0.9);
+}
+
+.copy-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>
