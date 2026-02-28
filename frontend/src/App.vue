@@ -1,11 +1,31 @@
 <template>
   <div class="app-container">
     <RouterView />
+    <ToastNotification
+      :show="toast.show"
+      :message="toast.message"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
+import { reactive } from 'vue'
 import { RouterView } from 'vue-router'
+import ToastNotification from '@/components/ToastNotification.vue'
+
+const toast = reactive({
+  show: false,
+  message: ''
+})
+
+// 暴露给全局使用
+;(window as any).__showToast = (message: string) => {
+  toast.message = message
+  toast.show = true
+  setTimeout(() => {
+    toast.show = false
+  }, 2000)
+}
 </script>
 
 <style>

@@ -19,20 +19,17 @@ describe('useClipboard', () => {
     expect(copiedText.value).toBe('test message')
   })
 
-  it('should show success toast', async () => {
-    vi.useFakeTimers()
+  it('should call global toast when copy succeeds', async () => {
+    const showToastSpy = vi.fn()
+    vi.stubGlobal('window', {
+      __showToast: showToastSpy
+    })
 
-    const { copy, showSuccessToast } = useClipboard()
+    const { copy } = useClipboard()
 
     await copy('test')
 
-    expect(showSuccessToast.value).toBe(true)
-
-    // Fast-forward 2 seconds
-    await vi.advanceTimersByTimeAsync(2000)
-    expect(showSuccessToast.value).toBe(false)
-
-    vi.useRealTimers()
+    expect(showToastSpy).toHaveBeenCalledWith('已复制到剪贴板')
   })
 
   describe('error scenarios', () => {
@@ -41,13 +38,12 @@ describe('useClipboard', () => {
       const mockError = new Error('Permission denied')
       vi.mocked(navigator.clipboard.writeText).mockRejectedValueOnce(mockError)
 
-      const { copy, copiedText, showSuccessToast } = useClipboard()
+      const { copy, copiedText } = useClipboard()
 
       const result = await copy('test message')
 
       expect(result).toBe(false)
       expect(copiedText.value).toBe('')
-      expect(showSuccessToast.value).toBe(false)
       expect(consoleErrorSpy).toHaveBeenCalledWith('复制失败:', mockError)
 
       consoleErrorSpy.mockRestore()
@@ -58,13 +54,12 @@ describe('useClipboard', () => {
       // 模拟不支持 clipboard API 的浏览器环境
       vi.stubGlobal('navigator', {})
 
-      const { copy, copiedText, showSuccessToast } = useClipboard()
+      const { copy, copiedText } = useClipboard()
 
       const result = await copy('test message')
 
       expect(result).toBe(false)
       expect(copiedText.value).toBe('')
-      expect(showSuccessToast.value).toBe(false)
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         '剪贴板 API 在当前浏览器中不可用'
       )
@@ -86,13 +81,12 @@ describe('useClipboard', () => {
         clipboard: {}
       })
 
-      const { copy, copiedText, showSuccessToast } = useClipboard()
+      const { copy, copiedText } = useClipboard()
 
       const result = await copy('test message')
 
       expect(result).toBe(false)
       expect(copiedText.value).toBe('')
-      expect(showSuccessToast.value).toBe(false)
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         '剪贴板 API 在当前浏览器中不可用'
       )
@@ -108,25 +102,17 @@ describe('useClipboard', () => {
     })
   })
 
-  describe('memory leak prevention', () => {
-    it('should clear previous timer when copy is called again', async () => {
-      vi.useFakeTimers()
+  describe('integration', () => {
+    it('should work when global toast is not available', async () => {
+      // 模拟没有全局 toast 的情况
+      vi.stubGlobal('window', {})
 
-      const { copy, showSuccessToast } = useClipboard()
+      const { copy } = useClipboard()
 
-      // 第一次复制
-      await copy('first')
-      expect(showSuccessToast.value).toBe(true)
+      // 应该不会抛出错误
+      const result = await copy('test')
 
-      // 在定时器触发前再次复制
-      await copy('second')
-      expect(showSuccessToast.value).toBe(true)
-
-      // 前进 2 秒（应该只清除第二个定时器）
-      await vi.advanceTimersByTimeAsync(2000)
-      expect(showSuccessToast.value).toBe(false)
-
-      vi.useRealTimers()
+      expect(result).toBe(true)
     })
   })
 })

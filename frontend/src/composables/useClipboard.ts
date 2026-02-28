@@ -2,22 +2,10 @@
  * 剪贴板 composable
  * 提供剪贴板复制功能，包含成功提示
  */
-import { ref, onUnmounted, getCurrentInstance } from 'vue'
+import { ref } from 'vue'
 
 export function useClipboard() {
   const copiedText = ref<string>('')
-  const showSuccessToast = ref(false)
-  let toastTimer: ReturnType<typeof setTimeout> | null = null
-
-  /**
-   * 清除之前的定时器
-   */
-  function clearToastTimer() {
-    if (toastTimer !== null) {
-      clearTimeout(toastTimer)
-      toastTimer = null
-    }
-  }
 
   /**
    * 检查剪贴板 API 是否可用
@@ -45,16 +33,12 @@ export function useClipboard() {
     try {
       await navigator.clipboard.writeText(text)
       copiedText.value = text
-      showSuccessToast.value = true
 
-      // 清除之前的定时器，防止内存泄漏
-      clearToastTimer()
-
-      // 设置新的定时器
-      toastTimer = setTimeout(() => {
-        showSuccessToast.value = false
-        toastTimer = null
-      }, 2000)
+      // 使用全局 Toast
+      const showToast = (window as any).__showToast
+      if (showToast) {
+        showToast('已复制到剪贴板')
+      }
 
       return true
     } catch (error) {
@@ -63,21 +47,8 @@ export function useClipboard() {
     }
   }
 
-  // 只在组件实例上下文中注册卸载钩子
-  try {
-    if (getCurrentInstance()) {
-      onUnmounted(() => {
-        clearToastTimer()
-      })
-    }
-  } catch {
-    // 如果没有组件实例上下文，忽略错误
-    // 这可能在测试环境或非组件上下文中使用 composable 时发生
-  }
-
   return {
     copy,
-    copiedText,
-    showSuccessToast
+    copiedText
   }
 }
