@@ -81,12 +81,10 @@ watch(() => props.toolId, (newToolId) => {
 watch(() => props.sessionId, async (newSessionId) => {
   if (newSessionId) {
     // 如果正在流式输出，跳过 restoreSession（避免替换数组导致引用失效）
-    if (sessionStore.loading) {
-      console.log('[ChatPanel] Skipping restoreSession: currently loading');
+    if (sessionStore.loading.value) {
       return;
     }
     try {
-      console.log('[ChatPanel] Restoring session:', newSessionId);
       await sessionStore.restoreSession(newSessionId);
       // 恢复会话后，滚动到底部
       messageListRef.value?.scrollToBottom();
