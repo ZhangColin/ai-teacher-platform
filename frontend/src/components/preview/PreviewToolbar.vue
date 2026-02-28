@@ -19,16 +19,16 @@
       v-if="showMarkdownDownload"
       class="toolbar-btn"
       @click="handleDownloadWord"
-      :disabled="isDownloadingWord"
+      :disabled="props.isDownloadingWord"
       data-testid="btn-download-word"
-      :title="isDownloadingWord ? '正在转换...' : '下载 Word 文档'"
+      :title="props.isDownloadingWord ? '正在转换...' : '下载 Word 文档'"
     >
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
         <polyline points="7 10 12 15 17 10"></polyline>
         <line x1="12" y1="15" x2="12" y2="3"></line>
       </svg>
-      <span class="btn-text">{{ isDownloadingWord ? '转换中...' : 'Word' }}</span>
+      <span class="btn-text">{{ props.isDownloadingWord ? '转换中...' : 'Word' }}</span>
     </button>
 
     <button
@@ -85,10 +85,12 @@ import { computed, ref } from 'vue';
 interface Props {
   artifactType: string;
   isFullscreen?: boolean;
+  isDownloadingWord?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   isFullscreen: false,
+  isDownloadingWord: false,
 });
 
 const emit = defineEmits<{
@@ -98,9 +100,9 @@ const emit = defineEmits<{
   downloadSvg: [];
   toggleFullscreen: [];
   comingSoon: [feature: string];
+  'update:isDownloadingWord': [value: boolean];
 }>();
 
-const isDownloadingWord = ref(false);
 const isDownloadingPDF = ref(false);
 
 const showMarkdownDownload = computed(() => {
@@ -116,6 +118,7 @@ const handleDownloadMarkdown = () => {
 };
 
 const handleDownloadWord = () => {
+  emit('update:isDownloadingWord', true);
   emit('downloadWord');
 };
 

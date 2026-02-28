@@ -3,12 +3,14 @@
     <PreviewToolbar
       :artifact-type="artifact?.type || ''"
       :is-fullscreen="isFullscreen"
+      :is-downloading-word="isDownloadingWord"
       @download-markdown="handleDownloadMarkdown"
       @download-word="handleDownloadWord"
       @download-pdf="handleDownloadPDF"
       @download-svg="handleDownloadSvg"
       @toggle-fullscreen="toggleFullscreen"
       @coming-soon="handleComingSoon"
+      @update:is-downloading-word="val => isDownloadingWord = val"
     />
 
     <!-- 简单的通知提示 -->
@@ -64,6 +66,7 @@ const props = defineProps<Props>();
 const isFullscreen = ref(false);
 const notification = ref('');
 const notificationTimer = ref<number | null>(null);
+const isDownloadingWord = ref(false);
 const { downloadBlob } = useFileDownload();
 
 const isSvgArtifact = (artifact: Artifact | null): boolean => {
@@ -92,6 +95,8 @@ const handleDownloadWord = async () => {
   } catch (error) {
     console.error('Word 下载失败:', error);
     showNotification('Word 文档下载失败，请重试');
+  } finally {
+    isDownloadingWord.value = false;
   }
 };
 

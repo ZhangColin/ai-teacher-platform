@@ -100,4 +100,58 @@ describe('PreviewToolbar', () => {
     const html = wrapper.html();
     expect(html).toContain('M8 3v3'); // 收缩图标路径
   });
+
+  describe('Word Download Loading State', () => {
+    it('should show loading state when isDownloadingWord is true', () => {
+      const wrapper = mount(PreviewToolbar, {
+        props: {
+          artifactType: 'markdown',
+          isDownloadingWord: true,
+        },
+      });
+
+      const wordButton = wrapper.find('[data-testid="btn-download-word"]');
+      expect(wordButton.attributes('disabled')).toBeDefined();
+      expect(wordButton.text()).toContain('转换中...');
+    });
+
+    it('should not show loading state when isDownloadingWord is false', () => {
+      const wrapper = mount(PreviewToolbar, {
+        props: {
+          artifactType: 'markdown',
+          isDownloadingWord: false,
+        },
+      });
+
+      const wordButton = wrapper.find('[data-testid="btn-download-word"]');
+      expect(wordButton.attributes('disabled')).toBeUndefined();
+      expect(wordButton.text()).toContain('Word');
+    });
+
+    it('should emit update:isDownloadingWord when download button clicked', async () => {
+      const wrapper = mount(PreviewToolbar, {
+        props: {
+          artifactType: 'markdown',
+          isDownloadingWord: false,
+        },
+      });
+
+      await wrapper.find('[data-testid="btn-download-word"]').trigger('click');
+
+      expect(wrapper.emitted('update:isDownloadingWord')).toBeTruthy();
+      expect(wrapper.emitted('update:isDownloadingWord')?.[0]).toEqual([true]);
+    });
+
+    it('should emit downloadWord when download button clicked', async () => {
+      const wrapper = mount(PreviewToolbar, {
+        props: {
+          artifactType: 'markdown',
+        },
+      });
+
+      await wrapper.find('[data-testid="btn-download-word"]').trigger('click');
+
+      expect(wrapper.emitted('downloadWord')).toBeTruthy();
+    });
+  });
 });
