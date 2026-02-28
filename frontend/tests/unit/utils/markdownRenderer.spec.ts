@@ -92,4 +92,36 @@ describe('markdownRenderer', () => {
       expect(html).toContain('markdown')
     })
   })
+
+  describe('XSS security', () => {
+    it('should escape HTML in language labels', () => {
+      const markdown = '```<script>alert(1)</script>\nconsole.log("test");\n```'
+      const html = renderMarkdown(markdown)
+
+      // Should not contain unescaped script tags
+      expect(html).not.toContain('<script>alert(1)</script>')
+      // Should contain escaped version (note: & is also escaped to &amp;)
+      expect(html).toContain('&amp;lt;script&amp;gt;alert(1)&amp;lt;/script&amp;gt;')
+    })
+
+    it('should escape HTML in language labels with known language', () => {
+      const markdown = '```javascript<img src=x onerror=alert(1)>\nconsole.log("test");\n```'
+      const html = renderMarkdown(markdown)
+
+      // Should not contain unescaped HTML
+      expect(html).not.toContain('<img src=x')
+      // Should contain escaped version (note: & is also escaped to &amp;)
+      expect(html).toContain('&amp;lt;img')
+    })
+
+    it('should escape complex XSS payloads in language labels', () => {
+      const markdown = '```<svg onload=alert(1)>\nconsole.log("test");\n```'
+      const html = renderMarkdown(markdown)
+
+      // Should not contain unescaped SVG onload
+      expect(html).not.toContain('<svg onload=')
+      // Should contain escaped version (note: & is also escaped to &amp;)
+      expect(html).toContain('&amp;lt;svg')
+    })
+  })
 })

@@ -69,7 +69,7 @@ export function renderMarkdown(content: string, artifacts: Artifact[] = []): str
     // 返回带预览和复制按钮的代码块
     return `<div class="code-block-wrapper">
       <div class="code-block-header">
-        <span class="code-language">${lang}</span>
+        <span class="code-language">${escapeHtml(lang)}</span>
         <div class="code-block-actions">
           <button
             class="preview-button"
