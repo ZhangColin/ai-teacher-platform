@@ -37,3 +37,20 @@ backend/static/
 # Claude 本地配置
 .claude/settings.local.json
 
+# 测试报告和覆盖率
+frontend/test-results/
+frontend/playwright-report/
+backend/.coverage
+backend/htmlcov/
+test-results/
+pytest.ini
+
+# 临时测试脚本（开发调试用）
+backend/test_*.py
+scripts/verify_test_db.sh
+
+# 根目录临时配置
+package.json
+package-lock.json
+node_modules/
+
