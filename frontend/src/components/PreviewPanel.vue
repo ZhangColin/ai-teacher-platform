@@ -88,10 +88,14 @@ const handleDownloadMarkdown = () => {
 };
 
 const handleDownloadWord = async () => {
-  if (!props.artifact?.content || props.artifact.type !== 'markdown') return;
+  if (!props.artifact?.content || props.artifact.type !== 'markdown') {
+    showNotification('Word 导出仅支持 Markdown 内容');
+    return;
+  }
+
+  isDownloadingWord.value = true;
 
   try {
-    // Generate filename from artifact title or use default
     const filename = `document-${Date.now()}.docx`;
     await downloadWord(props.artifact.content, filename);
     showNotification('Word 文档下载成功！');
@@ -104,19 +108,15 @@ const handleDownloadWord = async () => {
 };
 
 const handleDownloadPDF = async () => {
-  if (!props.artifact?.content || props.artifact.type !== 'markdown') return;
+  if (!props.artifact?.content || props.artifact.type !== 'markdown') {
+    showNotification('PDF 导出仅支持 Markdown 内容');
+    return;
+  }
+
+  isDownloadingPDF.value = true;
 
   try {
-    // Find the markdown preview element
     const elementId = 'markdown-preview-content';
-    const element = document.getElementById(elementId);
-
-    if (!element) {
-      showNotification('无法找到要转换的内容');
-      return;
-    }
-
-    // Generate filename from artifact title or use default
     const filename = `document-${Date.now()}.pdf`;
     await downloadPdf(elementId, filename);
     showNotification('PDF 文档下载成功！');
