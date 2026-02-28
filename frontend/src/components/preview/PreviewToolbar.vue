@@ -17,19 +17,18 @@
 
     <button
       v-if="showMarkdownDownload"
-      class="toolbar-btn toolbar-btn-coming-soon"
+      class="toolbar-btn"
       @click="handleDownloadWord"
       :disabled="isDownloadingWord"
       data-testid="btn-download-word"
-      title="Word 导出功能即将推出"
+      :title="isDownloadingWord ? '正在转换...' : '下载 Word 文档'"
     >
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
         <polyline points="7 10 12 15 17 10"></polyline>
         <line x1="12" y1="15" x2="12" y2="3"></line>
       </svg>
-      <span class="btn-text">Word</span>
-      <span class="coming-soon-badge">即将推出</span>
+      <span class="btn-text">{{ isDownloadingWord ? '转换中...' : 'Word' }}</span>
     </button>
 
     <button
@@ -117,7 +116,7 @@ const handleDownloadMarkdown = () => {
 };
 
 const handleDownloadWord = () => {
-  emit('comingSoon', 'Word 导出功能即将推出，敬请期待！');
+  emit('downloadWord');
 };
 
 const handleDownloadPDF = () => {

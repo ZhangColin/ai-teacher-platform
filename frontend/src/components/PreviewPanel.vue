@@ -52,6 +52,7 @@ import HtmlPreview from './preview/HtmlPreview.vue';
 import SvgPreview from './preview/SvgPreview.vue';
 import PreviewToolbar from './preview/PreviewToolbar.vue';
 import { useFileDownload } from '@/composables/useFileDownload';
+import { downloadWord } from '@/utils/documentDownloader';
 import type { Artifact } from '@/types';
 
 interface Props {
@@ -81,7 +82,17 @@ const handleDownloadMarkdown = () => {
 };
 
 const handleDownloadWord = async () => {
-  // 由 PreviewToolbar 触发 comingSoon 事件
+  if (!props.artifact?.content || props.artifact.type !== 'markdown') return;
+
+  try {
+    // Generate filename from artifact title or use default
+    const filename = `document-${Date.now()}.docx`;
+    await downloadWord(props.artifact.content, filename);
+    showNotification('Word 文档下载成功！');
+  } catch (error) {
+    console.error('Word 下载失败:', error);
+    showNotification('Word 文档下载失败，请重试');
+  }
 };
 
 const handleDownloadPDF = async () => {
@@ -89,7 +100,10 @@ const handleDownloadPDF = async () => {
 };
 
 const handleComingSoon = (message: string) => {
-  // 显示通知
+  showNotification(message);
+};
+
+const showNotification = (message: string) => {
   notification.value = message;
 
   // 清除之前的定时器
