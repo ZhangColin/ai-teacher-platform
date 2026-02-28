@@ -28,15 +28,15 @@
       </div>
       
       <!-- 空状态 -->
-      <div v-else-if="conversations.length === 0" class="empty-state">
+      <div v-else-if="!conversations || conversations.length === 0" class="empty-state">
         <span class="empty-text">暂无对话</span>
       </div>
       
       <!-- 对话列表 -->
-      <div
-        v-else
-        v-for="conversation in conversations"
-        :key="conversation.session_id"
+      <template v-else>
+        <div
+          v-for="conversation in (conversations || [])"
+          :key="conversation.session_id"
         :class="['conversation-item', { active: currentConversationId === conversation.session_id }]"
         @mouseenter="hoveredSessionId = conversation.session_id"
         @mouseleave="hoveredSessionId = null"
@@ -70,8 +70,9 @@
           </button>
         </div>
       </div>
+      </template>
     </div>
-    
+
     <!-- 删除确认对话框 -->
     <div v-if="deletingSession" class="delete-confirm-overlay" @click.self="handleCancelDelete">
       <div class="delete-confirm-dialog">
@@ -137,7 +138,13 @@ async function loadConversations() {
 
   try {
     const response = await ApiService.getConversations(props.toolId)
-    conversations.value = response.conversations
+    console.log('[ConversationList] Conversations response:', response)
+    if (!response || !response.conversations) {
+      console.error('[ConversationList] Invalid response:', response)
+      conversations.value = []
+    } else {
+      conversations.value = response.conversations
+    }
   } catch (err) {
     error.value = err instanceof Error ? err.message : '加载对话列表失败'
     console.error('加载对话列表失败:', err)

@@ -124,7 +124,16 @@ async function loadTools() {
     const response = props.toolsetId
       ? await ApiService.getToolsetTools(props.toolsetId)
       : await ApiService.getTools()
-    
+
+    if (!response) {
+      throw new Error('API returned undefined response')
+    }
+
+    if (!response.categories) {
+      console.error('[AIToolSelector] Response missing categories:', response)
+      throw new Error('API response missing categories field')
+    }
+
     categories.value = response.categories
     
     // 如果有工具，默认选中第一个（包括占位工具）
