@@ -1,5 +1,6 @@
 <template>
   <div
+    id="markdown-preview-content"
     class="markdown-preview"
     v-html="renderedHtml"
     data-testid="markdown-preview"

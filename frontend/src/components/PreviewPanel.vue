@@ -4,13 +4,14 @@
       :artifact-type="artifact?.type || ''"
       :is-fullscreen="isFullscreen"
       :is-downloading-word="isDownloadingWord"
+      :is-downloading-pdf="isDownloadingPDF"
       @download-markdown="handleDownloadMarkdown"
       @download-word="handleDownloadWord"
       @download-pdf="handleDownloadPDF"
       @download-svg="handleDownloadSvg"
       @toggle-fullscreen="toggleFullscreen"
-      @coming-soon="handleComingSoon"
       @update:is-downloading-word="val => isDownloadingWord = val"
+      @update:is-downloading-pdf="val => isDownloadingPDF = val"
     />
 
     <!-- 简单的通知提示 -->
@@ -55,6 +56,7 @@ import SvgPreview from './preview/SvgPreview.vue';
 import PreviewToolbar from './preview/PreviewToolbar.vue';
 import { useFileDownload } from '@/composables/useFileDownload';
 import { downloadWord } from '@/utils/documentDownloader';
+import downloadPdf from '@/utils/html2pdfDownloader';
 import type { Artifact } from '@/types';
 
 interface Props {
@@ -67,6 +69,7 @@ const isFullscreen = ref(false);
 const notification = ref('');
 const notificationTimer = ref<number | null>(null);
 const isDownloadingWord = ref(false);
+const isDownloadingPDF = ref(false);
 const { downloadBlob } = useFileDownload();
 
 const isSvgArtifact = (artifact: Artifact | null): boolean => {
@@ -101,12 +104,30 @@ const handleDownloadWord = async () => {
 };
 
 const handleDownloadPDF = async () => {
-  // 由 PreviewToolbar 触发 comingSoon 事件
+  if (!props.artifact?.content || props.artifact.type !== 'markdown') return;
+
+  try {
+    // Find the markdown preview element
+    const elementId = 'markdown-preview-content';
+    const element = document.getElementById(elementId);
+
+    if (!element) {
+      showNotification('无法找到要转换的内容');
+      return;
+    }
+
+    // Generate filename from artifact title or use default
+    const filename = `document-${Date.now()}.pdf`;
+    await downloadPdf(elementId, filename);
+    showNotification('PDF 文档下载成功！');
+  } catch (error) {
+    console.error('PDF 下载失败:', error);
+    showNotification('PDF 文档下载失败，请重试');
+  } finally {
+    isDownloadingPDF.value = false;
+  }
 };
 
-const handleComingSoon = (message: string) => {
-  showNotification(message);
-};
 
 const showNotification = (message: string) => {
   notification.value = message;
