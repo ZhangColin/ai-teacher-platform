@@ -92,21 +92,17 @@ watch(() => props.toolId, (newToolId) => {
 // 监听 sessionStore 的 sessionId 变化（新会话创建）
 watch(() => sessionStore.sessionId, async (newId, oldId) => {
   if (newId && !oldId) {
-    // 新会话创建了，更新当前会话ID
-    currentSessionId.value = newId
-    // 注意：不在这里刷新会话列表，因为此时标题还未生成
-    // 等待标题生成完成后再刷新（在 titleGenerated 变为 true 时）
-  }
-})
+    // 新会话创建了
+    console.log('检测到新会话创建:', newId)
 
-// 监听标题生成完成，然后刷新会话列表
-watch(() => sessionStore.titleGenerated, async (isGenerated) => {
-  if (isGenerated && sessionStore.sessionId) {
-    // 标题生成完成，刷新会话列表
+    // 更新当前会话ID
+    currentSessionId.value = newId
+
+    // 刷新会话列表
     if (conversationListRef.value) {
       await conversationListRef.value.loadConversations()
       // 设置为当前选中的会话
-      conversationListRef.value.setCurrentConversation(sessionStore.sessionId)
+      conversationListRef.value.setCurrentConversation(newId)
     }
   }
 })
