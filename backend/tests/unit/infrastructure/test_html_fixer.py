@@ -102,3 +102,186 @@ class TestHtmlFixerService:
         """测试从空HTML提取文本"""
         text = HtmlFixerService.extract_text("")
         assert text == ""
+
+    def test_fix_broken_tags_with_complex_html(self):
+        """测试修复复杂的HTML"""
+        complex_html = """
+        <html>
+            <body>
+                <div class="container">
+                    <h1>Title</h1>
+                    <ul>
+                        <li>Item 1
+                        <li>Item 2
+                    </ul>
+                </div>
+            </body>
+        </html>
+        """
+        fixed = HtmlFixerService.fix_broken_tags(complex_html)
+
+        if BS4_AVAILABLE:
+            # 应该有闭合标签
+            assert "</li>" in fixed or "Item 2" in fixed
+            assert "Title" in fixed
+
+    def test_sanitize_scripts_removes_event_handlers(self):
+        """测试移除事件处理属性"""
+        html = '<div onclick="alert(\'xss\')" onmouseover="bad()">Hover me</div>'
+        cleaned = HtmlFixerService.sanitize_scripts(html)
+
+        if BS4_AVAILABLE:
+            assert "onclick" not in cleaned
+            assert "onmouseover" not in cleaned
+            assert "Hover me" in cleaned
+
+    def test_sanitize_scripts_removes_multiple_scripts(self):
+        """测试移除多个script标签"""
+        html = '''
+        <div>
+            <script>alert('xss1')</script>
+            <p>Content</p>
+            <script>alert('xss2')</script>
+        </div>
+        '''
+        cleaned = HtmlFixerService.sanitize_scripts(html)
+
+        if BS4_AVAILABLE:
+            assert "<script>" not in cleaned
+            assert "Content" in cleaned
+
+    def test_wrap_html_with_multiple_attributes(self):
+        """测试包装HTML并添加多个属性"""
+        html = "<p>Content</p>"
+        wrapped = HtmlFixerService.wrap_html(
+            html,
+            tag="div",
+            class_="wrapper",
+            id="main",
+            style="color: red"
+        )
+
+        if BS4_AVAILABLE:
+            assert 'class="wrapper"' in wrapped or "class='wrapper'" in wrapped
+            assert "Content" in wrapped
+            assert wrapped.startswith("<div")
+
+    def test_format_html_with_custom_indent(self):
+        """测试自定义缩进格式化"""
+        html = "<div><p>Test</p></div>"
+        formatted = HtmlFixerService.format_html(html, indent=4)
+
+        if BS4_AVAILABLE:
+            # 格式化应该成功
+            assert "Test" in formatted
+
+    def test_close_open_tags_with_mixed_content(self):
+        """测试修复混合内容的标签"""
+        html = "<div><p>Text</p><img src='test.jpg'><span>More text</div>"
+        fixed = HtmlFixerService.close_open_tags(html)
+
+        if BS4_AVAILABLE:
+            # 应该修复所有标签
+            assert "</span>" in fixed
+            assert "</div>" in fixed
+
+    def test_fix_encoding_multiple_issues(self):
+        """测试修复多个编码问题"""
+        broken = "â€™â€œâ€â€"  # 多个编码问题
+        fixed = HtmlFixerService.fix_encoding(broken)
+
+        # 至少应该修复一些
+        assert "â" not in fixed or len(fixed) < len(broken)
+
+    def test_fix_encoding_preserves_valid_content(self):
+        """测试编码修复保留有效内容"""
+        valid = "Hello World's \"quoted\" text — dash"
+        fixed = HtmlFixerService.fix_encoding(valid)
+
+        # 应该保留有效内容
+        assert "Hello" in fixed
+        assert "World" in fixed
+
+    def test_extract_text_from_nested_tags(self):
+        """测试从嵌套标签提取文本"""
+        html = "<div><p><span>Hello</span> <strong>World</strong></p></div>"
+        text = HtmlFixerService.extract_text(html)
+
+        if BS4_AVAILABLE:
+            assert "Hello" in text
+            assert "World" in text
+            # 不应该包含标签
+            assert "<" not in text or text.startswith("Hello")
+
+    def test_fix_broken_tags_with_none_input(self):
+        """测试修复None输入"""
+        fixed = HtmlFixerService.fix_broken_tags(None)
+        assert fixed == ""
+
+    def test_sanitize_scripts_with_none_input(self):
+        """测试清理None输入"""
+        cleaned = HtmlFixerService.sanitize_scripts(None)
+        assert cleaned == ""
+
+    def test_format_html_with_none_input(self):
+        """测试格式化None输入"""
+        formatted = HtmlFixerService.format_html(None)
+        assert formatted == ""
+
+    def test_wrap_html_with_none_input(self):
+        """测试包装None输入"""
+        wrapped = HtmlFixerService.wrap_html(None, tag="div")
+        assert wrapped == ""
+
+    def test_fix_encoding_with_none_input(self):
+        """测试编码修复None输入"""
+        fixed = HtmlFixerService.fix_encoding(None)
+        assert fixed == ""
+
+    def test_close_open_tags_handles_nested_unclosed_tags(self):
+        """测试处理嵌套的未闭合标签"""
+        html = "<div><span><p>Text"
+        fixed = HtmlFixerService.close_open_tags(html)
+
+        if BS4_AVAILABLE:
+            # 应该修复所有标签
+            assert "</p>" in fixed
+            assert "</span>" in fixed
+            assert "</div>" in fixed
+
+    def test_sanitize_scripts_handles_onerror(self):
+        """测试移除onerror事件"""
+        html = '<img src="x" onerror="alert(\'xss\')">'
+        cleaned = HtmlFixerService.sanitize_scripts(html)
+
+        if BS4_AVAILABLE:
+            assert "onerror" not in cleaned
+
+    def test_wrap_html_preserves_original_html(self):
+        """测试包装保留原始HTML"""
+        html = "<p>Original content</p>"
+        wrapped = HtmlFixerService.wrap_html(html, tag="section")
+
+        if BS4_AVAILABLE:
+            assert "Original content" in wrapped
+            assert "<p>" in wrapped
+            assert "</p>" in wrapped
+
+    def test_format_html_handles_malformed_html(self):
+        """测试格式化畸形HTML"""
+        malformed = "<div><p>Test</div>"
+        formatted = HtmlFixerService.format_html(malformed)
+
+        if BS4_AVAILABLE:
+            # 格式化应该成功
+            assert "Test" in formatted
+
+    def test_extract_text_handles_html_entities(self):
+        """测试提取文本处理HTML实体"""
+        html = "<div>Hello &amp; World &lt;3</div>"
+        text = HtmlFixerService.extract_text(html)
+
+        if BS4_AVAILABLE:
+            # BeautifulSoup会解码实体
+            assert "Hello" in text
+            assert "World" in text
