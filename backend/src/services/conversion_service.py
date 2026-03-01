@@ -2,6 +2,7 @@
 import subprocess
 import tempfile
 import os
+import re
 from pathlib import Path
 from datetime import datetime
 from typing import Optional
@@ -9,11 +10,35 @@ from typing import Optional
 
 class ConversionService:
     """文档转换服务类"""
-    
+
     def __init__(self):
         """初始化转换服务"""
         # 检查 pandoc 是否可用
         self._check_pandoc_available()
+
+    @staticmethod
+    def _preprocess_markdown(markdown_content: str) -> str:
+        """
+        预处理 Markdown 内容，修复答案格式
+
+        在列表项中的"答案"和"解析"之间添加空行，
+        确保 pandoc 能正确转换为换行
+
+        Args:
+            markdown_content: 原始 Markdown 内容
+
+        Returns:
+            str: 处理后的 Markdown 内容
+        """
+        # 在答案和解析之间添加空行（两个换行符）
+        # 匹配模式：**答案**：...换行...缩进...**解析**：
+        processed = re.sub(
+            r'(\*\*答案\*\*：[^\n]*)\n(\s+)(\*\*解析\*\*：)',
+            r'\1\n\n\3',
+            markdown_content
+        )
+
+        return processed
     
     def _check_pandoc_available(self) -> bool:
         """
@@ -64,7 +89,10 @@ class ConversionService:
         """
         if not markdown_content or not markdown_content.strip():
             raise ValueError("Markdown 内容不能为空")
-        
+
+        # 预处理 Markdown 内容，修复答案格式
+        markdown_content = self._preprocess_markdown(markdown_content)
+
         # 生成文件名
         if not filename:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
