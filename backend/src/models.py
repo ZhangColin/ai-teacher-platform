@@ -3,7 +3,7 @@ import uuid
 import bcrypt
 import logging
 from datetime import datetime
-from typing import List, Optional, Literal, Union
+from typing import List, Optional, Literal
 from pydantic import BaseModel, Field, ConfigDict
 
 logger = logging.getLogger(__name__)

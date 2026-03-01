@@ -8,6 +8,6 @@ icon: chat-bubble-left
 type: normal
 order: 1
 system_prompt: 你是一个AI助手
-welcome_message: |-
+welcome_message: |
   欢迎使用文本生成工具
 model: deepseek:deepseek-chat

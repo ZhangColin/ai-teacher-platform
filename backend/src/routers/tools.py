@@ -151,46 +151,9 @@ async def get_toolset_tools(
     return ToolListResponse(categories=categories)
 
 
-@router.get("/common-tools", response_model=ToolListResponse)
-async def get_common_tools(current_user: Annotated[UserInfo, Depends(get_current_user)] = None):
-    """获取常用工具列表（兼容旧接口）"""
-    tool_service = get_tool_service()
-    # 加载所有工具（只返回 visible=true 的工具）
-    tools = tool_service.load_all_tools()
-
-    # 按 category 聚合
-    category_groups = tool_service.group_by_category(tools)
-
-    # 转换为 API 响应格式
-    categories = []
-    for group in category_groups:
-        tool_items = [
-            ToolListItem(
-                tool_id=tool.tool_id,
-                name=tool.name,
-                description=tool.description,
-                icon=tool.icon,
-                category=tool.category,
-                visible=tool.visible,
-                type=tool.type,
-                welcome_message=tool.welcome_message,
-                toolset_id=tool.toolset_id,
-                content_type=tool.content_type,
-                media_type=tool.media_type
-            )
-            for tool in group['tools']
-        ]
-
-        categories.append(
-            CategoryGroup(
-                name=group['name'],
-                icon=group['icon'],
-                tools=tool_items
-            )
-        )
-
-    return ToolListResponse(categories=categories)
-
+# 已删除废弃端点: GET /common-tools
+# 前端现在使用 /common-tools/categories 和 /common-tools/tools/{tool_id} (routers/common.py)
+# 删除日期: 2026-03-01
 
 @router.get("/tools/{tool_id}/chat")
 async def get_tool_chat_info(
@@ -617,6 +580,11 @@ async def delete_conversation(
 
 
 # ==================== 多模态生成接口 ====================
+# TODO: 将此端点迁移到 interfaces/routers/tools/media.py
+# 原因：完成DDD架构迁移，保持新旧架构分离
+# 复杂度：高（~250行代码，涉及同步/异步模式、会话管理、任务状态）
+# 优先级：中（端点工作正常，无紧急迁移需求）
+# 创建日期: 2026-03-01
 
 @router.post("/tools/{tool_id}/generate-media", response_model=MediaGenerateResponse)
 async def generate_media(
@@ -639,17 +607,6 @@ async def generate_media(
         包含task_id的响应，客户端需要轮询查询生成结果
     """
     try:
-        # 使用print确保输出
-        print("\n" + "="*50)
-        print("【后端接收到的参数】")
-        print(f"工具ID: {tool_id}")
-        print(f"提示词: {media_request.message[:100]}")
-        print(f"size: {media_request.size} (类型: {type(media_request.size).__name__})")
-        print(f"count: {media_request.count} (类型: {type(media_request.count).__name__})")
-        print(f"style: {media_request.style} (类型: {type(media_request.style).__name__})")
-        print(f"session_id: {media_request.session_id}")
-        print("="*50 + "\n")
-
         logger.info(f"收到多模态生成请求 - 工具: {tool_id}, size={media_request.size}, count={media_request.count}, style={media_request.style}")
 
         tool_service = get_tool_service()
@@ -721,25 +678,14 @@ async def generate_media(
                     style=media_request.style
                 )
 
-                print("\n" + "*"*50)
-                print("【tools.py 处理GLM结果】")
-                print(f"GLM返回: {glm_result}")
-                print("*"*50 + "\n")
-
                 logger.info(f"GLM返回结果: {glm_result}")
 
                 # 检查GLM是同步还是异步返回
                 if glm_result.get("mode") == "sync":
                     # 同步模式：GLM直接返回了图片
-                    print(f"✓ 同步模式处理")
-
                     # 提取图片URLs
                     image_data = glm_result.get("data", [])
-                    print(f"  image_data: {image_data}")
-
                     media_urls = [img.get("url") for img in image_data if img.get("url")]
-                    print(f"  提取到的URLs: {media_urls}")
-                    print(f"  图片数量: {len(media_urls)}")
 
                     logger.info(f"获取到 {len(media_urls)} 张图片")
 
@@ -827,28 +773,16 @@ async def generate_media(
                     voice=media_request.voice if hasattr(media_request, 'voice') else None
                 )
 
-                print("\n" + "*"*50)
-                print("【tools.py 处理GLM音频结果】")
-                print(f"GLM返回: {glm_result}")
-                print("*"*50 + "\n")
-
                 logger.info(f"GLM返回结果: {glm_result}")
 
                 # GLM-TTS是同步返回
                 if glm_result.get("mode") == "sync":
-                    print(f"✓ 同步模式处理")
-
                     # 提取音频URLs
                     audio_data = glm_result.get("data", [])
-                    print(f"  audio_data: {audio_data}")
-
                     media_urls = [audio.get("url") for audio in audio_data if audio.get("url")]
 
                     # 将相对URL转换为绝对URL（确保前端可以正确访问）
                     media_urls = [make_absolute_url(url, http_request) for url in media_urls]
-
-                    print(f"  提取到的URLs: {media_urls}")
-                    print(f"  音频数量: {len(media_urls)}")
 
                     logger.info(f"获取到 {len(media_urls)} 个音频")
 
@@ -915,17 +849,10 @@ async def generate_media(
                     with_audio=media_request.with_audio if hasattr(media_request, 'with_audio') else False
                 )
 
-                print("\n" + "*"*50)
-                print("【tools.py 处理GLM视频结果】")
-                print(f"GLM返回: {glm_result}")
-                print("*"*50 + "\n")
-
                 logger.info(f"GLM返回结果: {glm_result}")
 
                 # CogVideoX是异步返回，需要轮询
                 if glm_result.get("mode") == "async":
-                    print(f"✓ 异步模式处理")
-
                     async_result = glm_result.get("result", {})
                     glm_task_id = async_result.get("id") or async_result.get("task_id")
 

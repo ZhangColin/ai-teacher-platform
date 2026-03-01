@@ -102,3 +102,13 @@ frontend/node_modules/.cache/
 backend/.pytest_cache/
 # 测试工具配置（自动生成，不需要提交）
 backend/configs/tools/test_tools/
+
+# 前端覆盖率报告
+frontend/coverage/
+
+# Windows系统文件
+Thumbs.db
+Thumbs.db:encryptable
+
+# 异常目录模式（测试错误创建的）
+ov=*/

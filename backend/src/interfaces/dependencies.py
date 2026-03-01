@@ -19,7 +19,7 @@ from src.routers.dependencies import (
     get_artifact_parser,
     get_title_generator,
 )
-from src.routers.auth import get_current_user
+from src.interfaces.auth import get_current_user
 
 # Export all dependencies for use in interfaces layer routes
 __all__ = [

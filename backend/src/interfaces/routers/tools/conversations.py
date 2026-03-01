@@ -6,11 +6,10 @@
 """
 import logging
 from fastapi import APIRouter, Depends, HTTPException
-from src.models import ConversationListResponse, Message
+from src.models import ConversationListResponse, Message, UserInfo
 from src.interfaces.dependencies import get_session_service, get_current_user
 from src.services.session_service import SessionService
 from typing import Annotated, List
-from src.routers.auth import UserInfo
 
 logger = logging.getLogger(__name__)
 

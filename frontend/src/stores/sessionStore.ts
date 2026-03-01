@@ -23,7 +23,6 @@ export const useSessionStore = defineStore('session', () => {
    * 初始化工具（不创建会话，仅设置工具ID）
    */
   function initTool(toolIdParam: string) {
-    console.log('[sessionStore] initTool called with:', toolIdParam)
 
     // 验证参数：拒绝空字符串、null、undefined
     if (!toolIdParam || toolIdParam.trim() === '') {
@@ -39,12 +38,10 @@ export const useSessionStore = defineStore('session', () => {
 
     // 如果 toolId 相同且 messages 不为空，不需要重新初始化
     if (toolId.value === toolIdParam && messages.value.length > 0) {
-      console.log('[sessionStore] Tool already initialized, skipping')
       return
     }
 
     toolId.value = toolIdParam
-    console.log('[sessionStore] Tool ID set to:', toolId.value)
     // 不创建会话，等待用户发送第一条消息
     sessionId.value = null
     messages.value = []
@@ -210,7 +207,6 @@ export const useSessionStore = defineStore('session', () => {
       // 这防止API返回null/undefined/空字符串导致toolId被清空
       if (response.tool_id && response.tool_id.trim() !== '') {
         toolId.value = response.tool_id
-        console.log('[sessionStore] Tool ID updated from restoreSession:', toolId.value)
       } else {
         console.warn('[sessionStore] Invalid tool_id from API, preserving existing toolId:', {
           apiToolId: response.tool_id,
@@ -273,7 +269,6 @@ export const useSessionStore = defineStore('session', () => {
     currentPreviewArtifact.value = null
     error.value = null
 
-    console.log('[sessionStore] Session cleared, toolId preserved:', toolId.value)
   }
 
   /**
@@ -287,7 +282,6 @@ export const useSessionStore = defineStore('session', () => {
     error.value = null
     loading.value = false
 
-    console.log('[sessionStore] State fully reset, toolId cleared')
   }
 
   return {

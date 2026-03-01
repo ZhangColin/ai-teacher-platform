@@ -6,7 +6,7 @@ from sqlalchemy import asc
 from ..database import SessionLocal
 from ..db_models import WorkCategoryModel, WorkModel
 from ..models import (
-    WorkCategory, Work, WorkListItem, 
+    WorkListItem, 
     WorkCategoryGroup, WorkCategoryResponse, WorkDetail,
     AdminWorkListItem, AdminWorkListResponse,
     UpdateWorkRequest,

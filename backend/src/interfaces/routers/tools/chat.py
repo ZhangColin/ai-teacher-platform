@@ -8,7 +8,7 @@ import logging
 import json
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from src.models import ChatRequest, ChatResponse, Message, Artifact
+from src.models import ChatRequest, ChatResponse, Message, Artifact, UserInfo
 from src.interfaces.dependencies import (
     get_ai_service,
     get_session_service,
@@ -20,7 +20,7 @@ from src.services.ai_service import AIService
 from src.services.session_service import SessionService
 from src.services.tool_service import ToolService
 from typing import Annotated
-from src.routers.auth import get_current_user, UserInfo
+from src.interfaces.auth import get_current_user
 
 logger = logging.getLogger(__name__)
 
