@@ -165,6 +165,87 @@ End of section.`
     })
   })
 
+  describe('Answer format preservation', () => {
+    it('should handle empty answer field correctly', () => {
+      const markdown = `1. **答案**：
+   **解析**：根据题意，我们可以得到两个方程：
+   $$\\begin{cases}
+   2m + n = 5 \\\\\\
+   4m + n = 9
+   \\end{cases}$$`
+
+      const html = renderMarkdown(markdown)
+
+      // Should contain both Answer and Analysis labels
+      expect(html).toContain('答案')
+      expect(html).toContain('解析')
+
+      // Should contain the formula
+      expect(html).toContain('begin{cases}')
+
+      // DEBUG: 打印 HTML 结构
+      console.log('=== 空答案字段的 HTML ===')
+      console.log(html)
+    })
+
+    it('should handle answer with content correctly', () => {
+      const markdown = `2. **答案**：CD的长度为2。
+   **解析**：由于 $AB = AC = 6$ 和 $\\angle A = 60°$，我们可以知道。`
+
+      const html = renderMarkdown(markdown)
+
+      // Should contain both Answer and Analysis labels
+      expect(html).toContain('答案')
+      expect(html).toContain('解析')
+
+      // Should contain the answer value
+      expect(html).toContain('CD的长度为2')
+
+      // DEBUG: 打印 HTML 结构
+      console.log('=== 有内容答案的 HTML ===')
+      console.log(html)
+    })
+
+    it('should preserve list numbers', () => {
+      const markdown = `1. **答案**：B
+   **解析**：将点代入得到方程组：
+   $$\\begin{cases}
+   k + b = 3 \\\\\\
+   -k + b = -1
+   \\end{cases}$$`
+
+      const html = renderMarkdown(markdown)
+
+      // Should contain list elements
+      expect(html).toContain('<ol>')
+      expect(html).toContain('<li>')
+
+      // DEBUG: 打印 HTML 结构
+      console.log('=== 列表 HTML ===')
+      console.log(html)
+    })
+
+    it('should handle line breaks in list items', () => {
+      const markdown = `1. **答案**：B
+   **解析**：这是解析内容。`
+
+      const html = renderMarkdown(markdown)
+
+      // Should contain proper HTML structure
+      expect(html).toContain('<strong>答案</strong>')
+      expect(html).toContain('<strong>解析</strong>')
+
+      // Should contain <br> tag for line break
+      expect(html).toContain('<br>')
+
+      // DEBUG: 检查换行
+      console.log('=== 换行测试 HTML ===')
+      console.log(html)
+      console.log('是否包含 <br>:', html.includes('<br'))
+      console.log('是否包含多个 <p>:', (html.match(/<p>/g) || []).length)
+    })
+  })
+
   describe('XSS security', () => {
     it('should escape HTML in language labels', () => {
       const markdown = '```<script>alert(1)</script>\nconsole.log("test");\n```'

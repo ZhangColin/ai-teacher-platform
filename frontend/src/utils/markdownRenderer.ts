@@ -74,6 +74,14 @@ export function renderMarkdown(content: string, artifacts: Artifact[] = []): str
     console.warn('[markdownRenderer] 内容包含 $ 但渲染后没有 katex 类')
   }
 
+  // 【答案格式优化】在列表项中的答案和解析之间添加换行
+  // 匹配模式：<li><strong>答案</strong>：...换行...<strong>解析</strong>：
+  // 在 </strong>： 和下一个 <strong> 之间插入 <br>
+  html = html.replace(
+    /(<strong>答案<\/strong>：.*?)\n(<strong>解析<\/strong>：)/g,
+    '$1<br>\n$2'
+  )
+
   // 匹配所有代码块的正则表达式
   const codeBlockRegex = /<pre><code(?:\s+class="language-([^"]+)")?>([\s\S]*?)<\/code><\/pre>/gi
 
