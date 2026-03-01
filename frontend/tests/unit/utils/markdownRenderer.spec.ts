@@ -165,6 +165,39 @@ End of section.`
     })
   })
 
+  describe('AI generated markdown format', () => {
+    it('should handle answer on separate line from label', () => {
+      // 这是 AI 实际生成的格式
+      const markdown = `1. **答案**：
+   **解析**：根据题意，我们可以得到两个方程：`
+
+      const html = renderMarkdown(markdown)
+
+      console.log('=== AI 格式测试 HTML ===')
+      console.log(html)
+
+      // Should contain line break
+      expect(html).toContain('<br>')
+
+      // Should preserve both labels
+      expect(html).toContain('答案')
+      expect(html).toContain('解析')
+    })
+
+    it('should handle multi-line answer content', () => {
+      const markdown = `1. **答案**：B
+   **解析**：这是解析内容。`
+
+      const html = renderMarkdown(markdown)
+
+      console.log('=== 多行答案 HTML ===')
+      console.log(html)
+
+      // Should contain line break
+      expect(html).toContain('<br>')
+    })
+  })
+
   describe('Answer format preservation', () => {
     it('should handle empty answer field correctly', () => {
       const markdown = `1. **答案**：

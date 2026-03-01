@@ -83,10 +83,23 @@
   padding-left: 32px;
 }
 
+/* 确保列表显示编号 */
+.markdown-content ol {
+  list-style: decimal;
+  list-style-position: outside;
+}
+
+.markdown-content ul {
+  list-style: disc;
+  list-style-position: outside;
+}
+
 .markdown-content li {
   margin: 8px 0;
   color: #374151;
   line-height: 1.6;
+  /* 确保列表项显示列表样式 */
+  display: list-item;
 }
 
 .markdown-content li > p {
