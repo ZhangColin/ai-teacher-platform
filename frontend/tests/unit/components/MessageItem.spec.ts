@@ -158,7 +158,8 @@ describe('MessageItem', () => {
       },
     });
 
-    expect(wrapper.find('.copy-button').exists()).toBe(false);
+    // toolbar 不应该有 toolbar-visible 类
+    expect(wrapper.find('.message-toolbar').classes()).not.toContain('toolbar-visible');
   });
 
   it('should show copy button on hover', async () => {
@@ -176,12 +177,14 @@ describe('MessageItem', () => {
       },
     });
 
-    expect(wrapper.find('.copy-button').exists()).toBe(false);
+    // 初始状态不应该有 toolbar-visible 类
+    expect(wrapper.find('.message-toolbar').classes()).not.toContain('toolbar-visible');
 
     await wrapper.trigger('mouseenter');
     await wrapper.vm.$nextTick();
 
-    expect(wrapper.find('.copy-button').exists()).toBe(true);
+    // hover 后 toolbar 应该有 toolbar-visible 类
+    expect(wrapper.find('.message-toolbar').classes()).toContain('toolbar-visible');
   });
 
   it('should hide copy button when mouse leaves', async () => {
@@ -202,12 +205,14 @@ describe('MessageItem', () => {
     await wrapper.trigger('mouseenter');
     await wrapper.vm.$nextTick();
 
-    expect(wrapper.find('.copy-button').exists()).toBe(true);
+    // hover 后 toolbar 应该有 toolbar-visible 类
+    expect(wrapper.find('.message-toolbar').classes()).toContain('toolbar-visible');
 
     await wrapper.trigger('mouseleave');
     await wrapper.vm.$nextTick();
 
-    expect(wrapper.find('.copy-button').exists()).toBe(false);
+    // mouseleave 后 toolbar 不应该有 toolbar-visible 类
+    expect(wrapper.find('.message-toolbar').classes()).not.toContain('toolbar-visible');
   });
 
   it('should copy message content when copy button clicked', async () => {

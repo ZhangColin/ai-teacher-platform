@@ -3,7 +3,7 @@
     <div class="user-avatar" @click="toggleDropdown">
       <span class="avatar-text">{{ userInitial }}</span>
     </div>
-    <span class="user-name">{{ displayName }}</span>
+    <span class="user-name cursor-pointer hover:text-primary-600 transition-colors" @click="toggleDropdown">{{ displayName }}</span>
     
     <!-- 下拉菜单 -->
     <div v-if="showDropdown" class="dropdown-menu">

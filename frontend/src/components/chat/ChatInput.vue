@@ -9,6 +9,8 @@
       :disabled="disabled"
       @keydown="handleKeydown"
       @input="handleInput"
+      @compositionstart="handleCompositionStart"
+      @compositionend="handleCompositionEnd"
       data-testid="chat-input"
     />
 
@@ -58,6 +60,8 @@ const emit = defineEmits<{
 
 const inputContent = ref('');
 const textareaRef = ref<HTMLTextAreaElement>();
+// 标记是否正在使用输入法组合（中文输入法等）
+const isComposing = ref(false);
 
 const canSend = computed(() => {
   return !props.disabled && !props.isLoading && inputContent.value.trim().length > 0;
@@ -78,10 +82,21 @@ const handleInput = () => {
 
 const handleKeydown = (event: KeyboardEvent) => {
   // Enter发送，Shift+Enter换行
-  if (event.key === 'Enter' && !event.shiftKey) {
+  // 重要：在输入法组合期间，Enter不应该发送消息（而是用来选择候选词）
+  if (event.key === 'Enter' && !event.shiftKey && !isComposing.value) {
     event.preventDefault();
     handleSend();
   }
+};
+
+// 输入法组合开始
+const handleCompositionStart = () => {
+  isComposing.value = true;
+};
+
+// 输入法组合结束
+const handleCompositionEnd = () => {
+  isComposing.value = false;
 };
 
 const handleSend = () => {

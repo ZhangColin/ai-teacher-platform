@@ -1,10 +1,10 @@
 <template>
   <div class="html-preview-wrapper">
     <iframe
-      v-if="sanitizedHtml"
-      :srcdoc="sanitizedHtml"
+      v-if="blobUrl"
+      :src="blobUrl"
       class="html-preview-iframe"
-      sandbox="allow-scripts allow-same-origin"
+      sandbox="allow-scripts allow-same-origin allow-forms allow-modals"
       data-testid="html-preview-iframe"
     />
     <div v-else class="html-preview-empty" data-testid="html-preview-empty">
@@ -14,8 +14,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import DOMPurify from 'dompurify';
+import { ref, watch, onBeforeUnmount } from 'vue';
 
 interface Props {
   content: string;
@@ -23,22 +22,36 @@ interface Props {
 
 const props = defineProps<Props>();
 
-const sanitizedHtml = computed(() => {
-  if (!props.content) return '';
+const blobUrl = ref<string | null>(null);
 
-  // 使用DOMPurify清理HTML，防止XSS攻击
-  return DOMPurify.sanitize(props.content, {
-    // 允许的标签
-    ALLOWED_TAGS: [
-      'a', 'b', 'br', 'div', 'em', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-      'hr', 'i', 'img', 'li', 'ol', 'p', 'span', 'strong', 'ul',
-      'table', 'thead', 'tbody', 'tr', 'td', 'th',
-    ],
-    // 允许的属性
-    ALLOWED_ATTR: ['href', 'src', 'alt', 'class', 'id', 'style'],
-    // 允许的URI协议
-    ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
-  });
+// 清理之前的 Blob URL
+const cleanupBlob = () => {
+  if (blobUrl.value) {
+    URL.revokeObjectURL(blobUrl.value);
+    blobUrl.value = null;
+  }
+};
+
+// 监听内容变化，创建新的 Blob URL
+watch(
+  () => props.content,
+  (newContent) => {
+    cleanupBlob();
+
+    if (!newContent) {
+      return;
+    }
+
+    // 创建 Blob 并生成 URL
+    const blob = new Blob([newContent], { type: 'text/html' });
+    blobUrl.value = URL.createObjectURL(blob);
+  },
+  { immediate: true }
+);
+
+// 组件卸载时清理
+onBeforeUnmount(() => {
+  cleanupBlob();
 });
 </script>
 

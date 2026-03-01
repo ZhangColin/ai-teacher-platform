@@ -39,7 +39,7 @@ describe('downloadWord', () => {
     expect(fetch).toHaveBeenCalledWith('/api/v1/convert/markdown-to-word', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ markdown: '# Test\n\nThis is a test.' })
+      body: JSON.stringify({ content: '# Test\n\nThis is a test.' })
     })
     expect(createElementSpy).toHaveBeenCalledWith('a')
     expect(mockAnchor.href).toBe(mockUrl)
@@ -177,20 +177,21 @@ describe('downloadPdf', () => {
     await downloadPdfModule.default('pdf-content', 'test-document.pdf')
 
     // Verify the PDF was generated with correct options
-    expect(mockSet).toHaveBeenCalledWith(
-      expect.objectContaining({
-        filename: 'test-document.pdf',
-        html2canvas: expect.objectContaining({
-          scale: 2,
-          useCORS: true
-        }),
-        jsPDF: expect.objectContaining({
-          unit: 'mm',
-          format: 'a4',
-          orientation: 'portrait'
-        })
-      })
-    )
+    expect(mockSet).toHaveBeenCalledWith({
+      margin: 10,
+      filename: 'test-document.pdf',
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: {
+        scale: 2,
+        useCORS: true,
+        logging: true
+      },
+      jsPDF: {
+        unit: 'mm',
+        format: 'a4',
+        orientation: 'portrait'
+      }
+    })
     expect(mockFrom).toHaveBeenCalledWith(mockElement)
     expect(mockSave).toHaveBeenCalled()
 
@@ -258,7 +259,7 @@ describe('downloadPdf', () => {
     const downloadPdfModule = await import('@/utils/html2pdfDownloader')
     await expect(downloadPdfModule.default('pdf-content-error')).rejects.toThrow('PDF generation failed')
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith('PDF 下载失败:', mockError)
+    expect(consoleErrorSpy).toHaveBeenCalledWith('[PDF Download] PDF 下载失败:', mockError)
 
     consoleErrorSpy.mockRestore()
     document.body.removeChild(mockElement)
@@ -286,17 +287,21 @@ describe('downloadPdf', () => {
     await downloadPdfModule.default('pdf-content-quality')
 
     // Verify high quality settings
-    expect(mockSet).toHaveBeenCalledWith(
-      expect.objectContaining({
-        margin: 10,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: {
-          scale: 2,
-          useCORS: true,
-          logging: false
-        }
-      })
-    )
+    expect(mockSet).toHaveBeenCalledWith({
+      margin: 10,
+      filename: 'document.pdf',
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: {
+        scale: 2,
+        useCORS: true,
+        logging: true
+      },
+      jsPDF: {
+        unit: 'mm',
+        format: 'a4',
+        orientation: 'portrait'
+      }
+    })
 
     document.body.removeChild(mockElement)
   })

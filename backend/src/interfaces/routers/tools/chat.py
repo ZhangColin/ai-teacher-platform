@@ -101,6 +101,13 @@ async def chat_stream(
         # 获取流式响应
         async def generate():
             try:
+                # 首先发送 session_id 事件（如果是新会话）
+                session_event = json.dumps({
+                    "type": "session_id",
+                    "session_id": session_id
+                }, ensure_ascii=False)
+                yield f"data: {session_event}\n\n"
+
                 full_response = ""
                 async for chunk in ai_service.chat_stream(
                     system_prompt=tool.system_prompt,
@@ -124,9 +131,28 @@ async def chat_stream(
                 )
 
                 # 更新会话标题（使用title_generator）
-                if not session.title or session.title.startswith("新会话"):
-                    new_title = title_generator.generate_title(history_messages, full_response)
+                # 检查是否是临时标题（标题长度50且等于用户消息前50字）
+                is_temp_title = (
+                    session.title and
+                    len(session.title) == 50 and
+                    session.title == request.message[:50]
+                )
+
+                if not session.title or session.title.startswith("新会话") or is_temp_title:
+                    logger.info(f"🔄 开始生成AI标题，当前标题: {session.title}")
+                    new_title = await title_generator.generate_title(request.message, full_response)
+                    logger.info(f"✅ AI标题生成完成: {new_title}")
                     session_service.update_session_title(session_id, new_title)
+
+                    # 发送标题生成完成事件
+                    title_event = json.dumps({
+                        "type": "title_generated",
+                        "session_id": session_id,
+                        "title": new_title
+                    }, ensure_ascii=False)
+                    yield f"data: {title_event}\n\n"
+                else:
+                    logger.info(f"ℹ️ 跳过标题生成，当前标题: {session.title}")
 
             except Exception as e:
                 logger.error(f"Chat stream error: {e}")
@@ -237,10 +263,21 @@ async def chat_non_stream(
         # 解析成果物
         artifacts = artifact_parser.parse_from_markdown(response)
 
-        # 更新会话标题
-        if not session.title or session.title.startswith("新会话"):
-            new_title = title_generator.generate_title(history_messages, response)
+        # 更新会话标题（使用title_generator）
+        # 检查是否是临时标题（标题长度50且等于用户消息前50字）
+        is_temp_title = (
+            session.title and
+            len(session.title) == 50 and
+            session.title == request.message[:50]
+        )
+
+        if not session.title or session.title.startswith("新会话") or is_temp_title:
+            logger.info(f"🔄 开始生成AI标题，当前标题: {session.title}")
+            new_title = await title_generator.generate_title(request.message, response)
+            logger.info(f"✅ AI标题生成完成: {new_title}")
             session_service.update_session_title(session_id, new_title)
+        else:
+            logger.info(f"ℹ️ 跳过标题生成，当前标题: {session.title}")
 
         return ChatResponse(
             message=response,

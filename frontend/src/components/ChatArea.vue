@@ -14,6 +14,7 @@
     
     <!-- 中间：当前对话区域 -->
     <ChatPanel
+      ref="chatPanelRef"
       :tool-id="toolId"
       :messages="sessionStore.messages"
       :welcome-message="welcomeMessage"
@@ -48,7 +49,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import ConversationList from './ConversationList.vue'
 import ChatPanel from './ChatPanel.vue'
 import PreviewPanel from './PreviewPanel.vue'
@@ -66,6 +67,7 @@ const showPreview = ref(false)
 const currentArtifact = ref<Artifact | null>(null)
 const conversationListCollapsed = ref(false)
 const conversationListRef = ref<InstanceType<typeof ConversationList> | null>(null)
+const chatPanelRef = ref<InstanceType<typeof ChatPanel> | null>(null)
 
 // 拖拽相关
 const chatPanelWidth = ref<number>(0)
@@ -124,11 +126,34 @@ function handleNewConversation() {
 
 async function handleSendMessage(content: string) {
   console.log('[ChatArea] handleSendMessage called with:', content)
+
+  // 安全检查：如果toolId为空，尝试从props重新初始化
+  if (!sessionStore.toolId && props.toolId) {
+    console.warn('[ChatArea] toolId is empty, re-initializing with props.toolId:', props.toolId)
+    sessionStore.initTool(props.toolId)
+  }
+
+  // 双重检查：如果还是无法初始化toolId，抛出明确的错误
+  if (!sessionStore.toolId) {
+    const errorMsg = '无法发送消息：工具未初始化。请选择一个工具后重试。'
+    console.error('[ChatArea]', errorMsg, {
+      sessionStoreToolId: sessionStore.toolId,
+      propsToolId: props.toolId
+    })
+    sessionStore.error = errorMsg
+    throw new Error(errorMsg)
+  }
+
   try {
     await sessionStore.sendMessage(content)
     console.log('[ChatArea] Message sent successfully')
   } catch (err) {
     console.error('[ChatArea] Failed to send message:', err)
+    // 如果是"工具未初始化"错误，提供更友好的提示
+    if (err instanceof Error && err.message.includes('工具未初始化')) {
+      sessionStore.error = '工具初始化失败，请刷新页面重试'
+    }
+    throw err
   }
 }
 
@@ -236,6 +261,25 @@ watch(() => currentSessionId.value, () => {
   showPreview.value = false
   currentArtifact.value = null
 })
+
+// 监听流式输出，自动滚动到底部
+watch(() => sessionStore.messages.length, async () => {
+  // 消息数量变化时滚动（新消息添加）
+  await nextTick()
+  chatPanelRef.value?.scrollToBottom()
+}, { flush: 'post' })
+
+// 监听最后一条消息的内容变化（流式输出）
+watch(() => {
+  const messages = sessionStore.messages
+  if (messages.length === 0) return ''
+  const lastMsg = messages[messages.length - 1]
+  return lastMsg?.content || ''
+}, async () => {
+  // 最后一条消息内容变化时滚动（流式输出）
+  await nextTick()
+  chatPanelRef.value?.scrollToBottom()
+}, { flush: 'post' })
 </script>
 
 <style scoped>

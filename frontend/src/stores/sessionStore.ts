@@ -24,6 +24,13 @@ export const useSessionStore = defineStore('session', () => {
    */
   function initTool(toolIdParam: string) {
     console.log('[sessionStore] initTool called with:', toolIdParam)
+
+    // 验证参数：拒绝空字符串、null、undefined
+    if (!toolIdParam || toolIdParam.trim() === '') {
+      console.warn('[sessionStore] Invalid toolId provided, rejecting:', toolIdParam)
+      return
+    }
+
     // 如果正在流式输出，拒绝清空 messages
     if (loading.value) {
       console.warn('正在流式输出，拒绝重新初始化工具')
@@ -195,10 +202,21 @@ export const useSessionStore = defineStore('session', () => {
 
     try {
       const response = await ApiService.getSessionDetail(sessionIdParam)
-      
+
       sessionId.value = response.session_id
-      toolId.value = response.tool_id
-      
+
+      // 验证tool_id：只有当tool_id有效时才更新
+      // 这防止API返回null/undefined/空字符串导致toolId被清空
+      if (response.tool_id && response.tool_id.trim() !== '') {
+        toolId.value = response.tool_id
+        console.log('[sessionStore] Tool ID updated from restoreSession:', toolId.value)
+      } else {
+        console.warn('[sessionStore] Invalid tool_id from API, preserving existing toolId:', {
+          apiToolId: response.tool_id,
+          preservedToolId: toolId.value
+        })
+      }
+
       // 转换消息格式
       messages.value = response.messages.map(msg => ({
         role: msg.role,
@@ -244,22 +262,31 @@ export const useSessionStore = defineStore('session', () => {
   }
 
   /**
-   * 清空会话
+   * 清空会话（不清空toolId，因为创建新会话不代表要切换工具）
    */
   function clearSession() {
     sessionId.value = null
-    toolId.value = null
+    // 注意：不清空 toolId，因为用户只是想开始新对话，而不是切换工具
+    // toolId.value = null  // <-- 这行被注释掉，保留toolId
     messages.value = []
     currentPreviewArtifact.value = null
     error.value = null
+
+    console.log('[sessionStore] Session cleared, toolId preserved:', toolId.value)
   }
 
   /**
-   * 重置状态
+   * 完全重置状态（包括清空toolId，用于登出等场景）
    */
   function reset() {
-    clearSession()
+    sessionId.value = null
+    toolId.value = null  // reset会清空toolId
+    messages.value = []
+    currentPreviewArtifact.value = null
+    error.value = null
     loading.value = false
+
+    console.log('[sessionStore] State fully reset, toolId cleared')
   }
 
   return {

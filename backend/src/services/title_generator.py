@@ -85,30 +85,35 @@ class TitleGenerator:
         return client, model_name
     
     async def generate_title(
-        self, 
-        user_message: str, 
+        self,
+        user_message: str,
         ai_response: Optional[str] = None
     ) -> str:
         """
         智能生成会话标题
-        
+
         策略：
-        1. 如果用户消息 < 10字符：使用用户消息+AI回复前300字
-        2. 否则：只使用用户消息前500字
-        
+        1. 用户消息为空：直接返回"新对话"
+        2. 如果用户消息 < 10字符：使用用户消息+AI回复前300字
+        3. 否则：只使用用户消息前500字
+
         Args:
             user_message: 用户消息
             ai_response: AI回复（可选）
-            
+
         Returns:
             生成的标题（8-15个字）
         """
+        user_msg = user_message.strip()
+
+        # 如果用户消息为空，直接返回默认标题
+        if not user_msg:
+            return "新对话"
+
         # 如果没有AI客户端，使用降级方案
         if not self.client:
             return self._fallback_title(user_message)
-        
-        user_msg = user_message.strip()
-        
+
         # 策略选择：短消息需要AI回复辅助
         if len(user_msg) < 10:
             ai_preview = (ai_response[:300] if ai_response else "")
@@ -123,10 +128,10 @@ AI回复：{ai_preview}
 用户提问：{user_msg[:500]}
 
 直接输出标题，无需标点："""
-        
+
         try:
             logger.info(f"开始生成会话标题 - 用户消息长度: {len(user_msg)}, 使用模型: {self.model_name}")
-            
+
             response = self.client.chat.completions.create(
                 model=self.model_name,  # 使用配置的模型
                 messages=[
@@ -135,44 +140,63 @@ AI回复：{ai_preview}
                 max_tokens=30,  # 标题不需要太长
                 temperature=0.7
             )
-            
+
             title = response.choices[0].message.content.strip()
-            
+
             # 清理标题（去除标点符号）
-            title = title.strip('"\'。，！？、：；""''《》【】（）[]{}')
-            
+            title = self._clean_title(title)
+
             # 限制长度
             if len(title) > 30:
                 title = title[:30]
-            
+
             logger.info(f"标题生成成功: {title}")
             return title if title else "新对话"
-            
+
         except Exception as e:
             logger.error(f"AI生成标题失败: {e}")
             # 降级方案
             return self._fallback_title(user_message)
+
+    def _clean_title(self, title: str) -> str:
+        """
+        清理标题，移除标点符号
+
+        Args:
+            title: 原始标题
+
+        Returns:
+            清理后的标题
+        """
+        # 定义需要移除的标点符号
+        punctuation = '"\'。，！？、：；""''《》【】（）[]{}、，。！？；：'
+
+        # 移除所有标点符号
+        for char in punctuation:
+            title = title.replace(char, '')
+
+        return title.strip()
     
     def _fallback_title(self, user_message: str) -> str:
         """
         降级方案：使用简单截取生成标题
-        
+
         Args:
             user_message: 用户消息
-            
+
         Returns:
-            截取的标题
+            截取的标题（最多30个字符）
         """
         msg = user_message.strip()
-        
+
         if not msg:
             return "新对话"
-        
+
         # 去除换行符
         msg = msg.replace('\n', ' ').replace('\r', ' ')
-        
-        # 截取前30个字符
+
+        # 截取前30个字符，超过则添加"..."
         if len(msg) > 30:
-            return msg[:30] + "..."
+            return msg[:30]
         else:
             return msg
