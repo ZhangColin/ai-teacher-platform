@@ -7,7 +7,8 @@
     @mouseenter="showToolbar = true"
     @mouseleave="showToolbar = false"
   >
-    <div class="message-avatar">
+    <!-- 隐藏头像，保持简洁 -->
+    <div class="message-avatar" style="display: none;">
       <img
         :src="avatarUrl"
         :alt="message.role"
@@ -19,27 +20,29 @@
     <div class="message-content">
       <div
         class="message-text"
-        :class="{ 'markdown-content': message.role === 'assistant' }"
+        :class="{ 'markdown-content': message.role === 'assistant', 'user-text': message.role === 'user' }"
         v-html="renderedContent"
         data-testid="message-text"
       />
-      <div class="message-time" data-testid="message-time">
-        {{ formattedTime }}
+      <div class="message-footer">
+        <div
+          class="message-toolbar"
+          :class="{ 'toolbar-visible': showToolbar }"
+        >
+          <button
+            class="copy-button"
+            @click="handleCopy"
+            title="复制"
+            data-testid="copy-button"
+          >
+            <DocumentDuplicateIcon />
+          </button>
+        </div>
+        <div class="message-time" data-testid="message-time">
+          {{ formattedTime }}
+        </div>
       </div>
     </div>
-
-    <Transition name="fade">
-      <div v-if="showToolbar" class="message-toolbar">
-        <button
-          class="copy-button"
-          @click="handleCopy"
-          title="复制"
-          data-testid="copy-button"
-        >
-          <DocumentDuplicateIcon />
-        </button>
-      </div>
-    </Transition>
   </div>
 </template>
 
@@ -95,7 +98,7 @@ async function handleCopy() {
 
 .message-item {
   display: flex;
-  gap: 12px;
+  gap: 0;
   margin-bottom: 16px;
   animation: fadeIn 0.3s ease-in;
   position: relative;
@@ -131,11 +134,14 @@ async function handleCopy() {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  max-width: 70%;
+  /* 默认（AI消息）使用完整宽度 */
+  max-width: 100%;
 }
 
 .message-user .message-content {
   align-items: flex-end;
+  /* 用户消息限制宽度 */
+  max-width: 70%;
 }
 
 .message-text {
@@ -156,9 +162,15 @@ async function handleCopy() {
   color: #333;
 }
 
+/* 用户消息保留原始换行 */
+.user-text {
+  white-space: pre-wrap;
+}
+
 /* Assistant messages use markdown-content class for rich formatting */
+/* 移除 overflow-x: auto，使代码块的 sticky 定位能够相对于整个页面工作 */
 .message-assistant .message-text {
-  overflow-x: auto;
+  /* overflow-x: auto; - 已移除 */
 }
 
 .message-time {
@@ -167,18 +179,37 @@ async function handleCopy() {
   padding: 0 4px;
 }
 
-.message-toolbar {
-  position: absolute;
-  top: -30px;
-  right: 0;
+.message-footer {
   display: flex;
-  gap: 4px;
-  z-index: 10;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  min-height: 20px;
 }
 
-.message-user .message-toolbar {
-  right: auto;
-  left: 0;
+.message-assistant .message-footer {
+  flex-direction: row;
+}
+
+.message-user .message-footer {
+  flex-direction: row-reverse;
+}
+
+.message-toolbar {
+  display: flex;
+  gap: 4px;
+  /* 固定高度，避免显示时抖动 */
+  height: 28px;
+  min-height: 28px;
+  /* 默认隐藏但保持占位 */
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.message-toolbar.toolbar-visible {
+  visibility: visible;
+  opacity: 1;
 }
 
 .copy-button {
@@ -187,31 +218,22 @@ async function handleCopy() {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.7);
-  color: white;
+  background: transparent;
+  color: #999;
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s;
   padding: 0;
 }
 
 .copy-button:hover {
-  background: rgba(0, 0, 0, 0.9);
+  background: rgba(0, 0, 0, 0.05);
+  color: #666;
 }
 
 .copy-button svg {
   width: 16px;
   height: 16px;
-}
-
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
 }
 </style>

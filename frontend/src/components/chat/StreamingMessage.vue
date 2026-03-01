@@ -3,7 +3,8 @@
     class="message-item message-assistant streaming"
     data-testid="streaming-message"
   >
-    <div class="message-avatar">
+    <!-- 隐藏头像，保持简洁 -->
+    <div class="message-avatar" style="display: none;">
       <img
         src="/images/ai-avatar.png"
         alt="AI"
@@ -45,6 +46,44 @@ const renderedContent = computed(() => {
 <style scoped>
 @import '@/styles/markdown.css';
 
+/* 继承 MessageItem 的基础样式 */
+.message-item {
+  display: flex;
+  gap: 0;
+  margin-bottom: 16px;
+  animation: fadeIn 0.3s ease-in;
+  position: relative;
+}
+
+.message-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 100%;
+}
+
+.message-text {
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  word-wrap: break-word;
+  background-color: #f5f5f5;
+  color: #333;
+  overflow-x: auto;
+}
+
+.message-avatar {
+  flex-shrink: 0;
+}
+
+.avatar-image {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
 .message-item.streaming {
   opacity: 0.9;
 }
@@ -80,6 +119,17 @@ const renderedContent = computed(() => {
   40% {
     transform: scale(1);
     opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 </style>

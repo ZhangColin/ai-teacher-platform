@@ -292,9 +292,11 @@
   position: relative;
   margin: 16px 0;
   border-radius: 8px;
-  overflow: hidden;
+  /* 移除 overflow: hidden，使 sticky 定位能够工作 */
   background: #1f2937;
   border: 1px solid #374151;
+  /* 确保代码块容器在父元素中可以滚动 */
+  max-width: 100%;
 }
 
 .code-block-header {
@@ -304,6 +306,12 @@
   padding: 8px 16px;
   background: #111827;
   border-bottom: 1px solid #374151;
+  /* 顶部圆角 */
+  border-radius: 8px 8px 0 0;
+  /* 粘性定位，使工具栏在滚动时保持在顶部可见 */
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .code-language {
@@ -355,6 +363,8 @@
   padding: 16px;
   overflow-x: auto;
   background: #1f2937;
+  /* 底部圆角 */
+  border-radius: 0 0 8px 8px;
 }
 
 .code-block-wrapper code {
