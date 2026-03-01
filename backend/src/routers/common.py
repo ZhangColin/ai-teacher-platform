@@ -16,8 +16,7 @@ from src.models import (
     TaskStatusResponse,
 )
 
-from .auth import get_current_user
-from .tools import task_storage
+from src.interfaces.auth import get_current_user
 from .dependencies import (
     get_config_loader,
     get_conversion_service,
@@ -31,14 +30,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1", tags=["通用功能"])
 
 
-# 全局任务存储引用
-_task_storage: dict[str, dict] = {}
-
-
-def set_task_storage(storage: dict[str, dict]):
-    """设置任务存储引用"""
-    global _task_storage
-    _task_storage = storage
+# 用于存储任务状态的字典（简单实现，生产环境建议使用Redis）
+# 从 tools.py 迁移过来（2026-03-01）
+task_storage: dict[str, dict] = {}
 
 
 @router.get("/navigation", response_model=NavigationResponse)
@@ -115,7 +109,7 @@ async def get_task_status(
     """
     try:
         # 1. 获取任务信息
-        task_info = _task_storage.get(task_id)
+        task_info = task_storage.get(task_id)
         if not task_info:
             raise HTTPException(status_code=404, detail="任务不存在")
 
@@ -196,7 +190,7 @@ async def get_task_status(
                     )
 
                     # 更新任务状态为已完成
-                    _task_storage[task_id]["status"] = "completed"
+                    task_storage[task_id]["status"] = "completed"
 
                     logger.info(f"任务完成 - task_id: {task_id}, 图片数量: {len(media_urls)}")
 
@@ -214,8 +208,8 @@ async def get_task_status(
                     error_message = error_info.get("message", "生成失败")
 
                     # 更新任务状态
-                    _task_storage[task_id]["status"] = "failed"
-                    _task_storage[task_id]["error"] = error_message
+                    task_storage[task_id]["status"] = "failed"
+                    task_storage[task_id]["error"] = error_message
 
                     logger.warning(f"任务失败 - task_id: {task_id}, 错误: {error_message}")
 
@@ -284,7 +278,7 @@ async def get_task_status(
                     )
 
                     # 更新任务状态为已完成
-                    _task_storage[task_id]["status"] = "completed"
+                    task_storage[task_id]["status"] = "completed"
 
                     logger.info(f"视频任务完成 - task_id: {task_id}, 视频数量: {len(media_urls)}")
 
@@ -302,8 +296,8 @@ async def get_task_status(
                     error_message = error_info.get("message", "视频生成失败")
 
                     # 更新任务状态
-                    _task_storage[task_id]["status"] = "failed"
-                    _task_storage[task_id]["error"] = error_message
+                    task_storage[task_id]["status"] = "failed"
+                    task_storage[task_id]["error"] = error_message
 
                     logger.warning(f"视频任务失败 - task_id: {task_id}, 错误: {error_message}")
 
@@ -329,12 +323,12 @@ async def get_task_status(
             logger.error(f"查询GLM任务状态失败: {e}", exc_info=True)
 
             # 增加失败计数
-            _task_storage[task_id]["query_fail_count"] = _task_storage[task_id].get("query_fail_count", 0) + 1
-            fail_count = _task_storage[task_id]["query_fail_count"]
+            task_storage[task_id]["query_fail_count"] = task_storage[task_id].get("query_fail_count", 0) + 1
+            fail_count = task_storage[task_id]["query_fail_count"]
 
             # 如果失败次数超过5次，标记任务为失败
             if fail_count >= 5:
-                _task_storage[task_id]["status"] = "failed"
+                task_storage[task_id]["status"] = "failed"
                 logger.error(f"任务查询失败次数过多，标记为失败 - task_id: {task_id}")
                 return TaskStatusResponse(
                     task_id=task_id,

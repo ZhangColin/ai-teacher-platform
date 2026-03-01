@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
-"""会话管理路由
+"""
+会话管理路由
 
-包含会话详情、更新会话、删除会话、获取代理会话列表等接口。
+提供会话详情、更新会话标题、删除会话等接口
 """
 import logging
 from typing import Annotated
@@ -11,14 +12,12 @@ from fastapi import APIRouter, HTTPException, Depends
 from src.models import (
     UserInfo,
     SessionDetailResponse,
-    Session,
     UpdateSessionRequest,
     UpdateSessionResponse,
     Message,
 )
-
-from .auth import get_current_user
-from .dependencies import get_session_service
+from src.interfaces.dependencies import get_session_service, get_current_user
+from src.services.session_service import SessionService
 
 logger = logging.getLogger(__name__)
 
@@ -28,11 +27,10 @@ router = APIRouter(prefix="/api/v1", tags=["会话管理"])
 @router.get("/sessions/{session_id}", response_model=SessionDetailResponse)
 async def get_session_detail(
     session_id: str,
-    current_user: Annotated[UserInfo, Depends(get_current_user)] = None,
+    current_user: Annotated[UserInfo, Depends(get_current_user)],
+    session_service: SessionService = Depends(get_session_service),
 ):
     """获取指定会话的完整消息历史"""
-    session_service = get_session_service()
-
     # 获取会话（验证是否属于当前用户）
     session = session_service.get_session_by_id(session_id, user_id=current_user.user_id)
     if not session:
@@ -77,11 +75,10 @@ async def get_session_detail(
 async def update_session_title(
     session_id: str,
     request: UpdateSessionRequest,
-    current_user: Annotated[UserInfo, Depends(get_current_user)] = None,
+    current_user: Annotated[UserInfo, Depends(get_current_user)],
+    session_service: SessionService = Depends(get_session_service),
 ):
     """更新指定会话的标题"""
-    session_service = get_session_service()
-
     # 更新会话标题
     session = session_service.update_session_title(
         session_id=session_id,
@@ -104,10 +101,10 @@ async def update_session_title(
 @router.delete("/sessions/{session_id}")
 async def delete_session(
     session_id: str,
-    current_user: Annotated[UserInfo, Depends(get_current_user)] = None,
+    current_user: Annotated[UserInfo, Depends(get_current_user)],
+    session_service: SessionService = Depends(get_session_service),
 ):
     """删除指定会话（级联删除消息和成果物）"""
-    session_service = get_session_service()
     success = session_service.delete_session(session_id, user_id=current_user.user_id)
 
     if not success:
@@ -122,7 +119,7 @@ async def delete_session(
 @router.get("/agents/{agent_id}/sessions")
 async def get_agent_sessions(
     agent_id: str,
-    current_user: Annotated[UserInfo, Depends(get_current_user)] = None,
+    current_user: Annotated[UserInfo, Depends(get_current_user)],
 ):
     """获取指定代理的所有会话（已废弃，保留兼容性）"""
     # 此接口已废弃，返回空列表

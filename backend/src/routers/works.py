@@ -31,7 +31,7 @@ from src.models import (
     MoveWorkCategoryResponse,
 )
 
-from .auth import get_current_user
+from src.interfaces.auth import get_current_user
 from .dependencies import get_work_service
 
 logger = logging.getLogger(__name__)

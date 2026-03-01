@@ -16,10 +16,9 @@ sys.path.insert(0, str(project_root))
 
 # 导入路由模块
 from src.routers import (
-    auth_router,
     users_router,
-    tools_router,
-    sessions_router,
+    # tools_router,  # 已迁移到 interfaces 层，完全删除
+    # sessions_router,  # 已迁移到 interfaces 层
     admin_tools_router,
     works_router,
     courses_router,
@@ -30,6 +29,9 @@ from src.routers import (
 from src.interfaces.routers.tools import list as tools_list_router
 from src.interfaces.routers.tools import chat as tools_chat_router
 from src.interfaces.routers.tools import conversations as tools_conversations_router
+from src.interfaces.routers.tools import media as tools_media_router
+from src.interfaces.routers.auth import auth as new_auth_router
+from src.interfaces.routers import sessions as new_sessions_router
 
 # 导入错误处理中间件
 from src.interfaces.middleware.error_handler import error_handler
@@ -64,29 +66,41 @@ app.middleware("http")(error_handler)
 app.include_router(tools_list_router.router, prefix="/api/v1")
 app.include_router(tools_chat_router.router, prefix="/api/v1")
 app.include_router(tools_conversations_router.router, prefix="/api/v1")
+app.include_router(tools_media_router.router, prefix="/api/v1")
 
-# 认证相关路由
-app.include_router(auth_router)
+# 认证相关路由（新架构 - interfaces层）
+app.include_router(new_auth_router.router)
+
+# 会话管理路由（新架构 - interfaces层）
+app.include_router(new_sessions_router.router)
 
 # 用户管理路由
 app.include_router(users_router)
 
-# AI 工具路由（旧路由）
+# 会话管理路由（旧路由 - 已迁移到 interfaces 层）
 # 已迁移到 interfaces 层的端点：
+#   - GET /sessions/{session_id} -> interfaces/routers/sessions/sessions.py
+#   - PATCH /sessions/{session_id} -> interfaces/routers/sessions/sessions.py
+#   - DELETE /sessions/{session_id} -> interfaces/routers/sessions/sessions.py
+#   - GET /agents/{agent_id}/sessions -> 已废弃，返回空列表
+# TODO: 完全删除旧 sessions_router
+# app.include_router(sessions_router)
+
+# AI 工具路由（旧路由）
+# ✅ 所有端点已迁移到 interfaces 层（2026-03-01）
+# 已删除的文件：backend/src/routers/tools.py
+# 迁移位置：
 #   - GET /tools -> interfaces/routers/tools/list.py
 #   - GET /toolsets/{toolset_id}/tools -> interfaces/routers/tools/list.py
 #   - POST /tools/{tool_id}/chat -> interfaces/routers/tools/chat.py
 #   - POST /tools/{tool_id}/chat/stream -> interfaces/routers/tools/chat.py
 #   - GET /tools/{tool_id}/conversations -> interfaces/routers/tools/conversations.py
 #   - DELETE /tools/{tool_id}/conversations/{conv_id} -> interfaces/routers/tools/conversations.py
-# 未迁移的端点（仍需要旧 tools.py）：
-#   - GET /common-tools - 通用工具列表（被前端 CommonToolsView 使用）
-#   - POST /tools/{tool_id}/generate-media - 媒体生成
-# TODO: 未来迁移剩余端点到新架构，然后完全删除 tools.py
-app.include_router(tools_router)
-
-# 会话管理路由
-app.include_router(sessions_router)
+#   - GET /tools/{tool_id}/conversations/{conv_id} -> interfaces/routers/tools/conversations.py
+#   - POST /tools/{tool_id}/generate-media -> interfaces/routers/tools/media.py
+# 未迁移的辅助端点（已删除，前端未使用）：
+#   - GET /tools/{tool_id}/chat - OPTIONS请求等辅助端点
+# task_storage 已迁移到 common.py
 
 # 管理员工具路由
 app.include_router(admin_tools_router)
@@ -99,11 +113,6 @@ app.include_router(courses_router)
 
 # 通用功能路由
 app.include_router(common_router)
-
-# 设置任务存储引用（供 common_router 使用）
-from src.routers.common import set_task_storage
-from src.routers.tools import task_storage
-set_task_storage(task_storage)
 
 
 # ==================== 已废弃的 Agent API ====================

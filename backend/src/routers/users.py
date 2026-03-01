@@ -20,7 +20,7 @@ from src.models import (
     ResetPasswordResponse,
 )
 
-from .auth import get_current_user
+from src.interfaces.auth import get_current_user
 from .dependencies import get_user_service, get_auth_service
 
 logger = logging.getLogger(__name__)
