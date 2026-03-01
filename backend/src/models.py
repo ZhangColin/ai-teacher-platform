@@ -400,7 +400,7 @@ class CreateUserRequest(BaseModel):
 
 class CreateUserResponse(BaseModel):
     """创建用户响应"""
-    user: UserInfo = Field(..., description="新创建的用户信息")
+    user: UserListItem = Field(..., description="新创建的用户信息")
 
 
 class UserListItem(BaseModel):

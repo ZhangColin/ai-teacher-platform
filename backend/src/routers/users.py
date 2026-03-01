@@ -137,7 +137,7 @@ async def get_user(
     current_user: Annotated[UserInfo, Depends(require_admin)] = None,
 ):
     """获取单个用户信息（管理员功能）"""
-    user_service = UserService()
+    user_service = get_user_service()
     user = user_service.get_user_by_id(user_id)
 
     if user is None:

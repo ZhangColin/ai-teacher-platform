@@ -253,4 +253,380 @@ describe('MarkdownEditorView', () => {
     // 调用不应该抛出错误
     expect(() => vm.handleClosePreview()).not.toThrow()
   })
+
+  describe('分隔条拖动功能', () => {
+    it('应该开始拖动并设置isResizing为true', async () => {
+      const wrapper = mount(MarkdownEditorView, {
+        global: {
+          stubs: {
+            PreviewPanel: true,
+          },
+        },
+      })
+
+      const resizer = wrapper.find('.resizer')
+      const vm = wrapper.vm as any
+
+      // 初始状态不是拖动中
+      expect(vm.isResizing).toBe(false)
+
+      // 触发mousedown
+      await resizer.trigger('mousedown')
+
+      // 应该进入拖动状态
+      expect(vm.isResizing).toBe(true)
+    })
+
+    it('应该支持触摸事件开始拖动', async () => {
+      const wrapper = mount(MarkdownEditorView, {
+        global: {
+          stubs: {
+            PreviewPanel: true,
+          },
+        },
+      })
+
+      const resizer = wrapper.find('.resizer')
+      const vm = wrapper.vm as any
+
+      // 触发touchstart
+      await resizer.trigger('touchstart')
+
+      // 应该进入拖动状态
+      expect(vm.isResizing).toBe(true)
+    })
+
+    it('拖动应该防止默认行为', async () => {
+      const wrapper = mount(MarkdownEditorView, {
+        global: {
+          stubs: {
+            PreviewPanel: true,
+          },
+        },
+      })
+
+      const resizer = wrapper.find('.resizer')
+      const event = new MouseEvent('mousedown', { cancelable: true })
+      const preventDefaultSpy = vi.spyOn(event, 'preventDefault')
+
+      // 手动触发事件
+      resizer.element.addEventListener('mousedown', (e: Event) => {
+        const vm = wrapper.vm as any
+        vm.startResize(e)
+      })
+      resizer.element.dispatchEvent(event)
+
+      expect(preventDefaultSpy).toHaveBeenCalled()
+    })
+
+    it('拖动开始时应该设置body样式', async () => {
+      const wrapper = mount(MarkdownEditorView, {
+        global: {
+          stubs: {
+            PreviewPanel: true,
+          },
+        },
+      })
+
+      const resizer = wrapper.find('.resizer')
+      const vm = wrapper.vm as any
+
+      await resizer.trigger('mousedown')
+
+      // 验证body样式被设置
+      expect(document.body.style.cursor).toBe('col-resize')
+      expect(document.body.style.userSelect).toBe('none')
+    })
+
+    it('拖动结束后应该恢复body样式', async () => {
+      const wrapper = mount(MarkdownEditorView, {
+        global: {
+          stubs: {
+            PreviewPanel: true,
+          },
+        },
+      })
+
+      const vm = wrapper.vm as any
+
+      // 模拟拖动开始
+      await vm.startResize(new MouseEvent('mousedown'))
+
+      // 验证样式被设置
+      expect(document.body.style.cursor).toBe('col-resize')
+
+      // 直接调用stopResize
+      await vm.stopResize()
+
+      // 验证样式被恢复
+      expect(document.body.style.cursor).toBe('')
+      expect(document.body.style.userSelect).toBe('')
+    })
+
+    it('拖动时应该更新编辑器宽度', async () => {
+      const wrapper = mount(MarkdownEditorView, {
+        global: {
+          stubs: {
+            PreviewPanel: true,
+          },
+        },
+        attachTo: document.body,
+      })
+
+      const vm = wrapper.vm as any
+
+      // 模拟拖动开始
+      await vm.startResize(new MouseEvent('mousedown'))
+
+      // 创建一个容器元素用于计算
+      const container = wrapper.find('.editor-container').element as HTMLElement
+      vi.spyOn(container, 'getBoundingClientRect').mockReturnValue({
+        left: 0,
+        width: 1000,
+        top: 0,
+        height: 500,
+        right: 1000,
+        bottom: 500,
+        toJSON: () => ({}),
+      })
+
+      // 触发mousemove事件（模拟在600px位置）
+      const moveEvent = new MouseEvent('mousemove', { clientX: 600 })
+      await vm.handleResize(moveEvent)
+
+      // 等待更新
+      await nextTick()
+
+      // 验证宽度被更新（60%）
+      expect(vm.editorWidth).toBe(60)
+
+      // 清理
+      wrapper.unmount()
+    })
+
+    it('拖动宽度应该限制在30%-70%之间', async () => {
+      const wrapper = mount(MarkdownEditorView, {
+        global: {
+          stubs: {
+            PreviewPanel: true,
+          },
+        },
+        attachTo: document.body,
+      })
+
+      const vm = wrapper.vm as any
+
+      // 模拟拖动开始
+      await vm.startResize(new MouseEvent('mousedown'))
+
+      // 创建容器mock
+      const container = wrapper.find('.editor-container').element as HTMLElement
+      vi.spyOn(container, 'getBoundingClientRect').mockReturnValue({
+        left: 0,
+        width: 1000,
+        top: 0,
+        height: 500,
+        right: 1000,
+        bottom: 500,
+        toJSON: () => ({}),
+      })
+
+      // 测试下限（10%应该被限制为30%）
+      const moveEvent1 = new MouseEvent('mousemove', { clientX: 100 })
+      await vm.handleResize(moveEvent1)
+      await nextTick()
+      expect(vm.editorWidth).toBe(30)
+
+      // 测试上限（90%应该被限制为70%）
+      const moveEvent2 = new MouseEvent('mousemove', { clientX: 900 })
+      await vm.handleResize(moveEvent2)
+      await nextTick()
+      expect(vm.editorWidth).toBe(70)
+
+      // 清理
+      wrapper.unmount()
+    })
+
+    it('非拖动状态下handleResize不应该更新宽度', async () => {
+      const wrapper = mount(MarkdownEditorView, {
+        global: {
+          stubs: {
+            PreviewPanel: true,
+          },
+        },
+      })
+
+      const vm = wrapper.vm as any
+      const initialWidth = vm.editorWidth
+
+      // 不触发startResize，直接触发mousemove
+      await window.dispatchEvent(new MouseEvent('mousemove'))
+
+      // 宽度不应该改变
+      expect(vm.editorWidth).toBe(initialWidth)
+    })
+
+    it('触摸拖动应该正确更新宽度', async () => {
+      const wrapper = mount(MarkdownEditorView, {
+        global: {
+          stubs: {
+            PreviewPanel: true,
+          },
+        },
+        attachTo: document.body,
+      })
+
+      const vm = wrapper.vm as any
+
+      // 模拟触摸开始
+      await vm.startResize(new TouchEvent('touchstart'))
+
+      // 创建容器mock
+      const container = wrapper.find('.editor-container').element as HTMLElement
+      vi.spyOn(container, 'getBoundingClientRect').mockReturnValue({
+        left: 0,
+        width: 1000,
+        top: 0,
+        height: 500,
+        right: 1000,
+        bottom: 500,
+        toJSON: () => ({}),
+      })
+
+      // 触发touchmove
+      const touchEvent = new TouchEvent('touchmove', {
+        touches: [{ clientX: 400 } as Touch],
+      })
+      await vm.handleResize(touchEvent)
+      await nextTick()
+
+      // 验证宽度被更新（40%）
+      expect(vm.editorWidth).toBe(40)
+
+      // 清理
+      wrapper.unmount()
+    })
+
+    it('触摸结束应该停止拖动', async () => {
+      const wrapper = mount(MarkdownEditorView, {
+        global: {
+          stubs: {
+            PreviewPanel: true,
+          },
+        },
+      })
+
+      const vm = wrapper.vm as any
+
+      // 模拟触摸开始
+      await vm.startResize(new TouchEvent('touchstart'))
+      expect(vm.isResizing).toBe(true)
+
+      // 触发touchend
+      await vm.stopResize()
+
+      // 应该停止拖动
+      expect(vm.isResizing).toBe(false)
+    })
+  })
+
+  describe('组件生命周期', () => {
+    it('组件挂载时应该初始化编辑器', async () => {
+      const wrapper = mount(MarkdownEditorView, {
+        global: {
+          stubs: {
+            PreviewPanel: true,
+          },
+        },
+      })
+
+      await nextTick()
+
+      const vm = wrapper.vm as any
+      // 验证编辑器引用被设置
+      expect(vm.editorRef).toBeTruthy()
+    })
+
+    it('组件卸载时应该清理编辑器', async () => {
+      const wrapper = mount(MarkdownEditorView, {
+        global: {
+          stubs: {
+            PreviewPanel: true,
+          },
+        },
+      })
+
+      await nextTick()
+
+      const vm = wrapper.vm as any
+
+      // 验证editorView存在
+      expect(vm.editorView).toBeTruthy()
+
+      // 卸载组件
+      wrapper.unmount()
+
+      // editorView应该被清理
+      expect(vm.editorView).toBe(null)
+    })
+  })
+
+  describe('边界情况', () => {
+    it('清空时如果没有editorView不应该报错', async () => {
+      mockConfirm.mockReturnValue(true)
+
+      const wrapper = mount(MarkdownEditorView, {
+        global: {
+          stubs: {
+            PreviewPanel: true,
+          },
+        },
+      })
+
+      const vm = wrapper.vm as any
+
+      // 手动设置editorView为null
+      vm.editorView = null
+
+      // 找到清空按钮
+      const clearButtons = wrapper.findAll('.toolbar-btn')
+      const clearButton = clearButtons.find(btn => btn.text().includes('清空'))
+
+      if (clearButton) {
+        // 不应该抛出错误
+        await expect(async () => {
+          await clearButton.trigger('click')
+        }).not.toThrow()
+      }
+    })
+
+    it('拖动时如果没有容器不应该更新宽度', async () => {
+      const wrapper = mount(MarkdownEditorView, {
+        global: {
+          stubs: {
+            PreviewPanel: true,
+          },
+        },
+      })
+
+      const resizer = wrapper.find('.resizer')
+      const vm = wrapper.vm as any
+
+      await resizer.trigger('mousedown')
+
+      // 确保没有.editor-container元素
+      const existingContainer = document.querySelector('.editor-container')
+      if (existingContainer) {
+        existingContainer.remove()
+      }
+
+      const initialWidth = vm.editorWidth
+
+      // 触发mousemove
+      await window.dispatchEvent(new MouseEvent('mousemove'))
+
+      // 宽度不应该改变
+      expect(vm.editorWidth).toBe(initialWidth)
+    })
+  })
 })

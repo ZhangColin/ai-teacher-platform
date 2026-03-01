@@ -41,9 +41,14 @@ backend/static/
 frontend/test-results/
 frontend/playwright-report/
 backend/.coverage
+backend/.coverage.*
+backend/coverage.json
 backend/htmlcov/
 test-results/
-pytest.ini
+
+# 临时日志文件
+*.log
+/tmp/*.log
 
 # 临时测试脚本（开发调试用）
 backend/test_*.py
@@ -54,6 +59,12 @@ package.json
 package-lock.json
 node_modules/
 tests/
+
+# 项目配置文件（不应该被忽略）
+!pytest.ini
+!backend/pytest.ini
+!frontend/playwright.config.ts
+!frontend/vite.config.ts
 
 
 # 归档目录（保留历史但不需要版本控制）
@@ -89,3 +100,5 @@ frontend/node_modules/.cache/
 
 # 后端测试报告
 backend/.pytest_cache/
+# 测试工具配置（自动生成，不需要提交）
+backend/configs/tools/test_tools/
