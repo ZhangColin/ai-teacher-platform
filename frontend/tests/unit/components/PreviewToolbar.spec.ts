@@ -141,18 +141,16 @@ describe('PreviewToolbar', () => {
       expect(wordButton.text()).toContain('Word');
     });
 
-    it('should emit update:isDownloadingWord when download button clicked', async () => {
+    it('should emit downloadWord when download button clicked', async () => {
       const wrapper = mount(PreviewToolbar, {
         props: {
           artifactType: 'markdown',
-          isDownloadingWord: false,
         },
       });
 
       await wrapper.find('[data-testid="btn-download-word"]').trigger('click');
 
-      expect(wrapper.emitted('update:isDownloadingWord')).toBeTruthy();
-      expect(wrapper.emitted('update:isDownloadingWord')?.[0]).toEqual([true]);
+      expect(wrapper.emitted('downloadWord')).toBeTruthy();
     });
 
     it('should emit downloadWord when download button clicked', async () => {
