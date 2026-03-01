@@ -60,3 +60,32 @@ tests/
 docs/archive/
 frontend/tests/e2e/.archive/
 .coverage
+
+# ==================== 测试相关 ====================
+
+# Python测试缓存
+*.pyc
+*.pyo
+*.pyd
+.Pytest_cache/
+.pytest_cache/
+
+# 数据库文件（测试不应提交）
+*.db
+*.sqlite
+*.sqlite3
+
+# 备份文件（不应提交）
+*.bak
+*.backup
+*.old
+*~
+*.swp
+*.swo
+
+# 前端测试缓存
+frontend/.vitest/
+frontend/node_modules/.cache/
+
+# 后端测试报告
+backend/.pytest_cache/
