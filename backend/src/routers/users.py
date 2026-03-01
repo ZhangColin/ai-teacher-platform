@@ -62,7 +62,7 @@ async def get_user_list(
     if page_size > 100:
         page_size = 100
 
-    user_service = UserService()
+    user_service = get_user_service()
     users, total = user_service.get_all_users(
         page=page,
         page_size=page_size,
