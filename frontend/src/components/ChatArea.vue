@@ -154,7 +154,7 @@ async function handleSendMessage(content: string) {
     if (err instanceof Error && err.message.includes('工具未初始化')) {
       sessionStore.error = '工具初始化失败，请刷新页面重试'
     }
-    throw err
+    // 错误已记录到 sessionStore.error，由 ChatPanel 显示给用户
   }
 }
 
