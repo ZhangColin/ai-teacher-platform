@@ -269,7 +269,7 @@ def mock_deepseek_provider():
 
 @pytest.fixture(scope="function")
 async def logged_in_client(async_client, db_session):
-    """创建已登录的异步客户端"""
+    """创建已登录的异步客户端（普通用户）"""
     import bcrypt
     from src.db_models import UserModel
     from datetime import datetime
@@ -294,6 +294,44 @@ async def logged_in_client(async_client, db_session):
     })
 
     assert response.status_code == 200, f"Login failed: {response.text}"
+    token = response.json()["token"]
+
+    # 设置认证头
+    async_client.headers["Authorization"] = f"Bearer {token}"
+
+    # 将用户对象附加到client，方便测试使用
+    async_client.test_user = user
+
+    return async_client
+
+
+@pytest.fixture(scope="function")
+async def admin_client(async_client, db_session):
+    """创建已登录的管理员客户端"""
+    import bcrypt
+    from src.db_models import UserModel
+    from datetime import datetime
+
+    # 直接在db_session中创建管理员用户
+    password_hash = bcrypt.hashpw("admin123".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    user = UserModel(
+        username="admin_user",
+        email="admin@example.com",
+        password_hash=password_hash,
+        is_admin=True,
+        created_at=datetime.now()
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+
+    # 登录获取token
+    response = await async_client.post("/api/v1/auth/login", json={
+        "account": "admin_user",
+        "password": "admin123"
+    })
+
+    assert response.status_code == 200, f"Admin login failed: {response.text}"
     token = response.json()["token"]
 
     # 设置认证头
