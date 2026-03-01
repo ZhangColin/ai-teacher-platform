@@ -14,17 +14,6 @@ logger = logging.getLogger(__name__)
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-# 导入路由模块
-from src.routers import (
-    # users_router,  # 已迁移到 interfaces 层
-    # tools_router,  # 已迁移到 interfaces 层，完全删除
-    # sessions_router,  # 已迁移到 interfaces 层
-    # admin_tools_router,  # 已迁移到 interfaces 层
-    works_router,
-    courses_router,
-    common_router,
-)
-
 # 导入新的模块化路由（interfaces层）
 from src.interfaces.routers.tools import list as tools_list_router
 from src.interfaces.routers.tools import chat as tools_chat_router
@@ -34,6 +23,9 @@ from src.interfaces.routers.auth import auth as new_auth_router
 from src.interfaces.routers import sessions as new_sessions_router
 from src.interfaces.routers import users as new_users_router
 from src.interfaces.routers.admin import tools as new_admin_tools_router
+from src.interfaces.routers import works as new_works_router
+from src.interfaces.routers import courses as new_courses_router
+from src.interfaces.routers import common as new_common_router
 
 # 导入错误处理中间件
 from src.interfaces.middleware.error_handler import error_handler
@@ -123,14 +115,30 @@ app.include_router(new_admin_tools_router.router)
 # 迁移位置：interfaces/routers/admin/tools.py
 # app.include_router(admin_tools_router)
 
-# 教案学案路由
-app.include_router(works_router)
+# 教案学案路由（新架构 - interfaces层）
+# ✅ 所有端点已迁移到 interfaces 层（2026-03-02）
+# 迁移位置：interfaces/routers/works/works.py
+# TODO: 完全删除旧 works_router
+app.include_router(new_works_router.works.router)
 
-# 课程文档路由
-app.include_router(courses_router)
+# 课程文档路由（新架构 - interfaces层）
+# ✅ 所有端点已迁移到 interfaces 层（2026-03-02）
+# ✅ 旧路由已删除
+# 迁移位置：interfaces/routers/courses/courses.py
+app.include_router(new_courses_router.router)
 
-# 通用功能路由
-app.include_router(common_router)
+# 通用功能路由（新架构 - interfaces层）
+# ✅ 已迁移到 interfaces 层（2026-03-02）
+# 迁移位置：interfaces/routers/common/common.py
+# 保留端点：
+#   - GET /navigation -> 导航配置
+#   - GET /tasks/{task_id} -> 查询任务状态
+#   - POST /convert/markdown-to-word -> Markdown转Word
+# 删除端点（未使用）：
+#   - GET /common-tools/categories -> 工具分类
+#   - GET /common-tools/tools/{tool_id} -> 工具详情
+app.include_router(new_common_router.router)
+# app.include_router(common_router)  # 旧路由已迁移
 
 
 # ==================== 已废弃的 Agent API ====================

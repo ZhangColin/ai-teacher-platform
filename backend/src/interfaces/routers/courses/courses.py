@@ -22,8 +22,7 @@ from src.models import (
     UpdateCourseDocumentRequest,
 )
 
-from src.interfaces.auth import get_current_user
-from .dependencies import get_course_service
+from src.interfaces.dependencies import get_course_service, get_current_user
 
 logger = logging.getLogger(__name__)
 

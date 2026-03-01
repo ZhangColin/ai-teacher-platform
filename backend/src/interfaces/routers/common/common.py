@@ -2,8 +2,12 @@
 """通用功能路由
 
 包含导航、文档转换、任务状态查询等通用接口。
+
+迁移说明：从 backend/src/routers/common.py 迁移到新架构
+迁移日期：2026-03-02
 """
 import logging
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, status, Depends
@@ -14,15 +18,16 @@ from src.models import (
     NavigationResponse,
     MarkdownToWordRequest,
     TaskStatusResponse,
+    MultiModalContent,
+    Message,
 )
 
 from src.interfaces.auth import get_current_user
-from .dependencies import (
+from src.interfaces.dependencies import (
     get_config_loader,
     get_conversion_service,
     get_session_service,
     get_ai_service,
-    get_common_tool_service,
 )
 
 logger = logging.getLogger(__name__)
@@ -153,7 +158,6 @@ async def get_task_status(
 
                 if task_status == "SUCCESS":
                     # 提取图片URLs
-                    from src.models import MultiModalContent, Message
                     image_result = glm_result.get("image_result", [])
                     media_urls = [img.get("url") for img in image_result if img.get("url")]
 
@@ -165,7 +169,7 @@ async def get_task_status(
                     }
 
                     # 保存AI回复消息（包含图片URLs）
-                    ai_message_id = str(__import__("uuid").uuid4())
+                    ai_message_id = str(uuid.uuid4())
                     media_content_obj = MultiModalContent(
                         content_type="image",
                         media_urls=media_urls,
@@ -229,18 +233,15 @@ async def get_task_status(
                     )
 
             elif media_type == "video":
-                print(f"\n【查询视频任务状态】task_id: {task_id}, glm_task_id: {glm_task_id}")
                 logger.info(f"查询GLM视频任务状态 - task_id: {task_id}, glm_task_id: {glm_task_id}")
                 glm_result = await ai_service.get_video_result(glm_task_id)
 
                 # 解析GLM返回结果（视频使用与图片相同的接口）
                 task_status = glm_result.get("task_status", "PROCESSING")
-                print(f"GLM视频任务状态: {task_status}, 完整结果: {glm_result}")
                 logger.info(f"GLM视频任务状态: {task_status}")
 
                 if task_status == "SUCCESS":
                     # 提取视频URLs
-                    from src.models import MultiModalContent, Message
                     video_result = glm_result.get("video_result", [])
                     media_urls = [video.get("url") for video in video_result if video.get("url")]
 
@@ -253,7 +254,7 @@ async def get_task_status(
                     }
 
                     # 保存AI回复消息（包含视频URLs）
-                    ai_message_id = str(__import__("uuid").uuid4())
+                    ai_message_id = str(uuid.uuid4())
                     media_content_obj = MultiModalContent(
                         content_type="video",
                         media_urls=media_urls,
@@ -349,77 +350,3 @@ async def get_task_status(
     except Exception as e:
         logger.error(f"查询任务状态接口异常: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
-
-
-# 常用工具模块 API - 保留在 common.py 中以保持兼容性
-
-@router.get("/common-tools/categories")
-async def get_common_tool_categories(current_user: Annotated[UserInfo, Depends(get_current_user)] = None):
-    """
-    获取所有工具分类及其下的工具列表
-
-    Returns:
-        CommonToolCategoryResponse: 分类列表，每个分类包含该分类下的工具列表
-
-    Notes:
-        - 只返回 visible=True 的工具
-        - 分类按 order 字段升序排列
-        - 每个分类下的工具按 order 字段升序排列
-        - 如果某个分类下没有可见工具，则不返回该分类
-    """
-    try:
-        from src.services.common_tool_service import CommonToolService
-        common_tool_service = get_common_tool_service()
-        result = common_tool_service.get_categories_with_tools()
-        return result
-    except Exception as e:
-        logger.error(f"获取工具分类列表失败: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取工具分类列表失败"
-        )
-
-
-@router.get("/common-tools/tools/{tool_id}")
-async def get_common_tool_detail(
-    tool_id: str,
-    current_user: Annotated[UserInfo, Depends(get_current_user)] = None,
-):
-    """
-    获取指定工具的详细信息
-
-    Args:
-        tool_id: 工具ID
-
-    Returns:
-        CommonToolDetail: 工具详情（包括分类信息、HTML访问URL等）
-
-    Raises:
-        HTTPException: 工具不存在或不可见时返回404
-
-    Notes:
-        - 只能查询 visible=True 的工具
-        - HTML工具的 html_path 会被转换为完整的访问URL
-    """
-    try:
-        from src.services.common_tool_service import CommonToolService
-        from src.models import CommonToolDetail
-
-        common_tool_service = get_common_tool_service()
-        result = common_tool_service.get_tool_detail(tool_id)
-
-        if result is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="工具不存在或已下线"
-            )
-
-        return result
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"获取工具详情失败: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取工具详情失败"
-        )

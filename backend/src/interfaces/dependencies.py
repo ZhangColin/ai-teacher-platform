@@ -20,7 +20,11 @@ from src.routers.dependencies import (
     get_title_generator,
     get_auth_service,
     get_user_service,
+    get_config_loader,
+    get_conversion_service,
     get_common_tool_service,
+    get_work_service,
+    get_course_service,
 )
 from src.interfaces.auth import get_current_user
 
@@ -33,6 +37,10 @@ __all__ = [
     "get_title_generator",
     "get_auth_service",
     "get_user_service",
+    "get_config_loader",
+    "get_conversion_service",
     "get_common_tool_service",
+    "get_work_service",
+    "get_course_service",
     "get_current_user",
 ]

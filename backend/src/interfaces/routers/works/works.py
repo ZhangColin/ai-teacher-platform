@@ -32,7 +32,7 @@ from src.models import (
 )
 
 from src.interfaces.auth import get_current_user
-from .dependencies import get_work_service
+from src.interfaces.dependencies import get_work_service
 
 logger = logging.getLogger(__name__)
 
