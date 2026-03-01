@@ -64,12 +64,14 @@ async def async_client() -> AsyncGenerator[AsyncClient, None]:
 @pytest.fixture(scope="function")
 def test_user(db_session: Session) -> UserModel:
     """创建测试用户（非管理员）"""
-    from src.services.auth_service import AuthService
+    import bcrypt
+
+    password_hash = bcrypt.hashpw("password123".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
     user = UserModel(
         username="testuser",
         email="test@example.com",
-        hashed_password=AuthService.hash_password("password123"),
+        password_hash=password_hash,
         is_admin=False
     )
     db_session.add(user)
@@ -81,12 +83,14 @@ def test_user(db_session: Session) -> UserModel:
 @pytest.fixture(scope="function")
 def admin_user(db_session: Session) -> UserModel:
     """创建测试管理员用户"""
-    from src.services.auth_service import AuthService
+    import bcrypt
+
+    password_hash = bcrypt.hashpw("admin123".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
     user = UserModel(
         username="admin",
         email="admin@example.com",
-        hashed_password=AuthService.hash_password("admin123"),
+        password_hash=password_hash,
         is_admin=True
     )
     db_session.add(user)
@@ -99,7 +103,17 @@ def admin_user(db_session: Session) -> UserModel:
 def auth_headers(test_user: UserModel) -> dict:
     """普通用户认证头"""
     from src.services.auth_service import AuthService
-    token = AuthService.generate_token(user_id=test_user.id)
+    from src.models import User
+
+    # 创建User实体（AuthService需要User实体，不是UserModel）
+    user_entity = User(
+        user_id=test_user.user_id,
+        username=test_user.username,
+        email=test_user.email,
+        password_hash=test_user.password_hash  # 添加必填字段
+    )
+    auth_service = AuthService()
+    token = auth_service.generate_token(user_entity)
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -107,7 +121,17 @@ def auth_headers(test_user: UserModel) -> dict:
 def admin_headers(admin_user: UserModel) -> dict:
     """管理员认证头"""
     from src.services.auth_service import AuthService
-    token = AuthService.generate_token(user_id=admin_user.id)
+    from src.models import User
+
+    # 创建User实体（AuthService需要User实体，不是UserModel）
+    user_entity = User(
+        user_id=admin_user.user_id,
+        username=admin_user.username,
+        email=admin_user.email,
+        password_hash=admin_user.password_hash  # 添加必填字段
+    )
+    auth_service = AuthService()
+    token = auth_service.generate_token(user_entity)
     return {"Authorization": f"Bearer {token}"}
 
 

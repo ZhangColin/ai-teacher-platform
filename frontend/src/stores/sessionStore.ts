@@ -12,6 +12,7 @@ export const useSessionStore = defineStore('session', () => {
   const loading = ref(false)
   const error = ref<string | null>(null)
   const currentPreviewArtifact = ref<Artifact | null>(null)
+  const titleGeneratedSessionId = ref<string | null>(null) // 标题生成完成的会话ID
 
   // 计算属性
   const hasSession = computed(() => sessionId.value !== null)
@@ -148,6 +149,11 @@ export const useSessionStore = defineStore('session', () => {
             }
             if (messages.value[userMsgIndex]) {
               messages.value[userMsgIndex].pending = false
+            }
+          } else if (data.type === 'title_generated') {
+            // 标题生成完成，记录会话ID以便刷新列表
+            if (data.session_id) {
+              titleGeneratedSessionId.value = data.session_id
             }
           } else if (data.type === 'error') {
             // 错误处理
@@ -292,6 +298,7 @@ export const useSessionStore = defineStore('session', () => {
     loading,
     error,
     currentPreviewArtifact,
+    titleGeneratedSessionId,
     // 计算属性
     hasSession,
     messageCount,

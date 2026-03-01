@@ -94,16 +94,21 @@ watch(() => sessionStore.sessionId, async (newId, oldId) => {
   if (newId && !oldId) {
     // 新会话创建了
     console.log('检测到新会话创建:', newId)
-
-    // 更新当前会话ID
+    // 更新当前会话ID（但不刷新列表，等待标题生成完成）
     currentSessionId.value = newId
+  }
+})
 
+// 监听标题生成完成，然后刷新会话列表
+watch(() => sessionStore.titleGeneratedSessionId, async (generatedSessionId) => {
+  if (generatedSessionId && conversationListRef.value) {
+    console.log('检测到标题生成完成，刷新会话列表:', generatedSessionId)
     // 刷新会话列表
-    if (conversationListRef.value) {
-      await conversationListRef.value.loadConversations()
-      // 设置为当前选中的会话
-      conversationListRef.value.setCurrentConversation(newId)
-    }
+    await conversationListRef.value.loadConversations()
+    // 设置为当前选中的会话
+    conversationListRef.value.setCurrentConversation(generatedSessionId)
+    // 清除标记，避免重复刷新
+    sessionStore.titleGeneratedSessionId = null
   }
 })
 
