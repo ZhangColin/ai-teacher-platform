@@ -40,7 +40,19 @@ from typing import Generator, AsyncGenerator
 from httpx import AsyncClient, ASGITransport
 from unittest.mock import AsyncMock, MagicMock
 
-from src.database import Base
+# 重要：在导入src模块之前，先替换掉数据库engine
+# 创建测试数据库engine
+test_engine = create_engine(
+    "sqlite:///:memory:",
+    connect_args={"check_same_thread": False}
+)
+
+# 替换掉database.py中的engine和SessionLocal
+import src.database
+src.database.engine = test_engine
+src.database.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+
+from src.database import Base, get_db
 from src.main import app
 from src.db_models import UserModel
 
@@ -55,19 +67,17 @@ def db_session() -> Generator[Session, None, None]:
     - 每个测试函数独立数据库
     - 自动清理
     """
-    engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False}
-    )
-    Base.metadata.create_all(engine)
+    # 创建所有表
+    Base.metadata.create_all(test_engine)
 
-    TestingSessionLocal = sessionmaker(bind=engine)
+    # 创建会话
+    TestingSessionLocal = sessionmaker(bind=test_engine)
     session = TestingSessionLocal()
 
     yield session
 
     session.close()
-    Base.metadata.drop_all(engine)
+    Base.metadata.drop_all(test_engine)
 
 
 # ==================== HTTP Client Fixtures ====================
@@ -107,12 +117,24 @@ def _app_with_tools():
 async def async_client(_app_with_tools, db_session) -> AsyncGenerator[AsyncClient, None]:
     """
     异步HTTP客户端（用于FastAPI集成测试）
+
+    重要：覆盖FastAPI的get_db依赖，使用测试数据库会话
     """
     from src.routers.dependencies import (
         get_user_service,
         get_session_service,
         get_auth_service,
     )
+    from src.database import get_db
+
+    # 覆盖数据库依赖，使用测试数据库会话
+    def override_get_db():
+        try:
+            yield db_session
+        finally:
+            pass
+
+    _app_with_tools.dependency_overrides[get_db] = override_get_db
 
     # 清除所有服务cache，强制重新创建
     get_user_service.cache_clear()
@@ -125,7 +147,8 @@ async def async_client(_app_with_tools, db_session) -> AsyncGenerator[AsyncClien
     ) as client:
         yield client
 
-    # 清理cache
+    # 清理
+    _app_with_tools.dependency_overrides.clear()
     get_user_service.cache_clear()
     get_session_service.cache_clear()
     get_auth_service.cache_clear()
@@ -243,5 +266,43 @@ def mock_deepseek_provider():
 
 
 # ==================== 工具 Fixtures ====================
+
+@pytest.fixture(scope="function")
+async def logged_in_client(async_client, db_session):
+    """创建已登录的异步客户端"""
+    import bcrypt
+    from src.db_models import UserModel
+    from datetime import datetime
+
+    # 直接在db_session中创建测试用户
+    password_hash = bcrypt.hashpw("password123".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    user = UserModel(
+        username="testuser_logged_in",
+        email="test_logged_in@example.com",
+        password_hash=password_hash,
+        is_admin=False,
+        created_at=datetime.now()
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+
+    # 登录获取token
+    response = await async_client.post("/api/v1/auth/login", json={
+        "account": "testuser_logged_in",
+        "password": "password123"
+    })
+
+    assert response.status_code == 200, f"Login failed: {response.text}"
+    token = response.json()["token"]
+
+    # 设置认证头
+    async_client.headers["Authorization"] = f"Bearer {token}"
+
+    # 将用户对象附加到client，方便测试使用
+    async_client.test_user = user
+
+    return async_client
+
 
 # test_tool fixture 已删除 - 相关集成测试已移除
