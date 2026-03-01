@@ -211,6 +211,7 @@ test.describe('Real Chat Flow (End-to-End)', () => {
 
       const aiMessageContent = await aiMessage.textContent();
       console.log(`AI response length: ${aiMessageContent?.length || 0} characters`);
+      console.log(`AI response content: "${aiMessageContent?.trim()}"`);
 
       // Verify response is not empty
       expect(aiMessageContent?.trim().length).toBeGreaterThan(0);
