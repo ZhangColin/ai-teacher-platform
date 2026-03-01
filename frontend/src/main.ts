@@ -8,6 +8,7 @@ import './style.css'
 import './styles/markdown.css'
 import App from './App.vue'
 import { useAuthStore } from './stores/authStore'
+import { initCodeBlockHandlers } from './utils/codeBlockHandlers'
 
 const app = createApp(App)
 
@@ -26,3 +27,6 @@ const authStore = useAuthStore()
 authStore.restoreAuth()
 
 app.mount('#app')
+
+// 初始化代码块按钮事件处理器
+initCodeBlockHandlers()

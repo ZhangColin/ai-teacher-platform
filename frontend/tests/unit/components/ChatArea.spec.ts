@@ -12,14 +12,15 @@ import PreviewPanel from '@/components/PreviewPanel.vue'
 import { useSessionStore } from '@/stores/sessionStore'
 
 // Mock sessionStore
+// Pinia stores 自动解包 refs，所以 mock 应该返回普通值
 vi.mock('@/stores/sessionStore', () => ({
   useSessionStore: vi.fn(() => ({
-    sessionId: ref(null),
-    toolId: ref(null),
-    messages: ref([]),
-    loading: ref(false),
-    error: ref(null),
-    titleGenerated: ref(false),
+    sessionId: null,
+    toolId: null,
+    messages: [],
+    loading: false,
+    error: null,
+    titleGenerated: false,
     initTool: vi.fn(),
     sendMessage: vi.fn(),
     clearSession: vi.fn(),
@@ -36,12 +37,12 @@ describe('ChatArea', () => {
   it('should call sessionStore.sendMessage when handleSendMessage is called', async () => {
     const mockSendMessage = vi.fn().mockResolvedValue(undefined)
     const sessionStore = {
-      sessionId: ref(null),
-      toolId: ref('test-tool'),
-      messages: ref([]),
-      loading: ref(false),
-      error: ref(null),
-      titleGenerated: ref(false),
+      sessionId: null,
+      toolId: 'test-tool',
+      messages: [],
+      loading: false,
+      error: null,
+      titleGenerated: false,
       initTool: vi.fn(),
       sendMessage: mockSendMessage,
       clearSession: vi.fn(),
@@ -79,12 +80,12 @@ describe('ChatArea', () => {
     const mockSendMessage = vi.fn().mockRejectedValue(mockError)
 
     const sessionStore = {
-      sessionId: ref(null),
-      toolId: ref('test-tool'),
-      messages: ref([]),
-      loading: ref(false),
-      error: ref(null),
-      titleGenerated: ref(false),
+      sessionId: null,
+      toolId: 'test-tool',
+      messages: [],
+      loading: false,
+      error: null,
+      titleGenerated: false,
       initTool: vi.fn(),
       sendMessage: mockSendMessage,
       clearSession: vi.fn(),
@@ -124,12 +125,12 @@ describe('ChatArea', () => {
     const mockInitTool = vi.fn()
 
     const sessionStore = {
-      sessionId: ref(null),
-      toolId: ref(null),
-      messages: ref([]),
-      loading: ref(false),
-      error: ref(null),
-      titleGenerated: ref(false),
+      sessionId: null,
+      toolId: null,
+      messages: [],
+      loading: false,
+      error: null,
+      titleGenerated: false,
       initTool: mockInitTool,
       sendMessage: vi.fn().mockResolvedValue(undefined),
       clearSession: vi.fn(),
@@ -179,12 +180,12 @@ describe('ChatArea', () => {
   // 测试修复：ChatArea应该在模板中传递sessionStore.messages给ChatPanel
   it('should pass sessionStore.messages to ChatPanel in template', () => {
     const mockSessionStore = {
-      sessionId: ref(null),
-      toolId: ref('test-tool'),
+      sessionId: null,
+      toolId: 'test-tool',
       messages: ref([{ role: 'user', content: 'Test' }]),
-      loading: ref(false),
-      error: ref(null),
-      titleGenerated: ref(false),
+      loading: false,
+      error: null,
+      titleGenerated: false,
       initTool: vi.fn(),
       sendMessage: vi.fn().mockResolvedValue(undefined),
       clearSession: vi.fn(),
@@ -216,12 +217,12 @@ describe('ChatArea', () => {
   it('should mount correctly when sessionStore has error and loading state', async () => {
     const testErrorMessage = '网络错误'
     const mockSessionStore = {
-      sessionId: ref(null),
-      toolId: ref('test-tool'),
-      messages: ref([]),
-      loading: ref(true),
+      sessionId: null,
+      toolId: 'test-tool',
+      messages: [],
+      loading: true,
       error: ref(testErrorMessage),
-      titleGenerated: ref(false),
+      titleGenerated: false,
       initTool: vi.fn(),
       sendMessage: vi.fn().mockResolvedValue(undefined),
       clearSession: vi.fn(),
@@ -255,12 +256,12 @@ describe('ChatArea', () => {
   // 测试修复：ChatArea应该正确处理error为null的情况（类型转换验证）
   it('should mount correctly when sessionStore.error is null', async () => {
     const mockSessionStore = {
-      sessionId: ref(null),
-      toolId: ref('test-tool'),
-      messages: ref([]),
-      loading: ref(false),
-      error: ref(null), // error 为 null
-      titleGenerated: ref(false),
+      sessionId: null,
+      toolId: 'test-tool',
+      messages: [],
+      loading: false,
+      error: null, // error 为 null
+      titleGenerated: false,
       initTool: vi.fn(),
       sendMessage: vi.fn().mockResolvedValue(undefined),
       clearSession: vi.fn(),

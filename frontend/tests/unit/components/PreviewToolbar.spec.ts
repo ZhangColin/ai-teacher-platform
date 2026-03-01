@@ -154,4 +154,45 @@ describe('PreviewToolbar', () => {
       expect(wrapper.emitted('downloadWord')).toBeTruthy();
     });
   });
+
+  describe('PDF Download Loading State', () => {
+    it('should show loading state when isDownloadingPDF is true', () => {
+      const wrapper = mount(PreviewToolbar, {
+        props: {
+          artifactType: 'markdown',
+          isDownloadingPDF: true,
+        },
+      });
+
+      const pdfButton = wrapper.find('[data-testid="btn-download-pdf"]');
+      expect(pdfButton.attributes('disabled')).toBeDefined();
+      expect(pdfButton.text()).toContain('生成中...');
+    });
+
+    it('should not show loading state when isDownloadingPDF is false', () => {
+      const wrapper = mount(PreviewToolbar, {
+        props: {
+          artifactType: 'markdown',
+          isDownloadingPDF: false,
+        },
+      });
+
+      const pdfButton = wrapper.find('[data-testid="btn-download-pdf"]');
+      expect(pdfButton.attributes('disabled')).toBeUndefined();
+      expect(pdfButton.text()).toContain('PDF');
+    });
+
+    it('should emit downloadPDF when download button clicked', async () => {
+      const wrapper = mount(PreviewToolbar, {
+        props: {
+          artifactType: 'markdown',
+        },
+      });
+
+      await wrapper.find('[data-testid="btn-download-pdf"]').trigger('click');
+
+      expect(wrapper.emitted('downloadPDF')).toBeTruthy();
+      expect(wrapper.emitted('downloadPDF')?.length).toBe(1);
+    });
+  });
 });

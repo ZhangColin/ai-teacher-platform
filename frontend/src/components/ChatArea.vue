@@ -205,13 +205,26 @@ function updateContainerWidth() {
 onMounted(() => {
   window.addEventListener('resize', updateContainerWidth)
   updateContainerWidth()
+
+  // 监听代码块预览事件
+  window.addEventListener('codeblock-preview', handleCodeBlockPreview as EventListener)
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', updateContainerWidth)
   document.removeEventListener('mousemove', handleResize)
   document.removeEventListener('mouseup', stopResize)
+
+  // 移除代码块预览事件监听
+  window.removeEventListener('codeblock-preview', handleCodeBlockPreview as EventListener)
 })
+
+// 处理代码块预览事件
+function handleCodeBlockPreview(event: Event) {
+  const customEvent = event as CustomEvent<{ artifact: Artifact }>
+  console.log('[ChatArea] 收到代码块预览事件:', customEvent.detail.artifact)
+  openPreview(customEvent.detail.artifact)
+}
 
 // 监听工具切换或会话切换，关闭预览
 watch(() => props.toolId, () => {

@@ -35,16 +35,16 @@
       v-if="showMarkdownDownload"
       class="toolbar-btn"
       @click="handleDownloadPDF"
-      :disabled="isDownloadingPDF"
+      :disabled="props.isDownloadingPDF"
       data-testid="btn-download-pdf"
-      :title="isDownloadingPDF ? '正在生成 PDF...' : '下载 PDF 文档'"
+      :title="props.isDownloadingPDF ? '正在生成 PDF...' : '下载 PDF 文档'"
     >
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
         <polyline points="7 10 12 15 17 10"></polyline>
         <line x1="12" y1="15" x2="12" y2="3"></line>
       </svg>
-      <span class="btn-text">{{ isDownloadingPDF ? '生成中...' : 'PDF' }}</span>
+      <span class="btn-text">{{ props.isDownloadingPDF ? '生成中...' : 'PDF' }}</span>
     </button>
 
     <button
@@ -100,11 +100,7 @@ const emit = defineEmits<{
   downloadPDF: [];
   downloadSvg: [];
   toggleFullscreen: [];
-  'update:isDownloadingWord': [value: boolean];
-  'update:isDownloadingPDF': [value: boolean];
 }>();
-
-const isDownloadingPDF = ref(false);
 
 const showMarkdownDownload = computed(() => {
   return props.artifactType === 'markdown';
@@ -119,13 +115,16 @@ const handleDownloadMarkdown = () => {
 };
 
 const handleDownloadWord = () => {
-  emit('update:isDownloadingWord', true);
   emit('downloadWord');
 };
 
 const handleDownloadPDF = () => {
-  emit('update:isDownloadingPDF', true);
+  console.log('[PreviewToolbar] handleDownloadPDF 被调用')
+  console.log('[PreviewToolbar] 当前 isDownloadingPDF 状态:', props.isDownloadingPDF)
+  console.log('[PreviewToolbar] 按钮是否被禁用:', props.isDownloadingPDF === true)
+  console.log('[PreviewToolbar] 准备 emit downloadPDF 事件')
   emit('downloadPDF');
+  console.log('[PreviewToolbar] 已 emit downloadPDF 事件')
 };
 
 const handleDownloadSvg = () => {
@@ -145,6 +144,7 @@ const handleToggleFullscreen = () => {
   background-color: #f5f5f5;
   border-bottom: 1px solid #e0e0e0;
   align-items: center;
+  justify-content: flex-end;
 }
 
 .toolbar-btn {

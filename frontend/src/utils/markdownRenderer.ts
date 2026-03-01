@@ -1,12 +1,29 @@
 /** Markdown 渲染工具 */
 import MarkdownIt from 'markdown-it'
+import katex from '@traptitech/markdown-it-katex'
 import type { Artifact } from '../types'
 
-// 创建 markdown-it 实例，配置安全选项
+// 创建 markdown-it 实例，配置安全选项和数学公式支持
 const md = new MarkdownIt({
   html: false, // 禁用 HTML 标签，防止 XSS
   linkify: true, // 自动识别链接
   typographer: true, // 启用排版功能
+})
+
+// 启用 KaTeX 数学公式渲染，配置支持 LaTeX 原生语法
+md.use(katex, {
+  // 启用 LaTeX 原生语法支持
+  // \( ... \) 用于行内公式
+  // \[ ... \] 用于块级公式
+  throwOnError: false, // 渲染错误时不抛出异常，显示原始文本
+  errorColor: '#cc0000', // 错误时公式显示的颜色
+  macros: { // 自定义宏
+    "\\R": "\\mathbb{R}",
+    "\\N": "\\mathbb{N}",
+    "\\Z": "\\mathbb{Z}",
+    "\\Q": "\\mathbb{Q}",
+    "\\C": "\\mathbb{C}",
+  }
 })
 
 /**
@@ -17,12 +34,45 @@ export function renderMarkdown(content: string, artifacts: Artifact[] = []): str
   // 模式1：```结束后紧接着又开始```（中间可能有空白）
   // 例如：```\n```html\n 或 ```\n\n```python\n
   let cleanedContent = content.replace(/```\s*\n\s*```(\w+)?\s*\n/g, '\n')
-  
+
   // 模式2：代码块内部出现的```标记（非常规情况）
   // 这种情况比较复杂，暂时不处理，因为可能是用户真实需要的内容
-  
+
+  // 【AI 公式格式适配】转换 LaTeX 原生语法为 markdown-it-katex 支持的格式
+  // 使用正则表达式一次性替换所有公式
+  // \( ... \) → $...$ (行内公式，去除内部空格)
+  // \[ ... \] → $$...$$ (块级公式，去除内部空格)
+
+  // 转换块级公式 \[ ... \] → $$...$$
+  // 注意：确保 $$ 后面没有空格，否则 KaTeX 无法识别
+  cleanedContent = cleanedContent.replace(
+    /\\\[[\s\S]*?\\\]/g,
+    (match) => {
+      const latex = match.substring(2, match.length - 2).trim()
+      return '$$' + latex + '$$'
+    }
+  )
+
+  // 转换行内公式 \( ... \) → $...$
+  // 注意：确保 $ 后面没有空格，否则 KaTeX 无法识别
+  cleanedContent = cleanedContent.replace(
+    /\\\([\s\S]*?\\\)/g,
+    (match) => {
+      const latex = match.substring(2, match.length - 2).trim()
+      // 移除 latex 内容内部的多余空格，但保留必要的空格
+      return '$' + latex.replace(/\s+/g, ' ').trim() + '$'
+    }
+  )
+
   // 先渲染 Markdown
   let html = md.render(cleanedContent)
+
+  // 调试：检查渲染后的 HTML 是否包含 katex 类
+  if (html.includes('katex')) {
+    console.log('[markdownRenderer] 公式已渲染，HTML 中包含 katex 类')
+  } else if (cleanedContent.includes('$')) {
+    console.warn('[markdownRenderer] 内容包含 $ 但渲染后没有 katex 类')
+  }
 
   // 匹配所有代码块的正则表达式
   const codeBlockRegex = /<pre><code(?:\s+class="language-([^"]+)")?>([\s\S]*?)<\/code><\/pre>/gi

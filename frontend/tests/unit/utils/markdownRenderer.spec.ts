@@ -53,6 +53,46 @@ describe('markdownRenderer', () => {
     })
   })
 
+  describe('Content preservation with LaTeX formulas', () => {
+    it('should convert LaTeX delimiters to dollar signs', () => {
+      const markdown = 'Formula: \\[ x + y = z \\]'
+      const html = renderMarkdown(markdown)
+
+      // After conversion, should contain $$ delimiters
+      expect(html).toContain('$$')
+    })
+
+    it('should not lose content after LaTeX conversion', () => {
+      const markdown = `### Section 3
+
+1. **Answer**: B
+   **Analysis**: Substitute points to get: \\[ \\begin{cases} k + b = 3 \\\\-k + b = -1 \\end{cases} \\]
+
+2. **Answer**: C
+   **Analysis**: Some analysis here.
+
+3. **Answer**: Test content 3
+
+End of section.`
+
+      const html = renderMarkdown(markdown)
+
+      // Verify section title exists
+      expect(html).toContain('Section 3')
+
+      // Verify all content exists
+      expect(html).toContain('Answer')
+      expect(html).toContain('Analysis')
+      expect(html).toContain('Test content 3')
+      expect(html).toContain('End of section')
+
+      // Count occurrences
+      const answerMatches = html.match(/Answer/g)
+      expect(answerMatches).toBeTruthy()
+      expect(answerMatches.length).toBeGreaterThanOrEqual(3)
+    })
+  })
+
   describe('Basic markdown rendering', () => {
     it('should render basic markdown', () => {
       const markdown = '# Hello World\n\nThis is a test.'
@@ -90,6 +130,38 @@ describe('markdownRenderer', () => {
       const html = renderMarkdown(markdown)
 
       expect(html).toContain('markdown')
+    })
+  })
+
+  describe('Content preservation with LaTeX formulas', () => {
+    it('should not lose content after LaTeX conversion', () => {
+      const markdown = `### Section 3
+
+1. **Answer**: B
+   **Analysis**: Substitute points to get: \\[ \\begin{cases} k + b = 3 \\\\-k + b = -1 \\end{cases} \\]
+
+2. **Answer**: C
+   **Analysis**: Some analysis here.
+
+3. **Answer**: Test content 3
+
+End of section.`
+
+      const html = renderMarkdown(markdown)
+
+      // Verify section title exists
+      expect(html).toContain('Section 3')
+
+      // Verify all content exists
+      expect(html).toContain('Answer')
+      expect(html).toContain('Analysis')
+      expect(html).toContain('Test content 3')
+      expect(html).toContain('End of section')
+
+      // Count occurrences
+      const answerMatches = html.match(/Answer/g)
+      expect(answerMatches).toBeTruthy()
+      expect(answerMatches.length).toBeGreaterThanOrEqual(3)
     })
   })
 

@@ -5,13 +5,11 @@
       :is-fullscreen="isFullscreen"
       :is-downloading-word="isDownloadingWord"
       :is-downloading-pdf="isDownloadingPDF"
-      @download-markdown="handleDownloadMarkdown"
-      @download-word="handleDownloadWord"
-      @download-pdf="handleDownloadPDF"
-      @download-svg="handleDownloadSvg"
-      @toggle-fullscreen="toggleFullscreen"
-      @update:is-downloading-word="(val: boolean) => isDownloadingWord = val"
-      @update:is-downloading-pdf="(val: boolean) => isDownloadingPDF = val"
+      @download-markdown="() => { console.log('[PreviewPanel] 收到 download-markdown 事件'); handleDownloadMarkdown(); }"
+      @download-word="() => { console.log('[PreviewPanel] 收到 download-word 事件'); handleDownloadWord(); }"
+      @downloadPDF="() => { console.log('[PreviewPanel] 收到 downloadPDF 事件'); handleDownloadPDF(); }"
+      @download-svg="() => { console.log('[PreviewPanel] 收到 download-svg 事件'); handleDownloadSvg(); }"
+      @toggle-fullscreen="() => { console.log('[PreviewPanel] 收到 toggle-fullscreen 事件'); toggleFullscreen(); }"
     />
 
     <!-- 简单的通知提示 -->
@@ -108,22 +106,30 @@ const handleDownloadWord = async () => {
 };
 
 const handleDownloadPDF = async () => {
+  console.log('[PreviewPanel] handleDownloadPDF 被调用')
+  console.log('[PreviewPanel] artifact:', props.artifact)
+
   if (!props.artifact?.content || props.artifact.type !== 'markdown') {
+    console.warn('[PreviewPanel] 不是 Markdown 内容，无法下载 PDF')
     showNotification('PDF 导出仅支持 Markdown 内容');
     return;
   }
 
+  console.log('[PreviewPanel] 开始下载 PDF，设置 isDownloadingPDF = true')
   isDownloadingPDF.value = true;
 
   try {
     const elementId = 'markdown-preview-content';
     const filename = `document-${Date.now()}.pdf`;
+    console.log('[PreviewPanel] 调用 downloadPdf，elementId:', elementId, 'filename:', filename)
+
     await downloadPdf(elementId, filename);
     showNotification('PDF 文档下载成功！');
   } catch (error) {
     console.error('PDF 下载失败:', error);
     showNotification('PDF 文档下载失败，请重试');
   } finally {
+    console.log('[PreviewPanel] 下载完成，设置 isDownloadingPDF = false')
     isDownloadingPDF.value = false;
   }
 };

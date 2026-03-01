@@ -14,24 +14,25 @@ vi.mock('@/stores/sessionStore', () => ({
 }));
 
 // 辅助函数：创建默认的 mock sessionStore
+// 注意：Pinia stores 会自动解包 refs，所以 mock 应该返回普通值而非 ref 对象
 function createMockSessionStore() {
   return {
-    sessionId: ref(null),
-    toolId: ref(null),
-    messages: ref([]),
-    loading: ref(false),
-    error: ref(null),
-    titleGenerated: ref(false),
+    sessionId: null,
+    toolId: null,
+    messages: [],
+    loading: false,  // 返回普通值，而不是 ref
+    error: null,
+    titleGenerated: false,
     initTool: vi.fn(),
     sendMessage: vi.fn(),
     restoreSession: vi.fn().mockResolvedValue(undefined),
     clearSession: vi.fn(),
     setPreviewArtifact: vi.fn(),
     reset: vi.fn(),
-    hasSession: ref(false),
-    messageCount: ref(0),
-    showPreview: ref(false),
-    currentPreviewArtifact: ref(null),
+    hasSession: false,
+    messageCount: 0,
+    showPreview: false,
+    currentPreviewArtifact: null,
   };
 }
 

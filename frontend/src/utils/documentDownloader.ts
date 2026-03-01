@@ -10,12 +10,22 @@ export async function downloadWord(
   filename: string = 'document.docx'
 ): Promise<void> {
   try {
+    // 获取认证 token
+    const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token')
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    }
+
+    // 如果有 token，添加到请求头
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    }
+
     const response = await fetch('/api/v1/convert/markdown-to-word', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ markdown })
+      headers,
+      body: JSON.stringify({ content: markdown })
     })
 
     if (!response.ok) {

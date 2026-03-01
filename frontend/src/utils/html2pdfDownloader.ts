@@ -10,10 +10,15 @@ export default async function downloadPdf(
   filename = 'document.pdf'
 ): Promise<void> {
   try {
+    console.log('[PDF Download] 开始 PDF 下载流程')
+
     const element = document.getElementById(elementId)
     if (!element) {
+      console.error(`[PDF Download] 找不到要转换的元素: ${elementId}`)
       throw new Error(`找不到要转换的元素: ${elementId}`)
     }
+
+    console.log('[PDF Download] 找到元素，开始生成 PDF')
 
     // Configure html2pdf options for high-quality output
     const opt = {
@@ -23,7 +28,7 @@ export default async function downloadPdf(
       html2canvas: {
         scale: 2, // Higher scale for better quality
         useCORS: true, // Enable CORS for images
-        logging: false // Disable logging
+        logging: true // Enable logging to help debug
       },
       jsPDF: {
         unit: 'mm',
@@ -33,9 +38,13 @@ export default async function downloadPdf(
     }
 
     // Generate and save PDF
-    await (await import('html2pdf.js')).default().set(opt).from(element).save()
+    const html2pdf = (await import('html2pdf.js')).default()
+    console.log('[PDF Download] html2pdf.js 已加载')
+
+    await html2pdf.set(opt).from(element).save()
+    console.log('[PDF Download] PDF 生成成功')
   } catch (error) {
-    console.error('PDF 下载失败:', error)
+    console.error('[PDF Download] PDF 下载失败:', error)
     throw error
   }
 }
