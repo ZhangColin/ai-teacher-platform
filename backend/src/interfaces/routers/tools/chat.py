@@ -101,13 +101,6 @@ async def chat_stream(
         # 获取流式响应
         async def generate():
             try:
-                # 首先发送 session_id 事件（如果是新会话）
-                session_event = json.dumps({
-                    "type": "session_id",
-                    "session_id": session_id
-                }, ensure_ascii=False)
-                yield f"data: {session_event}\n\n"
-
                 full_response = ""
                 async for chunk in ai_service.chat_stream(
                     system_prompt=tool.system_prompt,
@@ -129,30 +122,35 @@ async def chat_stream(
                     content=full_response,
                     user_id=current_user.user_id
                 )
+                logger.info(f"✅ AI 消息已保存")
 
-                # 更新会话标题（使用title_generator）
-                # 检查是否是临时标题（标题长度50且等于用户消息前50字）
-                is_temp_title = (
-                    session.title and
-                    len(session.title) == 50 and
-                    session.title == request.message[:50]
-                )
+                # 检查是否是第一轮对话，如果是则生成标题
+                messages = session_service.get_messages_by_session(session_id, user_id=current_user.user_id)
+                logger.info(f"📊 会话消息数量检查 - 会话ID: {session_id}, 消息数: {len(messages)}")
 
-                if not session.title or session.title.startswith("新会话") or is_temp_title:
-                    logger.info(f"🔄 开始生成AI标题，当前标题: {session.title}")
-                    new_title = await title_generator.generate_title(request.message, full_response)
-                    logger.info(f"✅ AI标题生成完成: {new_title}")
-                    session_service.update_session_title(session_id, new_title)
-
-                    # 发送标题生成完成事件
-                    title_event = json.dumps({
-                        "type": "title_generated",
-                        "session_id": session_id,
-                        "title": new_title
-                    }, ensure_ascii=False)
-                    yield f"data: {title_event}\n\n"
+                if len(messages) == 2:  # 第一轮对话：1条用户消息 + 1条AI回复
+                    try:
+                        logger.info(f"🎯 检测到第一轮对话，开始生成会话标题 - 用户消息: {request.message[:50]}")
+                        # 生成标题
+                        title = await title_generator.generate_title(request.message, full_response)
+                        # 更新会话标题
+                        session_service.update_session_title(session_id, title, user_id=current_user.user_id)
+                        logger.info(f"✅ 会话标题已生成并更新：{title}")
+                        # 发送标题生成完成事件
+                        yield f"data: {json.dumps({'type': 'title_generated', 'title': title})}\n\n"
+                    except Exception as e:
+                        logger.error(f"❌ 生成会话标题失败，使用降级方案: {e}", exc_info=True)
+                        # 降级方案：使用简单截取
+                        try:
+                            fallback_title = title_generator._fallback_title(request.message)
+                            session_service.update_session_title(session_id, fallback_title, user_id=current_user.user_id)
+                            logger.info(f"⚠️ 使用降级方案生成标题：{fallback_title}")
+                            # 发送降级标题事件
+                            yield f"data: {json.dumps({'type': 'title_generated', 'title': fallback_title})}\n\n"
+                        except Exception as e2:
+                            logger.error(f"❌ 降级方案也失败了: {e2}", exc_info=True)
                 else:
-                    logger.info(f"ℹ️ 跳过标题生成，当前标题: {session.title}")
+                    logger.info(f"⏭️ 非第一轮对话，跳过标题生成（消息数: {len(messages)}）")
 
             except Exception as e:
                 logger.error(f"Chat stream error: {e}")
