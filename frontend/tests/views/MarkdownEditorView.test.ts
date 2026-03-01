@@ -15,7 +15,7 @@ describe('MarkdownEditorView', () => {
     vi.clearAllMocks()
   })
 
-  it('应该正确渲染编辑器和预览面板', () => {
+  it('应该正确渲染工具栏和编辑器', () => {
     const wrapper = mount(MarkdownEditorView, {
       global: {
         stubs: {
@@ -24,16 +24,19 @@ describe('MarkdownEditorView', () => {
       },
     })
 
-    // 验证编辑器头部
-    expect(wrapper.find('.editor-header').exists()).toBe(true)
-    expect(wrapper.find('.editor-title').text()).toBe('Markdown 编辑器')
+    // 验证工具栏
+    expect(wrapper.find('.toolbar').exists()).toBe(true)
+    expect(wrapper.find('.toolbar-title').exists()).toBe(true)
+    expect(wrapper.find('.toolbar-title').text()).toContain('Markdown 编辑器')
 
     // 验证清空按钮存在
-    expect(wrapper.find('.editor-action-btn').exists()).toBe(true)
-    expect(wrapper.find('.editor-action-btn').text()).toContain('清空')
+    expect(wrapper.find('.toolbar-btn').exists()).toBe(true)
 
     // 验证编辑器内容区域
     expect(wrapper.find('.editor-content').exists()).toBe(true)
+
+    // 验证编辑器容器
+    expect(wrapper.find('.editor-container').exists()).toBe(true)
 
     // 验证预览容器
     expect(wrapper.find('.preview-container').exists()).toBe(true)
@@ -47,7 +50,7 @@ describe('MarkdownEditorView', () => {
     expect(previewPanel.exists()).toBe(true)
   })
 
-  it('应该将编辑器内容传递给PreviewPanel', async () => {
+  it('应该将编辑器内容传递给PreviewPanel', () => {
     const wrapper = mount(MarkdownEditorView)
 
     const previewPanel = wrapper.findComponent(PreviewPanel)
@@ -71,11 +74,17 @@ describe('MarkdownEditorView', () => {
       },
     })
 
-    const clearButton = wrapper.find('.editor-action-btn')
-    await clearButton.trigger('click')
+    // 找到清空按钮（通过title属性）
+    const clearButtons = wrapper.findAll('.toolbar-btn')
+    const clearButton = clearButtons.find(btn => btn.text().includes('清空'))
 
-    // 验证confirm被调用
-    expect(mockConfirm).toHaveBeenCalledWith('确定要清空所有内容吗？此操作不可撤销。')
+    expect(clearButton).toBeDefined()
+    if (clearButton) {
+      await clearButton.trigger('click')
+
+      // 验证confirm被调用
+      expect(mockConfirm).toHaveBeenCalledWith('确定要清空所有内容吗？此操作不可撤销。')
+    }
   })
 
   it('应该有默认的欢迎内容', () => {
