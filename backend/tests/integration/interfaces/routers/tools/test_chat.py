@@ -74,7 +74,7 @@ async def test_chat_non_stream_with_new_session(
 
             if response.status_code == 200:
                 data = response.json()
-                assert "message" in data
+                assert "reply" in data
                 assert "session_id" in data
                 assert "artifacts" in data
 

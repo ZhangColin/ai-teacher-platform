@@ -73,7 +73,7 @@ async def chat_stream(
             logger.info(f"✅ 创建新会话: {session_id}")
         else:
             # 获取现有会话
-            session = session_service.get_session(session_id)
+            session = await session_service.get_session(session_id)
             if not session:
                 raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
             if session.user_id != current_user.user_id:
@@ -227,7 +227,7 @@ async def chat_non_stream(
             session_id = session.session_id
         else:
             # 获取现有会话
-            session = session_service.get_session(session_id)
+            session = await session_service.get_session(session_id)
             if not session:
                 raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
             if session.user_id != current_user.user_id:
@@ -300,7 +300,7 @@ async def chat_non_stream(
             logger.info(f"非第一轮对话，跳过标题生成")
 
         return ChatResponse(
-            message=response,
+            reply=response,
             artifacts=artifacts,
             session_id=session_id
         )
