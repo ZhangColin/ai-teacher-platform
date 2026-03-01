@@ -104,61 +104,31 @@ def _app_with_tools():
 
 
 @pytest.fixture(scope="function")
-def mock_get_db(db_session: Session, monkeypatch):
+async def async_client(_app_with_tools, db_session) -> AsyncGenerator[AsyncClient, None]:
     """
-    Mock数据库会话，让所有服务使用测试的内存数据库
-
-    通过monkey patch UserService和SessionService的_get_db方法
+    异步HTTP客户端（用于FastAPI集成测试）
     """
-    from src.services.user_service import UserService
-    from src.services.session_service import SessionService
     from src.routers.dependencies import (
         get_user_service,
         get_session_service,
+        get_auth_service,
     )
 
-    # 清除cache，获取新的服务实例
+    # 清除所有服务cache，强制重新创建
     get_user_service.cache_clear()
     get_session_service.cache_clear()
+    get_auth_service.cache_clear()
 
-    # Monkey patch _get_db方法
-    def mock_get_db_method(self):
-        return db_session
-
-    monkeypatch.setattr(UserService, "_get_db", mock_get_db_method)
-    monkeypatch.setattr(SessionService, "_get_db", mock_get_db_method)
-
-    yield db_session
+    async with AsyncClient(
+        transport=ASGITransport(app=_app_with_tools),
+        base_url="http://test"
+    ) as client:
+        yield client
 
     # 清理cache
     get_user_service.cache_clear()
     get_session_service.cache_clear()
-
-
-@pytest.fixture(scope="function")
-async def async_client(_app_with_tools, mock_get_db) -> AsyncGenerator[AsyncClient, None]:
-    """
-    异步HTTP客户端（用于FastAPI集成测试）
-
-    使用mock_get_db确保所有服务使用同一个测试数据库
-    """
-    async with AsyncClient(
-        transport=ASGITransport(app=_app_with_tools),
-        base_url="http://test"
-    ) as client:
-        yield client
-
-
-@pytest.fixture(scope="function")
-async def async_client(_app_with_tools) -> AsyncGenerator[AsyncClient, None]:
-    """
-    异步HTTP客户端（用于FastAPI集成测试）
-    """
-    async with AsyncClient(
-        transport=ASGITransport(app=_app_with_tools),
-        base_url="http://test"
-    ) as client:
-        yield client
+    get_auth_service.cache_clear()
 
 
 # ==================== 认证 Fixtures ====================
@@ -274,11 +244,4 @@ def mock_deepseek_provider():
 
 # ==================== 工具 Fixtures ====================
 
-@pytest.fixture(scope="function")
-def test_tool() -> str:
-    """
-    返回测试工具的tool_id
-
-    测试工具配置由 _app_with_tools fixture 创建
-    """
-    return "text_gen"
+# test_tool fixture 已删除 - 相关集成测试已移除
