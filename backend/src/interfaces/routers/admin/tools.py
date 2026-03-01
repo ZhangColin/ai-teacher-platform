@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """管理员工具路由
 
-包含工具管理、工具分类管理等管理员接口。
+提供内置工具和工具分类的管理接口
 """
 import logging
 import shutil
@@ -31,7 +31,7 @@ from src.models import (
 )
 
 from src.interfaces.auth import get_current_user
-from .dependencies import get_common_tool_service
+from src.interfaces.dependencies import get_common_tool_service
 
 logger = logging.getLogger(__name__)
 
@@ -143,7 +143,9 @@ async def create_html_tool(
         tool_id = str(uuid.uuid4())[:8]
 
         # 创建存储目录
-        tool_dir = Path(__file__).parent.parent.parent / "static" / "common_tools" / "html" / tool_id
+        # Path(__file__) = backend/src/interfaces/routers/admin/tools.py
+        # parent.parent.parent.parent.parent = backend
+        tool_dir = Path(__file__).parent.parent.parent.parent.parent / "static" / "common_tools" / "html" / tool_id
         tool_dir.mkdir(parents=True, exist_ok=True)
 
         # 保存文件
@@ -215,7 +217,9 @@ async def delete_tool(
 
         # 如果是HTML工具，删除文件
         if html_path:
-            file_path = Path(__file__).parent.parent.parent / "static" / html_path
+            # Path(__file__) = backend/src/interfaces/routers/admin/tools.py
+            # parent.parent.parent.parent.parent = backend
+            file_path = Path(__file__).parent.parent.parent.parent.parent / "static" / html_path
             if file_path.exists():
                 # 删除整个工具目录
                 tool_dir = file_path.parent

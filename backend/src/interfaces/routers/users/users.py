@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """用户管理路由
 
-包含用户列表、创建用户、更新用户、删除用户、重置密码等管理员接口。
+提供用户列表、创建用户、更新用户、删除用户、重置密码等管理员接口。
 """
 import logging
 from typing import Annotated, Optional
@@ -19,9 +19,8 @@ from src.models import (
     ResetPasswordRequest,
     ResetPasswordResponse,
 )
-
+from src.interfaces.dependencies import get_user_service
 from src.interfaces.auth import get_current_user
-from .dependencies import get_user_service, get_auth_service
 
 logger = logging.getLogger(__name__)
 
@@ -161,13 +160,50 @@ async def get_user(
     return UpdateUserResponse(user=user_item)
 
 
+@router.put("/{user_id}", response_model=UpdateUserResponse)
+async def update_user_put(
+    user_id: str,
+    request: UpdateUserRequest,
+    current_user: Annotated[UserInfo, Depends(require_admin)] = None,
+):
+    """
+    更新用户信息（管理员功能）- PUT方法（完整替换）
+
+    PUT方法用于完整替换资源，与PATCH方法功能相同
+    因为UpdateUserRequest已经处理了部分更新逻辑
+    """
+    return await _update_user_impl(user_id, request, current_user)
+
+
 @router.patch("/{user_id}", response_model=UpdateUserResponse)
 async def update_user(
     user_id: str,
     request: UpdateUserRequest,
     current_user: Annotated[UserInfo, Depends(require_admin)] = None,
 ):
-    """更新用户信息（管理员功能）"""
+    """更新用户信息（管理员功能）- PATCH方法（部分更新）"""
+    return await _update_user_impl(user_id, request, current_user)
+
+
+async def _update_user_impl(
+    user_id: str,
+    request: UpdateUserRequest,
+    current_user: UserInfo,
+) -> UpdateUserResponse:
+    """
+    更新用户的实现逻辑
+
+    Args:
+        user_id: 用户ID
+        request: 更新请求（包含可选字段）
+        current_user: 当前管理员用户
+
+    Returns:
+        UpdateUserResponse: 更新后的用户信息
+
+    Raises:
+        HTTPException: 用户不存在、业务规则错误、冲突等
+    """
     try:
         user_service = get_user_service()
         user = user_service.update_user(

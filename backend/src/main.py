@@ -16,10 +16,10 @@ sys.path.insert(0, str(project_root))
 
 # 导入路由模块
 from src.routers import (
-    users_router,
+    # users_router,  # 已迁移到 interfaces 层
     # tools_router,  # 已迁移到 interfaces 层，完全删除
     # sessions_router,  # 已迁移到 interfaces 层
-    admin_tools_router,
+    # admin_tools_router,  # 已迁移到 interfaces 层
     works_router,
     courses_router,
     common_router,
@@ -32,6 +32,8 @@ from src.interfaces.routers.tools import conversations as tools_conversations_ro
 from src.interfaces.routers.tools import media as tools_media_router
 from src.interfaces.routers.auth import auth as new_auth_router
 from src.interfaces.routers import sessions as new_sessions_router
+from src.interfaces.routers import users as new_users_router
+from src.interfaces.routers.admin import tools as new_admin_tools_router
 
 # 导入错误处理中间件
 from src.interfaces.middleware.error_handler import error_handler
@@ -74,8 +76,21 @@ app.include_router(new_auth_router.router)
 # 会话管理路由（新架构 - interfaces层）
 app.include_router(new_sessions_router.router)
 
-# 用户管理路由
-app.include_router(users_router)
+# 用户管理路由（新架构 - interfaces层）
+app.include_router(new_users_router.router)
+
+# 管理员工具路由（新架构 - interfaces层）
+app.include_router(new_admin_tools_router.router)
+
+# 用户管理路由（旧路由 - 已迁移到 interfaces 层）
+# 已迁移到 interfaces 层的端点：
+#   - GET /admin/users -> interfaces/routers/users/users.py
+#   - POST /admin/users -> interfaces/routers/users/users.py
+#   - GET /admin/users/{user_id} -> interfaces/routers/users/users.py
+#   - PATCH /admin/users/{user_id} -> interfaces/routers/users/users.py
+#   - DELETE /admin/users/{user_id} -> interfaces/routers/users/users.py
+#   - POST /admin/users/{user_id}/reset-password -> interfaces/routers/users/users.py
+# TODO: 完全删除旧 users_router
 
 # 会话管理路由（旧路由 - 已迁移到 interfaces 层）
 # 已迁移到 interfaces 层的端点：
@@ -102,8 +117,11 @@ app.include_router(users_router)
 #   - GET /tools/{tool_id}/chat - OPTIONS请求等辅助端点
 # task_storage 已迁移到 common.py
 
-# 管理员工具路由
-app.include_router(admin_tools_router)
+# 管理员工具路由（旧路由 - 已迁移到 interfaces 层）
+# ✅ 所有端点已迁移到 interfaces 层（2026-03-02）
+# 已删除的文件：backend/src/routers/admin_tools.py
+# 迁移位置：interfaces/routers/admin/tools.py
+# app.include_router(admin_tools_router)
 
 # 教案学案路由
 app.include_router(works_router)
