@@ -59,3 +59,4 @@ tests/
 # 归档目录（保留历史但不需要版本控制）
 docs/archive/
 frontend/tests/e2e/.archive/
+.coverage
