@@ -302,3 +302,60 @@ class TestDeepSeekProvider:
         assert isinstance(provider._client, AsyncOpenAI)
         assert provider._client.api_key == "test-key"
         assert provider._client.base_url == "https://api.deepseek.com"
+
+    @pytest.mark.asyncio
+    async def test_chat_stream_error_handling(self):
+        """测试流式对话错误处理"""
+        provider = DeepSeekProvider(api_key="test-key")
+
+        mock_client = AsyncMock(spec=AsyncOpenAI)
+
+        # Mock create方法，让它返回一个会抛出异常的异步生成器
+        async def error_stream():
+            raise Exception("DeepSeek API Error")
+            yield
+
+        mock_client.chat.completions.create = lambda *args, **kwargs: error_stream()
+        provider._client = mock_client
+
+        messages = [
+            Message(
+                id="msg1",
+                session_id="session1",
+                role=MessageRole.USER,
+                content="Test",
+                artifact=None,
+                created_at=datetime.now()
+            )
+        ]
+
+        # 应该抛出异常
+        with pytest.raises(Exception, match="DeepSeek API Error"):
+            async for _ in provider.chat_stream(messages, "deepseek-chat"):
+                pass
+
+    @pytest.mark.asyncio
+    async def test_chat_error_handling(self):
+        """测试非流式对话错误处理"""
+        provider = DeepSeekProvider(api_key="test-key")
+
+        mock_client = AsyncMock(spec=AsyncOpenAI)
+        mock_client.chat.completions.create = AsyncMock(
+            side_effect=Exception("Network Error")
+        )
+        provider._client = mock_client
+
+        messages = [
+            Message(
+                id="msg1",
+                session_id="session1",
+                role=MessageRole.USER,
+                content="Test",
+                artifact=None,
+                created_at=datetime.now()
+            )
+        ]
+
+        # 应该抛出异常
+        with pytest.raises(Exception, match="Network Error"):
+            await provider.chat(messages, "deepseek-chat")

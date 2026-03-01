@@ -327,3 +327,90 @@ class TestOpenAIProvider:
         # 不同实例，但配置相同
         assert provider1 is not provider2
         assert provider1._api_key == provider2._api_key
+
+    @pytest.mark.asyncio
+    async def test_chat_stream_error_handling(self):
+        """测试流式对话错误处理"""
+        provider = OpenAIProvider(api_key="test-key")
+
+        mock_client = AsyncMock(spec=AsyncOpenAI)
+
+        # Mock create方法，让它返回一个会抛出异常的异步生成器
+        async def error_stream():
+            raise Exception("API Error")
+            yield
+
+        mock_client.chat.completions.create = lambda *args, **kwargs: error_stream()
+        provider._client = mock_client
+
+        messages = [
+            Message(
+                id="msg1",
+                session_id="session1",
+                role=MessageRole.USER,
+                content="Test",
+                artifact=None,
+                created_at=datetime.now()
+            )
+        ]
+
+        # 应该抛出异常
+        with pytest.raises(Exception, match="API Error"):
+            async for _ in provider.chat_stream(messages, "gpt-4"):
+                pass
+
+    @pytest.mark.asyncio
+    async def test_chat_error_handling(self):
+        """测试非流式对话错误处理"""
+        provider = OpenAIProvider(api_key="test-key")
+
+        mock_client = AsyncMock(spec=AsyncOpenAI)
+        mock_client.chat.completions.create = AsyncMock(
+            side_effect=Exception("Network Error")
+        )
+        provider._client = mock_client
+
+        messages = [
+            Message(
+                id="msg1",
+                session_id="session1",
+                role=MessageRole.USER,
+                content="Test",
+                artifact=None,
+                created_at=datetime.now()
+            )
+        ]
+
+        # 应该抛出异常
+        with pytest.raises(Exception, match="Network Error"):
+            await provider.chat(messages, "gpt-4")
+
+    @pytest.mark.asyncio
+    async def test_generate_image_error_handling(self):
+        """测试图片生成错误处理"""
+        provider = OpenAIProvider(api_key="test-key")
+
+        mock_client = AsyncMock(spec=AsyncOpenAI)
+        mock_client.images.generate = AsyncMock(
+            side_effect=Exception("DALL-E Error")
+        )
+        provider._client = mock_client
+
+        # 应该抛出异常
+        with pytest.raises(Exception, match="DALL-E Error"):
+            await provider.generate_image("A cat")
+
+    @pytest.mark.asyncio
+    async def test_generate_audio_error_handling(self):
+        """测试音频生成错误处理"""
+        provider = OpenAIProvider(api_key="test-key")
+
+        mock_client = AsyncMock(spec=AsyncOpenAI)
+        mock_client.audio.speech.create = AsyncMock(
+            side_effect=Exception("TTS Error")
+        )
+        provider._client = mock_client
+
+        # 应该抛出异常
+        with pytest.raises(Exception, match="TTS Error"):
+            await provider.generate_audio("Hello")
