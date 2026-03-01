@@ -44,6 +44,13 @@ async def chat_stream(
     """
     # 获取工具配置
     tool = tool_service.get_tool_by_id(tool_id)
+
+    # 调试输出
+    logger.info(f"🔍 查找工具: tool_id='{tool_id}'")
+    logger.info(f"🔍 找到工具: {tool}")
+    logger.info(f"🔍 ToolService实例: {id(tool_service)}")
+    logger.info(f"🔍 config_dir: {tool_service.config_dir}")
+
     if not tool:
         raise HTTPException(status_code=404, detail=f"Tool '{tool_id}' not found")
 

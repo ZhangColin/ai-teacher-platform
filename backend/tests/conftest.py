@@ -7,6 +7,31 @@ from pathlib import Path
 backend_dir = Path(__file__).parent
 sys.path.insert(0, str(backend_dir))
 
+# ==================== 测试环境设置 ====================
+# 在导入任何模块之前，先创建测试工具配置
+# 这样ToolService在初始化时就能找到测试工具
+
+tools_dir = Path("configs/tools/test_tools")
+tools_dir.mkdir(parents=True, exist_ok=True)
+
+config_content = """tool_id: text_gen
+name: 文本生成
+description: AI文本生成工具（测试用）
+category: AI工具
+visible: true
+toolset_id: test_tools
+icon: chat-bubble-left
+type: normal
+order: 1
+system_prompt: 你是一个AI助手
+welcome_message: |
+  欢迎使用文本生成工具
+model: deepseek:deepseek-chat
+"""
+
+config_file = tools_dir / "text_gen.yaml"
+config_file.write_text(config_content, encoding='utf-8')
+
 import pytest
 import asyncio
 from sqlalchemy import create_engine
@@ -47,13 +72,90 @@ def db_session() -> Generator[Session, None, None]:
 
 # ==================== HTTP Client Fixtures ====================
 
+@pytest.fixture(scope="session")
+def _app_with_tools():
+    """
+    创建app实例，确保工具配置已加载
+
+    使用session级别，所有测试共享同一个app实例
+    """
+    from src.main import app
+    from src.routers.dependencies import get_tool_service
+
+    # 清除ToolService缓存，强制重新加载
+    get_tool_service.cache_clear()
+
+    # 验证工具可以被找到
+    tool_service_1 = get_tool_service()
+    tool = tool_service_1.get_tool_by_id("text_gen")
+
+    print(f"\n✓ [Fixture] ToolService实例ID: {id(tool_service_1)}")
+    print(f"✓ [Fixture] config_dir: {tool_service_1.config_dir}")
+    print(f"✓ [Fixture] 找到工具: {tool}")
+
+    if not tool:
+        # 列出所有可用工具
+        all_tools = tool_service_1.load_all_tools()
+        print(f"✓ [Fixture] 可用工具数量: {len(all_tools)}")
+        for t in all_tools:
+            print(f"  - {t.tool_id}: {t.name}")
+
+    return app
+
+
 @pytest.fixture(scope="function")
-async def async_client() -> AsyncGenerator[AsyncClient, None]:
+def mock_get_db(db_session: Session, monkeypatch):
+    """
+    Mock数据库会话，让所有服务使用测试的内存数据库
+
+    通过monkey patch UserService和SessionService的_get_db方法
+    """
+    from src.services.user_service import UserService
+    from src.services.session_service import SessionService
+    from src.routers.dependencies import (
+        get_user_service,
+        get_session_service,
+    )
+
+    # 清除cache，获取新的服务实例
+    get_user_service.cache_clear()
+    get_session_service.cache_clear()
+
+    # Monkey patch _get_db方法
+    def mock_get_db_method(self):
+        return db_session
+
+    monkeypatch.setattr(UserService, "_get_db", mock_get_db_method)
+    monkeypatch.setattr(SessionService, "_get_db", mock_get_db_method)
+
+    yield db_session
+
+    # 清理cache
+    get_user_service.cache_clear()
+    get_session_service.cache_clear()
+
+
+@pytest.fixture(scope="function")
+async def async_client(_app_with_tools, mock_get_db) -> AsyncGenerator[AsyncClient, None]:
+    """
+    异步HTTP客户端（用于FastAPI集成测试）
+
+    使用mock_get_db确保所有服务使用同一个测试数据库
+    """
+    async with AsyncClient(
+        transport=ASGITransport(app=_app_with_tools),
+        base_url="http://test"
+    ) as client:
+        yield client
+
+
+@pytest.fixture(scope="function")
+async def async_client(_app_with_tools) -> AsyncGenerator[AsyncClient, None]:
     """
     异步HTTP客户端（用于FastAPI集成测试）
     """
     async with AsyncClient(
-        transport=ASGITransport(app=app),
+        transport=ASGITransport(app=_app_with_tools),
         base_url="http://test"
     ) as client:
         yield client
@@ -77,6 +179,9 @@ def test_user(db_session: Session) -> UserModel:
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
+
+    print(f"\n✓ [test_user] 创建用户: {user.username}, user_id={user.user_id}")
+
     return user
 
 
@@ -114,6 +219,10 @@ def auth_headers(test_user: UserModel) -> dict:
     )
     auth_service = AuthService()
     token = auth_service.generate_token(user_entity)
+
+    print(f"\n✓ [auth_headers] token前10字符: {token[:10]}...")
+    print(f"✓ [auth_headers] Authorization头: Bearer {token[:20]}...")
+
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -161,3 +270,15 @@ def mock_deepseek_provider():
     provider._client = AsyncMock()
 
     return provider
+
+
+# ==================== 工具 Fixtures ====================
+
+@pytest.fixture(scope="function")
+def test_tool() -> str:
+    """
+    返回测试工具的tool_id
+
+    测试工具配置由 _app_with_tools fixture 创建
+    """
+    return "text_gen"
