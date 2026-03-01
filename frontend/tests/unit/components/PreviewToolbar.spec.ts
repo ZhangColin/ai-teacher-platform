@@ -77,6 +77,19 @@ describe('PreviewToolbar', () => {
     expect(wrapper.emitted('toggleFullscreen')).toBeTruthy();
   });
 
+  it('should emit closePreview when close button clicked', async () => {
+    const wrapper = mount(PreviewToolbar, {
+      props: {
+        artifactType: 'markdown',
+      },
+    });
+
+    await wrapper.find('[data-testid="btn-close-preview"]').trigger('click');
+
+    expect(wrapper.emitted('closePreview')).toBeTruthy();
+    expect(wrapper.emitted('closePreview')?.length).toBe(1);
+  });
+
   it('should show expand icon when not in fullscreen', () => {
     const wrapper = mount(PreviewToolbar, {
       props: {

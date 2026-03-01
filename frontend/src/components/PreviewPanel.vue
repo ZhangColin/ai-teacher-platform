@@ -10,6 +10,7 @@
       @downloadPDF="() => { console.log('[PreviewPanel] 收到 downloadPDF 事件'); handleDownloadPDF(); }"
       @download-svg="() => { console.log('[PreviewPanel] 收到 download-svg 事件'); handleDownloadSvg(); }"
       @toggle-fullscreen="() => { console.log('[PreviewPanel] 收到 toggle-fullscreen 事件'); toggleFullscreen(); }"
+      @close-preview="handleClosePreview"
     />
 
     <!-- 简单的通知提示 -->
@@ -63,6 +64,10 @@ interface Props {
 
 const props = defineProps<Props>();
 
+const emit = defineEmits<{
+  closePreview: [];
+}>();
+
 const isFullscreen = ref(false);
 const notification = ref('');
 const notificationTimer = ref<number | null>(null);
@@ -76,6 +81,11 @@ const isSvgArtifact = (artifact: Artifact | null): boolean => {
 
 const toggleFullscreen = () => {
   isFullscreen.value = !isFullscreen.value;
+};
+
+const handleClosePreview = () => {
+  console.log('[PreviewPanel] 关闭预览面板')
+  emit('closePreview')
 };
 
 const handleDownloadMarkdown = () => {

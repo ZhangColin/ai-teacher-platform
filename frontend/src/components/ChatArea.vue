@@ -38,11 +38,11 @@
     </div>
     
     <!-- 右侧：预览区域 -->
-    <PreviewPanel 
-      v-if="showPreview" 
+    <PreviewPanel
+      v-if="showPreview"
       :artifact="currentArtifact"
       class="preview-panel"
-      @close="closePreview"
+      @close-preview="closePreview"
     />
   </div>
 </template>
