@@ -22,33 +22,11 @@ from src.models import (
     UpdateCourseDocumentRequest,
 )
 
-from src.interfaces.dependencies import get_course_service, get_current_user
+from src.interfaces.dependencies import get_course_service, get_current_user, require_admin
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1", tags=["课程文档"])
-
-
-async def require_admin(current_user: Annotated[UserInfo, Depends(get_current_user)]) -> UserInfo:
-    """
-    管理员权限验证（依赖注入函数）
-
-    Args:
-        current_user: 当前登录用户
-
-    Returns:
-        UserInfo: 当前用户信息（已验证为管理员）
-
-    Raises:
-        HTTPException: 用户不是管理员
-    """
-    if not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="需要管理员权限"
-        )
-
-    return current_user
 
 
 # ==================== 课程文档模块 API ====================
