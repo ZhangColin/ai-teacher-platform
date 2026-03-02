@@ -305,8 +305,8 @@ class TestWorkManagement:
 
         assert response.status_code in [204, 205]  # 接受204或205
 
-        # 验证已删除
-        get_response = await admin_client.get(f"/api/v1/admin/works/{work_id}")
+        # 验证已删除 - 使用公共端点（admin端点不支持GET）
+        get_response = await admin_client.get(f"/api/v1/works/{work_id}")
         assert get_response.status_code == 404
 
     @pytest.mark.asyncio
@@ -316,9 +316,10 @@ class TestWorkManagement:
         category_id = create_test_category(db_session)
         html_content = "<html><body>测试</body></html>"
         files = {"html_file": ("index.html", BytesIO(html_content.encode()), "text/html")}
-        data = {"name": "待删除", "description": "", "category_id": category_id}
+        data = {"name": "待删除", "description": "待删除作品的描述", "category_id": category_id}
 
         create_response = await admin_client.post("/api/v1/admin/works", files=files, data=data)
+        assert create_response.status_code == 201
         result = create_response.json()
         # 响应格式：{"id": work_id, "html_path": "...", ...}
         work_id = result.get("id", result.get("work", {}).get("id"))
