@@ -1,0 +1,71 @@
+spring:
+  application:
+    name: ai-teacher-platform
+
+  # 数据库配置
+  datasource:
+    url: jdbc:mysql://localhost:3306/ai_teacher?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+    username: root
+    password: ${DB_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      pool-name: AiTeacherHikariCP
+      minimum-idle: 5
+      maximum-pool-size: 20
+      max-lifetime: 1800000
+      connection-timeout: 30000
+      connection-test-query: SELECT 1
+
+  # JPA配置
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    database-platform: org.hibernate.dialect.MySQL8Dialect
+    properties:
+      hibernate:
+        format_sql: true
+
+# 服务器配置
+server:
+  port: 8080
+  compression:
+    enabled: true
+
+# 日志配置
+logging:
+  level:
+    root: INFO
+    com.platform: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+# AI模型配置
+ai:
+  providers:
+    deepseek:
+      api-key: ${DEEPSEEK_API_KEY:}
+      base-url: https://api.deepseek.com/v1
+      models:
+        chat: deepseek-chat
+        embedding: deepseek-embedding
+    kimi:
+      api-key: ${KIMI_API_KEY:}
+      base-url: https://api.moonshot.cn/v1
+      models:
+        chat: moonshot-v1-128k
+    tongyi:
+      api-key: ${TONGYI_API_KEY:}
+      base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
+      models:
+        chat: qwen-plus
+
+# JWT配置
+jwt:
+  secret: ${JWT_SECRET_KEY:your-secret-key-must-be-at-least-32-characters-long-for-security}
+  expiration: 86400000 # 24小时（毫秒）
+
+# 工具配置加载
+tools:
+  config-dir: configs/tools
+  cache-duration: 300 # 5分钟缓存
