@@ -16,7 +16,23 @@ class AuthService:
     def __init__(self):
         """初始化认证服务"""
         # 从环境变量获取JWT密钥
-        self.secret_key = os.getenv("JWT_SECRET_KEY", "default-secret-key-change-in-production")
+        self.secret_key = os.getenv("JWT_SECRET_KEY")
+
+        # 严格验证：生产环境必须设置密钥
+        if not self.secret_key:
+            raise RuntimeError(
+                "JWT_SECRET_KEY environment variable is required.\n"
+                "请设置环境变量 JWT_SECRET_KEY。\n"
+                "生成方法: python -c 'import secrets; print(secrets.token_urlsafe(32))'"
+            )
+
+        # 验证密钥强度（至少32字节）
+        if len(self.secret_key) < 32:
+            raise ValueError(
+                f"JWT_SECRET_KEY must be at least 32 characters long. "
+                f"Current length: {len(self.secret_key)}"
+            )
+
         self.algorithm = "HS256"
     
     def generate_token(self, user: User, remember_me: bool = False) -> str:

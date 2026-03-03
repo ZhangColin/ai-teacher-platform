@@ -201,8 +201,10 @@ class TestWorkManagement:
         # 5. 验证文件已保存
         # 从响应中的html_path提取实际路径
         html_path = result["work"]["html_path"]
-        file_path = Path(f"src/interfaces/static/{html_path}")
-        assert file_path.exists()
+
+        # 文件保存在: backend/src/interfaces/static/{html_path}
+        file_path = Path(f"backend/src/interfaces/static/{html_path}")
+        assert file_path.exists(), f"文件不存在: {file_path}"
         assert file_path.name == "index.html"
 
         # 清理 - 需要删除父目录
