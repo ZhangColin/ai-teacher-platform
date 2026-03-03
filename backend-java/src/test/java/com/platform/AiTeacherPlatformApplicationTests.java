@@ -8,6 +8,5 @@ class AiTeacherPlatformApplicationTests {
 
     @Test
     void contextLoads() {
-        // 验证Spring上下文可以正常加载
     }
 }

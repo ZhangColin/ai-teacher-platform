@@ -4,6 +4,16 @@ spring:
     driver-class-name: org.h2.Driver
     username: sa
     password:
+
   jpa:
     hibernate:
       ddl-auto: create-drop
+    show-sql: false
+
+jwt:
+  secret: test-secret-key-for-testing-purposes-at-least-32-chars
+  expiration: 3600000
+
+ai:
+  provider:
+    current: test
