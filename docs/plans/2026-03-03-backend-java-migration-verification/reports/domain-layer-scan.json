@@ -1,0 +1,15 @@
+{
+  "layer": "domain",
+  "only_in_python": [],
+  "only_in_java": [
+    "Tool"
+  ],
+  "common": [
+    "Artifact",
+    "Message",
+    "Session",
+    "User"
+  ],
+  "python_count": 4,
+  "java_count": 5
+}
