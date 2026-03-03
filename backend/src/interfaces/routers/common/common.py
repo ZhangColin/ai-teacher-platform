@@ -20,6 +20,7 @@ from src.models import (
     TaskStatusResponse,
     MultiModalContent,
     Message,
+    CommonToolCategoryResponse,
 )
 
 from src.interfaces.auth import get_current_user
@@ -28,6 +29,7 @@ from src.interfaces.dependencies import (
     get_conversion_service,
     get_session_service,
     get_ai_service,
+    get_common_tool_service,
 )
 
 logger = logging.getLogger(__name__)
@@ -46,6 +48,28 @@ async def get_navigation():
     config_loader = get_config_loader()
     modules = config_loader.load_navigation()
     return NavigationResponse(modules=modules)
+
+
+@router.get("/common-tools/categories", response_model=CommonToolCategoryResponse)
+async def get_common_tool_categories():
+    """
+    获取常用工具分类列表（包含每个分类下的工具列表）
+
+    这是一个公开接口，无需认证。返回所有可见的工具分类及其下的工具列表，
+    按分类的 order 字段排序。
+
+    Returns:
+        CommonToolCategoryResponse: 分类列表响应，包含每个分类及其工具
+    """
+    try:
+        common_tool_service = get_common_tool_service()
+        return common_tool_service.get_categories_with_tools()
+    except Exception as e:
+        logger.error(f"获取常用工具分类失败: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="获取工具分类失败，请稍后重试"
+        )
 
 
 @router.post("/convert/markdown-to-word")
