@@ -1,5 +1,7 @@
 package com.platform.infrastructure.persistence.jpa;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -65,4 +67,20 @@ public interface UserJpaRepository extends JpaRepository<UserEntity, String> {
      * @return true-存在，false-不存在
      */
     boolean existsByPhone(String phone);
+
+    /**
+     * 根据管理员状态分页查询用户
+     *
+     * @param isAdmin 是否为管理员
+     * @param pageable 分页参数
+     * @return 用户分页结果
+     */
+    Page<UserEntity> findAllByIsAdmin(Boolean isAdmin, Pageable pageable);
+
+    /**
+     * 统计管理员数量
+     *
+     * @return 管理员总数
+     */
+    long countByIsAdminTrue();
 }
