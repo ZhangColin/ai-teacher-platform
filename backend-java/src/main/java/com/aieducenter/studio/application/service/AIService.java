@@ -379,4 +379,47 @@ public class AIService {
         logger.warn("流式自动继续功能待实现");
         sink.complete();
     }
+
+    /**
+     * 检查代码块是否完整（闭合）
+     *
+     * 用于判断AI生成的内容中代码块是否闭合，
+     * 支持自动继续生成功能。当内容中没有代码块时，
+     * 也视为"完整"（不需要继续生成）。
+     *
+     * @param content 待检查的内容
+     * @return true-代码块完整或无代码块，false-代码块不完整
+     */
+    public boolean isCodeBlockComplete(String content) {
+        if (content == null || content.isEmpty()) {
+            return false;
+        }
+        // 使用现有的 hasUnclosedCodeBlock 方法
+        return !hasUnclosedCodeBlock(content);
+    }
+
+    /**
+     * 从markdown中提取第一个代码块的内容
+     *
+     * 用于从AI生成的markdown响应中提取代码块，
+     * 支持代码预览和语法高亮功能。
+     *
+     * @param markdown markdown文本
+     * @return 代码块内容（不含语言标识和反引号），如果没有代码块则返回null
+     */
+    public String detectCodeBlock(String markdown) {
+        if (markdown == null || markdown.isEmpty()) {
+            return null;
+        }
+
+        // 匹配 ```lang\ncontent\n``` 格式
+        Pattern pattern = Pattern.compile("```\\w*\\n([\\s\\S]*?)\\n```");
+        Matcher matcher = pattern.matcher(markdown);
+
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
+
+        return null;
+    }
 }
