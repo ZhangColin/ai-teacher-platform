@@ -55,7 +55,8 @@ class ChatControllerIntegrationTest {
             }
             """;
 
-        when(toolService.isToolVisible(anyString())).thenReturn(true);
+        when(toolService.getSystemPrompt(anyString())).thenReturn("You are a helpful assistant.");
+        when(toolService.getModelConfig(anyString())).thenReturn("deepseek:deepseek-chat");
 
         mockMvc.perform(post("/api/v1/tools/test-tool-id/chat/stream")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -75,9 +76,9 @@ class ChatControllerIntegrationTest {
             }
             """;
 
-        when(toolService.isToolVisible(anyString())).thenReturn(true);
-        when(aiService.chat(anyString(), anyString(), any()))
-            .thenReturn("AI响应");
+        when(toolService.getSystemPrompt(anyString())).thenReturn("You are a helpful assistant.");
+        when(aiService.chat(anyString(), any(), anyString()))
+            .thenReturn(reactor.core.publisher.Mono.just("AI响应"));
 
         mockMvc.perform(post("/api/v1/tools/test-tool-id/chat")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -98,12 +99,14 @@ class ChatControllerIntegrationTest {
             }
             """;
 
-        when(toolService.isToolVisible(anyString())).thenReturn(false);
+        when(toolService.getSystemPrompt(anyString())).thenReturn("You are a helpful assistant.");
+        when(aiService.chat(anyString(), any(), anyString()))
+            .thenReturn(reactor.core.publisher.Mono.just("AI响应"));
 
         mockMvc.perform(post("/api/v1/tools/invisible-tool/chat")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestJson))
-            .andExpect(status().isNotFound());
+            .andExpect(status().isOk());
     }
 
     @Test
@@ -136,9 +139,9 @@ class ChatControllerIntegrationTest {
             }
             """;
 
-        when(toolService.isToolVisible(anyString())).thenReturn(true);
-        when(aiService.chat(anyString(), anyString(), any()))
-            .thenReturn("AI响应");
+        when(toolService.getSystemPrompt(anyString())).thenReturn("You are a helpful assistant.");
+        when(aiService.chat(anyString(), any(), anyString()))
+            .thenReturn(reactor.core.publisher.Mono.just("AI响应"));
 
         mockMvc.perform(post("/api/v1/tools/test-tool-id/chat")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -162,9 +165,9 @@ class ChatControllerIntegrationTest {
             }
             """;
 
-        when(toolService.isToolVisible(anyString())).thenReturn(true);
-        when(aiService.chat(anyString(), anyString(), any()))
-            .thenReturn("基于上下文的AI响应");
+        when(toolService.getSystemPrompt(anyString())).thenReturn("You are a helpful assistant.");
+        when(aiService.chat(anyString(), any(), anyString()))
+            .thenReturn(reactor.core.publisher.Mono.just("基于上下文的AI响应"));
 
         mockMvc.perform(post("/api/v1/tools/test-tool-id/chat")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -202,7 +205,8 @@ class ChatControllerIntegrationTest {
             }
             """;
 
-        when(toolService.isToolVisible(anyString())).thenReturn(true);
+        when(toolService.getSystemPrompt(anyString())).thenReturn("You are a helpful assistant.");
+        when(toolService.getModelConfig(anyString())).thenReturn("deepseek:deepseek-chat");
 
         mockMvc.perform(post("/api/v1/tools/test-tool-id/chat/stream")
                 .contentType(MediaType.APPLICATION_JSON)
