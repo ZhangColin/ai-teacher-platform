@@ -1,4 +1,4 @@
-package com.platform.e2e;
+package com.aieducenter.studio.e2e;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
@@ -105,7 +105,7 @@ class AdminWorkflowE2ETest {
         String toolId = "tool-to-reorder";
 
         // 步骤1: 将工具上移
-        mockMvc.perform(post("/api/v1/admin/tools/" + toolId "/move-up"))
+        mockMvc.perform(post("/api/v1/admin/tools/" + toolId + "/move-up"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.tool.order").exists());
 

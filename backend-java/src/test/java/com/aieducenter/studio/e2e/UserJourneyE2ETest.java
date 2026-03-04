@@ -1,4 +1,4 @@
-package com.platform.e2e;
+package com.aieducenter.studio.e2e;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;

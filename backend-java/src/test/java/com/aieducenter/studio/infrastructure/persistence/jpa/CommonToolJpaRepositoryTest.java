@@ -1,4 +1,4 @@
-package com.platform.infrastructure.persistence.jpa;
+package com.aieducenter.studio.infrastructure.persistence.jpa;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -98,7 +98,7 @@ class CommonToolJpaRepositoryTest {
         // Then
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getId()).isEqualTo("tool-1");
-        assertThat(result.get(0).isVisible()).isTrue();
+        assertThat(result.get(0).getVisible()).isTrue();
     }
 
     @Test
@@ -188,7 +188,7 @@ class CommonToolJpaRepositoryTest {
     @DisplayName("切换工具可见性")
     void toggleVisibility_ExistingTool_TogglesVisibility() {
         // Given
-        assertThat(tool1.isVisible()).isTrue();
+        assertThat(tool1.getVisible()).isTrue();
 
         // When
         tool1.setVisible(false);
@@ -199,7 +199,7 @@ class CommonToolJpaRepositoryTest {
         // Then
         var updated = repository.findById("tool-1");
         assertThat(updated).isPresent();
-        assertThat(updated.get().isVisible()).isFalse();
+        assertThat(updated.get().getVisible()).isFalse();
     }
 
     @Test

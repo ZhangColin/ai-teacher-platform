@@ -1,4 +1,4 @@
-package com.platform.infrastructure.security;
+package com.aieducenter.studio.infrastructure.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

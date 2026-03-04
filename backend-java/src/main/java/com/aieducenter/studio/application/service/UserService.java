@@ -1,8 +1,8 @@
-package com.platform.application.service;
+package com.aieducenter.studio.application.service;
 
-import com.platform.domain.user.User;
-import com.platform.infrastructure.persistence.jpa.UserEntity;
-import com.platform.infrastructure.persistence.jpa.UserJpaRepository;
+import com.aieducenter.studio.domain.user.User;
+import com.aieducenter.studio.infrastructure.persistence.jpa.UserEntity;
+import com.aieducenter.studio.infrastructure.persistence.jpa.UserJpaRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;

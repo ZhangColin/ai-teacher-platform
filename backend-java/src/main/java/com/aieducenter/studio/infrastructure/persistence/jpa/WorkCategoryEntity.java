@@ -1,4 +1,4 @@
-package com.platform.infrastructure.persistence.jpa;
+package com.aieducenter.studio.infrastructure.persistence.jpa;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;

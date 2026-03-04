@@ -1,7 +1,7 @@
-package com.platform.application.service;
+package com.aieducenter.studio.application.service;
 
-import com.platform.domain.ai.Message;
-import com.platform.domain.ai.MessageRole;
+import com.aieducenter.studio.domain.ai.Message;
+import com.aieducenter.studio.domain.ai.MessageRole;
 import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.model.output.Response;

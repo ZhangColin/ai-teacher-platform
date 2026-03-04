@@ -1,7 +1,7 @@
-package com.platform.application.service;
+package com.aieducenter.studio.application.service;
 
-import com.platform.infrastructure.persistence.jpa.UserEntity;
-import com.platform.infrastructure.persistence.jpa.UserJpaRepository;
+import com.aieducenter.studio.infrastructure.persistence.jpa.UserEntity;
+import com.aieducenter.studio.infrastructure.persistence.jpa.UserJpaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

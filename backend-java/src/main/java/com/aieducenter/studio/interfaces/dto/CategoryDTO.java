@@ -1,4 +1,4 @@
-package com.platform.interfaces.dto;
+package com.aieducenter.studio.interfaces.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

@@ -1,4 +1,4 @@
-package com.platform.interfaces.rest.dto.session;
+package com.aieducenter.studio.interfaces.rest.dto.session;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

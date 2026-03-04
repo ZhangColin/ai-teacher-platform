@@ -1,6 +1,6 @@
-package com.platform.application.service;
+package com.aieducenter.studio.application.service;
 
-import com.platform.domain.artifact.Artifact;
+import com.aieducenter.studio.domain.artifact.Artifact;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

@@ -1,4 +1,4 @@
-package com.platform.infrastructure.ai.langchain4j;
+package com.aieducenter.studio.infrastructure.ai.langchain4j;
 
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
@@ -189,7 +189,7 @@ public class LangChain4jConfig {
      * @param messages 领域层消息列表
      * @return LangChain4j消息列表
      */
-    public static List<ChatMessage> toChatMessages(List<com.platform.domain.ai.Message> messages) {
+    public static List<ChatMessage> toChatMessages(List<com.aieducenter.studio.domain.ai.Message> messages) {
         return messages.stream()
             .map(LangChain4jConfig::toChatMessage)
             .toList();
@@ -201,7 +201,7 @@ public class LangChain4jConfig {
      * @param message 领域层消息
      * @return LangChain4j消息
      */
-    public static ChatMessage toChatMessage(com.platform.domain.ai.Message message) {
+    public static ChatMessage toChatMessage(com.aieducenter.studio.domain.ai.Message message) {
         return switch (message.getRole()) {
             case USER -> new UserMessage(message.getContent());
             case ASSISTANT, SYSTEM -> new AiMessage(message.getContent());

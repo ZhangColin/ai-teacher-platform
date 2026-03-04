@@ -1,4 +1,4 @@
-package com.platform.domain.session;
+package com.aieducenter.studio.domain.session;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

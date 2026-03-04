@@ -1,8 +1,8 @@
-package com.platform.interfaces.rest;
+package com.aieducenter.studio.interfaces.rest;
 
-import com.platform.application.service.AuthService;
-import com.platform.application.service.UserService;
-import com.platform.interfaces.rest.dto.UserInfo;
+import com.aieducenter.studio.application.service.AuthService;
+import com.aieducenter.studio.application.service.UserService;
+import com.aieducenter.studio.interfaces.rest.dto.UserInfo;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import org.springframework.security.core.Authentication;

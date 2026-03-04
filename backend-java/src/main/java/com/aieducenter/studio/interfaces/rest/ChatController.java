@@ -1,16 +1,16 @@
-package com.platform.interfaces.rest;
+package com.aieducenter.studio.interfaces.rest;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.platform.application.service.AIService;
-import com.platform.application.service.ArtifactParser;
-import com.platform.application.service.SessionService;
-import com.platform.application.service.TitleGenerator;
-import com.platform.application.service.ToolService;
-import com.platform.domain.ai.Message;
-import com.platform.domain.ai.MessageRole;
-import com.platform.domain.session.Session;
-import com.platform.interfaces.rest.dto.ChatRequest;
-import com.platform.interfaces.rest.dto.ChatResponse;
+import com.aieducenter.studio.application.service.AIService;
+import com.aieducenter.studio.application.service.ArtifactParser;
+import com.aieducenter.studio.application.service.SessionService;
+import com.aieducenter.studio.application.service.TitleGenerator;
+import com.aieducenter.studio.application.service.ToolService;
+import com.aieducenter.studio.domain.ai.Message;
+import com.aieducenter.studio.domain.ai.MessageRole;
+import com.aieducenter.studio.domain.session.Session;
+import com.aieducenter.studio.interfaces.rest.dto.ChatRequest;
+import com.aieducenter.studio.interfaces.rest.dto.ChatResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;

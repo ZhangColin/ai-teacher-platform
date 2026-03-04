@@ -1,4 +1,4 @@
-package com.platform;
+package com.aieducenter.studio;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

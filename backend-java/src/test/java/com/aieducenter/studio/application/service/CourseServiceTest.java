@@ -1,7 +1,7 @@
-package com.platform.application.service;
+package com.aieducenter.studio.application.service;
 
-import com.platform.infrastructure.persistence.jpa.CourseCategoryEntity;
-import com.platform.infrastructure.persistence.jpa.CourseCategoryJpaRepository;
+import com.aieducenter.studio.infrastructure.persistence.jpa.CourseCategoryEntity;
+import com.aieducenter.studio.infrastructure.persistence.jpa.CourseCategoryJpaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

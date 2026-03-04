@@ -1,9 +1,9 @@
-package com.platform.interfaces.rest;
+package com.aieducenter.studio.interfaces.rest;
 
-import com.platform.infrastructure.config.YamlConfigLoader;
-import com.platform.interfaces.dto.CategoryDTO;
-import com.platform.interfaces.dto.NavigationModuleDTO;
-import com.platform.interfaces.dto.ToolDTO;
+import com.aieducenter.studio.infrastructure.config.YamlConfigLoader;
+import com.aieducenter.studio.interfaces.dto.CategoryDTO;
+import com.aieducenter.studio.interfaces.dto.NavigationModuleDTO;
+import com.aieducenter.studio.interfaces.dto.ToolDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

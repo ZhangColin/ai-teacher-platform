@@ -1,8 +1,8 @@
-package com.platform.interfaces.rest;
+package com.aieducenter.studio.interfaces.rest;
 
-import com.platform.interfaces.rest.dto.UserInfo;
-import com.platform.interfaces.rest.dto.media.MediaGenerateRequest;
-import com.platform.interfaces.rest.dto.media.MediaGenerateResponse;
+import com.aieducenter.studio.interfaces.rest.dto.UserInfo;
+import com.aieducenter.studio.interfaces.rest.dto.media.MediaGenerateRequest;
+import com.aieducenter.studio.interfaces.rest.dto.media.MediaGenerateResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;

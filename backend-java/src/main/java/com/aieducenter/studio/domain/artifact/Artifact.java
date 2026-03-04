@@ -1,4 +1,4 @@
-package com.platform.domain.artifact;
+package com.aieducenter.studio.domain.artifact;
 
 import lombok.Data;
 import java.time.LocalDateTime;

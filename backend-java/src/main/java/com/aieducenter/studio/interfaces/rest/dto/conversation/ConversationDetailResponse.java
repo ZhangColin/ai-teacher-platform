@@ -1,4 +1,4 @@
-package com.platform.interfaces.rest.dto.conversation;
+package com.aieducenter.studio.interfaces.rest.dto.conversation;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

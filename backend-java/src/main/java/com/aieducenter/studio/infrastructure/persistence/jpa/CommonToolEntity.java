@@ -1,6 +1,6 @@
-package com.platform.infrastructure.persistence.jpa;
+package com.aieducenter.studio.infrastructure.persistence.jpa;
 
-import com.platform.domain.tool.CommonToolType;
+import com.aieducenter.studio.domain.tool.CommonToolType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;

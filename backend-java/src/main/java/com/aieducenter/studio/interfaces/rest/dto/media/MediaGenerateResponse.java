@@ -1,4 +1,4 @@
-package com.platform.interfaces.rest.dto.media;
+package com.aieducenter.studio.interfaces.rest.dto.media;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

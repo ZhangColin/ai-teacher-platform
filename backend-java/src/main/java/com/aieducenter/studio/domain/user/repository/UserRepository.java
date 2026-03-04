@@ -1,6 +1,6 @@
-package com.platform.domain.user.repository;
+package com.aieducenter.studio.domain.user.repository;
 
-import com.platform.domain.user.User;
+import com.aieducenter.studio.domain.user.User;
 
 import java.util.List;
 import java.util.Optional;

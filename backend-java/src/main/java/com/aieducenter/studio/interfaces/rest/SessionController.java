@@ -1,11 +1,11 @@
-package com.platform.interfaces.rest;
+package com.aieducenter.studio.interfaces.rest;
 
-import com.platform.application.service.SessionService;
-import com.platform.domain.ai.Message;
-import com.platform.interfaces.rest.dto.UserInfo;
-import com.platform.interfaces.rest.dto.session.SessionDetailResponse;
-import com.platform.interfaces.rest.dto.session.UpdateSessionRequest;
-import com.platform.interfaces.rest.dto.session.UpdateSessionResponse;
+import com.aieducenter.studio.application.service.SessionService;
+import com.aieducenter.studio.domain.ai.Message;
+import com.aieducenter.studio.interfaces.rest.dto.UserInfo;
+import com.aieducenter.studio.interfaces.rest.dto.session.SessionDetailResponse;
+import com.aieducenter.studio.interfaces.rest.dto.session.UpdateSessionRequest;
+import com.aieducenter.studio.interfaces.rest.dto.session.UpdateSessionResponse;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

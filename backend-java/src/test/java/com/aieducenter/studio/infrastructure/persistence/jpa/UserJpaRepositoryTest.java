@@ -1,4 +1,4 @@
-package com.platform.infrastructure.persistence.jpa;
+package com.aieducenter.studio.infrastructure.persistence.jpa;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

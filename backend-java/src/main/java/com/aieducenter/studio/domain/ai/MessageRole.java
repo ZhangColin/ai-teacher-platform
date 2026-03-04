@@ -1,4 +1,4 @@
-package com.platform.domain.ai;
+package com.aieducenter.studio.domain.ai;
 
 /**
  * 消息角色枚举

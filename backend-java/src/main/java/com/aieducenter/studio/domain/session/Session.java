@@ -1,4 +1,4 @@
-package com.platform.domain.session;
+package com.aieducenter.studio.domain.session;
 
 import lombok.Data;
 

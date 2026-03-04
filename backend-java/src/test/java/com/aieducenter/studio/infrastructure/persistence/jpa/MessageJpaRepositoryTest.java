@@ -1,6 +1,6 @@
-package com.platform.infrastructure.persistence.jpa;
+package com.aieducenter.studio.infrastructure.persistence.jpa;
 
-import com.platform.domain.ai.MessageRole;
+import com.aieducenter.studio.domain.ai.MessageRole;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

@@ -1,4 +1,4 @@
-package com.platform.infrastructure.security;
+package com.aieducenter.studio.infrastructure.security;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

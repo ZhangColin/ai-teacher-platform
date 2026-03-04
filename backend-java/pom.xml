@@ -12,7 +12,7 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.platform</groupId>
+    <groupId>com.aieducenter.studio</groupId>
     <artifactId>ai-teacher-platform</artifactId>
     <version>1.0.0</version>
     <name>AI Teacher Platform</name>

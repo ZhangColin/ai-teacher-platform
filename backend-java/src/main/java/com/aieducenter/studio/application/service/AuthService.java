@@ -1,7 +1,7 @@
-package com.platform.application.service;
+package com.aieducenter.studio.application.service;
 
-import com.platform.domain.user.User;
-import com.platform.infrastructure.security.JWTProvider;
+import com.aieducenter.studio.domain.user.User;
+import com.aieducenter.studio.infrastructure.security.JWTProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;

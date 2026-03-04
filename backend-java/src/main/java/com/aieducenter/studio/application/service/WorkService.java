@@ -1,9 +1,9 @@
-package com.platform.application.service;
+package com.aieducenter.studio.application.service;
 
-import com.platform.infrastructure.persistence.jpa.WorkCategoryEntity;
-import com.platform.infrastructure.persistence.jpa.WorkEntity;
-import com.platform.infrastructure.persistence.jpa.WorkCategoryJpaRepository;
-import com.platform.infrastructure.persistence.jpa.WorkJpaRepository;
+import com.aieducenter.studio.infrastructure.persistence.jpa.WorkCategoryEntity;
+import com.aieducenter.studio.infrastructure.persistence.jpa.WorkEntity;
+import com.aieducenter.studio.infrastructure.persistence.jpa.WorkCategoryJpaRepository;
+import com.aieducenter.studio.infrastructure.persistence.jpa.WorkJpaRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

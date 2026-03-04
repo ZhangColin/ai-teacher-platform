@@ -1,8 +1,8 @@
-package com.platform.interfaces.rest;
+package com.aieducenter.studio.interfaces.rest;
 
-import com.platform.application.service.UserService;
-import com.platform.interfaces.rest.dto.user.*;
-import com.platform.interfaces.rest.dto.UserInfo;
+import com.aieducenter.studio.application.service.UserService;
+import com.aieducenter.studio.interfaces.rest.dto.user.*;
+import com.aieducenter.studio.interfaces.rest.dto.UserInfo;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -289,7 +289,7 @@ public class UserController {
     /**
      * 转换为UserDTO
      */
-    private UserDTO convertToUserDTO(com.platform.domain.user.User user) {
+    private UserDTO convertToUserDTO(com.aieducenter.studio.domain.user.User user) {
         return UserDTO.builder()
             .userId(user.getUserId())
             .username(user.getUsername())

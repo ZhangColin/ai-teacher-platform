@@ -1,6 +1,6 @@
-package com.platform.infrastructure.config;
+package com.aieducenter.studio.infrastructure.config;
 
-import com.platform.interfaces.dto.ToolDTO;
+import com.aieducenter.studio.interfaces.dto.ToolDTO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

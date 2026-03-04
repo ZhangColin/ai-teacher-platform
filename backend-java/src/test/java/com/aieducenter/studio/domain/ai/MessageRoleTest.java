@@ -1,4 +1,4 @@
-package com.platform.domain.ai;
+package com.aieducenter.studio.domain.ai;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

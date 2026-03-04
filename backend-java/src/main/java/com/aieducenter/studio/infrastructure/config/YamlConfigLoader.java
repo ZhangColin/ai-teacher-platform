@@ -1,8 +1,8 @@
-package com.platform.infrastructure.config;
+package com.aieducenter.studio.infrastructure.config;
 
-import com.platform.interfaces.dto.CategoryDTO;
-import com.platform.interfaces.dto.NavigationModuleDTO;
-import com.platform.interfaces.dto.ToolDTO;
+import com.aieducenter.studio.interfaces.dto.CategoryDTO;
+import com.aieducenter.studio.interfaces.dto.NavigationModuleDTO;
+import com.aieducenter.studio.interfaces.dto.ToolDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;

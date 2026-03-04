@@ -1,6 +1,6 @@
-package com.platform.infrastructure.ai.provider;
+package com.aieducenter.studio.infrastructure.ai.provider;
 
-import com.platform.domain.ai.Message;
+import com.aieducenter.studio.domain.ai.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;

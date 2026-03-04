@@ -1,10 +1,10 @@
-package com.platform.interfaces.rest;
+package com.aieducenter.studio.interfaces.rest;
 
-import com.platform.application.service.SessionService;
-import com.platform.interfaces.rest.dto.UserInfo;
-import com.platform.interfaces.rest.dto.conversation.ConversationDTO;
-import com.platform.interfaces.rest.dto.conversation.ConversationDetailResponse;
-import com.platform.interfaces.rest.dto.conversation.ConversationListResponse;
+import com.aieducenter.studio.application.service.SessionService;
+import com.aieducenter.studio.interfaces.rest.dto.UserInfo;
+import com.aieducenter.studio.interfaces.rest.dto.conversation.ConversationDTO;
+import com.aieducenter.studio.interfaces.rest.dto.conversation.ConversationDetailResponse;
+import com.aieducenter.studio.interfaces.rest.dto.conversation.ConversationListResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;

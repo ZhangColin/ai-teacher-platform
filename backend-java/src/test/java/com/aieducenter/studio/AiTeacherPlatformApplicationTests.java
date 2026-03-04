@@ -1,4 +1,4 @@
-package com.platform;
+package com.aieducenter.studio;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;

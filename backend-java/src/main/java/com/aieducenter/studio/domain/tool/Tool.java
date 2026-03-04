@@ -1,4 +1,4 @@
-package com.platform.domain.tool;
+package com.aieducenter.studio.domain.tool;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

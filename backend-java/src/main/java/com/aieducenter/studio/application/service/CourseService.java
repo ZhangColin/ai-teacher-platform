@@ -1,8 +1,8 @@
-package com.platform.application.service;
+package com.aieducenter.studio.application.service;
 
-import com.platform.infrastructure.persistence.jpa.CourseCategoryEntity;
-import com.platform.infrastructure.persistence.jpa.CourseDocumentEntity;
-import com.platform.infrastructure.persistence.jpa.CourseCategoryJpaRepository;
+import com.aieducenter.studio.infrastructure.persistence.jpa.CourseCategoryEntity;
+import com.aieducenter.studio.infrastructure.persistence.jpa.CourseDocumentEntity;
+import com.aieducenter.studio.infrastructure.persistence.jpa.CourseCategoryJpaRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;

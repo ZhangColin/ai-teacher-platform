@@ -1,7 +1,7 @@
-package com.platform.interfaces.rest;
+package com.aieducenter.studio.interfaces.rest;
 
-import com.platform.application.service.CourseService;
-import com.platform.interfaces.rest.dto.UserInfo;
+import com.aieducenter.studio.application.service.CourseService;
+import com.aieducenter.studio.interfaces.rest.dto.UserInfo;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

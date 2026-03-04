@@ -1,6 +1,6 @@
-package com.platform.infrastructure.persistence.jpa;
+package com.aieducenter.studio.infrastructure.persistence.jpa;
 
-import com.platform.domain.tool.CommonToolType;
+import com.aieducenter.studio.domain.tool.CommonToolType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

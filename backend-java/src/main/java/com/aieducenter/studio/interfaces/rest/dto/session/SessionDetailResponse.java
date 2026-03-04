@@ -1,6 +1,6 @@
-package com.platform.interfaces.rest.dto.session;
+package com.aieducenter.studio.interfaces.rest.dto.session;
 
-import com.platform.interfaces.rest.dto.Message;
+import com.aieducenter.studio.interfaces.rest.dto.Message;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

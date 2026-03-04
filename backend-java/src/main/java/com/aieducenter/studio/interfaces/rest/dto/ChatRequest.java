@@ -1,6 +1,6 @@
-package com.platform.interfaces.rest.dto;
+package com.aieducenter.studio.interfaces.rest.dto;
 
-import com.platform.domain.ai.Message;
+import com.aieducenter.studio.domain.ai.Message;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

@@ -1,6 +1,6 @@
-package com.platform.domain.ai;
+package com.aieducenter.studio.domain.ai;
 
-import com.platform.domain.artifact.Artifact;
+import com.aieducenter.studio.domain.artifact.Artifact;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

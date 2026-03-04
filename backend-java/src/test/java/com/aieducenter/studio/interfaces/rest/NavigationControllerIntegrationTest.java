@@ -1,4 +1,4 @@
-package com.platform.interfaces.rest;
+package com.aieducenter.studio.interfaces.rest;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -29,7 +29,7 @@ class NavigationControllerIntegrationTest {
     void getNavigation_Success() throws Exception {
         mockMvc.perform(get("/api/v1/navigation"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.modules").isArray();
+            .andExpect(jsonPath("$.modules").isArray());
     }
 
     @Test

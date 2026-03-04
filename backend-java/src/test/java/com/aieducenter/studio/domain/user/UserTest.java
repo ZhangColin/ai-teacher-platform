@@ -1,4 +1,4 @@
-package com.platform.domain.user;
+package com.aieducenter.studio.domain.user;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -151,7 +151,12 @@ class UserTest {
         LocalDateTime now = LocalDateTime.now();
 
         // When
-        User user = new User("user-123", "testuser", "test@example.com", true, now);
+        User user = new User();
+        user.setId("user-123");
+        user.setUsername("testuser");
+        user.setEmail("test@example.com");
+        user.setIsAdmin(true);
+        user.setCreatedAt(now);
 
         // Then
         assertThat(user.getId()).isEqualTo("user-123");

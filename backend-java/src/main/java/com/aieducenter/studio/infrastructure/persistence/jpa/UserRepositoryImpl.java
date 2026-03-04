@@ -1,7 +1,7 @@
-package com.platform.infrastructure.persistence.jpa;
+package com.aieducenter.studio.infrastructure.persistence.jpa;
 
-import com.platform.domain.user.User;
-import com.platform.domain.user.repository.UserRepository;
+import com.aieducenter.studio.domain.user.User;
+import com.aieducenter.studio.domain.user.repository.UserRepository;
 import org.springframework.stereotype.Component;
 
 import java.util.List;

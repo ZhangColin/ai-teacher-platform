@@ -1,4 +1,4 @@
-package com.platform.infrastructure.security;
+package com.aieducenter.studio.infrastructure.security;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

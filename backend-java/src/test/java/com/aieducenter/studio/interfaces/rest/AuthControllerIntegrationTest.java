@@ -1,7 +1,7 @@
-package com.platform.interfaces.rest;
+package com.aieducenter.studio.interfaces.rest;
 
-import com.platform.application.service.AuthService;
-import com.platform.application.service.UserService;
+import com.aieducenter.studio.application.service.AuthService;
+import com.aieducenter.studio.application.service.UserService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,7 +38,7 @@ class AuthControllerIntegrationTest {
         when(authService.login(any(), any(), any())).thenReturn("test-token");
         when(authService.validateToken("test-token")).thenReturn("user-123");
         when(userService.getUserById("user-123")).thenAnswer(invocation -> {
-            com.platform.domain.user.User user = new com.platform.domain.user.User();
+            com.aieducenter.studio.domain.user.User user = new com.aieducenter.studio.domain.user.User();
             user.setId("user-123");
             user.setUsername("testuser");
             user.setIsAdmin(false);
@@ -75,7 +75,7 @@ class AuthControllerIntegrationTest {
     void getMe_Success() {
         // Given - 模拟认证用户
         when(userService.getUserById("user-123")).thenAnswer(invocation -> {
-            com.platform.domain.user.User user = new com.platform.domain.user.User();
+            com.aieducenter.studio.domain.user.User user = new com.aieducenter.studio.domain.user.User();
             user.setId("user-123");
             user.setUsername("testuser");
             user.setIsAdmin(false);

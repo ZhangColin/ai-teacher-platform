@@ -1,7 +1,7 @@
-package com.platform.application.service;
+package com.aieducenter.studio.application.service;
 
-import com.platform.domain.ai.Message;
-import com.platform.domain.ai.MessageRole;
+import com.aieducenter.studio.domain.ai.Message;
+import com.aieducenter.studio.domain.ai.MessageRole;
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.model.chat.ChatLanguageModel;
@@ -11,6 +11,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.Mock;
 import reactor.core.publisher.Flux;
 import reactor.test.StepVerifier;

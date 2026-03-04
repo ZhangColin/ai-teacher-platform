@@ -1,10 +1,10 @@
-package com.platform.application.service;
+package com.aieducenter.studio.application.service;
 
-import com.platform.domain.session.Session;
-import com.platform.infrastructure.persistence.jpa.MessageEntity;
-import com.platform.infrastructure.persistence.jpa.MessageJpaRepository;
-import com.platform.infrastructure.persistence.jpa.SessionEntity;
-import com.platform.infrastructure.persistence.jpa.SessionJpaRepository;
+import com.aieducenter.studio.domain.session.Session;
+import com.aieducenter.studio.infrastructure.persistence.jpa.MessageEntity;
+import com.aieducenter.studio.infrastructure.persistence.jpa.MessageJpaRepository;
+import com.aieducenter.studio.infrastructure.persistence.jpa.SessionEntity;
+import com.aieducenter.studio.infrastructure.persistence.jpa.SessionJpaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

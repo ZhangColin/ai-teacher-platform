@@ -1,4 +1,4 @@
-package com.platform.interfaces.rest;
+package com.aieducenter.studio.interfaces.rest;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

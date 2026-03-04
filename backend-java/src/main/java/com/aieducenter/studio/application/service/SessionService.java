@@ -1,12 +1,12 @@
-package com.platform.application.service;
+package com.aieducenter.studio.application.service;
 
-import com.platform.domain.ai.Message;
-import com.platform.domain.ai.MessageRole;
-import com.platform.domain.session.Session;
-import com.platform.infrastructure.persistence.jpa.MessageEntity;
-import com.platform.infrastructure.persistence.jpa.MessageJpaRepository;
-import com.platform.infrastructure.persistence.jpa.SessionEntity;
-import com.platform.infrastructure.persistence.jpa.SessionJpaRepository;
+import com.aieducenter.studio.domain.ai.Message;
+import com.aieducenter.studio.domain.ai.MessageRole;
+import com.aieducenter.studio.domain.session.Session;
+import com.aieducenter.studio.infrastructure.persistence.jpa.MessageEntity;
+import com.aieducenter.studio.infrastructure.persistence.jpa.MessageJpaRepository;
+import com.aieducenter.studio.infrastructure.persistence.jpa.SessionEntity;
+import com.aieducenter.studio.infrastructure.persistence.jpa.SessionJpaRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;

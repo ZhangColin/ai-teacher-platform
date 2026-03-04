@@ -1,4 +1,4 @@
-package com.platform.infrastructure.config;
+package com.aieducenter.studio.infrastructure.config;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,7 +37,7 @@ public class ToolConfigLoader {
     /**
      * 缓存：toolId -> Tool
      */
-    private Map<String, com.platform.domain.tool.Tool> toolsCache = new HashMap<>();
+    private Map<String, com.aieducenter.studio.domain.tool.Tool> toolsCache = new HashMap<>();
 
     /**
      * 缓存时间戳
@@ -56,7 +56,7 @@ public class ToolConfigLoader {
      *
      * @return 工具列表
      */
-    public List<com.platform.domain.tool.Tool> loadAllTools() {
+    public List<com.aieducenter.studio.domain.tool.Tool> loadAllTools() {
         // 检查缓存是否有效
         long currentTime = System.currentTimeMillis() / 1000;
         if (!toolsCache.isEmpty() && (currentTime - cacheTimestamp) < cacheDurationSeconds) {
@@ -149,7 +149,7 @@ public class ToolConfigLoader {
             logger.warn("YAML解析功能待实现，跳过文件: {}", configPath);
 
             // 临时实现：使用占位符数据
-            com.platform.domain.tool.Tool tool = com.platform.domain.tool.Tool.builder()
+            com.aieducenter.studio.domain.tool.Tool tool = com.aieducenter.studio.domain.tool.Tool.builder()
                 .toolId(configPath.getFileName().toString().replace(".yaml", ""))
                 .name("占位符工具")
                 .description("待实现")
@@ -211,7 +211,7 @@ public class ToolConfigLoader {
      * @param toolId 工具ID
      * @return 工具实体，不存在返回null
      */
-    public com.platform.domain.tool.Tool getToolById(String toolId) {
+    public com.aieducenter.studio.domain.tool.Tool getToolById(String toolId) {
         if (toolsCache.isEmpty()) {
             loadAllTools();
         }

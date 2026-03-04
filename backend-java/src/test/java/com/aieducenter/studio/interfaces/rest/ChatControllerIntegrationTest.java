@@ -1,8 +1,8 @@
-package com.platform.interfaces.rest;
+package com.aieducenter.studio.interfaces.rest;
 
-import com.platform.application.service.AIService;
-import com.platform.application.service.SessionService;
-import com.platform.application.service.ToolService;
+import com.aieducenter.studio.application.service.AIService;
+import com.aieducenter.studio.application.service.SessionService;
+import com.aieducenter.studio.application.service.ToolService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

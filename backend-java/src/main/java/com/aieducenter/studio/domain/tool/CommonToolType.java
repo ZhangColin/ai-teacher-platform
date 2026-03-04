@@ -1,4 +1,4 @@
-package com.platform.domain.tool;
+package com.aieducenter.studio.domain.tool;
 
 /**
  * 通用工具类型枚举

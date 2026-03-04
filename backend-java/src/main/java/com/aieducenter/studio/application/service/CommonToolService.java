@@ -1,10 +1,10 @@
-package com.platform.application.service;
+package com.aieducenter.studio.application.service;
 
-import com.platform.infrastructure.persistence.jpa.CommonToolEntity;
-import com.platform.infrastructure.persistence.jpa.CommonToolJpaRepository;
-import com.platform.infrastructure.persistence.jpa.ToolCategoryEntity;
-import com.platform.infrastructure.persistence.jpa.ToolCategoryJpaRepository;
-import com.platform.interfaces.rest.dto.admin.AdminToolDTO;
+import com.aieducenter.studio.infrastructure.persistence.jpa.CommonToolEntity;
+import com.aieducenter.studio.infrastructure.persistence.jpa.CommonToolJpaRepository;
+import com.aieducenter.studio.infrastructure.persistence.jpa.ToolCategoryEntity;
+import com.aieducenter.studio.infrastructure.persistence.jpa.ToolCategoryJpaRepository;
+import com.aieducenter.studio.interfaces.rest.dto.admin.AdminToolDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -111,7 +111,7 @@ public class CommonToolService {
         entity.setName(name);
         entity.setDescription(description);
         entity.setCategoryId(categoryId);
-        entity.setType(com.platform.domain.tool.CommonToolType.valueOf(type));
+        entity.setType(com.aieducenter.studio.domain.tool.CommonToolType.valueOf(type));
         entity.setIcon(icon);
         entity.setHtmlPath(htmlPath);
         entity.setOrder(order != null ? order : 0);
@@ -206,7 +206,7 @@ public class CommonToolService {
         // 构建查询条件
         if (categoryId != null && toolType != null && visible != null) {
             tools = toolRepository.findByCategoryIdAndTypeAndVisibleTrueOrderByOrderAsc(
-                categoryId, com.platform.domain.tool.CommonToolType.valueOf(toolType));
+                categoryId, com.aieducenter.studio.domain.tool.CommonToolType.valueOf(toolType));
         } else if (categoryId != null && visible != null) {
             tools = toolRepository.findByCategoryIdAndVisibleTrueOrderByOrderAsc(categoryId);
         } else if (categoryId != null) {
@@ -255,7 +255,7 @@ public class CommonToolService {
         entity.setName(name);
         entity.setDescription(description);
         entity.setCategoryId(categoryId);
-        entity.setType(com.platform.domain.tool.CommonToolType.BUILT_IN);
+        entity.setType(com.aieducenter.studio.domain.tool.CommonToolType.BUILT_IN);
         entity.setIcon(icon);
         entity.setOrder(order != null ? order : 0);
         entity.setVisible(visible != null ? visible : true);
@@ -289,7 +289,7 @@ public class CommonToolService {
         entity.setName(name);
         entity.setDescription(description);
         entity.setCategoryId(categoryId);
-        entity.setType(com.platform.domain.tool.CommonToolType.HTML);
+        entity.setType(com.aieducenter.studio.domain.tool.CommonToolType.HTML);
         entity.setIcon(icon);
         entity.setHtmlPath(htmlPath);
         entity.setOrder(order != null ? order : 0);
@@ -548,10 +548,10 @@ public class CommonToolService {
 
     // ==================== 辅助方法 ====================
 
-    private com.platform.interfaces.rest.dto.admin.AdminToolDTO convertToAdminToolDTO(CommonToolEntity entity) {
+    private com.aieducenter.studio.interfaces.rest.dto.admin.AdminToolDTO convertToAdminToolDTO(CommonToolEntity entity) {
         ToolCategoryEntity category = categoryRepository.findById(entity.getCategoryId()).orElse(null);
 
-        return com.platform.interfaces.rest.dto.admin.AdminToolDTO.builder()
+        return com.aieducenter.studio.interfaces.rest.dto.admin.AdminToolDTO.builder()
             .toolId(entity.getId())
             .name(entity.getName())
             .description(entity.getDescription())
@@ -571,19 +571,19 @@ public class CommonToolService {
     // ==================== 管理员结果类 ====================
 
     public static class AdminToolListResult {
-        private final List<com.platform.interfaces.rest.dto.admin.AdminToolDTO> tools;
+        private final List<com.aieducenter.studio.interfaces.rest.dto.admin.AdminToolDTO> tools;
         private final int total;
         private final int page;
         private final int pageSize;
 
-        public AdminToolListResult(List<com.platform.interfaces.rest.dto.admin.AdminToolDTO> tools, int total, int page, int pageSize) {
+        public AdminToolListResult(List<com.aieducenter.studio.interfaces.rest.dto.admin.AdminToolDTO> tools, int total, int page, int pageSize) {
             this.tools = tools;
             this.total = total;
             this.page = page;
             this.pageSize = pageSize;
         }
 
-        public List<com.platform.interfaces.rest.dto.admin.AdminToolDTO> getTools() { return tools; }
+        public List<com.aieducenter.studio.interfaces.rest.dto.admin.AdminToolDTO> getTools() { return tools; }
         public int getTotal() { return total; }
         public int getPage() { return page; }
         public int getPageSize() { return pageSize; }

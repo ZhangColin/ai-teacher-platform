@@ -1,6 +1,6 @@
-package com.platform.application.service;
+package com.aieducenter.studio.application.service;
 
-import com.platform.infrastructure.ai.provider.ProviderFactory;
+import com.aieducenter.studio.infrastructure.ai.provider.ProviderFactory;
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

@@ -1,8 +1,8 @@
-package com.platform.interfaces.rest;
+package com.aieducenter.studio.interfaces.rest;
 
-import com.platform.application.service.CommonToolService;
-import com.platform.interfaces.rest.dto.admin.*;
-import com.platform.interfaces.rest.dto.UserInfo;
+import com.aieducenter.studio.application.service.CommonToolService;
+import com.aieducenter.studio.interfaces.rest.dto.admin.*;
+import com.aieducenter.studio.interfaces.rest.dto.UserInfo;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -570,7 +570,7 @@ public class AdminController {
 
     // ==================== 辅助方法 ====================
 
-    private AdminToolDTO convertToAdminToolDTO(com.platform.infrastructure.persistence.jpa.CommonToolEntity entity) {
+    private AdminToolDTO convertToAdminToolDTO(com.aieducenter.studio.infrastructure.persistence.jpa.CommonToolEntity entity) {
         return AdminToolDTO.builder()
             .toolId(entity.getId())
             .name(entity.getName())

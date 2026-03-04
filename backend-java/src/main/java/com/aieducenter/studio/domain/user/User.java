@@ -1,4 +1,4 @@
-package com.platform.domain.user;
+package com.aieducenter.studio.domain.user;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

@@ -1,4 +1,4 @@
-package com.platform.interfaces.rest.dto.user;
+package com.aieducenter.studio.interfaces.rest.dto.user;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

@@ -1,4 +1,4 @@
-package com.platform.domain.tool;
+package com.aieducenter.studio.domain.tool;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

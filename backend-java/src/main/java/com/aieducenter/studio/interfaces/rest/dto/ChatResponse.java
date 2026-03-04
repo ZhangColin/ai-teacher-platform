@@ -1,6 +1,6 @@
-package com.platform.interfaces.rest.dto;
+package com.aieducenter.studio.interfaces.rest.dto;
 
-import com.platform.domain.artifact.Artifact;
+import com.aieducenter.studio.domain.artifact.Artifact;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

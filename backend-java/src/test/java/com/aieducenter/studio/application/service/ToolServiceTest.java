@@ -1,7 +1,7 @@
-package com.platform.application.service;
+package com.aieducenter.studio.application.service;
 
-import com.platform.domain.tool.Tool;
-import com.platform.infrastructure.config.ToolConfigLoader;
+import com.aieducenter.studio.domain.tool.Tool;
+import com.aieducenter.studio.infrastructure.config.ToolConfigLoader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

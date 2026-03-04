@@ -1,7 +1,7 @@
-package com.platform.application.service;
+package com.aieducenter.studio.application.service;
 
-import com.platform.domain.tool.Tool;
-import com.platform.infrastructure.config.ToolConfigLoader;
+import com.aieducenter.studio.domain.tool.Tool;
+import com.aieducenter.studio.infrastructure.config.ToolConfigLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;

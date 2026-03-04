@@ -1,6 +1,6 @@
-package com.platform.infrastructure.ai.provider;
+package com.aieducenter.studio.infrastructure.ai.provider;
 
-import com.platform.domain.ai.Message;
+import com.aieducenter.studio.domain.ai.Message;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 

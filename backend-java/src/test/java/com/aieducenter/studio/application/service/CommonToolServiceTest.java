@@ -1,10 +1,10 @@
-package com.platform.application.service;
+package com.aieducenter.studio.application.service;
 
-import com.platform.domain.tool.CommonToolType;
-import com.platform.infrastructure.persistence.jpa.CommonToolEntity;
-import com.platform.infrastructure.persistence.jpa.CommonToolJpaRepository;
-import com.platform.infrastructure.persistence.jpa.ToolCategoryEntity;
-import com.platform.infrastructure.persistence.jpa.ToolCategoryJpaRepository;
+import com.aieducenter.studio.domain.tool.CommonToolType;
+import com.aieducenter.studio.infrastructure.persistence.jpa.CommonToolEntity;
+import com.aieducenter.studio.infrastructure.persistence.jpa.CommonToolJpaRepository;
+import com.aieducenter.studio.infrastructure.persistence.jpa.ToolCategoryEntity;
+import com.aieducenter.studio.infrastructure.persistence.jpa.ToolCategoryJpaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

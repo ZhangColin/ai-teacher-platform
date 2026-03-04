@@ -1,7 +1,7 @@
-package com.platform.application.service;
+package com.aieducenter.studio.application.service;
 
-import com.platform.domain.ai.Message;
-import com.platform.infrastructure.ai.langchain4j.LangChain4jConfig;
+import com.aieducenter.studio.domain.ai.Message;
+import com.aieducenter.studio.infrastructure.ai.langchain4j.LangChain4jConfig;
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.SystemMessage;
