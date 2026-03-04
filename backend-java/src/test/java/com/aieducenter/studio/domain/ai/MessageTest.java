@@ -188,14 +188,20 @@ class MessageTest {
     }
 
     @Test
-    @DisplayName("Lombok全参构造 - 工作正常")
-    void lombokAllArgsConstructor_Works() {
+    @DisplayName("使用setter设置所有字段 - 工作正常")
+    void setterPattern_Works() {
         // Given
         LocalDateTime now = LocalDateTime.now();
         Artifact artifact = new Artifact();
 
         // When
-        Message message = new Message("msg-123", "session-456", MessageRole.USER, "内容", artifact, now);
+        Message message = new Message();
+        message.setId("msg-123");
+        message.setSessionId("session-456");
+        message.setRole(MessageRole.USER);
+        message.setContent("内容");
+        message.setArtifact(artifact);
+        message.setCreatedAt(now);
 
         // Then
         assertThat(message.getId()).isEqualTo("msg-123");

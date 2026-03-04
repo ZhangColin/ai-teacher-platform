@@ -44,10 +44,21 @@ class AIServiceCompleteTest {
     @BeforeEach
     void setUp() {
         systemPrompt = "You are a helpful assistant.";
-        history = List.of(
-            new Message("msg1", MessageRole.USER, "Previous message"),
-            new Message("msg2", MessageRole.ASSISTANT, "Previous response")
-        );
+
+        // 使用 setter 方法创建测试消息
+        Message msg1 = new Message();
+        msg1.setId("msg1");
+        msg1.setSessionId("test-session");
+        msg1.setRole(MessageRole.USER);
+        msg1.setContent("Previous message");
+
+        Message msg2 = new Message();
+        msg2.setId("msg2");
+        msg2.setSessionId("test-session");
+        msg2.setRole(MessageRole.ASSISTANT);
+        msg2.setContent("Previous response");
+
+        history = List.of(msg1, msg2);
     }
 
     @Test
@@ -324,12 +335,31 @@ class AIServiceCompleteTest {
     @DisplayName("构建消息 - 多条历史消息")
     void buildMessages_MultipleHistory() {
         // Given
-        List<Message> extendedHistory = List.of(
-            new Message("msg1", MessageRole.USER, "User 1"),
-            new Message("msg2", MessageRole.ASSISTANT, "AI 1"),
-            new Message("msg3", MessageRole.USER, "User 2"),
-            new Message("msg4", MessageRole.ASSISTANT, "AI 2")
-        );
+        Message msg1 = new Message();
+        msg1.setId("msg1");
+        msg1.setSessionId("test-session");
+        msg1.setRole(MessageRole.USER);
+        msg1.setContent("User 1");
+
+        Message msg2 = new Message();
+        msg2.setId("msg2");
+        msg2.setSessionId("test-session");
+        msg2.setRole(MessageRole.ASSISTANT);
+        msg2.setContent("AI 1");
+
+        Message msg3 = new Message();
+        msg3.setId("msg3");
+        msg3.setSessionId("test-session");
+        msg3.setRole(MessageRole.USER);
+        msg3.setContent("User 2");
+
+        Message msg4 = new Message();
+        msg4.setId("msg4");
+        msg4.setSessionId("test-session");
+        msg4.setRole(MessageRole.ASSISTANT);
+        msg4.setContent("AI 2");
+
+        List<Message> extendedHistory = List.of(msg1, msg2, msg3, msg4);
 
         // When
         List<ChatMessage> messages = aiService.buildMessages(
