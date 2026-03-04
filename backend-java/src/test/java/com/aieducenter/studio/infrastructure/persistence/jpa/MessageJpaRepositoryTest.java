@@ -40,14 +40,14 @@ class MessageJpaRepositoryTest {
 
         // 创建测试数据
         message1 = new MessageEntity();
-        message1.setId("msg-1");
+        message1.setMessageId("msg-1");
         message1.setSessionId(sessionId);
         message1.setRole(MessageRole.USER);
         message1.setContent("用户消息1");
         message1.setCreatedAt(baseTime);
 
         message2 = new MessageEntity();
-        message2.setId("msg-2");
+        message2.setMessageId("msg-2");
         message2.setSessionId(sessionId);
         message2.setRole(MessageRole.ASSISTANT);
         message2.setContent("助手回复1");
@@ -67,8 +67,8 @@ class MessageJpaRepositoryTest {
 
         // Then
         assertThat(result).hasSize(2);
-        assertThat(result.get(0).getId()).isEqualTo("msg-1"); // 创建时间更早的排第一
-        assertThat(result.get(1).getId()).isEqualTo("msg-2");
+        assertThat(result.get(0).getMessageId()).isEqualTo("msg-1"); // 创建时间更早的排第一
+        assertThat(result.get(1).getMessageId()).isEqualTo("msg-2");
     }
 
     @Test
@@ -79,7 +79,7 @@ class MessageJpaRepositoryTest {
 
         // Then
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).getId()).isEqualTo("msg-1");
+        assertThat(result.get(0).getMessageId()).isEqualTo("msg-1");
         assertThat(result.get(0).getRole()).isEqualTo(MessageRole.USER);
     }
 
@@ -91,7 +91,7 @@ class MessageJpaRepositoryTest {
 
         // Then
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).getId()).isEqualTo("msg-2");
+        assertThat(result.get(0).getMessageId()).isEqualTo("msg-2");
         assertThat(result.get(0).getRole()).isEqualTo(MessageRole.ASSISTANT);
     }
 
@@ -113,7 +113,7 @@ class MessageJpaRepositoryTest {
 
         // Then
         assertThat(result).isPresent();
-        assertThat(result.get().getId()).isEqualTo("msg-1");
+        assertThat(result.get().getMessageId()).isEqualTo("msg-1");
         assertThat(result.get().getContent()).isEqualTo("用户消息1");
     }
 
@@ -132,7 +132,7 @@ class MessageJpaRepositoryTest {
     void save_NewMessage_PersistsMessage() {
         // Given
         MessageEntity newMessage = new MessageEntity();
-        newMessage.setId("new-msg");
+        newMessage.setMessageId("new-msg");
         newMessage.setSessionId(sessionId);
         newMessage.setRole(MessageRole.USER);
         newMessage.setContent("新消息");
@@ -142,7 +142,7 @@ class MessageJpaRepositoryTest {
         MessageEntity saved = repository.save(newMessage);
 
         // Then
-        assertThat(saved.getId()).isEqualTo("new-msg");
+        assertThat(saved.getMessageId()).isEqualTo("new-msg");
         assertThat(repository.findById("new-msg")).isPresent();
     }
 
@@ -151,7 +151,7 @@ class MessageJpaRepositoryTest {
     void save_SystemMessage_PersistsMessage() {
         // Given
         MessageEntity systemMessage = new MessageEntity();
-        systemMessage.setId("system-msg");
+        systemMessage.setMessageId("system-msg");
         systemMessage.setSessionId(sessionId);
         systemMessage.setRole(MessageRole.SYSTEM);
         systemMessage.setContent("系统提示词");
@@ -237,14 +237,14 @@ class MessageJpaRepositoryTest {
     void findBySessionIdOrderByCreatedAtAsc_MultipleMessages_ReturnsInCorrectOrder() {
         // Given
         MessageEntity msg3 = new MessageEntity();
-        msg3.setId("msg-3");
+        msg3.setMessageId("msg-3");
         msg3.setSessionId(sessionId);
         msg3.setRole(MessageRole.USER);
         msg3.setContent("用户消息2");
         msg3.setCreatedAt(LocalDateTime.of(2024, 1, 1, 12, 2));
 
         MessageEntity msg4 = new MessageEntity();
-        msg4.setId("msg-4");
+        msg4.setMessageId("msg-4");
         msg4.setSessionId(sessionId);
         msg4.setRole(MessageRole.ASSISTANT);
         msg4.setContent("助手回复2");
@@ -259,10 +259,10 @@ class MessageJpaRepositoryTest {
 
         // Then
         assertThat(result).hasSize(4);
-        assertThat(result.get(0).getId()).isEqualTo("msg-1");
-        assertThat(result.get(1).getId()).isEqualTo("msg-2");
-        assertThat(result.get(2).getId()).isEqualTo("msg-3");
-        assertThat(result.get(3).getId()).isEqualTo("msg-4");
+        assertThat(result.get(0).getMessageId()).isEqualTo("msg-1");
+        assertThat(result.get(1).getMessageId()).isEqualTo("msg-2");
+        assertThat(result.get(2).getMessageId()).isEqualTo("msg-3");
+        assertThat(result.get(3).getMessageId()).isEqualTo("msg-4");
     }
 
     @Test
