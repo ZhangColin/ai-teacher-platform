@@ -5,29 +5,25 @@ import com.platform.application.service.UserService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureWebMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+import org.springframework.test.web.reactive.server.WebTestClient;
+import reactor.core.publisher.Mono;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
- * AuthController集成测试
+ * AuthController集成测试（WebFlux版本）
  *
  * 对应Python: backend/tests/integration/test_auth_api.py
  */
-@SpringBootTest
-@AutoConfigureWebMvc
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @DisplayName("AuthController集成测试")
 class AuthControllerIntegrationTest {
 
     @Autowired
-    private MockMvc mockMvc;
+    private WebTestClient webTestClient;
 
     @MockBean
     private AuthService authService;
@@ -37,7 +33,7 @@ class AuthControllerIntegrationTest {
 
     @Test
     @DisplayName("POST /api/v1/auth/login - 成功")
-    void login_Success() throws Exception {
+    void login_Success() {
         // Given
         when(authService.login(any(), any(), any())).thenReturn("test-token");
         when(authService.validateToken("test-token")).thenReturn("user-123");
@@ -50,31 +46,34 @@ class AuthControllerIntegrationTest {
         });
 
         // When & Then
-        mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/auth/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"account\":\"testuser\",\"password\":\"pass123\",\"rememberMe\":false}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.token").value("test-token"))
-                .andExpect(jsonPath("$.user.userId").value("user-123"));
+        webTestClient.post()
+                .uri("/api/v1/auth/login")
+                .bodyValue("{\"account\":\"testuser\",\"password\":\"pass123\",\"rememberMe\":false}")
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.token").isEqualTo("test-token")
+                .jsonPath("$.user.userId").isEqualTo("user-123");
     }
 
     @Test
     @DisplayName("POST /api/v1/auth/login - 失败（账号密码错误）")
-    void login_Failure() throws Exception {
+    void login_Failure() {
         // Given
         when(authService.login(any(), any(), any())).thenReturn(null);
 
         // When & Then
-        mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/auth/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"account\":\"testuser\",\"password\":\"wrong\"}"))
-                .andExpect(status().is5xxServerError());
+        webTestClient.post()
+                .uri("/api/v1/auth/login")
+                .bodyValue("{\"account\":\"testuser\",\"password\":\"wrong\"}")
+                .exchange()
+                .expectStatus().is5xxServerError();
     }
 
     @Test
     @DisplayName("GET /api/v1/auth/me - 成功")
-    void getMe_Success() throws Exception {
-        // Given
+    void getMe_Success() {
+        // Given - 模拟认证用户
         when(userService.getUserById("user-123")).thenAnswer(invocation -> {
             com.platform.domain.user.User user = new com.platform.domain.user.User();
             user.setId("user-123");
@@ -83,8 +82,10 @@ class AuthControllerIntegrationTest {
             return user;
         });
 
-        // When & Then (需要认证上下文，这里简化测试)
-        mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/auth/me"))
-                .andExpect(status().isUnauthorized()); // 未认证应该返回401
+        // When & Then (未认证应该返回401)
+        webTestClient.get()
+                .uri("/api/v1/auth/me")
+                .exchange()
+                .expectStatus().isUnauthorized(); // 未认证应该返回401
     }
 }

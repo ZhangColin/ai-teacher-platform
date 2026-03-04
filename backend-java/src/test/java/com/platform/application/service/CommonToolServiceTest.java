@@ -1,5 +1,6 @@
 package com.platform.application.service;
 
+import com.platform.domain.tool.CommonToolType;
 import com.platform.infrastructure.persistence.jpa.CommonToolEntity;
 import com.platform.infrastructure.persistence.jpa.CommonToolJpaRepository;
 import com.platform.infrastructure.persistence.jpa.ToolCategoryEntity;
@@ -49,6 +50,7 @@ class CommonToolServiceTest {
         tool.setId("tool-1");
         tool.setName("测试工具");
         tool.setCategoryId("cat-1");
+        tool.setType(CommonToolType.BUILT_IN);
         tool.setVisible(true);
         tool.setOrder(1);
 

@@ -25,9 +25,23 @@ public class User {
 
     /**
      * 用户唯一标识（UUID字符串）
-     * 对应Python: id: str
+     * 对应Python: user_id: str
      */
-    private String id;
+    private String userId;
+
+    /**
+     * 设置用户ID
+     */
+    public void setId(String userId) {
+        this.userId = userId;
+    }
+
+    /**
+     * 获取用户ID（兼容方法）
+     */
+    public String getId() {
+        return userId;
+    }
 
     /**
      * 用户名
@@ -40,6 +54,30 @@ public class User {
      * 对应Python: email: str
      */
     private String email;
+
+    /**
+     * 昵称
+     * 对应Python: nickname: str
+     */
+    private String nickname;
+
+    /**
+     * 手机号
+     * 对应Python: phone: str
+     */
+    private String phone;
+
+    /**
+     * 密码哈希
+     * 对应Python: password_hash: str
+     */
+    private String passwordHash;
+
+    /**
+     * 头像URL
+     * 对应Python: avatar: str
+     */
+    private String avatar;
 
     /**
      * 是否为管理员
@@ -98,7 +136,7 @@ public class User {
      */
     public static User createNew(String username, String email, LocalDateTime createdAt) {
         User user = new User();
-        user.id = "0"; // 数据库生成UUID
+        user.userId = "0"; // 数据库生成UUID
         user.username = username;
         user.email = email;
         user.isAdmin = false;

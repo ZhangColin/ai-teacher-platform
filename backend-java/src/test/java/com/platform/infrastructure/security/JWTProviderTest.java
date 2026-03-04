@@ -17,15 +17,16 @@ import static org.junit.jupiter.api.Assertions.*;
 class JWTProviderTest {
 
     private JWTProvider jwtProvider;
-    private static final String TEST_SECRET = "test-secret-key-must-be-at-least-32-characters-long";
+    // 64字符 = 512位，满足HS512要求
+    private static final String TEST_SECRET = "test-secret-key-for-jwt-hs512-must-be-at-least-64-characters-long-12345";
     private static final String TEST_USER_ID = "test-user-123";
 
     @BeforeEach
     void setUp() {
         jwtProvider = new JWTProvider(
             TEST_SECRET,
-            Duration.ofHours(24),
-            Duration.ofDays(7)
+            Duration.ofHours(24).toMillis(),
+            Duration.ofDays(7).toMillis()
         );
     }
 

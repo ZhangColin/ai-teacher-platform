@@ -1,6 +1,8 @@
 package com.platform.application.service;
 
 import com.platform.domain.session.Session;
+import com.platform.infrastructure.persistence.jpa.MessageEntity;
+import com.platform.infrastructure.persistence.jpa.MessageJpaRepository;
 import com.platform.infrastructure.persistence.jpa.SessionEntity;
 import com.platform.infrastructure.persistence.jpa.SessionJpaRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,6 +32,9 @@ class SessionServiceTest {
 
     @Mock
     private SessionJpaRepository sessionJpaRepository;
+
+    @Mock
+    private MessageJpaRepository messageJpaRepository;
 
     @InjectMocks
     private SessionService sessionService;
@@ -100,7 +105,6 @@ class SessionServiceTest {
         SessionEntity entity = new SessionEntity();
         entity.setSessionId("session-123");
         entity.setUserId("user-123");
-        entity.setIsAdmin(false);
 
         when(sessionJpaRepository.findById("session-123")).thenReturn(Optional.of(entity));
         doNothing().when(sessionJpaRepository).delete(any());
@@ -122,7 +126,10 @@ class SessionServiceTest {
         entity.setUserId("user-123");
 
         when(sessionJpaRepository.findById("session-123")).thenReturn(Optional.of(entity));
-        when(sessionJpaRepository.existsById("session-123")).thenReturn(true);
+        when(messageJpaRepository.save(any(MessageEntity.class))).thenAnswer(invocation -> {
+            MessageEntity msg = invocation.getArgument(0);
+            return msg;
+        });
 
         // When
         var message = sessionService.addMessage("session-123", "user", "Hello", null);

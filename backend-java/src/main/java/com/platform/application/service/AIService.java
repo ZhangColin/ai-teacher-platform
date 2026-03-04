@@ -9,6 +9,7 @@ import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import dev.langchain4j.model.output.Response;
+import dev.langchain4j.model.StreamingResponseHandler;
 import dev.langchain4j.service.TokenStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -102,25 +103,33 @@ public class AIService {
         // 使用LangChain4j流式模型
         return Flux.create(sink -> {
             try {
-                streamingModel.generate(messages.stream().toList())
-                    .onNext(token -> {
-                        sink.next(token.text());
-                    })
-                    .onComplete(response -> {
-                        String result = response.content().text();
-                        logger.info("流式输出完成，内容长度: {}", result.length());
-
-                        // 检查是否需要继续生成
-                        if (shouldAutoContinue(result, maxContinue)) {
-                            // 自动继续生成逻辑
-                            autoContinue(messages, result, maxContinue, sink);
-                        } else {
-                            sink.complete();
+                streamingModel.generate(messages.stream().toList(),
+                    new StreamingResponseHandler<AiMessage>() {
+                        @Override
+                        public void onNext(String token) {
+                            sink.next(token);
                         }
-                    })
-                    .onError(sink::error)
-                    .start();
 
+                        @Override
+                        public void onComplete(Response<AiMessage> response) {
+                            String result = response.content().text();
+                            logger.info("流式输出完成，内容长度: {}", result.length());
+
+                            // 检查是否需要继续生成
+                            if (shouldAutoContinue(result, maxContinue)) {
+                                // 自动继续生成逻辑
+                                autoContinue(messages, result, maxContinue, sink);
+                            } else {
+                                sink.complete();
+                            }
+                        }
+
+                        @Override
+                        public void onError(Throwable error) {
+                            sink.error(error);
+                        }
+                    }
+                );
             } catch (Exception e) {
                 logger.error("AI服务调用异常（流式对话）: {}", e.getMessage(), e);
                 sink.error(e);

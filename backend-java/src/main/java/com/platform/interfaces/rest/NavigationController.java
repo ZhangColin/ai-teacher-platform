@@ -1,18 +1,28 @@
 package com.platform.interfaces.rest;
 
+import com.platform.infrastructure.config.YamlConfigLoader;
+import com.platform.interfaces.dto.CategoryDTO;
+import com.platform.interfaces.dto.NavigationModuleDTO;
+import com.platform.interfaces.dto.ToolDTO;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
  * 导航配置控制器
  *
- * 对应Python: backend/src/interfaces/routers/tools/list.py
+ * 对应Python: backend/src/routers/tools.py
  */
 @RestController
 @RequestMapping("/api/v1")
+@RequiredArgsConstructor
 public class NavigationController {
+
+    private final YamlConfigLoader configLoader;
 
     /**
      * 获取导航配置
@@ -20,9 +30,9 @@ public class NavigationController {
      * 对应Python: @router.get("/navigation")
      */
     @GetMapping("/navigation")
-    public Map<String, Object> getNavigation() {
-        // TODO: 从configs/navigation.yaml加载配置
-        return Map.of("modules", List.of());
+    public ResponseEntity<Map<String, List<NavigationModuleDTO>>> getNavigation() {
+        List<NavigationModuleDTO> modules = configLoader.loadNavigationConfig();
+        return ResponseEntity.ok(Map.of("modules", modules));
     }
 
     /**
@@ -31,8 +41,29 @@ public class NavigationController {
      * 对应Python: @router.get("/tools")
      */
     @GetMapping("/tools")
-    public Map<String, Object> getAllTools() {
-        // TODO: 返回所有工具列表
-        return Map.of("tools", List.of());
+    public ResponseEntity<Map<String, List<ToolDTO>>> getAllTools() {
+        List<ToolDTO> tools = configLoader.loadAllTools();
+        return ResponseEntity.ok(Map.of("tools", tools));
+    }
+
+    /**
+     * 按工具集获取工具
+     *
+     * 对应Python: @router.get("/toolsets/{toolset_id}/tools")
+     */
+    @GetMapping("/toolsets/{toolset_id}/tools")
+    public ResponseEntity<Map<String, Object>> getToolsByToolset(
+            @PathVariable("toolset_id") String toolsetId
+    ) {
+        List<ToolDTO> tools = configLoader.loadToolsByToolset(toolsetId);
+
+        // 按分类聚合
+        List<CategoryDTO> categories = configLoader.groupByCategory(tools, toolsetId);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("tools", tools);
+        response.put("categories", categories);
+
+        return ResponseEntity.ok(response);
     }
 }

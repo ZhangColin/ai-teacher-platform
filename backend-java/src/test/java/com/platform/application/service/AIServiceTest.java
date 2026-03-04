@@ -2,6 +2,7 @@ package com.platform.application.service;
 
 import com.platform.domain.ai.Message;
 import com.platform.domain.ai.MessageRole;
+import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.model.output.Response;
 import dev.langchain4j.data.message.AiMessage;
@@ -54,11 +55,11 @@ class AIServiceTest {
         Response<AiMessage> mockResponse = Response.from(
             AiMessage.from("This is a test response.")
         );
-        when(chatLanguageModel.generate(any())).thenReturn(mockResponse);
+        when(chatLanguageModel.generate((List<ChatMessage>) any())).thenReturn(mockResponse);
 
         // When
         StepVerifier.create(aiService.chat(systemPrompt, history, "Test message"))
-            .expectNextCount(11) // "This is a test response." 长度
+            .expectNext("This is a test response.") // 完整的响应字符串
             .verifyComplete();
     }
 
@@ -66,7 +67,7 @@ class AIServiceTest {
     @DisplayName("非流式对话 - 失败（异常处理）")
     void chat_Error() {
         // Given
-        when(chatLanguageModel.generate(any())).thenThrow(new RuntimeException("AI service error"));
+        when(chatLanguageModel.generate((List<ChatMessage>) any())).thenThrow(new RuntimeException("AI service error"));
 
         // When
         StepVerifier.create(aiService.chat(systemPrompt, history, "Test message"))
@@ -81,7 +82,7 @@ class AIServiceTest {
         Response<AiMessage> mockResponse = Response.from(
             AiMessage.from("Hello! How can I help you today?")
         );
-        when(chatLanguageModel.generate(any())).thenReturn(mockResponse);
+        when(chatLanguageModel.generate((List<ChatMessage>) any())).thenReturn(mockResponse);
 
         // When
         StepVerifier.create(aiService.generateWelcomeMessage(systemPrompt))
@@ -93,7 +94,7 @@ class AIServiceTest {
     @DisplayName("生成欢迎消息 - 失败（降级处理）")
     void generateWelcomeMessage_Error() {
         // Given
-        when(chatLanguageModel.generate(any())).thenThrow(new RuntimeException("AI error"));
+        when(chatLanguageModel.generate((List<ChatMessage>) any())).thenThrow(new RuntimeException("AI error"));
 
         // When
         StepVerifier.create(aiService.generateWelcomeMessage(systemPrompt))

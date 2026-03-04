@@ -92,7 +92,6 @@ public class LangChain4jConfig {
             .modelName(modelName)
             .temperature(0.7)
             .timeout(Duration.ofSeconds(60))
-            .maxRetries(3)
             .build();
     }
 

@@ -9,9 +9,16 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.Arrays;
+import java.util.Collections;
 
 /**
- * Spring Security配置
+ * Spring Security配置（Spring MVC版本）
  *
  * 对应Python: backend/src/interfaces/auth.py的认证逻辑
  *
@@ -29,11 +36,10 @@ public class SecurityConfig {
     }
 
     /**
-     * 配置安全过滤链
+     * 配置安全过滤链（Spring MVC）
      *
      * @param http HttpSecurity构建器
      * @return SecurityFilterChain
-     * @throws Exception 配置异常
      */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -41,10 +47,19 @@ public class SecurityConfig {
             // 禁用CSRF（使用JWT时不需要）
             .csrf(csrf -> csrf.disable())
 
-            // 配置会话管理（无状态，使用JWT）
+            // 禁用表单登录
+            .formLogin(form -> form.disable())
+
+            // 禁用HTTP Basic
+            .httpBasic(basic -> basic.disable())
+
+            // 配置会话管理（无状态）
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
+
+            // 配置CORS
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
             // 配置授权规则
             .authorizeHttpRequests(auth -> auth
@@ -52,8 +67,15 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/auth/login").permitAll()
                 .requestMatchers("/api/v1/navigation").permitAll()
                 .requestMatchers("/api/v1/common-tools/categories").permitAll()
+                .requestMatchers("/api/v1/common-tools/**").permitAll()
                 .requestMatchers("/api/v1/works/categories").permitAll()
+                .requestMatchers("/api/v1/works/**").permitAll()
                 .requestMatchers("/api/v1/documents/categories").permitAll()
+                .requestMatchers("/api/v1/documents/**").permitAll()
+                .requestMatchers("/api/v1/tools").permitAll()
+                .requestMatchers("/api/v1/toolsets/**").permitAll()
+                .requestMatchers("/api/v1/convert/**").permitAll()
+                .requestMatchers("/api/v1/tasks/**").permitAll()
 
                 // 静态资源
                 .requestMatchers("/static/**").permitAll()
@@ -61,13 +83,31 @@ public class SecurityConfig {
 
                 // 其他所有请求需要认证
                 .anyRequest().authenticated()
-            )
+            );
 
-            // 添加JWT认证过滤器
-            .addFilterBefore(jwtAuthenticationFilter,
-                org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class);
+        // 添加JWT认证过滤器
+        http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    /**
+     * CORS配置
+     *
+     * @return CorsConfigurationSource
+     */
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173", "http://localhost:5174"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(Collections.singletonList("*"));
+        configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 
     /**

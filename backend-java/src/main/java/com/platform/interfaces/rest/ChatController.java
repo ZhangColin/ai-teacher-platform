@@ -73,9 +73,9 @@ public class ChatController {
      * @param request 聊天请求
      * @return SSE流式响应
      */
-    @PostMapping(value = "/{toolId}/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @PostMapping(value = "/{tool_id}/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<String> chatStream(
-            @PathVariable String toolId,
+            @PathVariable("tool_id") String toolId,
             @RequestBody ChatRequest request
     ) {
         String userId = getCurrentUserId();
@@ -148,9 +148,9 @@ public class ChatController {
      * @param request 聊天请求
      * @return 聊天响应
      */
-    @PostMapping("/{toolId}/chat")
+    @PostMapping("/{tool_id}/chat")
     public Mono<ChatResponse> chat(
-            @PathVariable String toolId,
+            @PathVariable("tool_id") String toolId,
             @RequestBody ChatRequest request
     ) {
         String userId = getCurrentUserId();
@@ -175,6 +175,11 @@ public class ChatController {
             sessionId = session.getSessionId();
         }
 
+        // 创建最终引用供lambda使用
+        final String finalSessionId = sessionId;
+        final String finalUserId = userId;
+        final String finalUserMessage = request.getMessage();
+
         // 准备消息历史
         List<Message> history;
         if (request.getHistory() != null && !request.getHistory().isEmpty()) {
@@ -190,19 +195,19 @@ public class ChatController {
         return aiService.chat(systemPrompt, history, request.getMessage())
             .flatMap(response -> {
                 // 保存AI消息
-                sessionService.addMessage(sessionId, "assistant", response, userId);
+                sessionService.addMessage(finalSessionId, "assistant", response, finalUserId);
 
                 // 解析成果物
                 var artifacts = artifactParser.parseFromMarkdown(response);
 
                 // 检查是否需要生成标题
-                int messageCount = sessionService.getMessageCount(sessionId, userId);
+                int messageCount = sessionService.getMessageCount(finalSessionId, finalUserId);
                 if (messageCount == 2) { // 第一轮对话
-                    return generateTitleAndUpdate(request.getMessage(), response, sessionId, userId)
-                        .then(Mono.just(new ChatResponse(response, artifacts, sessionId)));
+                    return generateTitleAndUpdate(finalUserMessage, response, finalSessionId, finalUserId)
+                        .then(Mono.just(new ChatResponse(response, artifacts, finalSessionId)));
                 }
 
-                return Mono.just(new ChatResponse(response, artifacts, sessionId));
+                return Mono.just(new ChatResponse(response, artifacts, finalSessionId));
             })
             .doOnError(e -> logger.error("Chat endpoint error: {}", e.getMessage(), e));
     }

@@ -19,10 +19,26 @@
 
 ### Backend (后端)
 
+**Python版本（原始）：**
 * **Core**: Python 3.10+
 * **Framework**: FastAPI
 * **LLM Integration**: OpenAI SDK (兼容 Kimi / DeepSeek API)
 * **Data Validation**: Pydantic Schema
+
+**Java版本（迁移完成）：**
+* **Core**: Java 17+
+* **Framework**: Spring Boot 3.2.0
+* **Reactive**: Spring WebFlux (响应式编程)
+* **ORM**: Spring Data JPA + MyBatis-Plus
+* **Security**: Spring Security + JWT
+* **AI Framework**: LangChain4j 0.29.1
+* **Testing**: JUnit 5 + Mockito
+
+**双后端架构：**
+- Python后端（FastAPI）：8000端口 - 稳定版本
+- Java后端（Spring Boot）：8080端口 - 新迁移版本
+
+两个后端使用相同的数据库，数据完全兼容。
 
 ### Frontend (前端)
 

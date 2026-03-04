@@ -1,0 +1,15 @@
+# JWT配置示例
+jwt:
+  # JWT密钥（至少32字符，生产环境必须设置）
+  # 生成方法: python -c 'import secrets; print(secrets.token_urlsafe(32))'
+  secret: ${JWT_SECRET_KEY:change-this-secret-key-in-production-at-least-32-characters}
+
+  # Token有效期（毫秒）
+  expiration: 86400000 # 24小时
+  long-lived-expiration: 604800000 # 7天
+
+# 日志配置（开发环境）
+logging:
+  level:
+    org.springframework.security: DEBUG
+    com.platform.infrastructure.security: DEBUG

@@ -3,6 +3,7 @@ package com.platform.infrastructure.security;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -19,6 +20,13 @@ import java.util.Collections;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UserPrincipal {
+
+    /**
+     * 构造函数（仅用户ID）
+     */
+    public UserPrincipal(String userId) {
+        this.userId = userId;
+    }
 
     /**
      * 用户ID

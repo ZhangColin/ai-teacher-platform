@@ -5,9 +5,8 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.security.web.authentication.WebAuthenticationDetails;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -16,7 +15,7 @@ import java.io.IOException;
 import java.util.Collections;
 
 /**
- * JWT认证过滤器
+ * JWT认证过滤器（Spring MVC版本）
  *
  * 对应Python: backend/src/interfaces/auth.py中的get_current_user依赖
  * 从JWT Token中提取用户信息并设置到Spring Security上下文
@@ -49,15 +48,17 @@ public class JWTAuthenticationFilter extends OncePerRequestFilter {
 
                 if (userId != null) {
                     // 创建认证对象
+                    UserPrincipal userPrincipal = new UserPrincipal(userId);
                     UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(
-                            userId,
+                            userPrincipal,
                             null,
                             Collections.emptyList()
                         );
 
+                    // 设置认证详情
                     authentication.setDetails(
-                        new WebAuthenticationDetailsSource().buildDetails(request)
+                        new WebAuthenticationDetails(request)
                     );
 
                     // 设置到Security上下文
@@ -77,7 +78,7 @@ public class JWTAuthenticationFilter extends OncePerRequestFilter {
      * 从请求中提取JWT Token
      * 对应Python的Authorization: Bearer <token>逻辑
      *
-     * @param request HTTP请求
+     * @param request HttpServletRequest
      * @return JWT Token字符串（不带"Bearer "前缀），如果没有返回null
      */
     private String extractTokenFromRequest(HttpServletRequest request) {
