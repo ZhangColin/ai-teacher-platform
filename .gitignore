@@ -110,6 +110,17 @@ backend/configs/tools/test_tools/
 # 前端覆盖率报告
 frontend/coverage/
 
+# Java 编译输出
+target/
+*.class
+*.jar
+*.war
+
+# Maven
+.mvn/
+mvnw
+mvnw.cmd
+
 # Windows系统文件
 Thumbs.db
 Thumbs.db:encryptable
