@@ -35,8 +35,10 @@ frontend/dist/
 frontend/.vite/
 frontend/package-lock.json
 
-# 后端静态文件
+# 后端静态文件（运行时生成的用户内容）
 backend/static/
+backend/src/interfaces/static/
+backend/src/static/
 
 # Claude 本地配置
 .claude/settings.local.json
