@@ -207,7 +207,8 @@ def migrate_tools(db: Session, toolset_map: dict, category_map: dict):
             system_prompt_file = tool_data.get('system_prompt_file')
 
             if system_prompt_file:
-                prompt_file = toolset_dir / "prompts" / system_prompt_file
+                # system_prompt_file 已经包含 prompts/ 前缀
+                prompt_file = toolset_dir / system_prompt_file
                 if prompt_file.exists():
                     with open(prompt_file, 'r', encoding='utf-8') as f:
                         system_prompt = f.read()
