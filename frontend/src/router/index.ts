@@ -71,6 +71,30 @@ const routes: RouteRecordRaw[] = [
         component: () => import('../views/admin/AdminCourseDocumentsPage.vue'),
         meta: { requiresAdmin: true },
       },
+      {
+        path: 'navigation',
+        name: 'admin-navigation',
+        component: () => import('../views/admin/AdminNavigationPage.vue'),
+        meta: { requiresAdmin: true },
+      },
+      {
+        path: 'toolsets',
+        name: 'admin-toolsets',
+        component: () => import('../views/admin/AdminToolsetsPage.vue'),
+        meta: { requiresAdmin: true },
+      },
+      {
+        path: 'ai-tool-categories',
+        name: 'admin-ai-tool-categories',
+        component: () => import('../views/admin/AdminAIToolCategoriesPage.vue'),
+        meta: { requiresAdmin: true },
+      },
+      {
+        path: 'ai-tools',
+        name: 'admin-ai-tools',
+        component: () => import('../views/admin/AdminAIToolsPage.vue'),
+        meta: { requiresAdmin: true },
+      },
     ],
   },
   {

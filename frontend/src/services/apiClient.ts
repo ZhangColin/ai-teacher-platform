@@ -58,6 +58,35 @@ import type {
   AdminCourseDocumentListResponse,
   UpdateCourseDocumentRequest,
   ModelListItem,
+  // 导航模块管理
+  AdminNavigationModuleListResponse,
+  CreateNavigationModuleRequest,
+  CreateNavigationModuleResponse,
+  UpdateNavigationModuleRequest,
+  UpdateNavigationModuleResponse,
+  MoveNavigationModuleResponse,
+  // 工具集管理
+  AdminToolsetListResponse,
+  CreateToolsetRequest,
+  CreateToolsetResponse,
+  UpdateToolsetRequest,
+  UpdateToolsetResponse,
+  MoveToolsetResponse,
+  // AI工具分类管理
+  AdminAIToolCategoryListResponse,
+  CreateAIToolCategoryRequest,
+  CreateAIToolCategoryResponse,
+  UpdateAIToolCategoryRequest,
+  UpdateAIToolCategoryResponse,
+  MoveAIToolCategoryResponse,
+  // AI工具管理
+  AdminAIToolListResponse,
+  CreateAIToolRequest,
+  CreateAIToolResponse,
+  UpdateAIToolRequest,
+  UpdateAIToolResponse,
+  MoveAIToolResponse,
+  ToggleAIToolVisibilityResponse,
 } from '../types'
 import type { NavigationResponse } from '../types/navigation'
 
@@ -967,6 +996,217 @@ export class ApiService {
    */
   static async getAvailableModels(): Promise<ModelListItem[]> {
     const response = await apiClient.get<ModelListItem[]>('/models')
+    return response.data
+  }
+
+  // ==================== 导航模块管理 ====================
+
+  /**
+   * 获取导航模块列表（管理后台）
+   */
+  static async getAdminNavigationModules(): Promise<AdminNavigationModuleListResponse> {
+    const response = await apiClient.get<AdminNavigationModuleListResponse>('/admin/navigation-modules')
+    return response.data
+  }
+
+  /**
+   * 创建导航模块（管理后台）
+   */
+  static async createNavigationModule(request: CreateNavigationModuleRequest): Promise<CreateNavigationModuleResponse> {
+    const response = await apiClient.post<CreateNavigationModuleResponse>('/admin/navigation-modules', request)
+    return response.data
+  }
+
+  /**
+   * 更新导航模块（管理后台）
+   */
+  static async updateNavigationModule(moduleId: string, request: UpdateNavigationModuleRequest): Promise<UpdateNavigationModuleResponse> {
+    const response = await apiClient.patch<UpdateNavigationModuleResponse>(`/admin/navigation-modules/${moduleId}`, request)
+    return response.data
+  }
+
+  /**
+   * 删除导航模块（管理后台）
+   */
+  static async deleteNavigationModule(moduleId: string): Promise<void> {
+    await apiClient.delete(`/admin/navigation-modules/${moduleId}`)
+  }
+
+  /**
+   * 上移导航模块（管理后台）
+   */
+  static async moveNavigationModuleUp(moduleId: string): Promise<MoveNavigationModuleResponse> {
+    const response = await apiClient.post<MoveNavigationModuleResponse>(`/admin/navigation-modules/${moduleId}/move-up`)
+    return response.data
+  }
+
+  /**
+   * 下移导航模块（管理后台）
+   */
+  static async moveNavigationModuleDown(moduleId: string): Promise<MoveNavigationModuleResponse> {
+    const response = await apiClient.post<MoveNavigationModuleResponse>(`/admin/navigation-modules/${moduleId}/move-down`)
+    return response.data
+  }
+
+  // ==================== 工具集管理 ====================
+
+  /**
+   * 获取工具集列表（管理后台）
+   */
+  static async getAdminToolsets(): Promise<AdminToolsetListResponse> {
+    const response = await apiClient.get<AdminToolsetListResponse>('/admin/toolsets')
+    return response.data
+  }
+
+  /**
+   * 创建工具集（管理后台）
+   */
+  static async createToolset(request: CreateToolsetRequest): Promise<CreateToolsetResponse> {
+    const response = await apiClient.post<CreateToolsetResponse>('/admin/toolsets', request)
+    return response.data
+  }
+
+  /**
+   * 更新工具集（管理后台）
+   */
+  static async updateToolset(toolsetId: string, request: UpdateToolsetRequest): Promise<UpdateToolsetResponse> {
+    const response = await apiClient.patch<UpdateToolsetResponse>(`/admin/toolsets/${toolsetId}`, request)
+    return response.data
+  }
+
+  /**
+   * 删除工具集（管理后台）
+   */
+  static async deleteToolset(toolsetId: string): Promise<void> {
+    await apiClient.delete(`/admin/toolsets/${toolsetId}`)
+  }
+
+  /**
+   * 上移工具集（管理后台）
+   */
+  static async moveToolsetUp(toolsetId: string): Promise<MoveToolsetResponse> {
+    const response = await apiClient.post<MoveToolsetResponse>(`/admin/toolsets/${toolsetId}/move-up`)
+    return response.data
+  }
+
+  /**
+   * 下移工具集（管理后台）
+   */
+  static async moveToolsetDown(toolsetId: string): Promise<MoveToolsetResponse> {
+    const response = await apiClient.post<MoveToolsetResponse>(`/admin/toolsets/${toolsetId}/move-down`)
+    return response.data
+  }
+
+  // ==================== AI工具分类管理 ====================
+
+  /**
+   * 获取AI工具分类列表（管理后台）
+   */
+  static async getAdminAIToolCategories(): Promise<AdminAIToolCategoryListResponse> {
+    const response = await apiClient.get<AdminAIToolCategoryListResponse>('/admin/ai-tool-categories')
+    return response.data
+  }
+
+  /**
+   * 创建AI工具分类（管理后台）
+   */
+  static async createAIToolCategory(request: CreateAIToolCategoryRequest): Promise<CreateAIToolCategoryResponse> {
+    const response = await apiClient.post<CreateAIToolCategoryResponse>('/admin/ai-tool-categories', request)
+    return response.data
+  }
+
+  /**
+   * 更新AI工具分类（管理后台）
+   */
+  static async updateAIToolCategory(categoryId: string, request: UpdateAIToolCategoryRequest): Promise<UpdateAIToolCategoryResponse> {
+    const response = await apiClient.patch<UpdateAIToolCategoryResponse>(`/admin/ai-tool-categories/${categoryId}`, request)
+    return response.data
+  }
+
+  /**
+   * 删除AI工具分类（管理后台）
+   */
+  static async deleteAIToolCategory(categoryId: string): Promise<void> {
+    await apiClient.delete(`/admin/ai-tool-categories/${categoryId}`)
+  }
+
+  /**
+   * 上移AI工具分类（管理后台）
+   */
+  static async moveAIToolCategoryUp(categoryId: string): Promise<MoveAIToolCategoryResponse> {
+    const response = await apiClient.post<MoveAIToolCategoryResponse>(`/admin/ai-tool-categories/${categoryId}/move-up`)
+    return response.data
+  }
+
+  /**
+   * 下移AI工具分类（管理后台）
+   */
+  static async moveAIToolCategoryDown(categoryId: string): Promise<MoveAIToolCategoryResponse> {
+    const response = await apiClient.post<MoveAIToolCategoryResponse>(`/admin/ai-tool-categories/${categoryId}/move-down`)
+    return response.data
+  }
+
+  // ==================== AI工具管理 ====================
+
+  /**
+   * 获取AI工具列表（管理后台）
+   */
+  static async getAdminAITools(toolsetId?: string, categoryId?: string, visible?: boolean): Promise<AdminAIToolListResponse> {
+    const params = new URLSearchParams()
+    if (toolsetId) params.append('toolset_id', toolsetId)
+    if (categoryId) params.append('category_id', categoryId)
+    if (visible !== undefined) params.append('visible', visible.toString())
+
+    const response = await apiClient.get<AdminAIToolListResponse>(
+      `/admin/ai-tools?${params.toString()}`
+    )
+    return response.data
+  }
+
+  /**
+   * 创建AI工具（管理后台）
+   */
+  static async createAITool(request: CreateAIToolRequest): Promise<CreateAIToolResponse> {
+    const response = await apiClient.post<CreateAIToolResponse>('/admin/ai-tools', request)
+    return response.data
+  }
+
+  /**
+   * 更新AI工具（管理后台）
+   */
+  static async updateAITool(toolId: string, request: UpdateAIToolRequest): Promise<UpdateAIToolResponse> {
+    const response = await apiClient.patch<UpdateAIToolResponse>(`/admin/ai-tools/${toolId}`, request)
+    return response.data
+  }
+
+  /**
+   * 删除AI工具（管理后台）
+   */
+  static async deleteAITool(toolId: string): Promise<void> {
+    await apiClient.delete(`/admin/ai-tools/${toolId}`)
+  }
+
+  /**
+   * 上移AI工具（管理后台）
+   */
+  static async moveAIToolUp(toolId: string): Promise<MoveAIToolResponse> {
+    const response = await apiClient.post<MoveAIToolResponse>(`/admin/ai-tools/${toolId}/move-up`)
+    return response.data
+  }
+
+  /**
+   * 下移AI工具（管理后台）
+   */
+  static async moveAIToolDown(toolId: string): Promise<MoveAIToolResponse> {
+    const response = await apiClient.post<MoveAIToolResponse>(`/admin/ai-tools/${toolId}/move-down`)
+    return response.data
+  }
+
+  /**
+   * 切换AI工具可见性（管理后台）
+   */
+  static async toggleAIToolVisibility(toolId: string): Promise<ToggleAIToolVisibilityResponse> {
+    const response = await apiClient.post<ToggleAIToolVisibilityResponse>(`/admin/ai-tools/${toolId}/toggle-visibility`)
     return response.data
   }
 }

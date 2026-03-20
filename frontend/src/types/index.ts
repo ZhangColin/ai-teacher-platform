@@ -778,3 +778,304 @@ export interface ModelListResponse {
   models: ModelListItem[] // 模型列表
 }
 
+// ==================== 后台管理 - 导航模块管理模块 ====================
+
+/**
+ * 管理后台 - 导航模块列表项
+ */
+export interface AdminNavigationModuleListItem {
+  id: string // 模块ID
+  name: string // 模块名称
+  type: 'toolset' | 'page' // 模块类型
+  config_source?: string // 配置来源（type=toolset时使用）
+  page_path?: string // 页面路径（type=page时使用）
+  icon?: string // 图标标识（heroicons名称）
+  order: number // 排序顺序
+}
+
+/**
+ * 管理后台 - 导航模块列表响应
+ */
+export interface AdminNavigationModuleListResponse {
+  modules: AdminNavigationModuleListItem[] // 导航模块列表
+}
+
+/**
+ * 创建导航模块请求
+ */
+export interface CreateNavigationModuleRequest {
+  name: string // 模块名称
+  type: 'toolset' | 'page' // 模块类型
+  config_source?: string // 配置来源（type=toolset时必填）
+  page_path?: string // 页面路径（type=page时必填）
+  icon?: string // 图标标识（heroicons名称）
+  order?: number // 排序顺序（默认0）
+}
+
+/**
+ * 创建导航模块响应
+ */
+export interface CreateNavigationModuleResponse {
+  module: AdminNavigationModuleListItem // 新创建的模块信息
+}
+
+/**
+ * 更新导航模块请求
+ */
+export interface UpdateNavigationModuleRequest {
+  name?: string // 模块名称
+  type?: 'toolset' | 'page' // 模块类型
+  config_source?: string // 配置来源
+  page_path?: string // 页面路径
+  icon?: string // 图标标识
+  order?: number // 排序顺序
+}
+
+/**
+ * 更新导航模块响应
+ */
+export interface UpdateNavigationModuleResponse {
+  module: AdminNavigationModuleListItem // 更新后的模块信息
+}
+
+/**
+ * 移动导航模块响应
+ */
+export interface MoveNavigationModuleResponse {
+  message: string // 操作结果消息
+  module: AdminNavigationModuleListItem // 移动后的模块信息
+}
+
+// ==================== 后台管理 - 工具集管理模块 ====================
+
+/**
+ * 管理后台 - 工具集列表项
+ */
+export interface AdminToolsetListItem {
+  id: string // 工具集ID
+  toolset_id: string // 工具集唯一标识符
+  name: string // 工具集名称
+  description?: string // 工具集描述
+  icon?: string // 图标标识（heroicons名称）
+  order: number // 排序顺序
+}
+
+/**
+ * 管理后台 - 工具集列表响应
+ */
+export interface AdminToolsetListResponse {
+  toolsets: AdminToolsetListItem[] // 工具集列表
+}
+
+/**
+ * 创建工具集请求
+ */
+export interface CreateToolsetRequest {
+  toolset_id: string // 工具集唯一标识符
+  name: string // 工具集名称
+  description?: string // 工具集描述
+  icon?: string // 图标标识（heroicons名称）
+  order?: number // 排序顺序（默认0）
+}
+
+/**
+ * 创建工具集响应
+ */
+export interface CreateToolsetResponse {
+  toolset: AdminToolsetListItem // 新创建的工具集信息
+}
+
+/**
+ * 更新工具集请求
+ */
+export interface UpdateToolsetRequest {
+  toolset_id?: string // 工具集唯一标识符
+  name?: string // 工具集名称
+  description?: string // 工具集描述
+  icon?: string // 图标标识
+  order?: number // 排序顺序
+}
+
+/**
+ * 更新工具集响应
+ */
+export interface UpdateToolsetResponse {
+  toolset: AdminToolsetListItem // 更新后的工具集信息
+}
+
+/**
+ * 移动工具集响应
+ */
+export interface MoveToolsetResponse {
+  message: string // 操作结果消息
+  toolset: AdminToolsetListItem // 移动后的工具集信息
+}
+
+// ==================== 后台管理 - AI工具分类管理模块 ====================
+
+/**
+ * 管理后台 - AI工具分类列表项
+ */
+export interface AdminAIToolCategoryListItem {
+  id: string // 分类ID
+  toolset_id: string // 所属工具集ID
+  toolset_name: string // 所属工具集名称
+  name: string // 分类名称
+  icon?: string // 分类图标（heroicons名称）
+  order: number // 排序顺序
+  tool_count: number // 该分类下的工具数量
+  created_at: string // 创建时间
+  updated_at: string // 更新时间
+}
+
+/**
+ * 管理后台 - AI工具分类列表响应
+ */
+export interface AdminAIToolCategoryListResponse {
+  categories: AdminAIToolCategoryListItem[] // 分类列表
+}
+
+/**
+ * 创建AI工具分类请求
+ */
+export interface CreateAIToolCategoryRequest {
+  toolset_id: string // 所属工具集ID
+  name: string // 分类名称
+  icon?: string // 分类图标（heroicons名称）
+  order?: number // 排序顺序（默认0）
+}
+
+/**
+ * 创建AI工具分类响应
+ */
+export interface CreateAIToolCategoryResponse {
+  category: AdminAIToolCategoryListItem // 新创建的分类信息
+}
+
+/**
+ * 更新AI工具分类请求
+ */
+export interface UpdateAIToolCategoryRequest {
+  toolset_id?: string // 所属工具集ID
+  name?: string // 分类名称
+  icon?: string // 分类图标
+  order?: number // 排序顺序
+}
+
+/**
+ * 更新AI工具分类响应
+ */
+export interface UpdateAIToolCategoryResponse {
+  category: AdminAIToolCategoryListItem // 更新后的分类信息
+}
+
+/**
+ * 移动AI工具分类响应
+ */
+export interface MoveAIToolCategoryResponse {
+  message: string // 操作结果消息
+  category: AdminAIToolCategoryListItem // 移动后的分类信息
+}
+
+// ==================== 后台管理 - AI工具管理模块 ====================
+
+/**
+ * 管理后台 - AI工具列表项
+ */
+export interface AdminAIToolListItem {
+  id: string // 工具ID
+  tool_id: string // 工具唯一标识符
+  toolset_id: string // 所属工具集ID
+  toolset_name: string // 所属工具集名称
+  category_id?: string // 分类ID
+  category_name?: string // 分类名称
+  name: string // 工具名称
+  description: string // 工具描述
+  system_prompt: string // 系统提示词
+  icon?: string // 图标标识（heroicons名称）
+  type: 'normal' | 'placeholder' // 工具类型
+  content_type: 'text' | 'multimodal' // 内容类型
+  media_type?: 'image' | 'audio' | 'video' // 媒体类型
+  model?: string // 使用的AI模型
+  welcome_message?: string // 欢迎语
+  visible: boolean // 是否可见
+  order: number // 排序顺序
+}
+
+/**
+ * 管理后台 - AI工具列表响应
+ */
+export interface AdminAIToolListResponse {
+  tools: AdminAIToolListItem[] // 工具列表
+  total: number // 工具总数
+}
+
+/**
+ * 创建AI工具请求
+ */
+export interface CreateAIToolRequest {
+  tool_id: string // 工具唯一标识符
+  toolset_id: string // 所属工具集ID
+  category_id?: string // 分类ID
+  name: string // 工具名称
+  description: string // 工具描述
+  system_prompt: string // 系统提示词
+  icon?: string // 图标标识
+  type?: 'normal' | 'placeholder' // 工具类型（默认normal）
+  content_type?: 'text' | 'multimodal' // 内容类型（默认text）
+  media_type?: 'image' | 'audio' | 'video' // 媒体类型
+  model?: string // 使用的AI模型
+  welcome_message?: string // 欢迎语
+  visible?: boolean // 是否可见（默认true）
+  order?: number // 排序顺序（默认0）
+}
+
+/**
+ * 创建AI工具响应
+ */
+export interface CreateAIToolResponse {
+  tool: AdminAIToolListItem // 新创建的工具信息
+}
+
+/**
+ * 更新AI工具请求
+ */
+export interface UpdateAIToolRequest {
+  tool_id?: string // 工具唯一标识符
+  toolset_id?: string // 所属工具集ID
+  category_id?: string // 分类ID
+  name?: string // 工具名称
+  description?: string // 工具描述
+  system_prompt?: string // 系统提示词
+  icon?: string // 图标标识
+  type?: 'normal' | 'placeholder' // 工具类型
+  content_type?: 'text' | 'multimodal' // 内容类型
+  media_type?: 'image' | 'audio' | 'video' // 媒体类型
+  model?: string // 使用的AI模型
+  welcome_message?: string // 欢迎语
+  visible?: boolean // 是否可见
+  order?: number // 排序顺序
+}
+
+/**
+ * 更新AI工具响应
+ */
+export interface UpdateAIToolResponse {
+  tool: AdminAIToolListItem // 更新后的工具信息
+}
+
+/**
+ * 移动AI工具响应
+ */
+export interface MoveAIToolResponse {
+  message: string // 操作结果消息
+  tool: AdminAIToolListItem // 移动后的工具信息
+}
+
+/**
+ * 切换AI工具可见性响应
+ */
+export interface ToggleAIToolVisibilityResponse {
+  message: string // 操作结果消息
+  tool: AdminAIToolListItem // 更新后的工具信息
+}
