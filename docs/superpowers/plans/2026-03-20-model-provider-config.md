@@ -1398,25 +1398,14 @@ git commit -m \"feat: 添加模型供应商配置管理 API\"
 
 **说明：** 替换现有的 `models.py` 路由文件，保留 `GET /models` 端点并添加新的 `GET /models/available` 端点
 
-- [ ] **Step 1: 备份并更新 models.py**
+- [ ] **Step 1: 更新 models.py 添加新端点**
+
+在现有的 `backend/src/interfaces/routers/models.py` 文件中添加新端点：
 
 ```python
-# backend/src/interfaces/routers/models_public.py
-# -*- coding: utf-8 -*-
-"""模型配置公开 API"""
-import logging
-from fastapi import APIRouter, Query
-from sqlalchemy.orm import Session
+# backend/src/interfaces/routers/models.py - 在文件中添加
 
-from src.interfaces.dependencies import get_db
-from src.services.model_provider_service import ModelProviderService
-from src.models import AvailableModelsResponse, AvailableModelInfo
-
-logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/v1/models", tags=["模型配置"])
-
-
-@router.get("/available", response_model=AvailableModelsResponse)
+@router.get("/available")
 async def get_available_models(
     capability: str = Query(None, description="能力类型过滤（chat/image/audio/video）"),
     db: Session = Depends(get_db)
@@ -1426,12 +1415,15 @@ async def get_available_models(
     工具在选择模型时调用此接口，根据需要的能力筛选可用模型
     """
     try:
+        from src.services.model_provider_service import ModelProviderService
+        from src.models import AvailableModelsResponse
+
         service = ModelProviderService(db)
         models = service.get_available_models(capability)
         return AvailableModelsResponse(models=models)
     except Exception as e:
         logger.error(f"获取可用模型失败: {e}")
-        return AvailableModelsResponse(models=[])
+        return {"models": []}
 ```
 
 - [ ] **Step 2: 验证 main.py 中的路由注册**
@@ -2506,49 +2498,6 @@ function handleEdit(tool: AdminAIToolListItem) {
   })
   // ...
 }
-```
-
-// 可用模型
-const availableModels = ref<AvailableModelInfo[]>([])
-const loadingModels = ref(false)
-
-// 根据能力类型过滤模型
-const chatModels = computed(() => {
-  return availableModels.value.filter(m => m.capabilities.includes('chat'))
-})
-
-const imageModels = computed(() => {
-  return availableModels.value.filter(m => m.capabilities.includes('image'))
-})
-
-const audioModels = computed(() => {
-  return availableModels.value.filter(m => m.capabilities.includes('audio'))
-})
-
-const videoModels = computed(() => {
-  return availableModels.value.filter(m => m.capabilities.includes('video'))
-})
-
-// 加载可用模型
-async function loadAvailableModels() {
-  loadingModels.value = true
-  try {
-    const response = await ApiService.getAvailableModels()
-    availableModels.value = response.models
-  } catch (error: any) {
-    console.error('加载可用模型失败:', error)
-  } finally {
-    loadingModels.value = false
-  }
-}
-
-// 在 onMounted 中调用
-onMounted(() => {
-  loadToolsets()
-  loadCategories()
-  loadTools()
-  loadAvailableModels() // 新增
-})
 ```
 
 - [ ] **Step 4: 验证修改**
