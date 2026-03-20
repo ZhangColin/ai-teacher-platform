@@ -70,8 +70,17 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 # 3. 配置环境变量
-# 复制 .env.example 为 .env，并填入您的 KIMI_API_KEY
+# 复制 .env.example 为 .env，并填入您的 API 密钥
 cp .env.example .env
+
+# 重要：需要配置以下环境变量
+# - DATABASE_URL: MySQL 数据库连接字符串
+# - JWT_SECRET_KEY: JWT 签名密钥
+# - API_KEY_ENCRYPTION_KEY: API Key 加密密钥（用于加密数据库中的敏感信息）
+# 生成加密密钥: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+#
+# 可选：配置 AI 服务商 API Key（如果不在管理后台配置）
+# - OPENAI_API_KEY, DEEPSEEK_API_KEY, KIMI_API_KEY, GLM_API_KEY
 
 # 4. 启动 API 服务 (运行在 http://localhost:8000)
 python main.py
@@ -119,6 +128,34 @@ ai-teacher-platform/
 └── README.md
 
 ```
+
+## ⚙️ 模型供应商配置
+
+平台支持通过管理后台配置多个 AI 模型供应商，无需修改环境变量。
+
+### 配置方式
+
+1. **登录管理后台**：使用管理员账号登录
+2. **进入模型供应商配置**：点击侧边栏 "配置管理" > "模型供应商"
+3. **添加供应商**：
+   - 填写供应商代码（如：openai, deepseek）
+   - 填写供应商名称
+   - 填写 API 密钥（将自动加密存储）
+   - 填写 API 地址（如：https://api.openai.com/v1）
+   - 设置是否启用、是否为默认供应商
+4. **添加模型**：点击供应商的"模型"按钮，添加该供应商支持的模型
+   - 填写模型代码（如：gpt-4, deepseek-chat）
+   - 填写模型名称
+   - 填写支持能力（逗号分隔，如：chat,code,image）
+
+### 配置优先级
+
+1. **数据库配置**（优先）：从管理后台配置的模型供应商和模型
+2. **环境变量**（回退）：如果数据库中没有配置，自动回退到环境变量
+
+### API Key 加密
+
+所有存储在数据库中的 API Key 都使用 Fernet 对称加密算法加密，确保敏感信息安全。
 
 ## 📝 常见问题
 
