@@ -1209,6 +1209,123 @@ export class ApiService {
     const response = await apiClient.post<ToggleAIToolVisibilityResponse>(`/admin/ai-tools/${toolId}/toggle-visibility`)
     return response.data
   }
+
+  // ==================== 模型供应商配置 API ====================
+
+  /**
+   * 获取所有模型供应商（管理后台）
+   */
+  static async getModelProviders(includeDisabled = false): Promise<ModelProviderListResponse> {
+    const response = await apiClient.get<ModelProviderListResponse>('/admin/model-providers', {
+      params: { include_disabled: includeDisabled }
+    })
+    return response.data
+  }
+
+  /**
+   * 根据ID获取模型供应商（管理后台）
+   */
+  static async getModelProvider(providerId: string): Promise<ModelProviderListItem> {
+    const response = await apiClient.get<ModelProviderListItem>(`/admin/model-providers/${providerId}`)
+    return response.data
+  }
+
+  /**
+   * 创建模型供应商（管理后台）
+   */
+  static async createModelProvider(request: CreateModelProviderRequest): Promise<CreateModelProviderResponse> {
+    const response = await apiClient.post<CreateModelProviderResponse>('/admin/model-providers', request)
+    return response.data
+  }
+
+  /**
+   * 更新模型供应商（管理后台）
+   */
+  static async updateModelProvider(
+    providerId: string,
+    request: UpdateModelProviderRequest
+  ): Promise<UpdateModelProviderResponse> {
+    const response = await apiClient.patch<UpdateModelProviderResponse>(
+      `/admin/model-providers/${providerId}`,
+      request
+    )
+    return response.data
+  }
+
+  /**
+   * 删除模型供应商（管理后台）
+   */
+  static async deleteModelProvider(providerId: string): Promise<void> {
+    await apiClient.delete(`/admin/model-providers/${providerId}`)
+  }
+
+  /**
+   * 获取所有模型配置（管理后台）
+   */
+  static async getAllModels(providerId?: string, includeDisabled = false): Promise<ModelConfigListResponse> {
+    const response = await apiClient.get<ModelConfigListResponse>('/admin/model-providers/models/all', {
+      params: { provider_id: providerId, include_disabled: includeDisabled }
+    })
+    return response.data
+  }
+
+  /**
+   * 获取指定供应商的模型配置（管理后台）
+   */
+  static async getProviderModels(providerId: string, includeDisabled = false): Promise<ModelConfigListResponse> {
+    const response = await apiClient.get<ModelConfigListResponse>(
+      `/admin/model-providers/${providerId}/models`,
+      { params: { include_disabled: includeDisabled } }
+    )
+    return response.data
+  }
+
+  /**
+   * 根据ID获取模型配置（管理后台）
+   */
+  static async getModelConfig(modelId: string): Promise<ModelConfigListItem> {
+    const response = await apiClient.get<ModelConfigListItem>(`/admin/model-providers/models/${modelId}`)
+    return response.data
+  }
+
+  /**
+   * 创建模型配置（管理后台）
+   */
+  static async createModelConfig(request: CreateModelConfigRequest): Promise<CreateModelConfigResponse> {
+    const response = await apiClient.post<CreateModelConfigResponse>('/admin/model-providers/models', request)
+    return response.data
+  }
+
+  /**
+   * 更新模型配置（管理后台）
+   */
+  static async updateModelConfig(
+    modelId: string,
+    request: UpdateModelConfigRequest
+  ): Promise<UpdateModelConfigResponse> {
+    const response = await apiClient.patch<UpdateModelConfigResponse>(
+      `/admin/model-providers/models/${modelId}`,
+      request
+    )
+    return response.data
+  }
+
+  /**
+   * 删除模型配置（管理后台）
+   */
+  static async deleteModelConfig(modelId: string): Promise<void> {
+    await apiClient.delete(`/admin/model-providers/models/${modelId}`)
+  }
+
+  /**
+   * 获取可用的模型列表（公开接口）
+   */
+  static async getAvailableModels(providerId?: string): Promise<AvailableModelResponse> {
+    const response = await apiClient.get<AvailableModelResponse>('/models/available', {
+      params: { provider_id: providerId }
+    })
+    return response.data
+  }
 }
 
 export default apiClient

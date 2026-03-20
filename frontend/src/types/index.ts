@@ -1079,3 +1079,131 @@ export interface ToggleAIToolVisibilityResponse {
   message: string // 操作结果消息
   tool: AdminAIToolListItem // 更新后的工具信息
 }
+
+// ==================== 模型供应商配置模块 ====================
+
+/**
+ * 模型供应商列表项
+ */
+export interface ModelProviderListItem {
+  id: string // 供应商ID
+  provider_code: string // 供应商代码（如：openai, deepseek）
+  provider_name: string // 供应商名称
+  base_url?: string // API地址
+  is_enabled: boolean // 是否启用
+  is_default: boolean // 是否为默认供应商
+  order: number // 排序顺序
+  created_at: string // 创建时间
+  updated_at: string // 更新时间
+}
+
+/**
+ * 模型供应商列表响应
+ */
+export interface ModelProviderListResponse {
+  providers: ModelProviderListItem[] // 供应商列表
+}
+
+/**
+ * 创建模型供应商请求
+ */
+export interface CreateModelProviderRequest {
+  provider_code: string // 供应商代码
+  provider_name: string // 供应商名称
+  api_key: string // API密钥（明文）
+  base_url?: string // API地址
+  is_enabled?: boolean // 是否启用
+  is_default?: boolean // 是否为默认供应商
+  order?: number // 排序顺序
+}
+
+/**
+ * 创建模型供应商响应
+ */
+export interface CreateModelProviderResponse {
+  provider: ModelProviderListItem // 新创建的供应商信息
+}
+
+/**
+ * 更新模型供应商请求
+ */
+export interface UpdateModelProviderRequest {
+  provider_name?: string // 供应商名称
+  api_key?: string // API密钥
+  base_url?: string // API地址
+  is_enabled?: boolean // 是否启用
+  is_default?: boolean // 是否为默认供应商
+  order?: number // 排序顺序
+}
+
+/**
+ * 更新模型供应商响应
+ */
+export interface UpdateModelProviderResponse {
+  provider: ModelProviderListItem // 更新后的供应商信息
+}
+
+/**
+ * 模型配置列表项
+ */
+export interface ModelConfigListItem {
+  id: string // 配置ID
+  provider_id: string // 供应商ID
+  provider_code: string // 供应商代码
+  provider_name: string // 供应商名称
+  model_code: string // 模型代码
+  model_name: string // 模型名称
+  capabilities: string[] // 支持的能力列表
+  is_enabled: boolean // 是否启用
+  created_at: string // 创建时间
+  updated_at: string // 更新时间
+}
+
+/**
+ * 模型配置列表响应
+ */
+export interface ModelConfigListResponse {
+  models: ModelConfigListItem[] // 模型配置列表
+}
+
+/**
+ * 创建模型配置请求
+ */
+export interface CreateModelConfigRequest {
+  provider_id: string // 供应商ID
+  model_code: string // 模型代码
+  model_name: string // 模型名称
+  capabilities: string // 支持的能力（逗号分隔）
+  is_enabled?: boolean // 是否启用
+}
+
+/**
+ * 创建模型配置响应
+ */
+export interface CreateModelConfigResponse {
+  model: ModelConfigListItem // 新创建的模型配置信息
+}
+
+/**
+ * 更新模型配置请求
+ */
+export interface UpdateModelConfigRequest {
+  model_code?: string // 模型代码
+  model_name?: string // 模型名称
+  capabilities?: string // 支持的能力（逗号分隔）
+  is_enabled?: boolean // 是否启用
+}
+
+/**
+ * 更新模型配置响应
+ */
+export interface UpdateModelConfigResponse {
+  model: ModelConfigListItem // 更新后的模型配置信息
+}
+
+/**
+ * 可用模型响应
+ */
+export interface AvailableModelResponse {
+  models: ModelConfigListItem[] // 可用模型列表（仅返回已启用的）
+}
