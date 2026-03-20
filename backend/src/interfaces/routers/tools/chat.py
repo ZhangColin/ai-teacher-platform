@@ -413,7 +413,7 @@ async def chat_non_stream(
             try:
                 logger.info(f"检测到第一轮对话，开始生成会话标题 - 用户消息: {request.message[:50]}")
                 # 生成标题
-                title = await title_generator.generate_title(request.message, response)
+                title = await title_generator.generate_title(request.message, response_content)
                 # 更新会话标题
                 session_service.update_session_title(session_id, title, user_id=current_user.user_id)
                 logger.info(f"会话标题已生成并更新：{title}")
