@@ -178,10 +178,21 @@
           </el-select>
         </el-form-item>
         <el-form-item label="AI模型">
-          <el-input
+          <el-select
             v-model="form.model"
-            placeholder="请输入AI模型（如：deepseek:deepseek-chat，留空使用默认）"
-          />
+            placeholder="选择AI模型（留空使用默认）"
+            filterable
+            allow-create
+            clearable
+            style="width: 100%"
+          >
+            <el-option
+              v-for="model in availableModels"
+              :key="`${model.provider_code}:${model.model_code}`"
+              :label="`${model.provider_name} - ${model.model_name}`"
+              :value="`${model.provider_code}:${model.model_code}`"
+            />
+          </el-select>
         </el-form-item>
         <el-form-item label="欢迎语">
           <el-input
@@ -247,6 +258,7 @@ import type {
   AdminAIToolCategoryListItem,
   CreateAIToolRequest,
   UpdateAIToolRequest,
+  ModelConfigListItem,
 } from '../../types'
 import IconSelector from '../../components/admin/IconSelector.vue'
 import HeroIcon from '../../components/HeroIcon.vue'
@@ -256,6 +268,7 @@ import MarkdownEditor from '../../components/editor/MarkdownEditor.vue'
 const tools = ref<AdminAIToolListItem[]>([])
 const toolsets = ref<AdminToolsetListItem[]>([])
 const categories = ref<AdminAIToolCategoryListItem[]>([])
+const availableModels = ref<ModelConfigListItem[]>([])
 const loading = ref(false)
 
 // 筛选器
@@ -555,7 +568,18 @@ onMounted(() => {
   loadToolsets()
   loadCategories()
   loadTools()
+  loadAvailableModels()
 })
+
+// 加载可用模型列表
+const loadAvailableModels = async () => {
+  try {
+    const response = await ApiService.getAvailableModels()
+    availableModels.value = response.models
+  } catch (error) {
+    console.error('加载可用模型失败:', error)
+  }
+}
 </script>
 
 <style scoped>
