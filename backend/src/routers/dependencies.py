@@ -62,8 +62,21 @@ def get_session_service() -> SessionService:
 
 @lru_cache
 def get_ai_service() -> AIService:
-    """获取 AI 服务实例（单例）"""
-    return AIService()
+    """获取 AI 服务实例（单例，不使用数据库）"""
+    return AIService(db=None)
+
+
+def get_ai_service_with_db(db):
+    """
+    获取 AI 服务实例（带数据库支持）
+
+    Args:
+        db: 数据库会话
+
+    Returns:
+        AIService 实例
+    """
+    return AIService(db=db)
 
 
 @lru_cache

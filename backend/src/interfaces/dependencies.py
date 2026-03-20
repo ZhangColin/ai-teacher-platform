@@ -16,6 +16,7 @@ from fastapi import HTTPException, status, Depends
 from src.routers.dependencies import (
     get_tool_service,
     get_ai_service,
+    get_ai_service_with_db,
     get_session_service,
     get_artifact_parser,
     get_title_generator,
@@ -39,6 +40,7 @@ from src.database import get_db
 __all__ = [
     "get_tool_service",
     "get_ai_service",
+    "get_ai_service_with_db",
     "get_session_service",
     "get_artifact_parser",
     "get_title_generator",
@@ -97,3 +99,20 @@ def get_model_provider_service():
         yield ModelProviderService(db)
     finally:
         db.close()
+
+
+def get_ai_service_with_db_dependency(db: Session = Depends(get_db)):
+    """
+    获取带数据库支持的 AI 服务（依赖注入函数）
+
+    Args:
+        db: 数据库会话
+
+    Yields:
+        AIService 实例
+    """
+    from src.services.ai_service import AIService
+    try:
+        yield AIService(db=db)
+    finally:
+        pass  # 数据库会话由 FastAPI 管理

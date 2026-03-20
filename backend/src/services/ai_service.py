@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Optional, Tuple, List, Dict, AsyncGenerator
 from dotenv import load_dotenv
 from openai import OpenAI
+from sqlalchemy.orm import Session
 
 # 加载环境变量
 load_dotenv()
@@ -19,82 +20,145 @@ logger = logging.getLogger(__name__)
 
 class AIService:
     """AI 服务客户端"""
-    
-    def __init__(self):
-        """初始化 AI 服务（使用默认配置）"""
+
+    def __init__(self, db: Optional[Session] = None):
+        """
+        初始化 AI 服务（使用默认配置）
+
+        Args:
+            db: 可选的数据库会话，如果提供则从数据库读取模型配置
+        """
+        self.db = db
         self.default_client, self.default_model_name = self._get_ai_client()
     
     def _get_ai_client(self, model_config: Optional[str] = None) -> Tuple[Optional[OpenAI], str]:
         """
         根据配置获取 OpenAI 兼容的客户端实例和模型名称。
         支持 OpenAI, DeepSeek, Kimi 等兼容 OpenAI 协议的模型。
-        
+
+        优先从数据库读取配置，如果数据库中没有配置则回退到环境变量。
+
         Args:
             model_config: 模型配置字符串，格式：provider:model_name（如 "deepseek:deepseek-coder"）
-                         如果为 None，使用环境变量中的默认配置
-        
+                         如果为 None，使用数据库中的默认配置或环境变量中的默认配置
+
         Returns:
             (client, model_name) 元组
         """
-        # 解析 model_config
-        if model_config and ":" in model_config:
-            provider, model_name = model_config.split(":", 1)
-            provider = provider.lower()
-            logger.info(f"使用工具指定的模型配置: {provider}:{model_name}")
-        else:
-            # 使用默认配置
-            provider = os.getenv("CURRENT_PROVIDER", "deepseek").lower()
-            model_name = None  # 稍后从环境变量读取
-            if model_config:
-                logger.warning(f"模型配置格式错误: {model_config}，使用默认配置")
+        provider = None
+        model_name = None
+        api_key = None
+        base_url = None
+
+        # 尝试从数据库读取配置
+        if self.db:
+            try:
+                from src.services.model_provider_service import ModelProviderService
+                from src.services.encryption_service import EncryptionService
+                from src.db_models import ModelProviderModel
+
+                provider_service = ModelProviderService(self.db)
+                encryption = EncryptionService()
+
+                # 解析 model_config
+                if model_config and ":" in model_config:
+                    provider_code, model_code = model_config.split(":", 1)
+                    provider_code = provider_code.lower()
+                    logger.info(f"使用工具指定的模型配置: {provider_code}:{model_code}")
+
+                    # 从数据库获取供应商
+                    provider_info = provider_service.get_provider_by_code(provider_code)
+                    if provider_info and provider_info.is_enabled:
+                        provider_model = self.db.query(ModelProviderModel).filter(
+                            ModelProviderModel.id == provider_info.id
+                        ).first()
+                        if provider_model:
+                            api_key = encryption.decrypt(provider_model.api_key_encrypted)
+                            base_url = provider_info.base_url
+                            provider = provider_code
+                            model_name = model_code
+                else:
+                    # 使用默认供应商
+                    provider_info = provider_service.get_default_provider()
+                    if provider_info:
+                        provider_model = self.db.query(ModelProviderModel).filter(
+                            ModelProviderModel.id == provider_info.id
+                        ).first()
+                        if provider_model:
+                            api_key = encryption.decrypt(provider_model.api_key_encrypted)
+                            base_url = provider_info.base_url
+
+                        # 获取第一个启用的模型
+                        models = provider_service.get_all_models(
+                            provider_id=provider_info.id,
+                            include_disabled=False
+                        )
+                        if models:
+                            provider = provider_info.provider_code
+                            model_name = models[0].model_code
+                            logger.info(f"使用数据库默认配置: {provider}:{model_name}")
+
+            except Exception as e:
+                logger.warning(f"从数据库读取模型配置失败: {e}，回退到环境变量")
+
+        # 如果数据库中没有配置，回退到环境变量
+        if not provider or not api_key:
+            # 解析 model_config
+            if model_config and ":" in model_config:
+                provider, model_name = model_config.split(":", 1)
+                provider = provider.lower()
+                logger.info(f"使用工具指定的模型配置: {provider}:{model_name}")
             else:
-                logger.info(f"使用系统默认配置: {provider}")
-        
-        api_key = ""
-        base_url = ""
-        
-        # 根据服务商读取对应的环境变量
-        if provider == "openai":
-            api_key = os.getenv("OPENAI_API_KEY")
-            base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
-            if not model_name:  # 如果没有指定具体模型，使用默认
-                model_name = os.getenv("OPENAI_MODEL", "gpt-4")
-        elif provider == "deepseek":
-            api_key = os.getenv("DEEPSEEK_API_KEY")
-            base_url = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
-            if not model_name:
-                model_name = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
-        elif provider == "kimi":
-            api_key = os.getenv("KIMI_API_KEY")
-            base_url = os.getenv("KIMI_BASE_URL", "https://api.moonshot.cn/v1")
-            if not model_name:
-                model_name = os.getenv("KIMI_MODEL", "moonshot-v1-8k")
-        elif provider == "glm":
-            api_key = os.getenv("GLM_API_KEY")
-            base_url = os.getenv("GLM_BASE_URL", "https://open.bigmodel.cn/api/paas/v4")
-            if not model_name:
-                model_name = os.getenv("GLM_MODEL", "glm-4")
-        else:
-            logger.warning(f"未知的服务商 [{provider}]，将使用 Mock 模式。")
-            return None, "mock-model"
-        
+                # 使用默认配置
+                provider = os.getenv("CURRENT_PROVIDER", "deepseek").lower()
+                model_name = None  # 稍后从环境变量读取
+                if model_config:
+                    logger.warning(f"模型配置格式错误: {model_config}，使用默认配置")
+                else:
+                    logger.info(f"使用系统默认配置: {provider}")
+
+            # 根据服务商读取对应的环境变量
+            if provider == "openai":
+                api_key = os.getenv("OPENAI_API_KEY")
+                base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+                if not model_name:  # 如果没有指定具体模型，使用默认
+                    model_name = os.getenv("OPENAI_MODEL", "gpt-4")
+            elif provider == "deepseek":
+                api_key = os.getenv("DEEPSEEK_API_KEY")
+                base_url = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
+                if not model_name:
+                    model_name = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
+            elif provider == "kimi":
+                api_key = os.getenv("KIMI_API_KEY")
+                base_url = os.getenv("KIMI_BASE_URL", "https://api.moonshot.cn/v1")
+                if not model_name:
+                    model_name = os.getenv("KIMI_MODEL", "moonshot-v1-8k")
+            elif provider == "glm":
+                api_key = os.getenv("GLM_API_KEY")
+                base_url = os.getenv("GLM_BASE_URL", "https://open.bigmodel.cn/api/paas/v4")
+                if not model_name:
+                    model_name = os.getenv("GLM_MODEL", "glm-4")
+            else:
+                logger.warning(f"未知的服务商 [{provider}]，将使用 Mock 模式。")
+                return None, "mock-model"
+
         # 校验 API Key 是否有效
         if not api_key or not api_key.startswith("sk-"):
             logger.warning(f"未找到服务商 [{provider}] 的有效 Key，将使用 Mock 模式。")
             return None, "mock-model"
-        
+
         # 从环境变量读取超时配置（秒），默认120秒
         timeout_seconds = float(os.getenv("AI_REQUEST_TIMEOUT", "120"))
-        
+
         # 创建客户端，配置超时时间
         # timeout参数可以是单个数字（所有操作的超时时间）或httpx.Timeout对象（分别配置连接、读取等超时）
         client = OpenAI(
-            api_key=api_key, 
+            api_key=api_key,
             base_url=base_url,
             timeout=timeout_seconds,  # 设置超时时间
             max_retries=2  # 失败后最多重试2次
         )
-        
+
         logger.info(f"AI 客户端初始化成功 - 服务商: {provider}, 模型: {model_name}, 超时: {timeout_seconds}秒")
         return client, model_name
     
