@@ -57,6 +57,7 @@ import type {
   UpdateCourseCategoryRequest,
   AdminCourseDocumentListResponse,
   UpdateCourseDocumentRequest,
+  ModelListItem,
 } from '../types'
 import type { NavigationResponse } from '../types/navigation'
 
@@ -958,6 +959,14 @@ export class ApiService {
    */
   static async moveCourseDocumentDown(docId: string): Promise<{ message: string }> {
     const response = await apiClient.post<{ message: string }>(`/admin/course-documents/${docId}/move-down`)
+    return response.data
+  }
+
+  /**
+   * 获取系统支持的模型列表
+   */
+  static async getAvailableModels(): Promise<ModelListItem[]> {
+    const response = await apiClient.get<ModelListItem[]>('/models')
     return response.data
   }
 }

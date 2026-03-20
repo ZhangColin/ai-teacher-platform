@@ -26,6 +26,7 @@ from src.interfaces.routers.admin import tools as new_admin_tools_router
 from src.interfaces.routers import works as new_works_router
 from src.interfaces.routers import courses as new_courses_router
 from src.interfaces.routers import common as new_common_router
+from src.interfaces.routers import models as new_models_router
 
 # 导入错误处理中间件
 from src.interfaces.middleware.error_handler import error_handler
@@ -139,6 +140,13 @@ app.include_router(new_courses_router.router)
 #   - GET /common-tools/tools/{tool_id} -> 工具详情
 app.include_router(new_common_router.router)
 # app.include_router(common_router)  # 旧路由已迁移
+
+# 模型配置路由（新架构 - interfaces层）
+# ✅ 已迁移到 interfaces 层（2026-03-20）
+# 迁移位置：interfaces/routers/models/models.py
+# 提供端点：
+#   - GET /models -> 获取系统支持的模型列表
+app.include_router(new_models_router.router, prefix="/api/v1")
 
 
 # ==================== 已废弃的 Agent API ====================

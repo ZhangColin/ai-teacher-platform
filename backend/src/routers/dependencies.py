@@ -30,6 +30,7 @@ from src.services.common_tool_service import CommonToolService
 from src.services.work_service import WorkService
 from src.services.course_service import CourseService
 from src.services.title_generator import TitleGenerator
+from src.services.model_service import ModelService
 
 
 @lru_cache
@@ -111,3 +112,9 @@ def get_course_service() -> CourseService:
 def get_title_generator() -> TitleGenerator:
     """获取标题生成器实例（单例）"""
     return TitleGenerator()
+
+
+@lru_cache
+def get_model_service() -> ModelService:
+    """获取模型服务实例（单例）"""
+    return ModelService()

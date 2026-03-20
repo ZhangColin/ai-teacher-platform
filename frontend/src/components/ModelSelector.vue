@@ -1,0 +1,318 @@
+<template>
+  <div class="model-selector" ref="selectorRef">
+    <!-- 当前模型显示 -->
+    <button
+      @click="toggleDropdown"
+      class="model-button"
+      :class="{ 'is-open': isOpen }"
+      :title="currentModelDisplay"
+    >
+      <svg class="model-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM16.5 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L9.75 12l2.846-.813a4.5 4.5 0 003.09-3.09L16.5 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L22.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+      </svg>
+      <span class="model-name">{{ currentModelDisplay }}</span>
+      <svg class="dropdown-icon" :class="{ 'is-open': isOpen }" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+      </svg>
+    </button>
+
+    <!-- 模型下拉列表 -->
+    <transition name="dropdown">
+      <div v-if="isOpen" class="model-dropdown">
+        <div class="model-list" v-if="!loading">
+          <button
+            v-for="model in availableModels"
+            :key="model.id"
+            @click="selectModel(model.id)"
+            class="model-option"
+            :class="{ 'is-selected': currentModel === model.id || isDefaultModel(model.id) }"
+          >
+            <div class="model-option-content">
+              <span class="model-option-name">{{ model.name }}</span>
+              <span class="model-option-provider">{{ model.provider }}</span>
+              <span class="model-option-description">{{ model.description }}</span>
+            </div>
+            <svg v-if="currentModel === model.id || isDefaultModel(model.id)" class="check-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+            </svg>
+          </button>
+        </div>
+        <div v-else class="loading-state">
+          加载中...
+        </div>
+      </div>
+    </transition>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useSessionStore } from '../stores/sessionStore'
+import { ApiService } from '../services/apiClient'
+import type { ModelListItem } from '../types'
+
+const sessionStore = useSessionStore()
+const isOpen = ref(false)
+const selectorRef = ref<HTMLElement | null>(null)
+const availableModels = ref<ModelListItem[]>([])
+const loading = ref(false)
+const defaultModel = ref<string | null>(null)
+
+// 当前模型显示名称
+const currentModelDisplay = computed(() => {
+  const currentModel = sessionStore.currentModel
+  if (!currentModel) {
+    // 如果没有手动选择模型，显示默认模型
+    if (defaultModel.value) {
+      const model = availableModels.value.find(m => m.id === defaultModel.value)
+      return model ? `${model.name}（默认）` : defaultModel.value
+    }
+    return '默认模型'
+  }
+  const model = availableModels.value.find(m => m.id === currentModel)
+  return model ? model.name : currentModel
+})
+
+// 判断是否是默认模型
+function isDefaultModel(modelId: string): boolean {
+  return !sessionStore.currentModel && modelId === defaultModel.value
+}
+
+// 加载可用模型列表
+async function loadAvailableModels() {
+  loading.value = true
+  try {
+    const models = await ApiService.getAvailableModels()
+    availableModels.value = models
+    console.log('[ModelSelector] 已加载模型列表:', models.length, '个模型')
+  } catch (error) {
+    console.error('[ModelSelector] 加载模型列表失败:', error)
+    availableModels.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+// 切换下拉框
+function toggleDropdown() {
+  isOpen.value = !isOpen.value
+}
+
+// 选择模型
+function selectModel(modelValue: string) {
+  sessionStore.setCurrentModel(modelValue)
+  isOpen.value = false
+}
+
+// 点击外部关闭下拉框
+function handleClickOutside(event: MouseEvent) {
+  if (selectorRef.value && !selectorRef.value.contains(event.target as Node)) {
+    isOpen.value = false
+  }
+}
+
+// 监听工具变化，更新默认模型
+watch(() => sessionStore.toolId, async (newToolId) => {
+  if (newToolId) {
+    // 从工具列表中获取工具的默认模型
+    try {
+      const toolsResponse = await ApiService.getTools()
+      for (const category of toolsResponse.categories) {
+        const tool = category.tools.find(t => t.tool_id === newToolId)
+        if (tool && tool.model) {
+          defaultModel.value = tool.model
+          console.log('[ModelSelector] 工具默认模型:', tool.model)
+          // 重置手动选择的模型
+          sessionStore.setCurrentModel(null)
+          break
+        }
+      }
+    } catch (error) {
+      console.error('[ModelSelector] 获取工具默认模型失败:', error)
+    }
+  }
+}, { immediate: true })
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+  loadAvailableModels()
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
+</script>
+
+<style scoped>
+.model-selector {
+  position: relative;
+  display: inline-block;
+}
+
+.model-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s;
+  max-width: 300px;
+}
+
+.model-button:hover {
+  background: #f9fafb;
+  border-color: #d1d5db;
+}
+
+.model-button.is-open {
+  background: #f9fafb;
+  border-color: #3b82f6;
+}
+
+.model-icon {
+  width: 1rem;
+  height: 1rem;
+  color: #6b7280;
+  flex-shrink: 0;
+}
+
+.model-name {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dropdown-icon {
+  width: 1rem;
+  height: 1rem;
+  color: #9ca3af;
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+
+.dropdown-icon.is-open {
+  transform: rotate(180deg);
+}
+
+.model-dropdown {
+  position: absolute;
+  bottom: calc(100% + 0.5rem); /* 改为向上展开 */
+  left: 0;
+  min-width: 20rem;
+  max-width: 400px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  box-shadow: 0 -10px 15px -3px rgba(0, 0, 0, 0.1); /* 阴影改为向上 */
+  z-index: 50;
+  max-height: 50vh; /* 限制最大高度为视口的50% */
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.model-list {
+  overflow-y: auto;
+  flex: 1;
+  /* 限制最大高度，确保列表不会超出屏幕 */
+  max-height: 50vh;
+}
+
+.model-option {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.model-option:hover {
+  background: #f9fafb;
+}
+
+.model-option.is-selected {
+  background: #eff6ff;
+}
+
+.model-option-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+}
+
+.model-option-name {
+  font-weight: 500;
+  color: #111827;
+  font-size: 0.875rem;
+}
+
+.model-option-provider {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.model-option-description {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  line-height: 1.3;
+}
+
+.check-icon {
+  width: 1rem;
+  height: 1rem;
+  color: #3b82f6;
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+}
+
+.loading-state {
+  padding: 1rem;
+  text-align: center;
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+/* 下拉动画（向上展开） */
+.dropdown-enter-active,
+.dropdown-leave-active {
+  transition: all 0.2s ease;
+}
+
+.dropdown-enter-from,
+.dropdown-leave-to {
+  opacity: 0;
+  transform: translateY(0.5rem); /* 改为向上动画 */
+}
+
+.dropdown-enter-to,
+.dropdown-leave-from {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* 响应式设计 */
+@media (max-width: 640px) {
+  .model-dropdown {
+    min-width: 16rem;
+    max-width: 90vw;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .model-list {
+    max-height: 40vh;
+  }
+}
+</style>

@@ -29,7 +29,8 @@ export interface ToolListItem {
   visible: boolean // 是否在工具选择器中显示
   type: 'normal' | 'placeholder' // 工具类型
   welcome_message?: string // 欢迎语（可选，用于占位工具）
-  
+  model?: string // 使用的AI模型（格式：provider:model_name），如果未指定则使用系统默认
+
   // 多模态支持字段（新增）
   content_type?: 'text' | 'multimodal' // 内容类型（默认text）
   media_type?: 'image' | 'audio' | 'video' // 媒体类型（仅multimodal时有效）
@@ -98,12 +99,24 @@ export interface SessionInitResponse {
 }
 
 /**
+ * Token使用信息
+ */
+export interface TokenUsage {
+  model_provider: string // AI服务提供商
+  model_name: string // 模型名称
+  prompt_tokens: number // 提示词token数
+  completion_tokens: number // 完成token数
+  total_tokens: number // 总token数
+}
+
+/**
  * 对话请求
  */
 export interface ChatRequest {
   message: string // 用户输入的消息
   session_id?: string | null // 会话 UUID（可选，如果有则继续会话，没有则创建新会话）
   history?: Message[] // 历史消息列表（可选）
+  model?: string // 会话级别的模型选择（格式：provider:model_name，如 deepseek:deepseek-chat）
 }
 
 /**
@@ -113,6 +126,7 @@ export interface ChatResponse {
   session_id: string // 会话 UUID。首次调用返回新创建的session_id，后续调用返回原session_id
   reply: string // AI 的文本回复内容（完整 Markdown 文本）
   artifacts: Artifact[] // 从回复中解析出的成果物列表（代码块内容）
+  token_usage?: TokenUsage // 本次对话的token消耗（调试用，前端不展示）
 }
 
 /**
@@ -141,6 +155,8 @@ export interface SessionDetailResponse {
   created_at: string // 创建时间（ISO 8601 格式）
   updated_at: string // 最后更新时间（ISO 8601 格式）
   messages: Message[] // 消息列表
+  model_provider?: string // AI服务提供商（新增）
+  model_name?: string // 模型名称（新增）
 }
 
 /**
@@ -741,5 +757,24 @@ export interface UpdateCourseDocumentRequest {
   summary?: string // 文档摘要
   category_id?: string // 所属目录ID
   order?: number // 排序顺序
+}
+
+// ==================== 模型配置模块 ====================
+
+/**
+ * 模型列表项（用于模型选择器）
+ */
+export interface ModelListItem {
+  id: string // 模型ID，格式：provider:model_name
+  name: string // 显示名称
+  provider: string // 服务商名称
+  description: string // 描述
+}
+
+/**
+ * 模型列表响应
+ */
+export interface ModelListResponse {
+  models: ModelListItem[] // 模型列表
 }
 

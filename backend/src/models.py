@@ -134,14 +134,15 @@ class ToolListItem(BaseModel):
     type: Literal["normal", "placeholder"] = Field("normal", description="工具类型")
     welcome_message: Optional[str] = Field(None, description="欢迎语（可选，用于占位工具）")
     toolset_id: str = Field(..., description="所属工具集ID")
-    
+    model: Optional[str] = Field(None, description="使用的AI模型（格式：provider:model_name），如果未指定则使用系统默认")
+
     # 多模态支持字段（新增）
     content_type: Optional[Literal["text", "multimodal"]] = Field(
-        "text", 
+        "text",
         description="内容类型：text=文本对话，multimodal=多模态生成"
     )
     media_type: Optional[Literal["image", "audio", "video"]] = Field(
-        None, 
+        None,
         description="媒体类型（仅当content_type=multimodal时有效）"
     )
 
@@ -176,6 +177,10 @@ class Session(BaseModel):
     title: str = Field(..., description="会话标题（自动生成）")
     created_at: datetime = Field(default_factory=datetime.now, description="会话创建时间")
     updated_at: datetime = Field(default_factory=datetime.now, description="最后更新时间")
+
+    # 模型选择相关字段（新增）
+    model_provider: Optional[str] = Field(None, description="AI服务提供商")
+    model_name: Optional[str] = Field(None, description="使用的模型名称")
     
     def generate_title(self, first_message: str, max_length: int = 50) -> str:
         """
@@ -232,6 +237,15 @@ class MultiModalContent(BaseModel):
     )
 
 
+class TokenUsage(BaseModel):
+    """Token使用信息值对象"""
+    model_provider: str = Field(..., description="AI服务提供商（deepseek/openai/kimi/glm）")
+    model_name: str = Field(..., description="模型名称（如deepseek-chat/gpt-4）")
+    prompt_tokens: int = Field(..., description="提示词token数")
+    completion_tokens: int = Field(..., description="完成token数")
+    total_tokens: int = Field(..., description="总token数")
+
+
 class Message(BaseModel):
     """消息实体（支持文本和多模态）"""
     message_id: Optional[str] = Field(None, description="消息 UUID（可选，用于数据库存储）")
@@ -244,13 +258,20 @@ class Message(BaseModel):
         default_factory=list,
         description="消息中包含的成果物列表（从 content 中解析）"
     )
-    
-    # 多模态支持字段（新增）
+
+    # 多模态支持字段
     media_content: Optional[str] = Field(
-        None, 
+        None,
         description="多模态内容JSON字符串（图片、音频、视频等）。存储MultiModalContent的JSON序列化结果"
     )
-    
+
+    # 模型和Token相关字段（新增）
+    model_provider: Optional[str] = Field(None, description="AI服务提供商")
+    model_name: Optional[str] = Field(None, description="使用的模型名称")
+    prompt_tokens: Optional[int] = Field(None, description="用户消息的token消耗")
+    completion_tokens: Optional[int] = Field(None, description="AI回复的token消耗")
+    total_tokens: Optional[int] = Field(None, description="本条消息的总token消耗")
+
     @property
     def parsed_media_content(self) -> Optional[MultiModalContent]:
         """
@@ -299,6 +320,7 @@ class ChatRequest(BaseModel):
         None,
         description="历史消息列表（可选）。如果提供，后端使用该历史；如果不提供，后端从数据库读取"
     )
+    model: Optional[str] = Field(None, description="会话级别的模型选择（格式：provider:model_name，如 deepseek:deepseek-chat）")
 
 
 class ChatResponse(BaseModel):
@@ -309,6 +331,7 @@ class ChatResponse(BaseModel):
         default_factory=list,
         description="从回复中解析出的成果物列表（代码块内容）"
     )
+    token_usage: Optional[TokenUsage] = Field(None, description="本次对话的token消耗（调试用，前端不展示）")
 
 
 class User(BaseModel):

@@ -41,6 +41,9 @@ async def get_tools(
                 'type': tool.type,
                 'welcome_message': tool.welcome_message,
                 'toolset_id': tool.toolset_id,
+                'model': tool.model,
+                'content_type': tool.content_type,
+                'media_type': tool.media_type,
             }
             for tool in category['tools']
         ]
@@ -80,6 +83,9 @@ async def get_toolset_tools(
                 'type': tool.type,
                 'welcome_message': tool.welcome_message,
                 'toolset_id': tool.toolset_id,
+                'model': tool.model,
+                'content_type': tool.content_type,
+                'media_type': tool.media_type,
             }
             for tool in category['tools']
         ]

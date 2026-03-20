@@ -26,6 +26,7 @@ from src.routers.dependencies import (
     get_common_tool_service,
     get_work_service,
     get_course_service,
+    get_model_service,
 )
 from src.interfaces.auth import get_current_user
 from src.models import UserInfo
@@ -45,6 +46,7 @@ __all__ = [
     "get_common_tool_service",
     "get_work_service",
     "get_course_service",
+    "get_model_service",
     "get_current_user",
     "require_admin",  # 新增
 ]
