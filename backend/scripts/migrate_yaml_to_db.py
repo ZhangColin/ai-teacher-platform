@@ -67,6 +67,24 @@ def migrate_navigation(db: Session):
     print(f"  迁移了 {len(nav_data['modules'])} 个导航模块")
 
 
+def get_toolsets_from_navigation() -> set:
+    """从导航配置获取需要迁移的工具集"""
+    nav_file = project_root / "configs" / "navigation.yaml"
+    nav_data = load_yaml(nav_file)
+
+    toolsets = set()
+    if nav_data and 'modules' in nav_data:
+        for module in nav_data['modules']:
+            if module.get('type') == 'toolset':
+                config_source = module.get('config_source', '')
+                # config_source 格式: "tools/ai_tools" -> 提取 "ai_tools"
+                if '/' in config_source:
+                    toolset_id = config_source.split('/')[-1]
+                    toolsets.add(toolset_id)
+
+    return toolsets
+
+
 def migrate_toolsets(db: Session):
     """迁移工具集配置"""
     print("迁移工具集...")
@@ -75,6 +93,10 @@ def migrate_toolsets(db: Session):
     if not tools_dir.exists():
         print("  警告: tools 目录不存在")
         return {}
+
+    # 获取导航配置中指定的工具集
+    valid_toolsets = get_toolsets_from_navigation()
+    print(f"  从导航配置读取到工具集: {valid_toolsets}")
 
     toolset_map = {}  # toolset_id -> model id
 
@@ -93,18 +115,27 @@ def migrate_toolsets(db: Session):
 
         toolset_id = toolset_dir.name
 
+        # 只迁移导航配置中指定的工具集
+        if toolset_id not in valid_toolsets:
+            print(f"  跳过未在导航配置中的工具集: {toolset_id}")
+            continue
+
         # 检查是否有工具配置文件
         yaml_files = list(toolset_dir.glob("*.yaml"))
         if not yaml_files:
             continue
 
-        # 从导航配置获取名称，或使用默认值
-        name_map = {
-            'ai_tools': 'AI模型能力',
-            'teaching_researcher': 'AI教研员智能体',
-            'test_tools': '测试工具集'
-        }
-        name = name_map.get(toolset_id, toolset_id)
+        # 从导航配置获取名称
+        nav_file = project_root / "configs" / "navigation.yaml"
+        nav_data = load_yaml(nav_file)
+        name = toolset_id  # 默认值
+        if nav_data and 'modules' in nav_data:
+            for module in nav_data['modules']:
+                if module.get('type') == 'toolset':
+                    config_source = module.get('config_source', '')
+                    if config_source.endswith(f'/{toolset_id}'):
+                        name = module.get('name', toolset_id)
+                        break
 
         toolset = ToolsetModel(
             id=str(uuid.uuid4()),
