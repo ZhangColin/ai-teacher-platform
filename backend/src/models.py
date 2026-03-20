@@ -1338,3 +1338,105 @@ class ToggleAIToolVisibilityResponse(BaseModel):
     message: str = Field(..., description="操作结果消息")
     tool: AdminAIToolListItem = Field(..., description="更新后的工具信息")
 
+
+# ==================== 模型供应商配置模块 ====================
+
+class ModelProviderListItem(BaseModel):
+    """模型供应商列表项"""
+    id: str = Field(..., description="供应商ID")
+    provider_code: str = Field(..., description="供应商代码（如：openai, deepseek）")
+    provider_name: str = Field(..., description="供应商名称")
+    base_url: Optional[str] = Field(None, description="API地址")
+    is_enabled: bool = Field(..., description="是否启用")
+    is_default: bool = Field(..., description="是否为默认供应商")
+    order: int = Field(..., description="排序顺序")
+    created_at: datetime = Field(..., description="创建时间")
+    updated_at: datetime = Field(..., description="更新时间")
+
+
+class ModelProviderListResponse(BaseModel):
+    """模型供应商列表响应"""
+    providers: List[ModelProviderListItem] = Field(..., description="供应商列表")
+
+
+class CreateModelProviderRequest(BaseModel):
+    """创建模型供应商请求"""
+    provider_code: str = Field(..., description="供应商代码（如：openai, deepseek）", min_length=1, max_length=50)
+    provider_name: str = Field(..., description="供应商名称", min_length=1, max_length=100)
+    api_key: str = Field(..., description="API密钥（明文，将被加密存储）", min_length=1)
+    base_url: Optional[str] = Field(None, description="API地址")
+    is_enabled: bool = Field(True, description="是否启用（默认true）")
+    is_default: bool = Field(False, description="是否为默认供应商（默认false）")
+    order: int = Field(0, description="排序顺序（默认0）")
+
+
+class CreateModelProviderResponse(BaseModel):
+    """创建模型供应商响应"""
+    provider: ModelProviderListItem = Field(..., description="新创建的供应商信息")
+
+
+class UpdateModelProviderRequest(BaseModel):
+    """更新模型供应商请求"""
+    provider_name: Optional[str] = Field(None, description="供应商名称", min_length=1, max_length=100)
+    api_key: Optional[str] = Field(None, description="API密钥（明文，将被加密存储）")
+    base_url: Optional[str] = Field(None, description="API地址")
+    is_enabled: Optional[bool] = Field(None, description="是否启用")
+    is_default: Optional[bool] = Field(None, description="是否为默认供应商")
+    order: Optional[int] = Field(None, description="排序顺序")
+
+
+class UpdateModelProviderResponse(BaseModel):
+    """更新模型供应商响应"""
+    provider: ModelProviderListItem = Field(..., description="更新后的供应商信息")
+
+
+class ModelConfigListItem(BaseModel):
+    """模型配置列表项"""
+    id: str = Field(..., description="配置ID")
+    provider_id: str = Field(..., description="供应商ID")
+    provider_code: str = Field(..., description="供应商代码")
+    provider_name: str = Field(..., description="供应商名称")
+    model_code: str = Field(..., description="模型代码")
+    model_name: str = Field(..., description="模型名称")
+    capabilities: List[str] = Field(..., description="支持的能力列表")
+    is_enabled: bool = Field(..., description="是否启用")
+    created_at: datetime = Field(..., description="创建时间")
+    updated_at: datetime = Field(..., description="更新时间")
+
+
+class ModelConfigListResponse(BaseModel):
+    """模型配置列表响应"""
+    models: List[ModelConfigListItem] = Field(..., description="模型配置列表")
+
+
+class CreateModelConfigRequest(BaseModel):
+    """创建模型配置请求"""
+    provider_id: str = Field(..., description="供应商ID")
+    model_code: str = Field(..., description="模型代码（如：gpt-4, deepseek-chat）", min_length=1, max_length=50)
+    model_name: str = Field(..., description="模型名称", min_length=1, max_length=100)
+    capabilities: str = Field(..., description="支持的能力（逗号分隔，如：chat,image）", min_length=1)
+    is_enabled: bool = Field(True, description="是否启用（默认true）")
+
+
+class CreateModelConfigResponse(BaseModel):
+    """创建模型配置响应"""
+    model: ModelConfigListItem = Field(..., description="新创建的模型配置信息")
+
+
+class UpdateModelConfigRequest(BaseModel):
+    """更新模型配置请求"""
+    model_code: Optional[str] = Field(None, description="模型代码", min_length=1, max_length=50)
+    model_name: Optional[str] = Field(None, description="模型名称", min_length=1, max_length=100)
+    capabilities: Optional[str] = Field(None, description="支持的能力（逗号分隔）")
+    is_enabled: Optional[bool] = Field(None, description="是否启用")
+
+
+class UpdateModelConfigResponse(BaseModel):
+    """更新模型配置响应"""
+    model: ModelConfigListItem = Field(..., description="更新后的模型配置信息")
+
+
+class AvailableModelResponse(BaseModel):
+    """可用模型响应"""
+    models: List[ModelConfigListItem] = Field(..., description="可用模型列表（仅返回已启用的）")
+
