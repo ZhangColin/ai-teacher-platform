@@ -13,22 +13,23 @@
 ## Task 1: 创建数据库迁移文件
 
 **Files:**
-- Create: `backend/alembic/versions/xxx_add_model_providers.py`
+- Create: `backend/alembic/versions/xxx_add_model_providers.py` (文件名由 alembic 自动生成)
 
-- [ ] **Step 1: 创建新的 Alembic 迁移文件**
+- [ ] **Step 1: 生成新的 Alembic 迁移文件**
 
 ```bash
 cd backend && alembic revision -m "add_model_providers"
 ```
 
-- [ ] **Step 2: 编辑迁移文件，添加表定义**
+Expected: 生成新的迁移文件，文件名包含时间戳
+
+- [ ] **Step 2: 编辑生成的迁移文件，添加表定义**
 
 ```python
-# backend/alembi/versions/xxx_add_model_providers.py
+# backend/alembic/versions/xxx_add_model_providers.py (使用实际生成的文件名)
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import mysql
 
 revision = '001'  # 替换为实际 revision id
 down_revision = None  # 替换为实际父 revision id
@@ -1154,7 +1155,7 @@ async def get_builtin_models(provider_code: str = None):
 
 # ==================== 供应商管理 API ====================
 
-@router.get("/providers", response_model=list[ModelProviderResponse])
+@router.get("/providers")
 async def get_providers(
     is_enabled: bool = None,
     current_user: Annotated[UserInfo, Depends(require_admin)] = None
@@ -1164,7 +1165,8 @@ async def get_providers(
     db = next(get_db())
     try:
         service = ModelProviderService(db)
-        return service.get_providers(is_enabled)
+        providers = service.get_providers(is_enabled)
+        return {"providers": providers}
     finally:
         db.close()
 
@@ -1281,7 +1283,7 @@ async def set_default_provider(
 
 # ==================== 模型配置管理 API ====================
 
-@router.get("/providers/{provider_id}/models", response_model=list[ModelConfigResponse])
+@router.get("/providers/{provider_id}/models")
 async def get_provider_models(
     provider_id: str,
     current_user: Annotated[UserInfo, Depends(require_admin)] = None
@@ -1291,7 +1293,8 @@ async def get_provider_models(
     db = next(get_db())
     try:
         service = ModelProviderService(db)
-        return service.get_provider_models(provider_id)
+        models = service.get_provider_models(provider_id)
+        return {"models": models}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     finally:
@@ -1387,13 +1390,15 @@ git commit -m \"feat: 添加模型供应商配置管理 API\"
 
 ---
 
-## Task 7: 创建公开 API 路由
+## Task 7: 更新公开 API 路由
 
 **Files:**
-- Create: `backend/src/interfaces/routers/models_public.py`
+- Modify: `backend/src/interfaces/routers/models.py`
 - Modify: `backend/src/main.py`
 
-- [ ] **Step 1: 创建公开 API 路由文件**
+**说明：** 替换现有的 `models.py` 路由文件，保留 `GET /models` 端点并添加新的 `GET /models/available` 端点
+
+- [ ] **Step 1: 备份并更新 models.py**
 
 ```python
 # backend/src/interfaces/routers/models_public.py
@@ -1429,19 +1434,19 @@ async def get_available_models(
         return AvailableModelsResponse(models=[])
 ```
 
-- [ ] **Step 2: 在 main.py 中注册路由**
+- [ ] **Step 2: 验证 main.py 中的路由注册**
+
+确认 `main.py` 中已有以下导入（不需要修改）：
 
 ```python
-# backend/src/main.py - 更新 models 路由导入
-
-# 将原来的：
+# backend/src/main.py - 确认已有此导入
 from src.interfaces.routers import models as new_models_router
+```
 
-# 改为：
-from src.interfaces.routers.models_public import router as new_models_router
+路由注册保持不变：
 
-# 路由注册保持不变：
-app.include_router(new_models_router, prefix="/api/v1")
+```python
+app.include_router(new_models_router.router, prefix="/api/v1")
 ```
 
 - [ ] **Step 3: 测试 API**
@@ -2355,9 +2360,15 @@ onMounted(() => {
 ```vue
 <!-- frontend/src/layouts/AdminLayout.vue - 在配置管理菜单下添加 -->
 <el-menu-item index="/admin/model-providers">
-  <el-icon><Setting /></el-icon>
+  <el-icon><Key /></el-icon>
   <span>模型供应商</span>
 </el-menu-item>
+```
+
+**注意：** 需要在 `<script setup>` 部分导入 `Key` 图标：
+
+```typescript
+import { Key } from '@element-plus/icons-vue'
 ```
 
 - [ ] **Step 4: 提交**
@@ -2433,7 +2444,8 @@ git commit -m "feat: 添加模型供应商配置管理页面"
 ```typescript
 // frontend/src/views/admin/AdminAIToolsPage.vue - 在 script setup 中添加
 
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
+import type { AvailableModelInfo } from '../../types'
 
 // 可用模型
 const availableModels = ref<AvailableModelInfo[]>([])
@@ -2478,7 +2490,76 @@ onMounted(() => {
 })
 ```
 
-- [ ] **Step 3: 提交**
+- [ ] **Step 3: 处理现有模型值格式**
+
+编辑工具时，需要处理现有的 `provider:model_name` 格式：
+
+```typescript
+// frontend/src/views/admin/AdminAIToolsPage.vue - 在 handleEdit 函数中
+
+function handleEdit(tool: AdminAIToolListItem) {
+  isEditing.value = true
+  Object.assign(form, {
+    // ... 其他字段
+    model: tool.model || '', // 保持原有格式
+    // ...
+  })
+  // ...
+}
+```
+
+// 可用模型
+const availableModels = ref<AvailableModelInfo[]>([])
+const loadingModels = ref(false)
+
+// 根据能力类型过滤模型
+const chatModels = computed(() => {
+  return availableModels.value.filter(m => m.capabilities.includes('chat'))
+})
+
+const imageModels = computed(() => {
+  return availableModels.value.filter(m => m.capabilities.includes('image'))
+})
+
+const audioModels = computed(() => {
+  return availableModels.value.filter(m => m.capabilities.includes('audio'))
+})
+
+const videoModels = computed(() => {
+  return availableModels.value.filter(m => m.capabilities.includes('video'))
+})
+
+// 加载可用模型
+async function loadAvailableModels() {
+  loadingModels.value = true
+  try {
+    const response = await ApiService.getAvailableModels()
+    availableModels.value = response.models
+  } catch (error: any) {
+    console.error('加载可用模型失败:', error)
+  } finally {
+    loadingModels.value = false
+  }
+}
+
+// 在 onMounted 中调用
+onMounted(() => {
+  loadToolsets()
+  loadCategories()
+  loadTools()
+  loadAvailableModels() // 新增
+})
+```
+
+- [ ] **Step 4: 验证修改**
+
+```bash
+cd frontend && npm run dev
+```
+
+访问 http://localhost:5173/admin/ai-tools，确认模型选择下拉框正常显示。
+
+- [ ] **Step 5: 提交**
 
 ```bash
 git add frontend/src/views/admin/AdminAIToolsPage.vue
