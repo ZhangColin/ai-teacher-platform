@@ -53,6 +53,7 @@ __all__ = [
     "get_current_user",
     "require_admin",  # 新增
     "get_config_service",  # 新增
+    "get_model_provider_service",  # 新增
 ]
 
 
@@ -84,5 +85,15 @@ def get_config_service():
     db = next(get_db())
     try:
         yield ConfigService(db)
+    finally:
+        db.close()
+
+
+def get_model_provider_service():
+    """获取模型供应商配置服务实例"""
+    from src.services.model_provider_service import ModelProviderService
+    db = next(get_db())
+    try:
+        yield ModelProviderService(db)
     finally:
         db.close()
