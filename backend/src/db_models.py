@@ -358,3 +358,44 @@ class TokenUsageLogModel(Base):
         Index("idx_token_provider", "model_provider"),
     )
 
+
+class ModelProviderModel(Base):
+    """模型供应商配置数据库模型"""
+    __tablename__ = "model_providers"
+
+    id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    provider_code = Column(String(50), unique=True, nullable=False, index=True, comment='供应商代码')
+    provider_name = Column(String(100), nullable=False, comment='供应商名称')
+    api_key_encrypted = Column(Text, nullable=False, comment='加密后的API密钥')
+    base_url = Column(String(500), nullable=True, comment='API地址')
+    is_enabled = Column(Boolean, nullable=False, default=True, comment='是否启用')
+    is_default = Column(Boolean, nullable=False, default=False, comment='是否为默认供应商')
+    order = Column(Integer, nullable=False, default=0, index=True, comment='排序')
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
+    updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
+
+    # 关系
+    models = relationship("ModelConfigModel", back_populates="provider", cascade="all, delete-orphan")
+
+
+class ModelConfigModel(Base):
+    """模型配置数据库模型"""
+    __tablename__ = "model_configs"
+
+    id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    provider_id = Column(CHAR(36), ForeignKey("model_providers.id", ondelete="CASCADE"), nullable=False, index=True)
+    model_code = Column(String(50), nullable=False, comment='模型代码')
+    model_name = Column(String(100), nullable=False, comment='模型名称')
+    capabilities = Column(String(50), nullable=False, comment='支持的能力，逗号分隔')
+    is_enabled = Column(Boolean, nullable=False, default=True, comment='是否启用')
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
+    updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
+
+    # 关系
+    provider = relationship("ModelProviderModel", back_populates="models")
+
+    # 联合唯一约束
+    __table_args__ = (
+        Index("uk_provider_model", "provider_id", "model_code", unique=True),
+    )
+
