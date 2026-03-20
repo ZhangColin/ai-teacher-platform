@@ -27,6 +27,7 @@ from src.interfaces.routers.admin import navigation as new_admin_navigation_rout
 from src.interfaces.routers.admin import toolsets as new_admin_toolsets_router
 from src.interfaces.routers.admin import ai_tool_categories as new_admin_ai_tool_categories_router
 from src.interfaces.routers.admin import ai_tools as new_admin_ai_tools_router
+from src.interfaces.routers.admin import model_providers as new_admin_model_providers_router
 from src.interfaces.routers import works as new_works_router
 from src.interfaces.routers import courses as new_courses_router
 from src.interfaces.routers import common as new_common_router
@@ -83,6 +84,7 @@ app.include_router(new_admin_navigation_router.router)
 app.include_router(new_admin_toolsets_router.router)
 app.include_router(new_admin_ai_tool_categories_router.router)
 app.include_router(new_admin_ai_tools_router.router)
+app.include_router(new_admin_model_providers_router.router)
 
 # 用户管理路由（旧路由 - 已迁移到 interfaces 层）
 # 已迁移到 interfaces 层的端点：
