@@ -1,272 +1,214 @@
-# 端点扫描工具使用说明
+# 部署脚本使用说明
 
-## 概述
+本目录包含AI智能备课平台的部署脚本，用于打包和部署项目到生产服务器。
 
-本工具集用于自动扫描和对比 Python FastAPI 后端与 Java Spring Boot 后端的 API 端点，以验证迁移进度。
+## 脚本说明
 
-## 工具列表
+### build.sh - 构建打包脚本
 
-### 1. scan-python-endpoints.py
-
-扫描 Python FastAPI 后端的所有 API 端点。
+自动构建前后端项目并打包到 `dist/` 目录。
 
 **功能：**
-- 使用 AST 解析 Python 文件
-- 支持 `@router.get()`, `@router.post()` 等装饰器
-- 自动提取 `APIRouter(prefix=...)` 前缀
-- 支持 `async def` 和 `def` 函数定义
-
-**输出格式：**
-```json
-[
-  {
-    "method": "GET",
-    "path": "/api/v1/auth/me",
-    "function": "get_me",
-    "file": "/path/to/backend/src/.../auth.py"
-  }
-]
-```
+- 清理旧的构建文件
+- 构建前端（Vue3 + Vite）
+- 打包后端（Python + FastAPI）
+- 复制配置文件和必要文件
+- 应用生产环境配置
 
 **使用方法：**
 ```bash
-python3 scripts/scan-python-endpoints.py > python-endpoints.json
+./scripts/build.sh
 ```
 
-### 2. scan-java-endpoints.py
-
-扫描 Java Spring Boot 后端的所有 API 端点。
-
-**功能：**
-- 使用正则表达式查找 `@GetMapping`, `@PostMapping` 等注解
-- 自动提取类级别的 `@RequestMapping` 前缀
-- 提取方法名和文件路径
-
-**输出格式：**
-```json
-[
-  {
-    "method": "POST",
-    "path": "/api/v1/auth/login",
-    "function": "login",
-    "file": "/path/to/backend-java/.../AuthController.java"
-  }
-]
+**输出目录结构：**
 ```
+dist/
+├── frontend/          # 前端构建产物
+├── backend/           # 后端源代码和配置
+└── configs/           # YAML配置文件
+```
+
+### deploy.sh - 服务器部署脚本
+
+自动将打包好的文件上传到生产服务器。
+
+**使用前配置：**
+1. 编辑 `scripts/deploy.sh`
+2. 修改服务器配置变量：
+   ```bash
+   # 服务器连接配置
+   SERVER_HOST="your-server-ip"              # 服务器IP
+   SERVER_USER="root"                        # 登录用户
+   SERVER_PASS="your-password"               # 登录密码
+
+   # 服务器目录配置（可根据实际情况调整）
+   SERVER_BASE_DIR="/home/ai-teacher-platform"     # 基础目录
+   SERVER_FRONTEND_DIR="$SERVER_BASE_DIR/frontend" # 前端目录
+   SERVER_BACKEND_DIR="$SERVER_BASE_DIR/backend"   # 后端目录
+   SERVER_CONFIGS_DIR="$SERVER_BASE_DIR/configs"   # 配置目录
+   # SERVER_UPLOADS_DIR 会自动设置为 $SERVER_BACKEND_DIR/uploads
+   ```
+
+3. **配置生产环境（重要！）**
+   - 配置文件位置：`backend/.env.production`
+   - 使用真实的数据库密码、API密钥等（不要使用占位符）
+   - ✅ backend/ 下的 `.env`、`.env.production`、`.env.test` 都已加入 Git 版本控制
+   - 首次配置建议：
+     ```bash
+     # 复制示例模板
+     cp backend/.env.example backend/.env.production
+     # 然后编辑，填入真实的生产环境配置
+     vim backend/.env.production
+     ```
 
 **使用方法：**
 ```bash
-python3 scripts/scan-java-endpoints.py > java-endpoints.json
+./scripts/deploy.sh
 ```
-
-### 3. compare-endpoints.py
-
-对比两个端点列表并生成差异报告。
 
 **功能：**
-- 找出仅在 Python 中的端点（未迁移）
-- 找出仅在 Java 中的端点（新增）
-- 计算迁移覆盖率
-- 生成 Markdown 格式的详细报告
+- 自动执行 build.sh 构建项目
+- 创建服务器目录
+- 上传前端文件
+- 上传后端文件
+- 上传配置文件
+- 自动修复前端文件权限（`chmod -R 755`）
+- 自动重启后端服务（`systemctl restart studio-backend`）
+- 显示后端服务状态
 
-**使用方法：**
+## 部署流程
+
+1. **本地测试**
+   ```bash
+   # 确保代码能正常运行
+   cd backend && python3 -m src.main
+   cd frontend && npm run dev
+   ```
+
+2. **构建项目**
+   ```bash
+   ./scripts/build.sh
+   ```
+
+3. **配置生产环境**
+   - 配置文件位置：`backend/.env.production`
+   - 填入真实的数据库密码、API密钥等（非占位符）
+   - 💡 配置说明：
+     - `backend/.env.production` - 生产环境配置（Git管理）
+     - `backend/.env.test` - 测试环境配置（Git管理）
+     - `backend/.env` - 本地开发配置（Git管理）
+     - 部署时会自动复制到 `dist/backend/.env`
+
+4. **配置服务器信息**
+   - 编辑 `scripts/deploy.sh`
+   - 填写服务器IP、用户名、密码
+
+5. **部署到服务器**
+   ```bash
+   ./scripts/deploy.sh
+   ```
+
+## 依赖要求
+
+**本地环境：**
+- Node.js 18+
+- Python 3.10+
+- rsync（用于文件同步）
+
+**服务器环境：**
+- Python 3.10+
+- MySQL 8.0+
+- sshpass（用于自动登录）
+
+**安装sshpass：**
 ```bash
-# 使用默认文件名
-python3 scripts/compare-endpoints.py
+# macOS
+brew install sshpass
 
-# 指定输入和输出文件
-python3 scripts/compare-endpoints.py \
-  python-endpoints.json \
-  java-endpoints.json \
-  endpoint-diff.md
-```
+# Ubuntu/Debian
+sudo apt-get install sshpass
 
-**输出格式：**
-- JSON 格式：对比结果统计
-- Markdown 文件：详细的差异报告
-
-## 快速开始
-
-### 1. 扫描端点
-
-```bash
-# 扫描 Python 后端
-python3 scripts/scan-python-endpoints.py > python-endpoints.json
-
-# 扫描 Java 后端
-python3 scripts/scan-java-endpoints.py > java-endpoints.json
-```
-
-### 2. 生成对比报告
-
-```bash
-python3 scripts/compare-endpoints.py \
-  python-endpoints.json \
-  java-endpoints.json \
-  endpoint-diff.md
-```
-
-### 3. 查看报告
-
-```bash
-cat endpoint-diff.md
-```
-
-## 报告示例
-
-```markdown
-# API 端点对比报告
-
-## 总体统计
-
-- **Python 端点数量**: 69
-- **Java 端点数量**: 10
-- **迁移覆盖率**: 10.1%
-
-## ✅ 共同端点
-
-数量: 7
-
-- GET /api/v1/auth/me
-- POST /api/v1/auth/login
-- ...
-
-## ❌ 仅在 Python 中（未迁移）
-
-数量: 62
-
-- POST /api/v1/admin/users
-- PATCH /api/v1/admin/users/{user_id}
-- ...
-
-## ⚠️  仅在 Java 中（新增）
-
-数量: 3
-
-- GET /api/v1/common-tools/{tool_id}
-- ...
+# CentOS/RHEL
+sudo yum install sshpass
 ```
 
 ## 注意事项
 
-1. **路径前缀处理**
-   - Python: 扫描器会提取 `APIRouter(prefix=...)` 和 `app.include_router(..., prefix=...)`
-   - Java: 扫描器会提取 `@RequestMapping` 类级别注解
+1. **配置管理（重要）**
+   - ✅ **配置文件位置**：`backend/.env.production`
+     - 所有环境配置文件（`.env`、`.env.production`、`.env.test`）都使用 Git 版本控制
+     - 每次运行 `build.sh` 时自动复制 `backend/.env.production` 到 `dist/backend/.env`
+     - 部署时直接上传到服务器
+     - 有配置变更时，直接修改 `backend/.env.production`，然后重新部署
+   - ⚠️ **不要做**：
+     - 不要在服务器上手动修改 `.env`（下次部署会被覆盖）
+     - 不要将包含占位符的模板文件部署到生产环境
 
-2. **路径参数标准化**
-   - 对比时会将路径参数统一为小写格式
-   - 例如：`{toolId}` 和 `{tool_id}` 会被识别为相同端点
+2. **安全性**
+   - 生产环境的API密钥和密码要妥善保管
+   - 建议使用SSH密钥而非密码登录
+   - 定期更新数据库密码和API密钥
 
-3. **文件编码**
-   - 所有脚本使用 UTF-8 编码
-   - 确保源代码文件也是 UTF-8 编码
+2. **数据库**
+   - 首次部署前需要在服务器创建数据库
+   - 运行数据库迁移：`alembic upgrade head`
 
-4. **权限要求**
-   - 脚本需要读取 backend 和 backend-java 目录的权限
-   - 生成的报告文件需要有写入权限
+3. **Nginx配置**
+   - 前端静态文件建议使用Nginx托管
+   - 后端API需要配置反向代理
 
-## 技术细节
+4. **systemd 服务配置**
+   - 部署脚本使用 `systemctl restart studio-backend` 重启服务
+   - 需要确保服务器已配置 systemd 服务文件
+   - 服务文件位置：`/etc/systemd/system/studio-backend.service`
+   - 示例服务文件内容：
+     ```ini
+     [Unit]
+     Description=AI Teacher Platform Backend
+     After=network.target mysql.service
 
-### Python 扫描器实现
+     [Service]
+     Type=simple
+     User=root
+     WorkingDirectory=/home/studio/backend
+     Environment="PATH=/usr/local/bin:/usr/bin:/bin"
+     ExecStart=/usr/bin/python3 -m uvicorn src.main:app --host 0.0.0.0 --port 8000
+     Restart=always
+     RestartSec=10
 
-- 使用 `ast` 模块解析 Python 代码
-- 查找 `AsyncFunctionDef` 和 `FunctionDef` 节点
-- 识别装饰器调用：`@router.get()`, `@app.post()` 等
-- 提取 `APIRouter(prefix=...)` 参数
+     [Install]
+     WantedBy=multi-user.target
+     ```
 
-### Java 扫描器实现
+5. **日志查看**
+   - 使用 systemd journal 查看后端日志：`journalctl -u studio-backend -f`
+   - 或查看应用日志：`tail -f /home/studio/backend/server.log`
 
-- 使用正则表达式查找注解
-- 模式：`@(Get|Post|Put|Delete|Patch)Mapping("path")`
-- 查找 `@RequestMapping` 类级别前缀
-- 提取公共方法签名
+## 常见问题
 
-### 对比算法
+**Q: 构建失败怎么办？**
+A: 检查本地依赖是否安装完整，确保 `npm run build` 和后端测试能通过。
 
-1. 将端点标准化为 `{METHOD} {path}` 格式
-2. 使用集合运算找出差异
-3. 计算覆盖率：`共同端点 / Python端点总数`
+**Q: 上传失败怎么办？**
+A: 检查服务器连接、密码是否正确，确保服务器已安装sshpass。
 
-## 故障排除
+**Q: 部署后无法访问？**
+A: 检查服务器防火墙、后端服务是否启动、Nginx配置是否正确。
 
-### 问题：扫描结果为空
+**Q: 如何回滚？**
+A: 保留上一版本的dist备份，或使用Git回退后重新部署。
 
-**可能原因：**
-- 路径不正确
-- 文件权限问题
+**Q: 如何更新生产环境配置？**
+A:
+1. 编辑 `backend/.env.production`（修改数据库密码、API密钥等）
+2. 提交到 Git（可选，如果需要团队共享）
+3. 重新运行 `./scripts/deploy.sh`
+4. 配置会自动更新到服务器（无需手动修改服务器文件）
 
-**解决方案：**
-```bash
-# 检查目录是否存在
-ls backend/src/routers/
-ls backend-java/src/main/java/**/rest/
-
-# 检查文件权限
-ls -la backend/src/routers/*.py
-```
-
-### 问题：对比报告中的路径参数不匹配
-
-**可能原因：**
-- Java 使用驼峰命名：`{toolId}`
-- Python 使用下划线命名：`{tool_id}`
-
-**解决方案：**
-对比脚本会自动标准化路径参数，但如果仍有问题，可以手动调整 `normalize_path()` 函数。
-
-### 问题：覆盖率计算不准确
-
-**可能原因：**
-- 路径前缀不一致
-- 端点重复定义
-
-**解决方案：**
-检查扫描器输出，确保路径前缀正确。使用 `jq` 工具检查 JSON：
-```bash
-jq '.[] | .path' python-endpoints.json | sort -u
-```
-
-## 扩展使用
-
-### 集成到 CI/CD
-
-可以将扫描工具集成到持续集成流程中：
-
-```yaml
-# .github/workflows/endpoint-check.yml
-- name: 扫描端点
-  run: |
-    python3 scripts/scan-python-endpoints.py > python.json
-    python3 scripts/scan-java-endpoints.py > java.json
-    python3 scripts/compare-endpoints.py python.json java.json report.md
-
-- name: 检查覆盖率
-  run: |
-    COVERAGE=$(jq -r '.coverage' result.json | sed 's/%//')
-    if (( $(echo "$COVERAGE < 80" | bc -l) )); then
-      echo "覆盖率不足 80%: $COVERAGE%"
-      exit 1
-    fi
-```
-
-### 自定义扫描路径
-
-编辑脚本文件，修改扫描路径：
-
-```python
-# scan-python-endpoints.py
-for pattern in ['src/routers/**/*.py', 'src/interfaces/**/*.py']:
-    # 添加自定义路径
-    for file_path in Path(project_root).glob(pattern):
-        ...
-```
-
-## 维护
-
-- 定期更新扫描器以支持新的路由定义方式
-- 添加更多 HTTP 方法的支持（如 `HEAD`, `OPTIONS`）
-- 改进路径参数标准化算法
-
-## 联系方式
-
-如有问题或建议，请联系开发团队。
+**Q: 环境配置文件有哪些？**
+A:
+- `backend/.env` - 本地开发环境配置
+- `backend/.env.test` - 测试环境配置
+- `backend/.env.production` - 生产环境配置（部署时使用）
+- `backend/.env.example` - 配置模板和说明
+- 所有文件都使用 Git 版本控制

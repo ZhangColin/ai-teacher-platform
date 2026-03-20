@@ -1,0 +1,28 @@
+# systemd 服务文件示例
+# 使用方法：
+# 1. 根据实际服务器路径修改 WorkingDirectory
+# 2. 复制到服务器：scp studio-backend.service root@your-server:/etc/systemd/system/
+# 3. 重载配置：systemctl daemon-reload
+# 4. 启用服务：systemctl enable studio-backend
+# 5. 启动服务：systemctl start studio-backend
+
+[Unit]
+Description=AI Teacher Platform Backend
+After=network.target mysql.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/home/studio/backend
+Environment="PATH=/usr/local/bin:/usr/bin:/bin"
+ExecStart=/usr/bin/python3 -m uvicorn src.main:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=10
+
+# 日志配置
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=studio-backend
+
+[Install]
+WantedBy=multi-user.target

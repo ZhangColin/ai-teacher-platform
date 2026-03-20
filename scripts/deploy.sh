@@ -1,208 +1,110 @@
 #!/bin/bash
-# AI 教育平台 - 简化部署脚本
-# 功能: 本地构建 + 上传到服务器 + 重启服务
+# AI智能备课平台 - 服务器部署脚本
 
-set -e  # 遇到错误立即退出
+set -e
 
-# 颜色输出
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+# 服务器配置 - 请根据实际情况修改
+SERVER_HOST="39.97.6.179"
+SERVER_USER="root"
+SERVER_PASS="Hcy20251007"
 
-# 配置（根据实际情况修改）
-SERVER_USER="${SERVER_USER:-root}"
-SERVER_HOST="${SERVER_HOST:-your-server-ip}"
-SERVER_PORT="${SERVER_PORT:-22}"
-DEPLOY_DIR="/home/studio"
+# 服务器目录配置
+SERVER_BASE_DIR="/home/studio"              # 服务器基础目录
+SERVER_FRONTEND_DIR="$SERVER_BASE_DIR/frontend-dist"   # 前端文件目录
+SERVER_BACKEND_DIR="$SERVER_BASE_DIR/backend"     # 后端代码目录
+SERVER_CONFIGS_DIR="$SERVER_BASE_DIR/configs"     # 配置文件目录
+SERVER_UPLOADS_DIR="$SERVER_BACKEND_DIR/uploads"  # 上传文件目录
 
-echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}AI 教育平台部署脚本${NC}"
-echo -e "${GREEN}========================================${NC}"
-echo ""
+# 获取脚本所在目录
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+DIST_DIR="$PROJECT_ROOT/dist"
+FRONTEND_DIST="$DIST_DIR/frontend"
+BACKEND_DIST="$DIST_DIR/backend"
 
-# 检查是否在项目根目录
-if [ ! -d "backend" ] || [ ! -d "frontend" ]; then
-    echo -e "${RED}错误: 请在项目根目录执行此脚本${NC}"
-    echo -e "${YELLOW}当前目录: $(pwd)${NC}"
+echo "📤 开始部署文件到 $SERVER_HOST..."
+echo "目标目录: $SERVER_BASE_DIR"
+echo "  前端: $SERVER_FRONTEND_DIR"
+echo "  后端: $SERVER_BACKEND_DIR"
+echo "  配置: $SERVER_CONFIGS_DIR"
+
+# 检查是否已配置服务器信息
+if [ "$SERVER_HOST" = "your-server-ip" ]; then
+    echo "❌ 错误: 请先配置服务器信息"
+    echo "请编辑 scripts/deploy.sh 文件，修改以下变量："
+    echo "  - SERVER_HOST: 服务器IP地址"
+    echo "  - SERVER_USER: 服务器用户名"
+    echo "  - SERVER_PASS: 服务器密码"
+    echo "  - SERVER_BASE_DIR: 服务器基础目录"
+    echo "  - SERVER_FRONTEND_DIR: 前端文件目录"
+    echo "  - SERVER_BACKEND_DIR: 后端代码目录"
+    echo "  - SERVER_CONFIGS_DIR: 配置文件目录"
     exit 1
 fi
 
-# 检查服务器配置
-if [ "$SERVER_HOST" == "your-server-ip" ]; then
-    echo -e "${RED}错误: 请先配置服务器信息${NC}"
-    echo -e "${YELLOW}编辑脚本或设置环境变量:${NC}"
-    echo -e "${BLUE}  export SERVER_HOST=your-server-ip${NC}"
-    echo -e "${BLUE}  export SERVER_USER=root${NC}"
-    echo -e "${BLUE}  export SERVER_PORT=22${NC}"
-    exit 1
-fi
-
-echo -e "${GREEN}目标服务器: ${SERVER_USER}@${SERVER_HOST}:${SERVER_PORT}${NC}"
+# 1. 先执行构建
 echo ""
+echo "📦 构建项目..."
+"$SCRIPT_DIR/build.sh"
 
-# 询问部署模式
-echo -e "${YELLOW}选择部署模式:${NC}"
-echo -e "  1) 仅前端（推荐，适合前端更新）"
-echo -e "  2) 仅后端（适合后端代码更新）"
-echo -e "  3) 完整部署（前端 + 后端）"
-echo -e "  4) 仅上传，不重启（调试用）"
+# 2. 创建服务器目录
 echo ""
-read -p "请选择 [1-4]: " choice
+echo "📁 创建服务器目录..."
+sshpass -p "$SERVER_PASS" ssh -o StrictHostKeyChecking=no "$SERVER_USER@$SERVER_HOST" "mkdir -p $SERVER_FRONTEND_DIR $SERVER_BACKEND_DIR $SERVER_UPLOADS_DIR $SERVER_CONFIGS_DIR"
 
-case $choice in
-    1)
-        DEPLOY_MODE="frontend"
-        ;;
-    2)
-        DEPLOY_MODE="backend"
-        ;;
-    3)
-        DEPLOY_MODE="full"
-        ;;
-    4)
-        DEPLOY_MODE="upload-only"
-        ;;
-    *)
-        echo -e "${RED}无效选择${NC}"
-        exit 1
-        ;;
-esac
+# 3. 上传前端文件
+echo ""
+echo "📤 上传前端文件..."
+sshpass -p "$SERVER_PASS" scp -o StrictHostKeyChecking=no -r "$FRONTEND_DIST"/* "$SERVER_USER@$SERVER_HOST:$SERVER_FRONTEND_DIR/"
+
+# 4. 上传后端文件
+echo ""
+echo "📤 上传后端文件..."
+sshpass -p "$SERVER_PASS" scp -o StrictHostKeyChecking=no -r "$BACKEND_DIST" "$SERVER_USER@$SERVER_HOST:$SERVER_BACKEND_DIR/"
+
+# 5. 上传配置文件
+echo ""
+echo "📤 上传配置文件..."
+sshpass -p "$SERVER_PASS" scp -o StrictHostKeyChecking=no -r "$DIST_DIR/configs"/* "$SERVER_USER@$SERVER_HOST:$SERVER_CONFIGS_DIR/"
+
+# 6. 修复前端文件权限
+echo ""
+echo "🔧 修复前端文件权限..."
+sshpass -p "$SERVER_PASS" ssh -o StrictHostKeyChecking=no "$SERVER_USER@$SERVER_HOST" "chmod -R 755 $SERVER_FRONTEND_DIR"
+
+# 7. 重启后端服务
+echo ""
+echo "🔄 重启后端服务 (systemctl)..."
+sshpass -p "$SERVER_PASS" ssh -o StrictHostKeyChecking=no "$SERVER_USER@$SERVER_HOST" "systemctl restart studio-backend"
+
+# 8. 检查服务状态
+echo ""
+echo "📊 检查服务状态..."
+sshpass -p "$SERVER_PASS" ssh -o StrictHostKeyChecking=no "$SERVER_USER@$SERVER_HOST" "systemctl status studio-backend --no-pager -l" | head -n 10
 
 echo ""
-echo -e "${GREEN}部署模式: ${DEPLOY_MODE}${NC}"
+echo "✅ 部署完成！"
 echo ""
-
-# ============================================
-# 前端构建和上传
-# ============================================
-if [ "$DEPLOY_MODE" == "frontend" ] || [ "$DEPLOY_MODE" == "full" ] || [ "$DEPLOY_MODE" == "upload-only" ]; then
-    echo -e "${GREEN}[1/3] 构建前端...${NC}"
-    cd frontend
-    
-    # 检查 pnpm
-    if ! command -v pnpm &> /dev/null; then
-        echo -e "${RED}错误: pnpm 未安装${NC}"
-        echo -e "${YELLOW}安装命令: npm install -g pnpm${NC}"
-        exit 1
-    fi
-    
-    # 安装依赖（如果需要）
-    echo -e "${YELLOW}安装依赖...${NC}"
-    pnpm install
-    
-    # 构建
-    echo -e "${YELLOW}构建生产版本...${NC}"
-    pnpm run build
-    
-    # 检查构建结果
-    if [ ! -f "dist/index.html" ]; then
-        echo -e "${RED}错误: 前端构建失败${NC}"
-        exit 1
-    fi
-    
-    echo -e "${GREEN}✓ 前端构建完成${NC}"
-    cd ..
-    
-    echo -e "${GREEN}[2/3] 上传前端文件...${NC}"
-    # 删除服务器上的旧文件
-    ssh -p ${SERVER_PORT} ${SERVER_USER}@${SERVER_HOST} "rm -rf ${DEPLOY_DIR}/frontend-dist/*"
-    
-    # 上传新文件
-    scp -r -P ${SERVER_PORT} frontend/dist/* ${SERVER_USER}@${SERVER_HOST}:${DEPLOY_DIR}/frontend-dist/
-    
-    echo -e "${GREEN}✓ 前端上传完成${NC}"
-    echo -e "${YELLOW}提示: 前端更新无需重启服务，可能需要清除浏览器缓存（Ctrl+F5）${NC}"
-fi
-
-# ============================================
-# 后端上传和重启
-# ============================================
-if [ "$DEPLOY_MODE" == "backend" ] || [ "$DEPLOY_MODE" == "full" ] || [ "$DEPLOY_MODE" == "upload-only" ]; then
-    echo -e "${GREEN}[2/3] 上传后端文件...${NC}"
-    
-    # 上传后端代码
-    scp -r -P ${SERVER_PORT} backend/ ${SERVER_USER}@${SERVER_HOST}:${DEPLOY_DIR}/
-    
-    # 上传配置文件
-    scp -r -P ${SERVER_PORT} configs/ ${SERVER_USER}@${SERVER_HOST}:${DEPLOY_DIR}/
-    
-    echo -e "${GREEN}✓ 后端上传完成${NC}"
-    
-    if [ "$DEPLOY_MODE" != "upload-only" ]; then
-        echo -e "${GREEN}[3/3] 重启后端服务...${NC}"
-        
-        # 在服务器上执行
-        ssh -p ${SERVER_PORT} ${SERVER_USER}@${SERVER_HOST} << 'EOF'
-            cd /home/studio/backend
-            source venv/bin/activate
-            
-            # 更新依赖（如果 requirements.txt 有变化）
-            echo "检查依赖更新..."
-            pip install -r requirements.txt
-            
-            # 运行数据库迁移（如果有新的迁移）
-            echo "运行数据库迁移..."
-            alembic upgrade head
-            
-            # 重启服务
-            echo "重启后端服务..."
-            sudo systemctl restart studio-backend
-            
-            # 等待服务启动
-            sleep 3
-            
-            # 检查服务状态
-            sudo systemctl status studio-backend --no-pager -l
-EOF
-        
-        echo -e "${GREEN}✓ 后端服务重启完成${NC}"
-    fi
-fi
-
-# ============================================
-# 验证部署
-# ============================================
-if [ "$DEPLOY_MODE" != "upload-only" ]; then
-    echo ""
-    echo -e "${GREEN}========================================${NC}"
-    echo -e "${GREEN}验证部署${NC}"
-    echo -e "${GREEN}========================================${NC}"
-    
-    # 测试后端 API
-    if [ "$DEPLOY_MODE" == "backend" ] || [ "$DEPLOY_MODE" == "full" ]; then
-        echo -e "${YELLOW}测试后端 API...${NC}"
-        if ssh -p ${SERVER_PORT} ${SERVER_USER}@${SERVER_HOST} "curl -f http://localhost:8000/api/v1/navigation > /dev/null 2>&1"; then
-            echo -e "${GREEN}✓ 后端 API 正常${NC}"
-        else
-            echo -e "${RED}✗ 后端 API 异常${NC}"
-            echo -e "${YELLOW}查看日志: ssh 到服务器后执行${NC}"
-            echo -e "${BLUE}  sudo journalctl -u studio-backend -n 50${NC}"
-        fi
-    fi
-    
-    # 测试前端
-    if [ "$DEPLOY_MODE" == "frontend" ] || [ "$DEPLOY_MODE" == "full" ]; then
-        echo -e "${YELLOW}测试前端...${NC}"
-        if ssh -p ${SERVER_PORT} ${SERVER_USER}@${SERVER_HOST} "test -f ${DEPLOY_DIR}/frontend-dist/index.html"; then
-            echo -e "${GREEN}✓ 前端文件存在${NC}"
-        else
-            echo -e "${RED}✗ 前端文件不存在${NC}"
-        fi
-    fi
-fi
-
-# 完成
+echo "已完成的操作："
+echo "  ✓ 构建前后端项目"
+echo "  ✓ 上传前端文件到 $SERVER_FRONTEND_DIR"
+echo "  ✓ 上传后端文件到 $SERVER_BACKEND_DIR"
+echo "  ✓ 上传配置文件到 $SERVER_CONFIGS_DIR"
+echo "  ✓ 修复前端文件权限 (chmod -R 755)"
+echo "  ✓ 重启后端服务 (systemctl restart studio-backend)"
 echo ""
-echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}部署完成！${NC}"
-echo -e "${GREEN}========================================${NC}"
+echo "访问地址："
+echo "  前端: http://$SERVER_HOST (或配置的Nginx端口)"
+echo "  后端: http://$SERVER_HOST:8000"
 echo ""
-echo -e "访问地址: ${GREEN}http://studio.aieducenter.com${NC}"
+echo "服务器目录："
+echo "  前端: $SERVER_FRONTEND_DIR"
+echo "  后端: $SERVER_BACKEND_DIR"
+echo "  配置: $SERVER_CONFIGS_DIR"
 echo ""
-echo -e "常用命令（在服务器上执行）:"
-echo -e "  - 查看后端状态: ${BLUE}sudo systemctl status studio-backend${NC}"
-echo -e "  - 查看后端日志: ${BLUE}sudo journalctl -u studio-backend -f${NC}"
-echo -e "  - 重启后端: ${BLUE}sudo systemctl restart studio-backend${NC}"
+echo "查看后端日志："
+echo "  ssh $SERVER_USER@$SERVER_HOST"
+echo "  journalctl -u studio-backend -f"
 echo ""
+echo "查看后端服务状态："
+echo "  systemctl status studio-backend"
