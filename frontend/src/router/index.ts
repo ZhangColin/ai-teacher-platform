@@ -95,6 +95,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('../views/admin/AdminAIToolsPage.vue'),
         meta: { requiresAdmin: true },
       },
+      {
+        path: 'model-providers',
+        name: 'admin-model-providers',
+        component: () => import('../views/admin/AdminModelProvidersPage.vue'),
+        meta: { requiresAdmin: true },
+      },
     ],
   },
   {
