@@ -32,6 +32,9 @@ from src.interfaces.auth import get_current_user
 from src.models import UserInfo
 from typing import Annotated
 
+# 数据库依赖
+from src.database import get_db
+
 # Export all dependencies for use in interfaces layer routes
 __all__ = [
     "get_tool_service",
@@ -49,6 +52,7 @@ __all__ = [
     "get_model_service",
     "get_current_user",
     "require_admin",  # 新增
+    "get_config_service",  # 新增
 ]
 
 
@@ -72,3 +76,13 @@ async def require_admin(current_user: Annotated[UserInfo, Depends(get_current_us
         )
 
     return current_user
+
+
+def get_config_service():
+    """获取配置服务实例（数据库版本）"""
+    from src.services.config_service import ConfigService
+    db = next(get_db())
+    try:
+        yield ConfigService(db)
+    finally:
+        db.close()

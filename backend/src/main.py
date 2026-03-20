@@ -27,6 +27,7 @@ from src.interfaces.routers import works as new_works_router
 from src.interfaces.routers import courses as new_courses_router
 from src.interfaces.routers import common as new_common_router
 from src.interfaces.routers import models as new_models_router
+from src.interfaces.routers import navigation as new_navigation_router
 
 # 导入错误处理中间件
 from src.interfaces.middleware.error_handler import error_handler
@@ -132,7 +133,6 @@ app.include_router(new_courses_router.router)
 # ✅ 已迁移到 interfaces 层（2026-03-02）
 # 迁移位置：interfaces/routers/common/common.py
 # 保留端点：
-#   - GET /navigation -> 导航配置
 #   - GET /tasks/{task_id} -> 查询任务状态
 #   - POST /convert/markdown-to-word -> Markdown转Word
 #   - GET /common-tools/categories -> 工具分类（✅ 已恢复 2026-03-03）
@@ -140,6 +140,11 @@ app.include_router(new_courses_router.router)
 #   - GET /common-tools/tools/{tool_id} -> 工具详情
 app.include_router(new_common_router.router)
 # app.include_router(common_router)  # 旧路由已迁移
+
+# 导航路由（新架构 - interfaces层）
+# 提供端点：
+#   - GET /navigation -> 导航配置
+app.include_router(new_navigation_router.router)
 
 # 模型配置路由（新架构 - interfaces层）
 # ✅ 已迁移到 interfaces 层（2026-03-20）
