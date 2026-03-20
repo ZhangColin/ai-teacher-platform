@@ -99,9 +99,8 @@ def upgrade():
 
 
 def downgrade():
+    # MySQL 中 ENUM 类型随表一起删除，无需单独处理
     op.drop_table('ai_tools')
     op.drop_table('ai_tool_categories')
     op.drop_table('toolsets')
     op.drop_table('navigation_modules')
-    op.execute('DROP TYPE IF EXISTS navigationmoduletype')
-    op.execute('DROP TYPE IF EXISTS aitooltype')
