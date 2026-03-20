@@ -231,6 +231,106 @@ class CourseDocumentModel(Base):
     )
 
 
+class NavigationModuleType(enum.Enum):
+    """导航模块类型枚举"""
+    toolset = "toolset"
+    page = "page"
+
+
+class AIToolType(enum.Enum):
+    """AI工具类型枚举"""
+    normal = "normal"
+    media = "media"
+
+
+class NavigationModuleModel(Base):
+    """导航模块数据库模型"""
+    __tablename__ = "navigation_modules"
+
+    id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(50), nullable=False)
+    type = Column(Enum(NavigationModuleType), nullable=False)
+    config_source = Column(String(100), nullable=True)
+    page_path = Column(String(100), nullable=True)
+    icon = Column(String(50), nullable=True)
+    order = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
+    updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
+
+    # 联合索引
+    __table_args__ = (
+        Index("idx_navigation_module_order", "order"),
+    )
+
+
+class ToolsetModel(Base):
+    """工具集数据库模型"""
+    __tablename__ = "toolsets"
+
+    id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    toolset_id = Column(String(50), unique=True, nullable=False, index=True)
+    name = Column(String(100), nullable=False)
+    description = Column(Text, nullable=True)
+    icon = Column(String(50), nullable=True)
+    order = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
+    updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
+
+    # 关系
+    categories = relationship("AIToolCategoryModel", back_populates="toolset", cascade="all, delete-orphan")
+    tools = relationship("AIToolModel", back_populates="toolset", cascade="all, delete-orphan")
+
+
+class AIToolCategoryModel(Base):
+    """AI工具分类数据库模型"""
+    __tablename__ = "ai_tool_categories"
+
+    id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    toolset_id = Column(CHAR(36), ForeignKey("toolsets.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(50), nullable=False)
+    icon = Column(String(50), nullable=True)
+    order = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
+    updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
+
+    # 关系
+    toolset = relationship("ToolsetModel", back_populates="categories")
+    tools = relationship("AIToolModel", back_populates="category", cascade="all, delete-orphan")
+
+
+class AIToolModel(Base):
+    """AI工具数据库模型"""
+    __tablename__ = "ai_tools"
+
+    id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    tool_id = Column(String(50), unique=True, nullable=False, index=True)
+    toolset_id = Column(CHAR(36), ForeignKey("toolsets.id", ondelete="CASCADE"), nullable=False, index=True)
+    category_id = Column(CHAR(36), ForeignKey("ai_tool_categories.id", ondelete="SET NULL"), nullable=True)
+    name = Column(String(100), nullable=False)
+    description = Column(Text, nullable=True)
+    system_prompt = Column(Text, nullable=True)
+    icon = Column(String(50), nullable=True)
+    type = Column(Enum(AIToolType), nullable=False, default=AIToolType.normal)
+    content_type = Column(String(20), nullable=True)
+    media_type = Column(String(20), nullable=True)
+    model = Column(String(100), nullable=True)
+    welcome_message = Column(Text, nullable=True)
+    visible = Column(Boolean, nullable=False, default=True, index=True)
+    order = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
+    updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
+
+    # 关系
+    toolset = relationship("ToolsetModel", back_populates="tools")
+    category = relationship("AIToolCategoryModel", back_populates="tools")
+
+    # 联合索引
+    __table_args__ = (
+        Index("idx_ai_tool_toolset_order", "toolset_id", "order"),
+        Index("idx_ai_tool_category_order", "category_id", "order"),
+    )
+
+
 class TokenUsageLogModel(Base):
     """Token使用日志数据库模型（SQLAlchemy ORM）"""
     __tablename__ = "token_usage_logs"
