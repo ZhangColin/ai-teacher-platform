@@ -24,6 +24,11 @@
       </div>
     </Transition>
 
+    <!-- 输入工具栏 -->
+    <div class="input-toolbar">
+      <ModelSelector />
+    </div>
+
     <ChatInput
       ref="chatInputRef"
       :disabled="disabled"
@@ -37,6 +42,7 @@
 import { ref, watch } from 'vue';
 import MessageList from './chat/MessageList.vue';
 import ChatInput from './chat/ChatInput.vue';
+import ModelSelector from './ModelSelector.vue';
 import { useSessionStore } from '../stores/sessionStore';
 import type { Message } from '@/types';
 
@@ -184,5 +190,19 @@ defineExpose({
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+/* 输入工具栏 */
+.input-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid #e5e7eb;
+  background: #fafafa;
+}
+
+.input-toolbar:empty {
+  display: none;
 }
 </style>

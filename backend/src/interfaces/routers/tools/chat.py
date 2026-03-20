@@ -19,6 +19,8 @@ from src.interfaces.dependencies import (
 from src.services.ai_service import AIService
 from src.services.session_service import SessionService
 from src.services.tool_service import ToolService
+from src.services.token_service import TokenService
+from src.database import get_db
 from typing import Annotated
 from src.interfaces.auth import get_current_user
 
@@ -102,8 +104,16 @@ async def chat_stream(
             user_id=current_user.user_id
         )
 
-        # 准备模型配置
-        model_config = tool.model if tool.model else None
+        # 准备模型配置（优先级：用户请求 > 会话模型 > 工具默认模型）
+        model_config = request.model  # 用户手动选择的模型
+        if not model_config and session and session.model_provider and session.model_name:
+            # 会话级别的模型
+            model_config = f"{session.model_provider}:{session.model_name}"
+        if not model_config:
+            # 工具默认模型
+            model_config = tool.model if tool.model else None
+
+        logger.info(f"📊 使用模型配置: {model_config or '系统默认'}")
 
         # 获取流式响应
         async def generate():
@@ -116,27 +126,87 @@ async def chat_stream(
                 yield f"data: {session_event}\n\n"
 
                 full_response = ""
+                usage_info = None  # 用于存储最终的usage信息
+
                 async for chunk in ai_service.chat_stream(
                     system_prompt=tool.system_prompt,
                     history=history_messages,
                     user_message=request.message,
                     model_config=model_config
                 ):
-                    full_response += chunk
-                    # 发送SSE格式数据
-                    yield f"data: {json.dumps({'content': chunk}, ensure_ascii=False)}\n\n"
+                    # 检查是否是usage信息（字典类型）
+                    if isinstance(chunk, dict):
+                        if chunk.get('type') == 'usage':
+                            usage_info = chunk
+                            logger.info(f"📊 收到Token使用信息: {usage_info}")
+                            continue  # 不发送usage信息给前端
+                    else:
+                        # 普通内容chunk
+                        full_response += chunk
+                        # 发送SSE格式数据
+                        yield f"data: {json.dumps({'content': chunk}, ensure_ascii=False)}\n\n"
 
                 # 发送结束标记
                 yield "data: [DONE]\n\n"
 
-                # 保存AI消息
+                # 解析模型信息（用于记录）
+                model_provider = None
+                model_name = None
+                if model_config and ":" in model_config:
+                    model_provider, model_name = model_config.split(":", 1)
+
+                # 保存AI消息（带token信息）
                 session_service.add_message(
                     session_id=session_id,
                     role="assistant",
                     content=full_response,
-                    user_id=current_user.user_id
+                    user_id=current_user.user_id,
+                    model_provider=model_provider,
+                    model_name=model_name,
+                    prompt_tokens=usage_info.get('prompt_tokens') if usage_info else None,
+                    completion_tokens=usage_info.get('completion_tokens') if usage_info else None,
+                    total_tokens=usage_info.get('total_tokens') if usage_info else None
                 )
-                logger.info(f"✅ AI 消息已保存")
+                logger.info(f"✅ AI 消息已保存（含token信息）")
+
+                # 记录Token使用日志
+                if usage_info and model_provider and model_name:
+                    try:
+                        # 获取当前消息的ID（刚刚保存的AI消息）
+                        messages = session_service.get_messages_by_session(session_id, user_id=current_user.user_id)
+                        if messages and len(messages) > 0:
+                            ai_message = messages[-1]  # 最后一条消息就是刚保存的AI消息
+                            if ai_message.message_id:
+                                # 创建token日志
+                                from sqlalchemy.orm import Session
+                                db = next(get_db())
+                                try:
+                                    token_service = TokenService(db)
+                                    token_service.create_token_log(
+                                        user_id=current_user.user_id,
+                                        session_id=session_id,
+                                        message_id=ai_message.message_id,
+                                        model_provider=model_provider,
+                                        model_name=model_name,
+                                        prompt_tokens=usage_info['prompt_tokens'],
+                                        completion_tokens=usage_info['completion_tokens'],
+                                        total_tokens=usage_info['total_tokens']
+                                    )
+                                    logger.info(f"✅ Token日志已记录")
+                                finally:
+                                    db.close()
+                    except Exception as e:
+                        logger.error(f"❌ 记录Token日志失败: {e}", exc_info=True)
+
+                # 更新会话的模型选择（如果用户手动选择了模型）
+                if request.model and model_provider and model_name:
+                    session_service.update_session_model(
+                        session_id=session_id,
+                        model_provider=model_provider,
+                        model_name=model_name,
+                        user_id=current_user.user_id
+                    )
+                    logger.info(f"✅ 会话模型已更新为 {model_provider}:{model_name}")
 
                 # 检查是否是第一轮对话，如果是则生成标题
                 messages = session_service.get_messages_by_session(session_id, user_id=current_user.user_id)
@@ -255,25 +325,85 @@ async def chat_non_stream(
             user_id=current_user.user_id
         )
 
-        # 获取AI响应
-        model_config = tool.model if tool.model else None
-        response = await ai_service.chat(
+        # 准备模型配置（优先级：用户请求 > 会话模型 > 工具默认模型）
+        model_config = request.model  # 用户手动选择的模型
+        if not model_config and session and session.model_provider and session.model_name:
+            # 会话级别的模型
+            model_config = f"{session.model_provider}:{session.model_name}"
+        if not model_config:
+            # 工具默认模型
+            model_config = tool.model if tool.model else None
+
+        logger.info(f"📊 使用模型配置: {model_config or '系统默认'}")
+
+        # 获取AI响应（现在返回元组：(content, usage_info)）
+        response_content, usage_info = await ai_service.chat(
             system_prompt=tool.system_prompt,
             history=history_messages,
             user_message=request.message,
             model_config=model_config
         )
 
-        # 保存AI消息
+        # 解析模型信息（用于记录）
+        model_provider = None
+        model_name = None
+        if model_config and ":" in model_config:
+            model_provider, model_name = model_config.split(":", 1)
+
+        # 保存AI消息（带token信息）
         session_service.add_message(
             session_id=session_id,
             role="assistant",
-            content=response,
-            user_id=current_user.user_id
+            content=response_content,
+            user_id=current_user.user_id,
+            model_provider=model_provider,
+            model_name=model_name,
+            prompt_tokens=usage_info.get('prompt_tokens') if usage_info else None,
+            completion_tokens=usage_info.get('completion_tokens') if usage_info else None,
+            total_tokens=usage_info.get('total_tokens') if usage_info else None
         )
+        logger.info(f"✅ AI 消息已保存（含token信息）")
+
+        # 记录Token使用日志
+        if usage_info and model_provider and model_name:
+            try:
+                # 获取当前消息的ID（刚刚保存的AI消息）
+                messages = session_service.get_messages_by_session(session_id, user_id=current_user.user_id)
+                if messages and len(messages) > 0:
+                    ai_message = messages[-1]  # 最后一条消息就是刚保存的AI消息
+                    if ai_message.message_id:
+                        # 创建token日志
+                        db = next(get_db())
+                        try:
+                            token_service = TokenService(db)
+                            token_service.create_token_log(
+                                user_id=current_user.user_id,
+                                session_id=session_id,
+                                message_id=ai_message.message_id,
+                                model_provider=model_provider,
+                                model_name=model_name,
+                                prompt_tokens=usage_info['prompt_tokens'],
+                                completion_tokens=usage_info['completion_tokens'],
+                                total_tokens=usage_info['total_tokens']
+                            )
+                            logger.info(f"✅ Token日志已记录")
+                        finally:
+                            db.close()
+            except Exception as e:
+                logger.error(f"❌ 记录Token日志失败: {e}", exc_info=True)
+
+        # 更新会话的模型选择（如果用户手动选择了模型）
+        if request.model and model_provider and model_name:
+            session_service.update_session_model(
+                session_id=session_id,
+                model_provider=model_provider,
+                model_name=model_name,
+                user_id=current_user.user_id
+            )
+            logger.info(f"✅ 会话模型已更新为 {model_provider}:{model_name}")
 
         # 解析成果物
-        artifacts = artifact_parser.parse_from_markdown(response)
+        artifacts = artifact_parser.parse_from_markdown(response_content)
 
         # 检查是否是第一轮对话，如果是则生成标题
         messages = session_service.get_messages_by_session(session_id, user_id=current_user.user_id)
@@ -299,10 +429,23 @@ async def chat_non_stream(
         else:
             logger.info(f"非第一轮对话，跳过标题生成")
 
+        # 构建响应（包含token信息）
+        from src.models import TokenUsage
+        token_usage = None
+        if usage_info and model_provider and model_name:
+            token_usage = TokenUsage(
+                model_provider=model_provider,
+                model_name=model_name,
+                prompt_tokens=usage_info.get('prompt_tokens', 0),
+                completion_tokens=usage_info.get('completion_tokens', 0),
+                total_tokens=usage_info.get('total_tokens', 0)
+            )
+
         return ChatResponse(
-            reply=response,
+            reply=response_content,
             artifacts=artifacts,
-            session_id=session_id
+            session_id=session_id,
+            token_usage=token_usage
         )
 
     except HTTPException:

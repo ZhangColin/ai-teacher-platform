@@ -80,6 +80,7 @@ export interface MediaGenerateRequest {
   size?: string
   count?: number
   style?: string
+  model?: string  // 模型选择（格式：provider:model_name）
 }
 
 /**

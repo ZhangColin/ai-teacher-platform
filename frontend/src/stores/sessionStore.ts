@@ -13,6 +13,7 @@ export const useSessionStore = defineStore('session', () => {
   const error = ref<string | null>(null)
   const currentPreviewArtifact = ref<Artifact | null>(null)
   const titleGeneratedSessionId = ref<string | null>(null) // 标题生成完成的会话ID
+  const currentModel = ref<string | null>(null) // 当前选择的模型（格式：provider:model_name）
 
   // 计算属性
   const hasSession = computed(() => sessionId.value !== null)
@@ -92,6 +93,7 @@ export const useSessionStore = defineStore('session', () => {
             role: msg.role,
             content: msg.content,
           })),
+          model: currentModel.value || undefined, // 传递当前选择的模型
         },
         (data) => {
           // 处理流式数据块
@@ -272,6 +274,14 @@ export const useSessionStore = defineStore('session', () => {
   }
 
   /**
+   * 设置当前选择的模型
+   */
+  function setCurrentModel(model: string | null) {
+    currentModel.value = model
+    console.log('[sessionStore] 模型已切换为:', model)
+  }
+
+  /**
    * 完全重置状态（包括清空toolId，用于登出等场景）
    */
   function reset() {
@@ -281,6 +291,7 @@ export const useSessionStore = defineStore('session', () => {
     currentPreviewArtifact.value = null
     error.value = null
     loading.value = false
+    currentModel.value = null  // 清空模型选择
 
   }
 
@@ -293,6 +304,7 @@ export const useSessionStore = defineStore('session', () => {
     error,
     currentPreviewArtifact,
     titleGeneratedSessionId,
+    currentModel,
     // 计算属性
     hasSession,
     messageCount,
@@ -305,6 +317,7 @@ export const useSessionStore = defineStore('session', () => {
     retryMessage,
     clearSession,
     reset,
+    setCurrentModel,
   }
 })
 

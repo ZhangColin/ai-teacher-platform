@@ -12,6 +12,13 @@
       <div class="message-list-placeholder">
         <p>MessageList 组件暂时不可用</p>
       </div>
+
+      <!-- 输入工具栏 -->
+      <div class="input-toolbar">
+        <ModelSelector />
+        <!-- 预留位置：未来添加的附件、语音等功能按钮 -->
+      </div>
+
       <InputArea
         :loading="sessionStore.loading"
         :disabled="sessionStore.loading"
@@ -35,6 +42,7 @@ import { restoreSession, deleteSession } from '../utils/sessionStorage'
 // import MessageList from './MessageList.vue' // 文件不存在，暂时注释
 import InputArea from './InputArea.vue'
 import PreviewPanel from './PreviewPanel.vue'
+import ModelSelector from './ModelSelector.vue'
 // import type { Artifact, Message } from '../types' // 暂时不需要，因为相关函数被注释
 
 const props = defineProps<{
@@ -211,6 +219,20 @@ onMounted(() => {
 .chat-interface:not(.with-preview) .chat-panel {
   width: 100%;
   border-right: none;
+}
+
+/* 输入工具栏 */
+.input-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid #e5e7eb;
+  background: #fafafa;
+}
+
+.input-toolbar:empty {
+  display: none;
 }
 </style>
 

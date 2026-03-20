@@ -202,18 +202,28 @@ class SessionService:
         role: str,
         content: str,
         user_id: Optional[str] = None,
-        created_at: Optional[datetime] = None
+        created_at: Optional[datetime] = None,
+        model_provider: Optional[str] = None,
+        model_name: Optional[str] = None,
+        prompt_tokens: Optional[int] = None,
+        completion_tokens: Optional[int] = None,
+        total_tokens: Optional[int] = None
     ) -> MessageDomain:
         """
         添加消息到会话
-        
+
         Args:
             session_id: 会话ID
             role: 消息角色（'user' 或 'assistant'）
             content: 消息内容
             user_id: 用户ID（可选，如果提供则验证会话是否属于该用户）
             created_at: 消息创建时间（可选，如果不提供则使用当前时间）
-            
+            model_provider: AI服务提供商（可选，用于token记录）
+            model_name: 模型名称（可选，用于token记录）
+            prompt_tokens: 用户消息的token消耗（可选）
+            completion_tokens: AI回复的token消耗（可选）
+            total_tokens: 总token消耗（可选）
+
         Returns:
             Message 领域模型实例
         """
@@ -222,11 +232,11 @@ class SessionService:
             query = db.query(SessionModel).filter(SessionModel.session_id == session_id)
             if user_id:
                 query = query.filter(SessionModel.user_id == user_id)
-            
+
             session_model = query.first()
             if not session_model:
                 raise ValueError(f"Session '{session_id}' not found")
-            
+
             # 创建消息（使用传入的时间或当前时间）
             message_time = created_at if created_at is not None else datetime.now()
             message_id = str(uuid.uuid4())
@@ -235,17 +245,31 @@ class SessionService:
                 session_id=session_id,
                 role=MessageRole(role),
                 content=content,
-                created_at=message_time
+                created_at=message_time,
+                # 新增：模型和token字段
+                model_provider=model_provider,
+                model_name=model_name,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                total_tokens=total_tokens
             )
-            
+
             db.add(message_model)
-            
+
             # 更新会话的 updated_at
             session_model.updated_at = datetime.now()
-            
+
+            # 如果提供了token信息，更新会话的token累计
+            if total_tokens is not None:
+                session_model.total_tokens = (session_model.total_tokens or 0) + total_tokens
+                if prompt_tokens is not None:
+                    session_model.total_prompt_tokens = (session_model.total_prompt_tokens or 0) + prompt_tokens
+                if completion_tokens is not None:
+                    session_model.total_completion_tokens = (session_model.total_completion_tokens or 0) + completion_tokens
+
             db.commit()
             db.refresh(message_model)
-            
+
             # 转换为领域模型
             return self._to_domain_model_message(message_model)
     
@@ -422,14 +446,14 @@ class SessionService:
     ) -> MessageDomain:
         """
         保存多模态消息
-        
+
         Args:
             message_id: 消息ID
             session_id: 会话ID
             role: 角色（user/assistant）
             content: 文本内容（可为空）
             media_content: 多模态内容JSON字符串
-            
+
         Returns:
             Message 领域模型实例
         """
@@ -442,14 +466,14 @@ class SessionService:
                 content=content,
                 created_at=datetime.now()
             )
-            
+
             # 设置多模态内容
             message_model.media_content = media_content
-            
+
             db.add(message_model)
             db.commit()
             db.refresh(message_model)
-            
+
             # 更新会话的updated_at
             session_model = db.query(SessionModel).filter(
                 SessionModel.session_id == session_id
@@ -457,5 +481,98 @@ class SessionService:
             if session_model:
                 session_model.updated_at = datetime.now()
                 db.commit()
-            
+
             return self._to_domain_model_message(message_model)
+
+    def update_session_model(
+        self,
+        session_id: str,
+        model_provider: str,
+        model_name: str,
+        user_id: Optional[str] = None
+    ) -> bool:
+        """
+        更新会话的模型选择
+
+        Args:
+            session_id: 会话ID
+            model_provider: AI服务提供商
+            model_name: 模型名称
+            user_id: 用户ID（可选，用于权限验证）
+
+        Returns:
+            是否更新成功
+        """
+        try:
+            with self._get_db_session() as db:
+                # 构建查询
+                query = db.query(SessionModel).filter(SessionModel.session_id == session_id)
+                if user_id:
+                    query = query.filter(SessionModel.user_id == user_id)
+
+                session_model = query.first()
+                if not session_model:
+                    logger.warning(f"会话 {session_id} 不存在，无法更新模型")
+                    return False
+
+                # 更新模型信息
+                session_model.model_provider = model_provider
+                session_model.model_name = model_name
+                session_model.updated_at = datetime.now()
+
+                db.commit()
+                logger.info(
+                    f"会话 {session_id} 的模型已更新为 {model_provider}:{model_name}"
+                )
+                return True
+
+        except Exception as e:
+            logger.error(f"更新会话模型失败: {e}", exc_info=True)
+            return False
+
+    def update_session_tokens(
+        self,
+        session_id: str,
+        prompt_tokens: int,
+        completion_tokens: int,
+        total_tokens: int
+    ) -> bool:
+        """
+        更新会话的token累计（如果消息已单独保存，此方法用于更新会话级别的统计）
+
+        Args:
+            session_id: 会话ID
+            prompt_tokens: 本次对话的prompt token数
+            completion_tokens: 本次对话的completion token数
+            total_tokens: 本次对话的总token数
+
+        Returns:
+            是否更新成功
+        """
+        try:
+            with self._get_db_session() as db:
+                session_model = db.query(SessionModel).filter(
+                    SessionModel.session_id == session_id
+                ).first()
+
+                if not session_model:
+                    logger.warning(f"会话 {session_id} 不存在，无法更新token统计")
+                    return False
+
+                # 累加token数
+                session_model.total_prompt_tokens = (session_model.total_prompt_tokens or 0) + prompt_tokens
+                session_model.total_completion_tokens = (session_model.total_completion_tokens or 0) + completion_tokens
+                session_model.total_tokens = (session_model.total_tokens or 0) + total_tokens
+                session_model.updated_at = datetime.now()
+
+                db.commit()
+                logger.debug(
+                    f"会话 {session_id} 的token统计已更新: "
+                    f"总计={session_model.total_tokens}"
+                )
+                return True
+
+        except Exception as e:
+            logger.error(f"更新会话token统计失败: {e}", exc_info=True)
+            return False
+

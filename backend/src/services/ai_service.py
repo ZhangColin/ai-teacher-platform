@@ -398,26 +398,40 @@ class AIService:
         
         return result
     
-    async def chat(self, system_prompt: str, history: List[Dict[str, str]], user_message: str, max_continue: int = 3, model_config: Optional[str] = None) -> str:
+    async def chat(self, system_prompt: str, history: List[Dict[str, str]], user_message: str, max_continue: int = 3, model_config: Optional[str] = None) -> tuple[str, Optional[dict]]:
         """
         进行对话（非流式）
-        
+
         Args:
             system_prompt: Agent 的系统提示词
             history: 历史消息列表（格式：[{"role": "user/assistant", "content": "..."}, ...]）
             user_message: 用户当前消息
             max_continue: 最大继续生成次数（防止无限递归）
             model_config: 模型配置（格式：provider:model_name），如果为 None 使用默认配置
-            
+
         Returns:
-            AI 生成的回复
+            (AI生成的回复内容, token使用信息字典)
+            token使用信息格式：{
+                'prompt_tokens': int,
+                'completion_tokens': int,
+                'total_tokens': int,
+                'model_provider': str,
+                'model_name': str
+            }
+            如果获取失败，第二个元素为None
         """
         # 获取客户端和模型
         client, model_name = self._get_ai_client(model_config) if model_config else (self.default_client, self.default_model_name)
-        
+
+        # 解析provider（用于返回usage信息）
+        if model_config and ":" in model_config:
+            provider = model_config.split(":", 1)[0].lower()
+        else:
+            provider = os.getenv("CURRENT_PROVIDER", "deepseek").lower()
+
         # 无客户端时的模拟返回
         if not client:
-            return f"Mock 回复：收到你的消息「{user_message}」"
+            return f"Mock 回复：收到你的消息「{user_message}」", None
         
         try:
             # 构建消息链：System Prompt + History + Current Input
@@ -438,9 +452,24 @@ class AIService:
                 messages=messages,
                 temperature=0.7
             )
-            
+
             result = response.choices[0].message.content
             finish_reason = response.choices[0].finish_reason
+
+            # 提取token使用信息
+            usage_info = None
+            if hasattr(response, 'usage') and response.usage:
+                usage_info = {
+                    'prompt_tokens': response.usage.prompt_tokens,
+                    'completion_tokens': response.usage.completion_tokens,
+                    'total_tokens': response.usage.total_tokens,
+                    'model_provider': provider,
+                    'model_name': model_name
+                }
+                logger.info(f"Token使用: {usage_info}")
+            else:
+                logger.warning("API响应未包含usage信息")
+
             logger.info(f"AI 返回的回复长度: {len(result)} 字符, finish_reason: {finish_reason}")
             
             # 如果内容包含HTML，记录详细信息用于排查
@@ -606,38 +635,45 @@ class AIService:
                     logger.info(f"包含 </html> 标签: {'</html>' in accumulated_result.lower()}")
                     logger.info("=" * 80)
                 
-                return accumulated_result
-            
-            return result
+                return accumulated_result, usage_info
+
+            return result, usage_info
         except Exception as e:
             error_type = type(e).__name__
             logger.error(f"AI 服务调用异常（对话）- 错误类型: {error_type}: {e}", exc_info=True)
             
             # 根据错误类型返回友好提示
             if "timeout" in str(e).lower() or "timed out" in str(e).lower():
-                return "⚠️ AI服务响应超时，可能是网络问题，请稍后重试。"
+                return "⚠️ AI服务响应超时，可能是网络问题，请稍后重试。", None
             elif "connection" in str(e).lower():
-                return "⚠️ 无法连接到AI服务，请检查网络或API配置。"
+                return "⚠️ 无法连接到AI服务，请检查网络或API配置。", None
             else:
-                return f"⚠️ AI服务调用失败: {str(e)[:100]}"
+                return f"⚠️ AI服务调用失败: {str(e)[:100]}", None
     
-    async def chat_stream(self, system_prompt: str, history: List[Dict[str, str]], user_message: str, max_continue: int = 3, model_config: Optional[str] = None) -> AsyncGenerator[str, None]:
+    async def chat_stream(self, system_prompt: str, history: List[Dict[str, str]], user_message: str, max_continue: int = 3, model_config: Optional[str] = None) -> AsyncGenerator[str | dict, None]:
         """
         进行对话（流式输出）
-        
+
         Args:
             system_prompt: Agent 的系统提示词
             history: 历史消息列表（格式：[{"role": "user/assistant", "content": "..."}, ...]）
             user_message: 用户当前消息
             max_continue: 最大继续生成次数（防止无限递归）
             model_config: 模型配置（格式：provider:model_name），如果为 None 使用默认配置
-            
+
         Yields:
-            str: AI 生成的回复片段（逐块返回）
+            str | dict: AI生成的回复片段（逐块返回），或包含token使用信息的字典
+            Token信息格式：{'type': 'usage', 'prompt_tokens': int, 'completion_tokens': int, 'total_tokens': int, 'model_provider': str, 'model_name': str}
         """
         # 获取客户端和模型
         client, model_name = self._get_ai_client(model_config) if model_config else (self.default_client, self.default_model_name)
-        
+
+        # 解析provider（用于返回usage信息）
+        if model_config and ":" in model_config:
+            provider = model_config.split(":", 1)[0].lower()
+        else:
+            provider = os.getenv("CURRENT_PROVIDER", "deepseek").lower()
+
         # 无客户端时的模拟返回
         if not client:
             mock_reply = f"Mock 回复：收到你的消息「{user_message}」"
@@ -645,6 +681,15 @@ class AIService:
             for char in mock_reply:
                 yield char
                 await asyncio.sleep(0.05)  # 模拟延迟
+            # Mock模式返回空的usage
+            yield {
+                'type': 'usage',
+                'prompt_tokens': 0,
+                'completion_tokens': 0,
+                'total_tokens': 0,
+                'model_provider': provider,
+                'model_name': model_name
+            }
             return
         
         try:
@@ -669,10 +714,12 @@ class AIService:
                 temperature=0.7,
                 stream=True  # 启用流式输出
             )
-            
+
             # 逐块返回内容（在异步上下文中处理同步流）
             accumulated_content = ""
             finish_reason = None
+            usage_info = None  # 用于存储最终的usage信息
+
             for chunk in stream:
                 if chunk.choices and len(chunk.choices) > 0:
                     choice = chunk.choices[0]
@@ -682,11 +729,39 @@ class AIService:
                         yield delta.content
                         # 让出控制权，允许其他协程运行，确保流式数据及时发送
                         await asyncio.sleep(0.001)  # 很小的延迟，确保流式效果
-                    
+
                     # 检查是否完成，并记录 finish_reason
                     if choice.finish_reason:
                         finish_reason = choice.finish_reason
                         logger.info(f"流式输出完成，finish_reason: {finish_reason}, 已生成内容长度: {len(accumulated_content)}")
+
+                # 捕获usage信息（通常在最后一个chunk中）
+                if hasattr(chunk, 'usage') and chunk.usage:
+                    usage_info = {
+                        'prompt_tokens': chunk.usage.prompt_tokens,
+                        'completion_tokens': chunk.usage.completion_tokens,
+                        'total_tokens': chunk.usage.total_tokens,
+                        'model_provider': provider,
+                        'model_name': model_name
+                    }
+                    logger.info(f"捕获到token使用信息: {usage_info}")
+
+            # 在流结束时yield usage信息
+            if usage_info:
+                yield {
+                    'type': 'usage',
+                    **usage_info
+                }
+            else:
+                logger.warning("流式响应中未找到usage信息")
+                yield {
+                    'type': 'usage',
+                    'prompt_tokens': 0,
+                    'completion_tokens': 0,
+                    'total_tokens': 0,
+                    'model_provider': provider,
+                    'model_name': model_name
+                }
             
             # 如果因为达到最大token限制而截断，判断是否需要自动继续
             # 只有在以下情况才自动继续：
@@ -770,7 +845,7 @@ class AIService:
         except Exception as e:
             error_type = type(e).__name__
             logger.error(f"AI 服务调用异常（流式对话）- 错误类型: {error_type}: {e}", exc_info=True)
-            
+
             # 根据不同错误类型给出更友好的提示
             if "timeout" in str(e).lower() or "timed out" in str(e).lower():
                 yield "⚠️ AI服务响应超时，可能是网络问题。建议：\n1. 检查网络连接\n2. 如果使用代理，请确认代理设置正确\n3. 稍后重试"
@@ -778,6 +853,16 @@ class AIService:
                 yield "⚠️ 无法连接到AI服务，请检查：\n1. 网络是否正常\n2. API密钥是否正确\n3. 服务提供商是否可用"
             else:
                 yield f"⚠️ AI服务调用失败: {str(e)[:100]}\n请稍后重试或联系管理员。"
+
+            # 即使出错也yield一个空的usage，保持协议一致
+            yield {
+                'type': 'usage',
+                'prompt_tokens': 0,
+                'completion_tokens': 0,
+                'total_tokens': 0,
+                'model_provider': provider if 'provider' in locals() else 'unknown',
+                'model_name': model_name if 'model_name' in locals() else 'unknown'
+            }
     
     # ==================== 多模态生成功能 ====================
     

@@ -35,18 +35,27 @@ class MessageRole(enum.Enum):
 class SessionModel(Base):
     """会话数据库模型（SQLAlchemy ORM）"""
     __tablename__ = "sessions"
-    
+
     session_id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(CHAR(36), ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False, index=True)
     tool_id = Column(String(50), nullable=False, index=True)
     title = Column(String(200), nullable=False)
     created_at = Column(DateTime, nullable=False, default=datetime.now)
     updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now, index=True)
-    
+
+    # 模型选择相关字段（新增）
+    model_provider = Column(String(50), nullable=True, comment="AI服务提供商（deepseek/openai/kimi/glm）")
+    model_name = Column(String(100), nullable=True, comment="使用的模型名称（如deepseek-chat/gpt-4）")
+
+    # Token统计相关字段（新增）
+    total_tokens = Column(Integer, nullable=False, default=0, comment="会话总token消耗")
+    total_prompt_tokens = Column(Integer, nullable=False, default=0, comment="会话总prompt token消耗")
+    total_completion_tokens = Column(Integer, nullable=False, default=0, comment="会话总completion token消耗")
+
     # 关系
     user = relationship("UserModel", back_populates="sessions")
     messages = relationship("MessageModel", back_populates="session", cascade="all, delete-orphan", order_by="MessageModel.created_at")
-    
+
     # 联合索引
     __table_args__ = (
         Index("idx_user_tool", "user_id", "tool_id"),
@@ -56,16 +65,23 @@ class SessionModel(Base):
 class MessageModel(Base):
     """消息数据库模型（SQLAlchemy ORM）"""
     __tablename__ = "messages"
-    
+
     message_id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     session_id = Column(CHAR(36), ForeignKey("sessions.session_id", ondelete="CASCADE"), nullable=False, index=True)
     role = Column(Enum(MessageRole), nullable=False)
     content = Column(Text, nullable=False)
     created_at = Column(DateTime, nullable=False, default=datetime.now, index=True)
-    
-    # 多模态支持字段（新增）
+
+    # 多模态支持字段
     media_content = Column(Text, nullable=True, comment="多模态内容JSON字符串")
-    
+
+    # 模型和Token相关字段（新增）
+    model_provider = Column(String(50), nullable=True, comment="AI服务提供商")
+    model_name = Column(String(100), nullable=True, comment="使用的模型名称")
+    prompt_tokens = Column(Integer, nullable=True, comment="用户消息的token消耗")
+    completion_tokens = Column(Integer, nullable=True, comment="AI回复的token消耗")
+    total_tokens = Column(Integer, nullable=True, comment="本条消息的总token消耗")
+
     # 关系
     session = relationship("SessionModel", back_populates="messages")
     artifacts = relationship("ArtifactModel", back_populates="message", cascade="all, delete-orphan")
@@ -196,7 +212,7 @@ class CourseCategoryModel(Base):
 class CourseDocumentModel(Base):
     """文档数据库模型（SQLAlchemy ORM）"""
     __tablename__ = "course_documents"
-    
+
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     title = Column(String(200), nullable=False)
     summary = Column(String(500), nullable=False)
@@ -205,12 +221,40 @@ class CourseDocumentModel(Base):
     order = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime, nullable=False, default=datetime.now)
     updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
-    
+
     # 关系
     category = relationship("CourseCategoryModel", back_populates="documents")
-    
+
     # 联合索引（按分类和排序查询）
     __table_args__ = (
         Index("idx_course_document_category_order", "category_id", "order"),
+    )
+
+
+class TokenUsageLogModel(Base):
+    """Token使用日志数据库模型（SQLAlchemy ORM）"""
+    __tablename__ = "token_usage_logs"
+
+    id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(CHAR(36), ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False, index=True)
+    session_id = Column(CHAR(36), ForeignKey("sessions.session_id", ondelete="CASCADE"), nullable=False, index=True)
+    message_id = Column(CHAR(36), ForeignKey("messages.message_id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # 模型信息
+    model_provider = Column(String(50), nullable=False, comment="AI服务提供商")
+    model_name = Column(String(100), nullable=False, comment="模型名称")
+
+    # Token消耗
+    prompt_tokens = Column(Integer, nullable=False, comment="Prompt token数")
+    completion_tokens = Column(Integer, nullable=False, comment="Completion token数")
+    total_tokens = Column(Integer, nullable=False, comment="总token数")
+
+    created_at = Column(DateTime, nullable=False, default=datetime.now, index=True)
+
+    # 联合索引
+    __table_args__ = (
+        Index("idx_token_user_date", "user_id", "created_at"),
+        Index("idx_token_session", "session_id"),
+        Index("idx_token_provider", "model_provider"),
     )
 

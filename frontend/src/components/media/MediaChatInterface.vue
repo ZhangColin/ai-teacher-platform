@@ -104,11 +104,16 @@
     
     <!-- 输入框区域（固定在底部） -->
     <div class="input-area">
+      <!-- 输入工具栏 -->
+      <div class="input-toolbar">
+        <ModelSelector />
+      </div>
+
       <!-- 输入框 -->
-      <ChatInput 
+      <ChatInput
         placeholder="描述你想要的画面..."
-        @send="handleSendMessage" 
-        :disabled="isGenerating" 
+        @send="handleSendMessage"
+        :disabled="isGenerating"
       />
     </div>
     
@@ -130,9 +135,11 @@ import { parseMediaContent, DEFAULT_GENERATE_PARAMS } from '../../types/media'
 import { generateMedia, pollTaskStatus } from '../../services/mediaApi'
 import { downloadImage } from '../../services/mediaApi'
 import { ApiService } from '../../services/apiClient'
+import { useSessionStore } from '../../stores/sessionStore'
 import ChatInput from '../ChatInput.vue'
 import ImageLightbox from './ImageLightbox.vue'
 import WelcomeMessage from '../WelcomeMessage.vue'
+import ModelSelector from '../ModelSelector.vue'
 
 const props = defineProps<{
   toolId: string
@@ -145,6 +152,9 @@ const emit = defineEmits<{
   'session-created': [sessionId: string]
   'title-generated': [sessionId: string]
 }>()
+
+// Store
+const sessionStore = useSessionStore()
 
 // 状态
 const sessionId = ref<string>('')
@@ -203,7 +213,8 @@ async function handleSend(prompt: string, params: MediaGenerateParams) {
       session_id: sessionId.value || undefined,
       size: params.size,
       count: params.count,
-      style: params.style
+      style: params.style,
+      model: sessionStore.currentModel || undefined  // 传递模型选择
     })
     
     // 更新session_id
@@ -312,16 +323,17 @@ async function handleRetry(message: MediaMessage) {
   
   try {
     isGenerating.value = true
-    
+
     await scrollToBottom()
-    
+
     // 调用生成API
     const response = await generateMedia(props.toolId, {
       message: userMessage.content,
       session_id: sessionId.value || undefined,
       size: generateParams.value.size,
       count: generateParams.value.count,
-      style: generateParams.value.style
+      style: generateParams.value.style,
+      model: sessionStore.currentModel || undefined  // 传递模型选择
     })
     
     // 更新任务ID
@@ -500,6 +512,20 @@ onMounted(() => {
 .input-area {
   @apply py-6 px-6 border-t border-gray-200 flex-shrink-0 bg-white;
   box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.04);
+}
+
+/* 输入工具栏 */
+.input-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid #e5e7eb;
+  background: #fafafa;
+}
+
+.input-toolbar:empty {
+  display: none;
 }
 
 
