@@ -20,7 +20,6 @@
 ### 创建的文件
 - `backend/alembic/versions/YYYYMMDD_HHMMSS_merge_toolsets_to_navigation_modules.py` - 数据库迁移脚本
 - `backend/src/interfaces/routers/admin/navigation_categories.py` - 导航模块分类管理路由（新建）
-- `frontend/src/views/admin/AdminNavigationModulesPage.vue` - 替换现有的 AdminNavigationPage.vue
 
 ### 修改的文件
 - `backend/src/db_models.py` - 修改 NavigationModuleModel, AIToolCategoryModel, AIToolModel
@@ -31,6 +30,7 @@
 - `backend/src/main.py` - 路由注册
 - `frontend/src/services/apiClient.ts` - 更新 API 调用
 - `frontend/src/stores/navigationStore.ts` - 更新状态管理
+- `frontend/src/views/admin/AdminNavigationPage.vue` - 增加分类管理功能（修改现有文件）
 - `frontend/src/views/admin/AdminAIToolsPage.vue` - 更新 AI 工具管理页面
 - `frontend/src/views/admin/AdminLayout.vue` - 删除菜单项
 - `frontend/src/router/index.ts` - 删除路由
