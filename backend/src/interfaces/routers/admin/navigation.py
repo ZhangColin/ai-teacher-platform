@@ -30,10 +30,14 @@ router = APIRouter(prefix="/api/v1/admin", tags=["管理员-导航模块"])
 
 def _model_to_response(model: NavigationModuleModel) -> AdminNavigationModuleListItem:
     """将数据库模型转换为响应模型"""
+    type_value = model.type.value
+    # 兼容处理：如果是 toolset（旧数据），返回 ai_tools
+    if type_value == "toolset":
+        type_value = "ai_tools"
     return AdminNavigationModuleListItem(
         id=str(model.id),
         name=model.name,
-        type=model.type.value,
+        type=type_value,
         config_source=model.config_source,
         page_path=model.page_path,
         icon=model.icon,
@@ -69,10 +73,10 @@ async def create_navigation_module(
     """创建导航模块（管理后台）"""
     try:
         # 验证配置
-        if request.type == "toolset" and not request.config_source:
+        if request.type == "ai_tools" and not request.config_source:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="toolset类型必须指定config_source"
+                detail="ai_tools类型必须指定config_source"
             )
         if request.type == "page" and not request.page_path:
             raise HTTPException(
