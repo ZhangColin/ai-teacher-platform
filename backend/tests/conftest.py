@@ -1,11 +1,17 @@
 # -*- coding: utf-8 -*-
 """pytest统一配置和fixtures"""
 import sys
+import os
 from pathlib import Path
 
 # 添加backend目录到Python路径，确保无论从哪个目录运行都能找到src模块
 backend_dir = Path(__file__).parent
 sys.path.insert(0, str(backend_dir))
+
+# ==================== 环境变量设置 ====================
+# 设置测试所需的环境变量
+os.environ.setdefault("JWT_SECRET_KEY", "test_secret_key_for_testing_only")
+os.environ.setdefault("ENCRYPTION_KEY", "test_encryption_key_32_bytes_long!")
 
 # ==================== 测试环境设置 ====================
 # 在导入任何模块之前，先创建测试工具配置
