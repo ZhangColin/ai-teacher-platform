@@ -40,6 +40,11 @@
         </el-form-item>
         <el-form-item label="API密钥">
           <el-input v-model="providerForm.api_key" type="password" show-password placeholder="留空则不修改" />
+          <div v-if="getApiKeyUrl(providerForm.provider_code)" class="api-key-link">
+            <a :href="getApiKeyUrl(providerForm.provider_code)" target="_blank" rel="noopener noreferrer">
+              获取 API 密钥 →
+            </a>
+          </div>
         </el-form-item>
         <el-form-item label="API地址">
           <el-input v-model="providerForm.base_url" placeholder="https://api.openai.com/v1" />
@@ -262,6 +267,19 @@ const handleSaveModel = async () => {
   }
 }
 
+// 获取供应商 API 密钥页面 URL
+const getApiKeyUrl = (providerCode: string): string => {
+  const urlMap: Record<string, string> = {
+    'deepseek': 'https://platform.deepseek.com/api_keys',
+    'kimi': 'https://platform.moonshot.cn/console/api-keys',
+    'moonshot': 'https://platform.moonshot.cn/console/api-keys',
+    'openai': 'https://platform.openai.com/api-keys',
+    'zhipu': 'https://open.bigmodel.cn/usercenter/apikeys',
+    'glm': 'https://open.bigmodel.cn/usercenter/apikeys'
+  }
+  return urlMap[providerCode] || ''
+}
+
 onMounted(() => {
   loadProviders()
 })
@@ -288,5 +306,19 @@ onMounted(() => {
 
 .models-header h3 {
   margin: 0;
+}
+
+.api-key-link {
+  margin-top: 5px;
+  font-size: 12px;
+}
+
+.api-key-link a {
+  color: #409eff;
+  text-decoration: none;
+}
+
+.api-key-link a:hover {
+  text-decoration: underline;
 }
 </style>
