@@ -51,12 +51,22 @@
 **Files:**
 - Create: `backend/alembic/versions/{timestamp}_merge_toolsets_to_navigation_modules.py`
 
-- [ ] **Step 1: 生成迁移模板**
+- [ ] **Step 1: 检查当前数据库版本**
+
+运行: `cd backend && alembic current`
+预期: 显示当前数据库版本，应该是 `705c676a8b9f` 或更新版本
+
+- [ ] **Step 2: 备份数据库**
+
+运行: `mysqldump -u root -p ai_teacher_platform > backup_before_migration.sql`
+预期: 创建备份文件
+
+- [ ] **Step 3: 生成迁移模板**
 
 运行: `cd backend && alembic revision -m "merge_toolsets_to_navigation_modules"`
 预期: 生成新的迁移文件
 
-- [ ] **Step 2: 编写迁移脚本**
+- [ ] **Step 4: 编写迁移脚本**
 
 编辑生成的迁移文件，内容如下：
 
@@ -544,6 +554,8 @@ git commit -m "refactor: 更新 Pydantic 模型，toolset -> navigation_module"
 **Files:**
 - Modify: `backend/src/interfaces/routers/navigation.py`
 - Modify: `backend/src/interfaces/routers/tools/list.py`
+
+**说明：** 本次重构将完全废弃从 YAML 配置文件读取数据的方式，`ConfigService` 将不再被前端用户 API 使用。所有数据改为从数据库读取。
 
 - [ ] **Step 1: 更新 navigation.py**
 
@@ -1175,12 +1187,18 @@ app.include_router(new_admin_toolsets_router.router)
 app.include_router(new_admin_ai_categories_router.router)
 ```
 
-- [ ] **Step 3: 运行后端测试**
+同时清理 main.py 中与这些路由相关的注释（约第 88-129 行），删除所有提及 `toolsets` 或 `ai_tool_categories` 路由迁移的注释。
+
+- [ ] **Step 3: 清理 main.py 中的遗留注释**
+
+检查 main.py，删除所有与已删除路由相关的注释行。
+
+- [ ] **Step 4: 运行后端测试**
 
 运行: `cd backend && python -m pytest tests/ -v -x`
 预期: 测试通过（部分测试可能需要更新）
 
-- [ ] **Step 4: 提交**
+- [ ] **Step 5: 提交**
 
 ```bash
 git add backend/src/interfaces/routers/admin/ backend/src/main.py
@@ -1438,15 +1456,23 @@ git commit -m "refactor: 更新 navigationStore 枚举值"
 
 ---
 
-### Task 12: 创建新的导航模块管理页面
+### Task 12: 增强导航模块管理页面
 
 **Files:**
-- Create: `frontend/src/views/admin/AdminNavigationModulesPage.vue`
+- Modify: `frontend/src/views/admin/AdminNavigationPage.vue`（直接修改现有文件）
 - Modify: `frontend/src/router/index.ts`
 
-- [ ] **Step 1: 创建新的导航模块管理页面**
+**说明：** 直接修改现有的 `AdminNavigationPage.vue` 文件，增加分类管理功能，而不是创建新文件。
 
-创建 `frontend/src/views/admin/AdminNavigationModulesPage.vue`，在现有的 AdminNavigationPage.vue 基础上增加分类管理功能：
+- [ ] **Step 1: 备份现有文件（可选）**
+
+```bash
+cp frontend/src/views/admin/AdminNavigationPage.vue frontend/src/views/admin/AdminNavigationPage.vue.bak
+```
+
+- [ ] **Step 2: 修改导航模块管理页面**
+
+修改 `frontend/src/views/admin/AdminNavigationPage.vue`，在现有基础上增加分类管理功能：
 
 ```vue
 <template>
@@ -2068,13 +2094,13 @@ async function loadNavigationModules() {  // 修改函数名
 
 async function loadCategories() {
   try {
-    // 加载所有分类（可能需要分模块加载）
-    const allCategories: AdminNavigationModuleCategoryListItem[] = []
-    for (const module of navigationModules.value) {
-      const response = await ApiService.getAdminNavigationModuleCategories(module.id)
-      allCategories.push(...response.categories)
+    // 只加载当前筛选的导航模块的分类，避免 N+1 查询
+    if (!filterNavigationModuleId.value) {
+      categories.value = []
+      return
     }
-    categories.value = allCategories
+    const response = await ApiService.getAdminNavigationModuleCategories(filterNavigationModuleId.value)
+    categories.value = response.categories
   } catch (error: any) {
     ElMessage.error(error.message || '加载分类失败')
   }
@@ -2219,18 +2245,45 @@ git commit -m "refactor: 删除工具集和AI工具分类管理页面"
 ### Task 15: 更新前端用户界面
 
 **Files:**
-- Modify: `frontend/src/components/ChatPanel.vue` 或其他使用工具列表的组件
-- Modify: `frontend/src/views/AIToolsLayout.vue` 或类似组件
+- Modify: `frontend/src/components/AIToolSelector.vue`（如果使用工具列表API）
+- Modify: `frontend/src/components/ModelSelector.vue`（如果使用工具列表API）
+- Modify: `frontend/src/layouts/MainLayout.vue`（如果使用工具列表API）
+- Modify: `frontend/src/stores/navigationStore.ts`（已在前面的任务中处理）
 
-- [ ] **Step 1: 查找使用旧 API 的组件**
+**说明：** 根据代码搜索，以下文件可能使用工具列表相关的API：
+- `frontend/src/components/AIToolSelector.vue`
+- `frontend/src/components/ModelSelector.vue`
+- `frontend/src/layouts/MainLayout.vue`
 
-搜索使用 `getToolsByToolset` 的组件
+- [ ] **Step 1: 检查每个文件是否使用旧 API**
+
+对每个文件运行以下检查：
+- 是否调用 `getToolsByToolset()`
+- 是否使用 `toolset_id` 参数
 
 - [ ] **Step 2: 更新 API 调用**
 
 将 `getToolsByToolset(toolsetId)` 改为 `getToolsByNavigationModule(moduleId)`
 
-- [ ] **Step 3: 提交**
+示例：
+```typescript
+// 修改前
+const response = await apiClient.get<ToolListResponse>(`/toolsets/${toolsetId}/tools`)
+
+// 修改后
+const response = await apiClient.get<ToolListResponse>(`/navigation-modules/${moduleId}/tools`)
+```
+
+- [ ] **Step 3: 运行类型检查**
+
+```bash
+cd frontend
+npx vue-tsc --noEmit
+```
+
+预期：无类型错误
+
+- [ ] **Step 4: 提交**
 
 ```bash
 git add frontend/src/components/ frontend/src/views/
