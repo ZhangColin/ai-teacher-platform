@@ -98,6 +98,19 @@ import type {
 import type { NavigationResponse } from '../types/navigation'
 
 /**
+ * 文件上传响应格式
+ */
+export interface FileUploadResponse {
+  success: boolean
+  file_id?: string
+  content?: string
+  content_preview?: string
+  filename: string
+  provider: string
+  mode: 'api' | 'text_extraction'
+}
+
+/**
  * API 错误响应格式
  */
 export interface ApiErrorResponse {
