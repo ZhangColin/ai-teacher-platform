@@ -78,7 +78,7 @@ import {
 
 const props = defineProps<{
   collapsed?: boolean
-  toolsetId?: string  // 工具集ID（可选），如果指定则只加载该工具集的工具
+  moduleId?: string  // 导航模块ID（可选），如果指定则只加载该模块的工具
 }>()
 
 const emit = defineEmits<{
@@ -118,11 +118,11 @@ function getIconComponent(iconName: string) {
 async function loadTools() {
   loading.value = true
   error.value = null
-  
+
   try {
-    // 根据是否有 toolsetId 决定调用哪个 API
-    const response = props.toolsetId
-      ? await ApiService.getToolsetTools(props.toolsetId)
+    // 根据是否有 moduleId 决定调用哪个 API
+    const response = props.moduleId
+      ? await ApiService.getToolsByNavigationModule(props.moduleId)
       : await ApiService.getTools()
 
     if (!response) {
@@ -135,7 +135,7 @@ async function loadTools() {
     }
 
     categories.value = response.categories
-    
+
     // 如果有工具，默认选中第一个（包括占位工具）
     if (categories.value.length > 0 && categories.value[0]?.tools && categories.value[0].tools.length > 0) {
       const firstTool = categories.value[0].tools[0]
@@ -152,8 +152,8 @@ async function loadTools() {
   }
 }
 
-// 监听 toolsetId 变化，重新加载工具
-watch(() => props.toolsetId, () => {
+// 监听 moduleId 变化，重新加载工具
+watch(() => props.moduleId, () => {
   loadTools()
 })
 

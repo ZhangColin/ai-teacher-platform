@@ -69,9 +69,8 @@ const currentComponentProps = computed(() => {
   }
 
   if (currentModule.value.type === 'toolset') {
-    // 工具集模块：传递 toolsetId
-    const toolsetId = navigationStore.getToolsetId(currentModule.value)
-    return toolsetId ? { toolsetId } : {}
+    // 工具集模块：传递 moduleId
+    return { moduleId: moduleId.value }
   }
 
   return {}

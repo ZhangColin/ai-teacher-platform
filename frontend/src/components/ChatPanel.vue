@@ -1,11 +1,18 @@
 <template>
   <div class="chat-panel" data-testid="chat-panel">
-    <MessageList
-      ref="messageListRef"
-      :messages="messages"
-      :streaming-content="streamingContent"
-      :auto-scroll="autoScroll"
-    />
+    <div class="messages-area">
+      <!-- 欢迎语（仅在没有消息时显示） -->
+      <div v-if="messages.length === 0" class="welcome-area">
+        <WelcomeMessage :welcome-message="welcomeMessage" />
+      </div>
+
+      <MessageList
+        ref="messageListRef"
+        :messages="messages"
+        :streaming-content="streamingContent"
+        :auto-scroll="autoScroll"
+      />
+    </div>
 
     <Transition name="fade">
       <div v-if="error" class="error-message" role="alert" aria-live="assertive" data-testid="error-message">
@@ -43,6 +50,7 @@ import { ref, watch } from 'vue';
 import MessageList from './chat/MessageList.vue';
 import ChatInput from './chat/ChatInput.vue';
 import ModelSelector from './ModelSelector.vue';
+import WelcomeMessage from './WelcomeMessage.vue';
 import { useSessionStore } from '../stores/sessionStore';
 import type { Message } from '@/types';
 
@@ -130,6 +138,23 @@ defineExpose({
   flex-direction: column;
   height: 100%;
   background-color: #f5f5f5;
+}
+
+/* 消息内容区域 */
+.messages-area {
+  flex: 1;
+  overflow-y: auto;
+  background: white;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 欢迎语区域 */
+.welcome-area {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
 }
 
 .error-message {

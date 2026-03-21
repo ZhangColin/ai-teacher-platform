@@ -2,11 +2,11 @@
   <div class="toolset-layout">
     <!-- 左侧：工具选择器 -->
     <aside class="sidebar" :class="{ collapsed: sidebarCollapsed }">
-      <AIToolSelector 
+      <AIToolSelector
         :collapsed="sidebarCollapsed"
-        :toolset-id="toolsetId"
-        @collapse-change="handleSidebarCollapse" 
-        @tool-change="handleToolChange" 
+        :module-id="moduleId"
+        @collapse-change="handleSidebarCollapse"
+        @tool-change="handleToolChange"
       />
     </aside>
     
@@ -58,9 +58,9 @@ import MediaChatArea from '../components/MediaChatArea.vue'
 import ComingSoon from '../components/ComingSoon.vue'
 import type { ToolListItem } from '../types'
 
-// Props：接收工具集ID
+// Props：接收导航模块ID
 const props = defineProps<{
-  toolsetId: string
+  moduleId: string
 }>()
 
 const sidebarCollapsed = ref(false)

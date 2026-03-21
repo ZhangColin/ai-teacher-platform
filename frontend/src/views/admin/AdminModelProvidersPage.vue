@@ -108,7 +108,13 @@
           <el-input v-model="modelForm.model_name" />
         </el-form-item>
         <el-form-item label="支持能力">
-          <el-input v-model="modelForm.capabilities" placeholder="chat,image,code" />
+          <el-checkbox-group v-model="modelForm.capabilitiesArray">
+            <el-checkbox label="chat">对话</el-checkbox>
+            <el-checkbox label="image">图片生成</el-checkbox>
+            <el-checkbox label="audio">音频生成</el-checkbox>
+            <el-checkbox label="video">视频生成</el-checkbox>
+            <el-checkbox label="code">代码</el-checkbox>
+          </el-checkbox-group>
         </el-form-item>
         <el-form-item label="启用">
           <el-switch v-model="modelForm.is_enabled" />
@@ -125,7 +131,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import ApiService from '@/services/apiClient'
+import { ApiService } from '@/services/apiClient'
 import type {
   ModelProviderListItem,
   ModelConfigListItem,
@@ -156,11 +162,17 @@ const providerForm = ref<CreateModelProviderRequest>({
 const modelsDialogVisible = ref(false)
 const modelDialogVisible = ref(false)
 const editingModel = ref<ModelConfigListItem | null>(null)
-const modelForm = ref<CreateModelConfigRequest>({
+const modelForm = ref<{
+  provider_id: string
+  model_code: string
+  model_name: string
+  capabilitiesArray: string[]
+  is_enabled: boolean
+}>({
   provider_id: '',
   model_code: '',
   model_name: '',
-  capabilities: 'chat',
+  capabilitiesArray: ['chat'],
   is_enabled: true
 })
 
@@ -255,7 +267,7 @@ const showCreateModelDialog = () => {
     provider_id: currentProvider.value.id,
     model_code: '',
     model_name: '',
-    capabilities: 'chat',
+    capabilitiesArray: ['chat'],
     is_enabled: true
   }
   modelDialogVisible.value = true
@@ -268,7 +280,7 @@ const showEditModelDialog = (model: ModelConfigListItem) => {
     provider_id: model.provider_id,
     model_code: model.model_code,
     model_name: model.model_name,
-    capabilities: model.capabilities.join(','),
+    capabilitiesArray: model.capabilities,
     is_enabled: model.is_enabled
   }
   modelDialogVisible.value = true
@@ -277,11 +289,18 @@ const showEditModelDialog = (model: ModelConfigListItem) => {
 // 保存模型
 const handleSaveModel = async () => {
   try {
+    // 将数组转为逗号分隔的字符串
+    const requestData = {
+      ...modelForm.value,
+      capabilities: modelForm.value.capabilitiesArray.join(',')
+    }
+    delete (requestData as any).capabilitiesArray
+
     if (editingModel.value) {
-      await ApiService.updateModelConfig(editingModel.value.id, modelForm.value)
+      await ApiService.updateModelConfig(editingModel.value.id, requestData)
       ElMessage.success('更新成功')
     } else {
-      await ApiService.createModelConfig(modelForm.value)
+      await ApiService.createModelConfig(requestData)
       ElMessage.success('创建成功')
     }
     modelDialogVisible.value = false
