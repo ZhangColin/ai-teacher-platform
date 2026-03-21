@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from src.models import ChatRequest, ChatResponse, Message, Artifact, UserInfo
 from src.interfaces.dependencies import (
-    get_ai_service,
+    get_ai_service_with_db,
     get_session_service,
     get_tool_service,
     get_artifact_parser,
@@ -34,7 +34,7 @@ async def chat_stream(
     tool_id: str,
     request: ChatRequest,
     current_user: Annotated[UserInfo, Depends(get_current_user)],
-    ai_service: AIService = Depends(get_ai_service),
+    ai_service: AIService = Depends(get_ai_service_with_db),
     session_service: SessionService = Depends(get_session_service),
     tool_service: ToolService = Depends(get_tool_service),
     title_generator = Depends(get_title_generator),
@@ -263,7 +263,7 @@ async def chat_non_stream(
     tool_id: str,
     request: ChatRequest,
     current_user: Annotated[UserInfo, Depends(get_current_user)],
-    ai_service: AIService = Depends(get_ai_service),
+    ai_service: AIService = Depends(get_ai_service_with_db),
     session_service: SessionService = Depends(get_session_service),
     tool_service: ToolService = Depends(get_tool_service),
     artifact_parser = Depends(get_artifact_parser),

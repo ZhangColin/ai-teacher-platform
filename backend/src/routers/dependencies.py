@@ -7,7 +7,10 @@ import sys
 import os
 from pathlib import Path
 from functools import lru_cache
+from typing import Generator
 from dotenv import load_dotenv
+from fastapi import Depends
+from sqlalchemy.orm import Session
 
 # 加载环境变量（必须在导入服务之前执行）
 load_dotenv()
@@ -31,6 +34,16 @@ from src.services.work_service import WorkService
 from src.services.course_service import CourseService
 from src.services.title_generator import TitleGenerator
 from src.services.model_service import ModelService
+from src.database import SessionLocal
+
+
+def get_db() -> Generator[Session, None, None]:
+    """获取数据库会话"""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
 @lru_cache
@@ -60,23 +73,26 @@ def get_session_service() -> SessionService:
     return SessionService()
 
 
-@lru_cache
-def get_ai_service() -> AIService:
-    """获取 AI 服务实例（单例，不使用数据库）"""
-    return AIService(db=None)
-
-
-def get_ai_service_with_db(db):
+def get_ai_service_with_db(db: Session = Depends(get_db)) -> AIService:
     """
     获取 AI 服务实例（带数据库支持）
 
+    注意：不使用 @lru_cache，因为每次需要新的数据库会话
+
     Args:
-        db: 数据库会话
+        db: 数据库会话（通过依赖注入）
 
     Returns:
         AIService 实例
     """
     return AIService(db=db)
+
+
+# 为了向后兼容，保留旧函数（不推荐使用）
+@lru_cache
+def get_ai_service() -> AIService:
+    """获取 AI 服务实例（单例，不使用数据库）- 已弃用，请使用 get_ai_service_with_db"""
+    return AIService(db=None)
 
 
 @lru_cache
