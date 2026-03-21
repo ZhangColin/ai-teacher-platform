@@ -65,20 +65,13 @@ import type {
   UpdateNavigationModuleRequest,
   UpdateNavigationModuleResponse,
   MoveNavigationModuleResponse,
-  // 工具集管理
-  AdminToolsetListResponse,
-  CreateToolsetRequest,
-  CreateToolsetResponse,
-  UpdateToolsetRequest,
-  UpdateToolsetResponse,
-  MoveToolsetResponse,
-  // AI工具分类管理
-  AdminAIToolCategoryListResponse,
-  CreateAIToolCategoryRequest,
-  CreateAIToolCategoryResponse,
-  UpdateAIToolCategoryRequest,
-  UpdateAIToolCategoryResponse,
-  MoveAIToolCategoryResponse,
+  // 导航模块分类管理
+  AdminNavigationModuleCategoryListResponse,
+  CreateNavigationModuleCategoryRequest,
+  CreateNavigationModuleCategoryResponse,
+  UpdateNavigationModuleCategoryRequest,
+  UpdateNavigationModuleCategoryResponse,
+  MoveNavigationModuleCategoryResponse,
   // AI工具管理
   AdminAIToolListResponse,
   CreateAIToolRequest,
@@ -87,6 +80,20 @@ import type {
   UpdateAIToolResponse,
   MoveAIToolResponse,
   ToggleAIToolVisibilityResponse,
+  // 模型供应商管理
+  ModelProviderListResponse,
+  ModelProviderListItem,
+  CreateModelProviderRequest,
+  CreateModelProviderResponse,
+  UpdateModelProviderRequest,
+  UpdateModelProviderResponse,
+  ModelConfigListResponse,
+  ModelConfigListItem,
+  CreateModelConfigRequest,
+  CreateModelConfigResponse,
+  UpdateModelConfigRequest,
+  UpdateModelConfigResponse,
+  AvailableModelResponse,
 } from '../types'
 import type { NavigationResponse } from '../types/navigation'
 
@@ -221,11 +228,19 @@ export class ApiService {
   }
 
   /**
-   * 获取指定工具集的工具列表（按分类组织）
-   * @param toolsetId 工具集ID
+   * 获取指定导航模块的工具列表（按分类组织）
+   * @param moduleId 导航模块ID
    */
-  static async getToolsetTools(toolsetId: string): Promise<ToolListResponse> {
-    const response = await apiClient.get<ToolListResponse>(`/toolsets/${toolsetId}/tools`)
+  static async getToolsByNavigationModule(moduleId: string): Promise<ToolListResponse> {
+    const response = await apiClient.get<ToolListResponse>(`/navigation-modules/${moduleId}/tools`)
+    return response.data
+  }
+
+  /**
+   * 获取所有工具列表（按分类组织）
+   */
+  static async getAllTools(): Promise<ToolListResponse> {
+    const response = await apiClient.get<ToolListResponse>('/navigation-modules/tools')
     return response.data
   }
 
@@ -1048,101 +1063,64 @@ export class ApiService {
     return response.data
   }
 
-  // ==================== 工具集管理 ====================
+  // ==================== 导航模块分类管理 ====================
 
   /**
-   * 获取工具集列表（管理后台）
+   * 获取导航模块分类列表（管理后台）
    */
-  static async getAdminToolsets(): Promise<AdminToolsetListResponse> {
-    const response = await apiClient.get<AdminToolsetListResponse>('/admin/toolsets')
+  static async getAdminNavigationModuleCategories(moduleId: string): Promise<AdminNavigationModuleCategoryListResponse> {
+    const response = await apiClient.get<AdminNavigationModuleCategoryListResponse>(
+      `/admin/navigation-modules/${moduleId}/categories`
+    )
     return response.data
   }
 
   /**
-   * 创建工具集（管理后台）
+   * 创建导航模块分类（管理后台）
    */
-  static async createToolset(request: CreateToolsetRequest): Promise<CreateToolsetResponse> {
-    const response = await apiClient.post<CreateToolsetResponse>('/admin/toolsets', request)
+  static async createNavigationModuleCategory(moduleId: string, request: CreateNavigationModuleCategoryRequest): Promise<CreateNavigationModuleCategoryResponse> {
+    const response = await apiClient.post<CreateNavigationModuleCategoryResponse>(
+      `/admin/navigation-modules/${moduleId}/categories`,
+      request
+    )
     return response.data
   }
 
   /**
-   * 更新工具集（管理后台）
+   * 更新导航模块分类（管理后台）
    */
-  static async updateToolset(toolsetId: string, request: UpdateToolsetRequest): Promise<UpdateToolsetResponse> {
-    const response = await apiClient.patch<UpdateToolsetResponse>(`/admin/toolsets/${toolsetId}`, request)
+  static async updateNavigationModuleCategory(moduleId: string, categoryId: string, request: UpdateNavigationModuleCategoryRequest): Promise<UpdateNavigationModuleCategoryResponse> {
+    const response = await apiClient.put<UpdateNavigationModuleCategoryResponse>(
+      `/admin/navigation-modules/${moduleId}/categories/${categoryId}`,
+      request
+    )
     return response.data
   }
 
   /**
-   * 删除工具集（管理后台）
+   * 删除导航模块分类（管理后台）
    */
-  static async deleteToolset(toolsetId: string): Promise<void> {
-    await apiClient.delete(`/admin/toolsets/${toolsetId}`)
+  static async deleteNavigationModuleCategory(moduleId: string, categoryId: string): Promise<void> {
+    await apiClient.delete(`/admin/navigation-modules/${moduleId}/categories/${categoryId}`)
   }
 
   /**
-   * 上移工具集（管理后台）
+   * 上移导航模块分类（管理后台）
    */
-  static async moveToolsetUp(toolsetId: string): Promise<MoveToolsetResponse> {
-    const response = await apiClient.post<MoveToolsetResponse>(`/admin/toolsets/${toolsetId}/move-up`)
+  static async moveNavigationModuleCategoryUp(moduleId: string, categoryId: string): Promise<MoveNavigationModuleCategoryResponse> {
+    const response = await apiClient.post<MoveNavigationModuleCategoryResponse>(
+      `/admin/navigation-modules/${moduleId}/categories/${categoryId}/move-up`
+    )
     return response.data
   }
 
   /**
-   * 下移工具集（管理后台）
+   * 下移导航模块分类（管理后台）
    */
-  static async moveToolsetDown(toolsetId: string): Promise<MoveToolsetResponse> {
-    const response = await apiClient.post<MoveToolsetResponse>(`/admin/toolsets/${toolsetId}/move-down`)
-    return response.data
-  }
-
-  // ==================== AI工具分类管理 ====================
-
-  /**
-   * 获取AI工具分类列表（管理后台）
-   */
-  static async getAdminAIToolCategories(): Promise<AdminAIToolCategoryListResponse> {
-    const response = await apiClient.get<AdminAIToolCategoryListResponse>('/admin/ai-tool-categories')
-    return response.data
-  }
-
-  /**
-   * 创建AI工具分类（管理后台）
-   */
-  static async createAIToolCategory(request: CreateAIToolCategoryRequest): Promise<CreateAIToolCategoryResponse> {
-    const response = await apiClient.post<CreateAIToolCategoryResponse>('/admin/ai-tool-categories', request)
-    return response.data
-  }
-
-  /**
-   * 更新AI工具分类（管理后台）
-   */
-  static async updateAIToolCategory(categoryId: string, request: UpdateAIToolCategoryRequest): Promise<UpdateAIToolCategoryResponse> {
-    const response = await apiClient.patch<UpdateAIToolCategoryResponse>(`/admin/ai-tool-categories/${categoryId}`, request)
-    return response.data
-  }
-
-  /**
-   * 删除AI工具分类（管理后台）
-   */
-  static async deleteAIToolCategory(categoryId: string): Promise<void> {
-    await apiClient.delete(`/admin/ai-tool-categories/${categoryId}`)
-  }
-
-  /**
-   * 上移AI工具分类（管理后台）
-   */
-  static async moveAIToolCategoryUp(categoryId: string): Promise<MoveAIToolCategoryResponse> {
-    const response = await apiClient.post<MoveAIToolCategoryResponse>(`/admin/ai-tool-categories/${categoryId}/move-up`)
-    return response.data
-  }
-
-  /**
-   * 下移AI工具分类（管理后台）
-   */
-  static async moveAIToolCategoryDown(categoryId: string): Promise<MoveAIToolCategoryResponse> {
-    const response = await apiClient.post<MoveAIToolCategoryResponse>(`/admin/ai-tool-categories/${categoryId}/move-down`)
+  static async moveNavigationModuleCategoryDown(moduleId: string, categoryId: string): Promise<MoveNavigationModuleCategoryResponse> {
+    const response = await apiClient.post<MoveNavigationModuleCategoryResponse>(
+      `/admin/navigation-modules/${moduleId}/categories/${categoryId}/move-down`
+    )
     return response.data
   }
 
@@ -1151,9 +1129,9 @@ export class ApiService {
   /**
    * 获取AI工具列表（管理后台）
    */
-  static async getAdminAITools(toolsetId?: string, categoryId?: string, visible?: boolean): Promise<AdminAIToolListResponse> {
+  static async getAdminAITools(navigationModuleId?: string, categoryId?: string, visible?: boolean): Promise<AdminAIToolListResponse> {
     const params = new URLSearchParams()
-    if (toolsetId) params.append('toolset_id', toolsetId)
+    if (navigationModuleId) params.append('navigation_module_id', navigationModuleId)
     if (categoryId) params.append('category_id', categoryId)
     if (visible !== undefined) params.append('visible', visible.toString())
 
@@ -1318,9 +1296,9 @@ export class ApiService {
   }
 
   /**
-   * 获取可用的模型列表（公开接口）
+   * 获取可用的模型列表（从数据库，公开接口）
    */
-  static async getAvailableModels(providerId?: string): Promise<AvailableModelResponse> {
+  static async getAvailableModelsFromDB(providerId?: string): Promise<AvailableModelResponse> {
     const response = await apiClient.get<AvailableModelResponse>('/models/available', {
       params: { provider_id: providerId }
     })
