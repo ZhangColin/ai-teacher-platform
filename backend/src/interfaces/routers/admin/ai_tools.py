@@ -20,7 +20,12 @@ from src.models import (
     MoveAIToolResponse,
     ToggleAIToolVisibilityResponse,
 )
-from src.db_models import AIToolModel, ToolsetModel, AIToolCategoryModel, AIToolType
+from src.db_models import (
+    AIToolModel,
+    NavigationModuleModel,
+    AIToolCategoryModel,
+    AIToolType
+)
 from src.database import get_db
 from src.interfaces.dependencies import require_admin
 
@@ -29,13 +34,26 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/admin", tags=["管理员-AI工具"])
 
 
-def _model_to_response(model: AIToolModel) -> AdminAIToolListItem:
+def _model_to_response(model: AIToolModel, db: Session) -> AdminAIToolListItem:
     """将数据库模型转换为响应模型"""
+    # 获取导航模块名称
+    nav_module = db.query(NavigationModuleModel).filter(
+        NavigationModuleModel.id == model.navigation_module_id
+    ).first()
+    nav_module_name = nav_module.name if nav_module else ""
+
+    # 获取分类名称
+    category = db.query(AIToolCategoryModel).filter(
+        AIToolCategoryModel.id == model.category_id
+    ).first() if model.category_id else None
+
     return AdminAIToolListItem(
         id=str(model.id),
         tool_id=model.tool_id,
-        toolset_id=model.toolset_id,
+        navigation_module_id=str(model.navigation_module_id),
+        navigation_module_name=nav_module_name,
         category_id=str(model.category_id) if model.category_id else None,
+        category_name=category.name if category else None,
         name=model.name,
         description=model.description,
         system_prompt=model.system_prompt,
@@ -52,7 +70,7 @@ def _model_to_response(model: AIToolModel) -> AdminAIToolListItem:
 
 @router.get("/ai-tools", response_model=AdminAIToolListResponse)
 async def get_ai_tools(
-    toolset_id: Optional[str] = None,
+    navigation_module_id: Optional[str] = None,
     category_id: Optional[str] = None,
     visible: Optional[bool] = None,
     current_user: Annotated[UserInfo, Depends(require_admin)] = None,
@@ -62,13 +80,9 @@ async def get_ai_tools(
     try:
         query = db.query(AIToolModel)
 
-        if toolset_id:
-            # 根据toolset_id查找工具集
-            toolset = db.query(ToolsetModel).filter(
-                ToolsetModel.toolset_id == toolset_id
-            ).first()
-            if toolset:
-                query = query.filter(AIToolModel.toolset_id == toolset.id)
+        if navigation_module_id:
+            # 根据navigation_module_id查找工具
+            query = query.filter(AIToolModel.navigation_module_id == navigation_module_id)
 
         if category_id:
             query = query.filter(AIToolModel.category_id == category_id)
@@ -79,7 +93,7 @@ async def get_ai_tools(
         tools = query.order_by(AIToolModel.order).all()
 
         return AdminAIToolListResponse(
-            tools=[_model_to_response(t) for t in tools],
+            tools=[_model_to_response(t, db) for t in tools],
             total=len(tools)
         )
     except Exception as e:
@@ -98,27 +112,27 @@ async def create_ai_tool(
 ):
     """创建AI工具（管理后台）"""
     try:
-        # 查找工具集
-        toolset = db.query(ToolsetModel).filter(
-            ToolsetModel.toolset_id == request.toolset_id
+        # 验证导航模块存在
+        nav_module = db.query(NavigationModuleModel).filter(
+            NavigationModuleModel.id == request.navigation_module_id
         ).first()
-
-        if not toolset:
+        if not nav_module:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"工具集 '{request.toolset_id}' 不存在"
+                detail=f"导航模块 '{request.navigation_module_id}' 不存在"
             )
 
-        # 如果指定了分类，验证分类是否存在
+        # 如果指定了分类，验证分类是否存在且属于该导航模块
         category = None
         if request.category_id:
             category = db.query(AIToolCategoryModel).filter(
-                AIToolCategoryModel.id == request.category_id
+                AIToolCategoryModel.id == request.category_id,
+                AIToolCategoryModel.navigation_module_id == request.navigation_module_id
             ).first()
             if not category:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"工具分类 '{request.category_id}' 不存在"
+                    detail=f"工具分类 '{request.category_id}' 不存在或不属于该导航模块"
                 )
 
         # 检查tool_id是否重复
@@ -134,7 +148,7 @@ async def create_ai_tool(
         # 创建新工具
         db_tool = AIToolModel(
             tool_id=request.tool_id,
-            toolset_id=toolset.id,
+            navigation_module_id=request.navigation_module_id,
             category_id=category.id if category else None,
             name=request.name,
             description=request.description,
@@ -153,7 +167,7 @@ async def create_ai_tool(
         db.refresh(db_tool)
 
         return CreateAIToolResponse(
-            tool=_model_to_response(db_tool)
+            tool=_model_to_response(db_tool, db)
         )
     except HTTPException:
         raise
@@ -199,16 +213,29 @@ async def update_ai_tool(
                 )
             tool.tool_id = request.tool_id
 
+        if request.navigation_module_id is not None:
+            # 验证导航模块存在
+            nav_module = db.query(NavigationModuleModel).filter(
+                NavigationModuleModel.id == request.navigation_module_id
+            ).first()
+            if not nav_module:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"导航模块 '{request.navigation_module_id}' 不存在"
+                )
+            tool.navigation_module_id = request.navigation_module_id
+
         if request.category_id is not None:
-            # 验证分类是否存在
+            # 验证分类是否存在且属于当前导航模块
             if request.category_id:
                 category = db.query(AIToolCategoryModel).filter(
-                    AIToolCategoryModel.id == request.category_id
+                    AIToolCategoryModel.id == request.category_id,
+                    AIToolCategoryModel.navigation_module_id == tool.navigation_module_id
                 ).first()
                 if not category:
                     raise HTTPException(
                         status_code=status.HTTP_404_NOT_FOUND,
-                        detail=f"工具分类 '{request.category_id}' 不存在"
+                        detail=f"工具分类 '{request.category_id}' 不存在或不属于该导航模块"
                     )
             tool.category_id = request.category_id
 
@@ -249,7 +276,7 @@ async def update_ai_tool(
         db.refresh(tool)
 
         return UpdateAIToolResponse(
-            tool=_model_to_response(tool)
+            tool=_model_to_response(tool, db)
         )
     except HTTPException:
         raise
@@ -313,9 +340,9 @@ async def move_ai_tool_up(
                 detail=f"AI工具 '{tool_id}' 不存在"
             )
 
-        # 找到当前工具前面的工具（同一工具集下）
+        # 找到当前工具前面的工具（同一导航模块下）
         previous_tool = db.query(AIToolModel).filter(
-            AIToolModel.toolset_id == tool.toolset_id,
+            AIToolModel.navigation_module_id == tool.navigation_module_id,
             AIToolModel.order < tool.order
         ).order_by(AIToolModel.order.desc()).first()
 
@@ -333,7 +360,7 @@ async def move_ai_tool_up(
 
         return MoveAIToolResponse(
             message="工具已上移",
-            tool=_model_to_response(tool)
+            tool=_model_to_response(tool, db)
         )
     except HTTPException:
         raise
@@ -364,9 +391,9 @@ async def move_ai_tool_down(
                 detail=f"AI工具 '{tool_id}' 不存在"
             )
 
-        # 找到当前工具后面的工具（同一工具集下）
+        # 找到当前工具后面的工具（同一导航模块下）
         next_tool = db.query(AIToolModel).filter(
-            AIToolModel.toolset_id == tool.toolset_id,
+            AIToolModel.navigation_module_id == tool.navigation_module_id,
             AIToolModel.order > tool.order
         ).order_by(AIToolModel.order.asc()).first()
 
@@ -384,7 +411,7 @@ async def move_ai_tool_down(
 
         return MoveAIToolResponse(
             message="工具已下移",
-            tool=_model_to_response(tool)
+            tool=_model_to_response(tool, db)
         )
     except HTTPException:
         raise
@@ -424,7 +451,7 @@ async def toggle_ai_tool_visibility(
 
         return ToggleAIToolVisibilityResponse(
             message=message,
-            tool=_model_to_response(tool)
+            tool=_model_to_response(tool, db)
         )
     except HTTPException:
         raise
