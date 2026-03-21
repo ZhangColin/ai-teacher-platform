@@ -47,7 +47,7 @@ async def test_get_navigation_modules_as_admin(async_client, db_session):
     module1 = NavigationModuleModel(
         id=str(uuid.uuid4()),
         name="AI工具",
-        type=NavigationModuleType.toolset,
+        type=NavigationModuleType.ai_tools,
         config_source="ai_tools",
         page_path=None,
         icon="sparkles",
@@ -241,7 +241,7 @@ async def test_create_navigation_module_duplicate_name(async_client, db_session)
 @pytest.mark.asyncio
 async def test_get_ai_tools_as_admin(async_client, db_session):
     """测试管理员获取AI工具列表"""
-    from src.db_models import UserModel, ToolsetModel, AIToolModel, AIToolCategoryModel, AIToolType
+    from src.db_models import UserModel, NavigationModuleModel, NavigationModuleType, AIToolModel, AIToolCategoryModel, AIToolType
     from src.services.auth_service import AuthService
     from src.models import User
     import bcrypt
@@ -275,17 +275,19 @@ async def test_get_ai_tools_as_admin(async_client, db_session):
     async_client.headers["Authorization"] = f"Bearer {token}"
 
     # 创建测试数据
-    toolset = ToolsetModel(
+    nav_module = NavigationModuleModel(
         id=str(uuid.uuid4()),
-        toolset_id="test_toolset",
-        name="测试工具集"
+        name="测试工具集",
+        type=NavigationModuleType.ai_tools,
+        config_source="test_tools",
+        order=1
     )
-    db_session.add(toolset)
+    db_session.add(nav_module)
     db_session.flush()
 
     category = AIToolCategoryModel(
         id=str(uuid.uuid4()),
-        toolset_id=toolset.id,
+        navigation_module_id=nav_module.id,
         name="测试分类",
         icon="test-icon",
         order=1
@@ -296,7 +298,7 @@ async def test_get_ai_tools_as_admin(async_client, db_session):
     tool1 = AIToolModel(
         id=str(uuid.uuid4()),
         tool_id="tool1",
-        toolset_id=toolset.id,
+        navigation_module_id=nav_module.id,
         category_id=category.id,
         name="工具1",
         description="测试工具1",
@@ -313,7 +315,7 @@ async def test_get_ai_tools_as_admin(async_client, db_session):
     tool2 = AIToolModel(
         id=str(uuid.uuid4()),
         tool_id="tool2",
-        toolset_id=toolset.id,
+        navigation_module_id=nav_module.id,
         category_id=category.id,
         name="工具2",
         description="测试工具2",
@@ -346,7 +348,7 @@ async def test_get_ai_tools_as_admin(async_client, db_session):
 @pytest.mark.asyncio
 async def test_get_ai_tools_with_filters(async_client, db_session):
     """测试带过滤条件的AI工具列表"""
-    from src.db_models import UserModel, ToolsetModel, AIToolModel, AIToolCategoryModel, AIToolType
+    from src.db_models import UserModel, NavigationModuleModel, NavigationModuleType, AIToolModel, AIToolCategoryModel, AIToolType
     from src.services.auth_service import AuthService
     from src.models import User
     import bcrypt
@@ -380,17 +382,19 @@ async def test_get_ai_tools_with_filters(async_client, db_session):
     async_client.headers["Authorization"] = f"Bearer {token}"
 
     # 创建测试数据
-    toolset = ToolsetModel(
+    nav_module = NavigationModuleModel(
         id=str(uuid.uuid4()),
-        toolset_id="filter_toolset",
-        name="过滤测试工具集"
+        name="过滤测试工具集",
+        type=NavigationModuleType.ai_tools,
+        config_source="filter_tools",
+        order=1
     )
-    db_session.add(toolset)
+    db_session.add(nav_module)
     db_session.flush()
 
     category = AIToolCategoryModel(
         id=str(uuid.uuid4()),
-        toolset_id=toolset.id,
+        navigation_module_id=nav_module.id,
         name="过滤分类",
         icon="filter",
         order=1
@@ -401,7 +405,7 @@ async def test_get_ai_tools_with_filters(async_client, db_session):
     tool1 = AIToolModel(
         id=str(uuid.uuid4()),
         tool_id="visible_tool",
-        toolset_id=toolset.id,
+        navigation_module_id=nav_module.id,
         category_id=category.id,
         name="可见工具",
         description="可见工具描述",
@@ -418,7 +422,7 @@ async def test_get_ai_tools_with_filters(async_client, db_session):
     tool2 = AIToolModel(
         id=str(uuid.uuid4()),
         tool_id="hidden_tool",
-        toolset_id=toolset.id,
+        navigation_module_id=nav_module.id,
         category_id=category.id,
         name="隐藏工具",
         description="隐藏工具描述",
@@ -463,7 +467,7 @@ async def test_get_ai_tools_without_auth(async_client):
 @pytest.mark.asyncio
 async def test_create_ai_tool(async_client, db_session):
     """测试创建AI工具"""
-    from src.db_models import UserModel, ToolsetModel, AIToolCategoryModel
+    from src.db_models import UserModel, NavigationModuleModel, NavigationModuleType, AIToolCategoryModel
     from src.services.auth_service import AuthService
     from src.models import User
     import bcrypt
@@ -496,18 +500,20 @@ async def test_create_ai_tool(async_client, db_session):
     # 设置认证头
     async_client.headers["Authorization"] = f"Bearer {token}"
 
-    # 创建测试工具集和分类
-    toolset = ToolsetModel(
+    # 创建测试导航模块和分类
+    nav_module = NavigationModuleModel(
         id=str(uuid.uuid4()),
-        toolset_id="create_test_toolset",
-        name="创建测试工具集"
+        name="创建测试工具集",
+        type=NavigationModuleType.ai_tools,
+        config_source="create_test_tools",
+        order=1
     )
-    db_session.add(toolset)
+    db_session.add(nav_module)
     db_session.flush()
 
     category = AIToolCategoryModel(
         id=str(uuid.uuid4()),
-        toolset_id=toolset.id,
+        navigation_module_id=nav_module.id,
         name="创建测试分类",
         icon="plus",
         order=1
@@ -518,7 +524,7 @@ async def test_create_ai_tool(async_client, db_session):
     # 创建AI工具
     tool_data = {
         "tool_id": "new_tool",
-        "toolset_id": "create_test_toolset",
+        "navigation_module_id": str(nav_module.id),
         "category_id": str(category.id),
         "name": "新工具",
         "description": "这是一个新工具",

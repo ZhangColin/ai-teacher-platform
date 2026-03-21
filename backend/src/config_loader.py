@@ -41,7 +41,7 @@ class ConfigLoader:
             logger.warning(f"导航配置文件不存在: {navigation_file}，使用默认配置")
             default_module = NavigationModule(
                 name="AI工具",
-                type="toolset",
+                type="ai_tools",
                 config_source="tools/ai_tools",
                 icon="🤖",
                 order=1

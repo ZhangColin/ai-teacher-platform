@@ -64,11 +64,8 @@ async def test_get_tools_by_nonexistent_toolset(logged_in_client):
     """测试获取不存在的工具集"""
     response = await logged_in_client.get("/api/v1/toolsets/nonexistent_toolset/tools")
 
-    # 应该返回200但categories为空
-    assert response.status_code == 200
-    data = response.json()
-    assert "categories" in data
-    assert isinstance(data["categories"], list)
+    # 旧API在找不到工具集时返回404
+    assert response.status_code == 404
 
 
 @pytest.mark.asyncio

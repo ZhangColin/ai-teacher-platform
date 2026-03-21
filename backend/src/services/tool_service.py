@@ -56,13 +56,14 @@ class ToolService:
                 else:
                     logger.warning(f"无法从文件加载系统提示词: {system_prompt_file}，工具: {config_data.get('tool_id')}")
             
-            # 确定 toolset_id（从配置读取，或从路径推断）
-            tool_toolset_id = config_data.get('toolset_id')
-            if not tool_toolset_id and toolset_id:
-                tool_toolset_id = toolset_id
-            if not tool_toolset_id:
-                tool_toolset_id = 'ai_tools'  # 默认值（向后兼容）
-            
+            # 确定 navigation_module_id（从配置读取，或从路径推断）
+            # 向后兼容：如果配置文件中有 toolset_id，使用它；否则使用 navigation_module_id
+            nav_module_id = config_data.get('navigation_module_id') or config_data.get('toolset_id')
+            if not nav_module_id and toolset_id:
+                nav_module_id = toolset_id
+            if not nav_module_id:
+                nav_module_id = 'ai_tools'  # 默认值（向后兼容）
+
             # 构建 Tool
             tool = Tool(
                 tool_id=config_data.get('tool_id', ''),
@@ -75,7 +76,7 @@ class ToolService:
                 type=config_data.get('type', 'normal'),  # 默认值为 'normal'
                 welcome_message=config_data.get('welcome_message', ''),
                 order=config_data.get('order', 999),  # 默认值为 999
-                toolset_id=tool_toolset_id,
+                navigation_module_id=nav_module_id,
                 system_prompt_file=system_prompt_file,
                 model=config_data.get('model'),  # 新增：AI模型配置
                 content_type=config_data.get('content_type', 'text'),  # 新增：内容类型，默认text
@@ -198,7 +199,7 @@ class ToolService:
         
         # 如果目录不存在，从缓存中过滤
         all_tools = self.load_all_tools()
-        return [tool for tool in all_tools if tool.toolset_id == toolset_id]
+        return [tool for tool in all_tools if tool.navigation_module_id == toolset_id]
     
     def get_tool_by_id(self, tool_id: str) -> Optional[Tool]:
         """

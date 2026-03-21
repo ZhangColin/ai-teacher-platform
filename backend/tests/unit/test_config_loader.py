@@ -30,7 +30,7 @@ class TestConfigLoader:
 
         assert len(modules) == 1
         assert modules[0].name == "AI工具"
-        assert modules[0].type == "toolset"
+        assert modules[0].type == "ai_tools"
         assert modules[0].config_source == "tools/ai_tools"
         assert modules[0].icon == "🤖"
         assert modules[0].order == 1
@@ -60,7 +60,7 @@ class TestConfigLoader:
     @patch("builtins.open", new_callable=mock_open, read_data="""
 modules:
   - name: AI工具
-    type: toolset
+    type: ai_tools
     config_source: tools/ai_tools
     icon: 🤖
     order: 1
@@ -81,7 +81,7 @@ modules:
 
         assert len(modules) == 2
         assert modules[0].name == "AI工具"
-        assert modules[0].type == "toolset"
+        assert modules[0].type == "ai_tools"
         assert modules[0].config_source == "tools/ai_tools"
         assert modules[0].order == 1
 
@@ -93,12 +93,12 @@ modules:
     @patch("builtins.open", new_callable=mock_open, read_data="""
 modules:
   - name: 第二个
-    type: toolset
+    type: ai_tools
     config_source: tools/tool2
     order: 2
 
   - name: 第一个
-    type: toolset
+    type: ai_tools
     config_source: tools/tool1
     order: 1
 """)
@@ -117,7 +117,7 @@ modules:
     @patch("builtins.open", new_callable=mock_open, read_data="""
 modules:
   - name: 无排序
-    type: toolset
+    type: ai_tools
     config_source: tools/tool1
 """)
     @patch("pathlib.Path.exists")
@@ -134,16 +134,16 @@ modules:
     @patch("builtins.open", new_callable=mock_open, read_data="""
 modules:
   - name: 有效模块
-    type: toolset
+    type: ai_tools
     config_source: tools/tool1
     order: 1
 
   - name: 无效模块
-    type: toolset
+    type: ai_tools
     # 缺少 config_source
 
   - name: 另一个有效模块
-    type: toolset
+    type: ai_tools
     config_source: tools/tool2
     order: 2
 """)
@@ -162,7 +162,7 @@ modules:
     @patch("builtins.open", new_callable=mock_open, read_data="""
 modules:
   - name: AI工具
-    type: toolset
+    type: ai_tools
     config_source: tools/ai_tools
     order: 1
 """)

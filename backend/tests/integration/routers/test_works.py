@@ -203,7 +203,10 @@ class TestWorkManagement:
         html_path = result["work"]["html_path"]
 
         # 文件保存在: backend/src/interfaces/static/{html_path}
-        file_path = Path(f"backend/src/interfaces/static/{html_path}")
+        # 测试文件在 backend/tests/integration/routers/ 下
+        # 需要向上4层才能到 backend 目录
+        backend_root = Path(__file__).resolve().parent.parent.parent.parent
+        file_path = backend_root / "src" / "interfaces" / "static" / html_path
         assert file_path.exists(), f"文件不存在: {file_path}"
         assert file_path.name == "index.html"
 
