@@ -142,7 +142,8 @@ const currentProvider = ref<ModelProviderListItem | null>(null)
 // 供应商表单
 const providerDialogVisible = ref(false)
 const editingProvider = ref<ModelProviderListItem | null>(null)
-const providerForm = ref<UpdateModelProviderRequest>({
+const providerForm = ref<UpdateModelProviderRequest & { provider_code: string }>({
+  provider_code: '',
   provider_name: '',
   api_key: '',
   base_url: '',
@@ -156,10 +157,12 @@ const modelsDialogVisible = ref(false)
 const modelDialogVisible = ref(false)
 const editingModel = ref<ModelConfigListItem | null>(null)
 const modelForm = ref<{
+  model_code: string
   model_name: string
   capabilitiesArray: string[]
   is_enabled: boolean
 }>({
+  model_code: '',
   model_name: '',
   capabilitiesArray: ['chat'],
   is_enabled: true
@@ -179,6 +182,7 @@ const loadProviders = async () => {
 const showEditProviderDialog = (provider: ModelProviderListItem) => {
   editingProvider.value = provider
   providerForm.value = {
+    provider_code: provider.provider_code,
     provider_name: provider.provider_name,
     api_key: '', // 不回填密码
     base_url: provider.base_url || '',
@@ -227,6 +231,7 @@ const showModelsDialog = async (provider: ModelProviderListItem) => {
 const showEditModelDialog = (model: ModelConfigListItem) => {
   editingModel.value = model
   modelForm.value = {
+    model_code: model.model_code,
     model_name: model.model_name,
     capabilitiesArray: model.capabilities,
     is_enabled: model.is_enabled
