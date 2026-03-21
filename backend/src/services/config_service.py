@@ -4,7 +4,7 @@ import logging
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from ..db_models import (
-    NavigationModuleModel, ToolsetModel, AIToolCategoryModel, AIToolModel,
+    NavigationModuleModel, AIToolCategoryModel, AIToolModel,
     NavigationModuleType, AIToolType
 )
 from ..models import NavigationModule, Tool
@@ -33,34 +33,19 @@ class ConfigService:
             for m in models
         ]
 
-    def get_toolsets(self) -> List[dict]:
-        """获取工具集列表"""
-        models = self.db.query(ToolsetModel).order_by(ToolsetModel.order).all()
-        return [
-            {
-                'id': str(m.id),
-                'toolset_id': m.toolset_id,
-                'name': m.name,
-                'description': m.description,
-                'icon': m.icon,
-                'order': m.order
-            }
-            for m in models
-        ]
-
-    def get_tools_by_toolset(self, toolset_id: str) -> List[Tool]:
-        """获取指定工具集的工具"""
-        # 获取工具集
-        toolset = self.db.query(ToolsetModel).filter(
-            ToolsetModel.toolset_id == toolset_id
+    def get_tools_by_navigation_module(self, navigation_module_id: str) -> List[Tool]:
+        """获取指定导航模块的工具"""
+        # 获取导航模块
+        nav_module = self.db.query(NavigationModuleModel).filter(
+            NavigationModuleModel.id == navigation_module_id
         ).first()
 
-        if not toolset:
+        if not nav_module:
             return []
 
         # 获取工具
         models = self.db.query(AIToolModel).filter(
-            AIToolModel.toolset_id == toolset.id,
+            AIToolModel.navigation_module_id == navigation_module_id,
             AIToolModel.visible == True
         ).order_by(AIToolModel.order).all()
 
@@ -76,7 +61,7 @@ class ConfigService:
                 type=m.type.value,
                 welcome_message=m.welcome_message,
                 order=m.order,
-                toolset_id=m.toolset_id,
+                navigation_module_id=str(m.navigation_module_id),
                 system_prompt_file=None,
                 model=m.model,
                 content_type=m.content_type,
@@ -103,7 +88,7 @@ class ConfigService:
                 type=m.type.value,
                 welcome_message=m.welcome_message,
                 order=m.order,
-                toolset_id=m.toolset.toolset_id,
+                navigation_module_id=str(m.navigation_module_id),
                 system_prompt_file=None,
                 model=m.model,
                 content_type=m.content_type,
@@ -132,24 +117,19 @@ class ConfigService:
             type=m.type.value,
             welcome_message=m.welcome_message,
             order=m.order,
-            toolset_id=m.toolset.toolset_id,
+            navigation_module_id=str(m.navigation_module_id),
             system_prompt_file=None,
             model=m.model,
             content_type=m.content_type,
             media_type=m.media_type
         )
 
-    def get_category_config(self, toolset_id: Optional[str] = None) -> dict:
+    def get_category_config(self, navigation_module_id: Optional[str] = None) -> dict:
         """获取分类配置"""
         query = self.db.query(AIToolCategoryModel)
 
-        if toolset_id:
-            # 获取工具集
-            toolset = self.db.query(ToolsetModel).filter(
-                ToolsetModel.toolset_id == toolset_id
-            ).first()
-            if toolset:
-                query = query.filter(AIToolCategoryModel.toolset_id == toolset.id)
+        if navigation_module_id:
+            query = query.filter(AIToolCategoryModel.navigation_module_id == navigation_module_id)
 
         categories = query.all()
 
