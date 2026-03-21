@@ -10,6 +10,7 @@ from typing import Type, Dict, List
 from src.infrastructure.providers.base import AIProvider
 from src.infrastructure.providers.openai_provider import OpenAIProvider
 from src.infrastructure.providers.deepseek_provider import DeepSeekProvider
+from src.infrastructure.providers.kimi_provider import KimiProvider
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,7 @@ class ProviderFactory:
     _providers: Dict[str, Type[AIProvider]] = {
         "openai": OpenAIProvider,
         "deepseek": DeepSeekProvider,
+        "kimi": KimiProvider,
     }
 
     @classmethod
