@@ -193,7 +193,16 @@ const showEditProviderDialog = (provider: ModelProviderListItem) => {
 const handleSaveProvider = async () => {
   if (!editingProvider.value) return
   try {
-    await ApiService.updateModelProvider(editingProvider.value.id, providerForm.value)
+    // 过滤掉空字符串字段，只发送有值的字段
+    const requestData: UpdateModelProviderRequest = {}
+    if (providerForm.value.provider_name) requestData.provider_name = providerForm.value.provider_name
+    if (providerForm.value.api_key) requestData.api_key = providerForm.value.api_key
+    if (providerForm.value.base_url) requestData.base_url = providerForm.value.base_url
+    if (providerForm.value.is_enabled !== undefined) requestData.is_enabled = providerForm.value.is_enabled
+    if (providerForm.value.is_default !== undefined) requestData.is_default = providerForm.value.is_default
+    if (providerForm.value.order !== undefined) requestData.order = providerForm.value.order
+
+    await ApiService.updateModelProvider(editingProvider.value.id, requestData)
     ElMessage.success('更新成功')
     providerDialogVisible.value = false
     await loadProviders()
