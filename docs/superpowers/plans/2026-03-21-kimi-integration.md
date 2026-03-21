@@ -91,8 +91,11 @@ git commit -m "chore(deps): 添加文件解析依赖"
 - [ ] **Step 1: 添加文件相关方法到 AIProvider**
 
 ```python
-# 在文件顶部的 import 区域添加（如果尚未存在）
-from typing import Optional, List, AsyncGenerator
+# 在文件顶部添加以下导入（如果尚未存在）
+import logging
+
+# 在类定义之前添加 logger 实例
+logger = logging.getLogger(__name__)
 
 # 在 AIProvider 类中添加以下方法（在 generate_audio 方法之后）
 
