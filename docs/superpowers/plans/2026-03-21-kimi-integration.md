@@ -46,6 +46,43 @@
 
 ---
 
+## Task 0: 安装 Python 依赖
+
+**注意：** 此任务必须最先执行，因为后续任务依赖这些库。
+
+**Files:**
+- Modify: `backend/requirements.txt`
+
+- [ ] **Step 1: 添加新依赖**
+
+```bash
+# 在 backend/requirements.txt 中添加以下行
+
+# 文件解析依赖
+PyPDF2>=3.0.0          # PDF 解析
+python-docx>=1.0.0     # Word 解析
+openpyxl>=3.1.0        # Excel 解析
+python-pptx>=0.6.0     # PPT 解析
+httpx>=0.25.0          # 异步 HTTP 客户端
+```
+
+- [ ] **Step 2: 安装依赖**
+
+```bash
+cd backend && pip install PyPDF2 python-docx openpyxl python-pptx httpx
+```
+
+Expected: 安装成功
+
+- [ ] **Step 3: 提交**
+
+```bash
+git add backend/requirements.txt
+git commit -m "chore(deps): 添加文件解析依赖"
+```
+
+---
+
 ## Task 1: 扩展 AIProvider 基类
 
 **Files:**
@@ -54,7 +91,10 @@
 - [ ] **Step 1: 添加文件相关方法到 AIProvider**
 
 ```python
-# 在 AIProvider 类中添加以下方法
+# 在文件顶部的 import 区域添加（如果尚未存在）
+from typing import Optional, List, AsyncGenerator
+
+# 在 AIProvider 类中添加以下方法（在 generate_audio 方法之后）
 
     async def upload_file(
         self,
@@ -379,11 +419,6 @@ def test_supported_models(kimi_provider):
     assert "moonshot-v1-8k" in models
     assert "moonshot-v1-32k" in models
     assert "moonshot-v1-128k" in models
-
-def test_validate_model(kimi_provider):
-    """测试模型验证"""
-    assert kimi_provider.validate_model("moonshot-v1-8k") is True
-    assert kimi_provider.validate_model("unknown-model") is False
 
 def test_provider_initialization(kimi_provider):
     """测试 Provider 初始化"""
@@ -762,12 +797,12 @@ git commit -m "feat(kimi): 添加 Kimi Provider 实现"
 
 **Files:**
 - Modify: `backend/src/infrastructure/providers/factory.py`
-- Test: `backend/tests/unit/test_factory.py`
+- Modify: `backend/tests/unit/infrastructure/providers/test_factory.py`
 
 - [ ] **Step 1: 编写工厂注册测试**
 
 ```python
-# 在 backend/tests/unit/test_factory.py 中添加
+# 在 backend/tests/unit/infrastructure/providers/test_factory.py 中添加
 
 def test_kimi_provider_registered():
     """测试 Kimi Provider 已注册"""
@@ -792,7 +827,7 @@ def test_create_kimi_provider():
 - [ ] **Step 2: 运行测试验证失败**
 
 ```bash
-cd backend && python -m pytest tests/unit/test_factory.py::test_kimi_provider_registered -v
+cd backend && python -m pytest tests/unit/infrastructure/providers/test_factory.py::test_kimi_provider_registered -v
 ```
 
 Expected: FAIL - Kimi 未注册
@@ -822,7 +857,7 @@ class ProviderFactory:
 - [ ] **Step 4: 运行测试验证通过**
 
 ```bash
-cd backend && python -m pytest tests/unit/test_factory.py -v
+cd backend && python -m pytest tests/unit/infrastructure/providers/test_factory.py -v
 ```
 
 Expected: PASS
@@ -830,7 +865,7 @@ Expected: PASS
 - [ ] **Step 5: 提交**
 
 ```bash
-git add backend/src/infrastructure/providers/factory.py backend/tests/unit/test_factory.py
+git add backend/src/infrastructure/providers/factory.py backend/tests/unit/infrastructure/providers/test_factory.py
 git commit -m "feat(factory): 注册 KimiProvider"
 ```
 
@@ -850,25 +885,39 @@ git commit -m "feat(factory): 注册 KimiProvider"
 import pytest
 import tempfile
 import os
-from fastapi.testclient import TestClient
 
 @pytest.fixture
-def files_client():
-    """文件上传 API 测试客户端"""
-    from src.main import app
-    return TestClient(app)
+async def files_client(async_client):
+    """使用 conftest.py 中的 async_client fixture"""
+    return async_client
 
 @pytest.fixture
-def auth_token(files_client):
-    """获取测试认证 token"""
-    response = files_client.post("/api/v1/auth/login", json={
-        "username": "test_user",
-        "password": "test_password"
-    })
-    if response.status_code == 200:
-        return response.json()["access_token"]
-    # 如果登录失败，使用 mock
-    return "test_token"
+def test_file():
+    """创建测试文件"""
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False, encoding='utf-8') as f:
+        f.write("这是测试文件内容")
+        temp_path = f.name
+    yield temp_path
+    os.unlink(temp_path)
+
+@pytest.mark.asyncio
+async def test_upload_file_text_extraction_mode(files_client, test_file):
+    """测试文本提取模式（DeepSeek 等）"""
+    # 使用 conftest.py 中的 logged_in_client fixture
+    # files_client 已经通过 async_client 注入，且带有认证
+    with open(test_file, 'rb') as f:
+        response = await files_client.post(
+            "/api/v1/files/upload?provider=deepseek",
+            files={"file": ("test.txt", f, "text/plain")}
+        )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is True
+    assert data["mode"] == "text_extraction"
+    assert "content" in data
+    assert "测试文件内容" in data["content"]
+```
 
 @pytest.fixture
 def test_file():
@@ -983,9 +1032,23 @@ async def upload_file(
         # 根据供应商选择处理策略
         if provider in {"kimi", "openai"}:
             # API 模式 - 上传到供应商服务器
+            # 注意：实际使用时需要从 ModelProviderService 获取 API key
+            # 这里简化处理，传入空字符串，生产环境需要修改
+            from src.services.model_provider_service import ModelProviderService
+            provider_service = ModelProviderService(db)
+
+            # 获取供应商配置
+            provider_config = provider_service.get_provider_by_code(provider)
+            if not provider_config or not provider_config.is_enabled:
+                raise HTTPException(status_code=400, detail=f"供应商 {provider} 未配置或未启用")
+
+            # 获取解密后的 API key
+            api_key = provider_service.get_provider_api_key(provider_config.id)
+
             provider_instance = ProviderFactory.create(
                 provider_name=provider,
-                api_key="",  # TODO: 从数据库获取
+                api_key=api_key,
+                base_url=provider_config.base_url
             )
             file_id = await provider_instance.upload_file(temp_path, file.filename)
 
@@ -1058,42 +1121,7 @@ git commit -m "feat(files-api): 添加文件上传 API"
 
 ---
 
-## Task 6: 添加 Python 依赖
-
-**Files:**
-- Modify: `backend/requirements.txt`
-
-- [ ] **Step 1: 添加新依赖**
-
-```bash
-# 在 backend/requirements.txt 中添加以下行
-
-# 文件解析依赖
-PyPDF2>=3.0.0          # PDF 解析
-python-docx>=1.0.0     # Word 解析
-openpyxl>=3.1.0        # Excel 解析
-python-pptx>=0.6.0     # PPT 解析
-httpx>=0.25.0          # 异步 HTTP 客户端
-```
-
-- [ ] **Step 2: 安装依赖**
-
-```bash
-cd backend && pip install PyPDF2 python-docx openpyxl python-pptx httpx
-```
-
-Expected: 安装成功
-
-- [ ] **Step 3: 提交**
-
-```bash
-git add backend/requirements.txt
-git commit -m "chore(deps): 添加文件解析依赖"
-```
-
----
-
-## Task 7: 创建 Kimi 初始化脚本
+## Task 6: 创建 Kimi 初始化脚本
 
 **Files:**
 - Create: `backend/src/scripts/init_kimi_provider.py`
@@ -1219,7 +1247,7 @@ git commit -m "chore(kimi): 添加 Kimi 初始化脚本"
 
 ---
 
-## Task 8: 创建前端文件上传组件
+## Task 7: 创建前端文件上传组件
 
 **Files:**
 - Create: `frontend/src/components/ChatFileUpload.vue`
@@ -1311,7 +1339,9 @@ async function handleFileSelect(event: Event) {
     formData.append('file', file)
 
     // 获取当前选择的 provider
-    const provider = sessionStore.selectedModelProvider || 'deepseek'
+    // 从 currentModel 中提取 provider 部分（格式：provider:model_name）
+    const modelValue = sessionStore.currentModel || 'deepseek:deepseek-chat'
+    const provider = modelValue.split(':')[0] || 'deepseek'
 
     const response = await apiClient.post(
       `/files/upload?provider=${provider}`,
@@ -1463,7 +1493,7 @@ git commit -m "feat(frontend): 添加文件上传组件"
 
 ---
 
-## Task 9: 运行全部测试
+## Task 8: 运行全部测试
 
 **Files:**
 - All test files
@@ -1502,7 +1532,7 @@ Expected: 全部通过
 
 ---
 
-## Task 10: 最终提交和文档
+## Task 9: 最终提交和文档
 
 - [ ] **Step 1: 检查 git 状态**
 
