@@ -11,31 +11,31 @@ const TEST_USER = {
 
 test.describe('Login Flow', () => {
   test('should display login page', async ({ page }) => {
-    await page.goto('http://localhost:5174/login');
+    await page.goto('http://localhost:5173/login');
 
-    // Verify login form exists
-    await expect(page.locator('input[type="email"], input[type="text"]').first()).toBeVisible({ timeout: 5000 });
-    await expect(page.locator('input[type="password"]').first()).toBeVisible();
-    await expect(page.locator('button[type="submit"], button:has-text("登录")').first()).toBeVisible();
+    // Verify login form exists - 使用更精确的选择器
+    await expect(page.locator('#account')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('#password')).toBeVisible();
+    await expect(page.locator('button[type="submit"]')).toBeVisible();
   });
 
   test('should redirect to login when not authenticated', async ({ page }) => {
     await page.context().clearCookies();
-    await page.goto('http://localhost:5174/modules/ai-tools');
+    await page.goto('http://localhost:5173/modules/ai-tools');
 
     await page.waitForURL(/\/login/, { timeout: 5000 });
     expect(page.url()).toContain('/login');
   });
 
   test('should login with valid credentials', async ({ page }) => {
-    await page.goto('http://localhost:5174/login');
+    await page.goto('http://localhost:5173/login');
 
-    // Fill login form
-    await page.fill('input[type="email"], input[type="text"]', TEST_USER.account);
-    await page.fill('input[type="password"]', TEST_USER.password);
+    // Fill login form - 使用 ID 选择器
+    await page.fill('#account', TEST_USER.account);
+    await page.fill('#password', TEST_USER.password);
 
     // Submit login
-    await page.click('button[type="submit"], button:has-text("登录")');
+    await page.click('button[type="submit"]');
 
     // Should redirect to tools page
     await page.waitForURL(/\/modules\/ai-tools/, { timeout: 10000 });
@@ -46,10 +46,10 @@ test.describe('Login Flow', () => {
 test.describe('Tool Selection (requires login)', () => {
   test.beforeEach(async ({ page }) => {
     // Login before each test
-    await page.goto('http://localhost:5174/login');
-    await page.fill('input[type="email"], input[type="text"]', TEST_USER.account);
-    await page.fill('input[type="password"]', TEST_USER.password);
-    await page.click('button[type="submit"], button:has-text("登录")');
+    await page.goto('http://localhost:5173/login');
+    await page.fill('#account', TEST_USER.account);
+    await page.fill('#password', TEST_USER.password);
+    await page.click('button[type="submit"]');
     await page.waitForURL(/\/modules\/ai-tools/, { timeout: 10000 });
   });
 
@@ -140,14 +140,14 @@ test.describe('Tool Selection (requires login)', () => {
 
 test.describe('Basic UI (no login required)', () => {
   test('should load frontend', async ({ page }) => {
-    await page.goto('http://localhost:5174/');
+    await page.goto('http://localhost:5173/');
 
     // Should show app container
     await expect(page.locator('#app')).toBeVisible({ timeout: 5000 });
   });
 
   test('should have Vue loaded', async ({ page }) => {
-    await page.goto('http://localhost:5174/');
+    await page.goto('http://localhost:5173/');
 
     // Check Vue is loaded by looking for the app
     const appExists = await page.locator('#app').count();
@@ -158,10 +158,10 @@ test.describe('Basic UI (no login required)', () => {
 test.describe('Real Chat Flow (End-to-End)', () => {
   test.beforeEach(async ({ page }) => {
     // Login
-    await page.goto('http://localhost:5174/login');
-    await page.fill('input[type="email"], input[type="text"]', TEST_USER.account);
-    await page.fill('input[type="password"]', TEST_USER.password);
-    await page.click('button[type="submit"], button:has-text("登录")');
+    await page.goto('http://localhost:5173/login');
+    await page.fill('#account', TEST_USER.account);
+    await page.fill('#password', TEST_USER.password);
+    await page.click('button[type="submit"]');
     await page.waitForURL(/\/modules\/ai-tools/, { timeout: 10000 });
   });
 
@@ -176,38 +176,44 @@ test.describe('Real Chat Flow (End-to-End)', () => {
 
     // 2. Select tool
     await toolCard.click();
-    await page.waitForTimeout(1500);
+    // 增加等待时间，让 Vue 组件更新
+    await page.waitForTimeout(3000);
     console.log('Step 2: Tool selected');
 
-    // 3. Find input
-    const chatInput = page.locator('textarea').first();
-    await expect(chatInput).toBeVisible({ timeout: 5000 });
-    console.log('Step 3: Chat input found');
+    // 3. Find input - 使用 data-testid 选择器
+    // 先检查是否有聊天面板出现
+    const chatPanel = page.locator('[data-testid="chat-panel"]');
+    await expect(chatPanel).toBeVisible({ timeout: 5000 });
+    console.log('Step 3: Chat panel found');
 
-    // 4. Type message
+    const chatInput = page.locator('[data-testid="chat-input"]');
+    await expect(chatInput).toBeVisible({ timeout: 5000 });
+    console.log('Step 4: Chat input found');
+
+    // 5. Type message
     const testMessage = 'Hello, please introduce yourself briefly';
     await chatInput.fill(testMessage);
-    console.log('Step 4: Message typed');
+    console.log('Step 5: Message typed');
 
-    // 5. Send message
-    const sendButton = page.locator('button:has-text("发送"), button[type="submit"], [class*="send"]').first();
+    // 6. Send message
+    const sendButton = page.locator('[data-testid="send-button"]');
     await expect(sendButton).toBeVisible({ timeout: 3000 });
     await sendButton.click();
-    console.log('Step 5: Message sent');
+    console.log('Step 6: Message sent');
 
-    // 6. Wait for user message to appear
+    // 7. Wait for user message to appear
     const userMessage = page.locator('[data-testid="message-item"]').first();
     await expect(userMessage).toBeVisible({ timeout: 5000 });
-    console.log('Step 6: User message displayed');
+    console.log('Step 7: User message displayed');
 
-    // 7. Wait for AI response (this may take 30-60 seconds)
-    console.log('Step 7: Waiting for AI response (up to 60 seconds)...');
+    // 8. Wait for AI response (this may take 30-60 seconds)
+    console.log('Step 8: Waiting for AI response (up to 60 seconds)...');
 
     const aiMessage = page.locator('[data-testid="message-item"]').nth(1);
 
     try {
       await expect(aiMessage).toBeVisible({ timeout: 60000 });
-      console.log('Step 7: AI response received');
+      console.log('Step 8: AI response received');
 
       const aiMessageContent = await aiMessage.textContent();
       console.log(`AI response length: ${aiMessageContent?.length || 0} characters`);
@@ -215,7 +221,7 @@ test.describe('Real Chat Flow (End-to-End)', () => {
 
       // Verify response is not empty
       expect(aiMessageContent?.trim().length).toBeGreaterThan(0);
-      console.log('Step 8: AI response validated');
+      console.log('Step 9: AI response validated');
 
       console.log('✅ Real E2E chat test PASSED!');
     } catch (e) {
@@ -239,10 +245,11 @@ test.describe('Real Chat Flow (End-to-End)', () => {
     await page.waitForTimeout(2000);
     const toolCard = page.locator('.tool-card, .tool-item, [class*="tool"]').first();
     await toolCard.click();
-    await page.waitForTimeout(1500);
+    // 增加等待时间
+    await page.waitForTimeout(3000);
 
-    // Find input and test Shift+Enter
-    const chatInput = page.locator('textarea').first();
+    // Find input and test Shift+Enter - 使用 data-testid 选择器
+    const chatInput = page.locator('[data-testid="chat-input"]');
     await expect(chatInput).toBeVisible({ timeout: 5000 });
 
     await chatInput.fill('Line 1');

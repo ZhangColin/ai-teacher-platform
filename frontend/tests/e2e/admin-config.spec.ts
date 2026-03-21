@@ -13,24 +13,24 @@ const ADMIN_USER = {
 
 test.describe('Admin Login', () => {
   test('should display login page', async ({ page }) => {
-    await page.goto('http://localhost:5174/login');
+    await page.goto('http://localhost:5173/login');
 
-    // Verify login form exists
-    await expect(page.locator('input[type="email"], input[type="text"]').first()).toBeVisible({ timeout: 5000 });
-    await expect(page.locator('input[type="password"]').first()).toBeVisible();
-    await expect(page.locator('button[type="submit"], button:has-text("登录")').first()).toBeVisible();
+    // Verify login form exists - 使用更精确的选择器
+    await expect(page.locator('#account')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('#password')).toBeVisible();
+    await expect(page.locator('button[type="submit"]')).toBeVisible();
   });
 
   test('should login as admin', async ({ page }) => {
     // Create admin user first via API
-    await page.goto('http://localhost:5174/login');
+    await page.goto('http://localhost:5173/login');
 
     // Fill login form
-    await page.fill('input[type="email"], input[type="text"]', ADMIN_USER.account);
-    await page.fill('input[type="password"]', ADMIN_USER.password);
+    await page.fill('#account', ADMIN_USER.account);
+    await page.fill('#password', ADMIN_USER.password);
 
     // Submit login
-    await page.click('button[type="submit"], button:has-text("登录")');
+    await page.click('button[type="submit"]');
 
     // Should redirect to tools page or admin page
     await page.waitForURL(/\/modules\/ai-tools|\/admin/, { timeout: 10000 });
@@ -41,7 +41,7 @@ test.describe('Admin Login', () => {
 test.describe('Navigation Modules Management', () => {
   test.beforeEach(async ({ page }) => {
     // Login as admin before each test
-    await page.goto('http://localhost:5174/login');
+    await page.goto('http://localhost:5173/login');
     await page.fill('input[type="email"], input[type="text"]', ADMIN_USER.account);
     await page.fill('input[type="password"]', ADMIN_USER.password);
     await page.click('button[type="submit"], button:has-text("登录")');
@@ -50,7 +50,7 @@ test.describe('Navigation Modules Management', () => {
 
   test('should access navigation modules management page', async ({ page }) => {
     // Navigate to admin navigation modules page
-    await page.goto('http://localhost:5174/admin/navigation-modules');
+    await page.goto('http://localhost:5173/admin/navigation-modules');
 
     // Wait for page to load
     await page.waitForLoadState('domcontentloaded');
@@ -69,7 +69,7 @@ test.describe('Navigation Modules Management', () => {
 
   test('should display existing navigation modules', async ({ page }) => {
     // Navigate to admin navigation modules page
-    await page.goto('http://localhost:5174/admin/navigation-modules');
+    await page.goto('http://localhost:5173/admin/navigation-modules');
 
     // Wait for content to load
     await page.waitForLoadState('domcontentloaded');
@@ -87,7 +87,7 @@ test.describe('Navigation Modules Management', () => {
 
   test('should have create module button', async ({ page }) => {
     // Navigate to admin navigation modules page
-    await page.goto('http://localhost:5174/admin/navigation-modules');
+    await page.goto('http://localhost:5173/admin/navigation-modules');
 
     // Wait for content to load
     await page.waitForLoadState('domcontentloaded');
@@ -110,7 +110,7 @@ test.describe('Navigation Modules Management', () => {
 test.describe('AI Tools Management', () => {
   test.beforeEach(async ({ page }) => {
     // Login as admin before each test
-    await page.goto('http://localhost:5174/login');
+    await page.goto('http://localhost:5173/login');
     await page.fill('input[type="email"], input[type="text"]', ADMIN_USER.account);
     await page.fill('input[type="password"]', ADMIN_USER.password);
     await page.click('button[type="submit"], button:has-text("登录")');
@@ -119,7 +119,7 @@ test.describe('AI Tools Management', () => {
 
   test('should access AI tools management page', async ({ page }) => {
     // Navigate to admin AI tools page
-    await page.goto('http://localhost:5174/admin/ai-tools');
+    await page.goto('http://localhost:5173/admin/ai-tools');
 
     // Wait for page to load
     await page.waitForLoadState('domcontentloaded');
@@ -138,7 +138,7 @@ test.describe('AI Tools Management', () => {
 
   test('should display existing AI tools', async ({ page }) => {
     // Navigate to admin AI tools page
-    await page.goto('http://localhost:5174/admin/ai-tools');
+    await page.goto('http://localhost:5173/admin/ai-tools');
 
     // Wait for content to load
     await page.waitForLoadState('domcontentloaded');
@@ -156,7 +156,7 @@ test.describe('AI Tools Management', () => {
 
   test('should have create tool button', async ({ page }) => {
     // Navigate to admin AI tools page
-    await page.goto('http://localhost:5174/admin/ai-tools');
+    await page.goto('http://localhost:5173/admin/ai-tools');
 
     // Wait for content to load
     await page.waitForLoadState('domcontentloaded');
@@ -177,7 +177,7 @@ test.describe('AI Tools Management', () => {
 
   test('should filter tools by visibility', async ({ page }) => {
     // Navigate to admin AI tools page
-    await page.goto('http://localhost:5174/admin/ai-tools');
+    await page.goto('http://localhost:5173/admin/ai-tools');
 
     // Wait for content to load
     await page.waitForLoadState('domcontentloaded');
@@ -199,7 +199,7 @@ test.describe('AI Tools Management', () => {
 test.describe('Backward Compatibility', () => {
   test.beforeEach(async ({ page }) => {
     // Login as regular user before each test
-    await page.goto('http://localhost:5174/login');
+    await page.goto('http://localhost:5173/login');
     await page.fill('input[type="email"], input[type="text"]', 'e2etest@example.com');
     await page.fill('input[type="password"]', 'Test123456!');
     await page.click('button[type="submit"], button:has-text("登录")');
@@ -240,14 +240,14 @@ test.describe('Backward Compatibility', () => {
 test.describe('Admin Access Control', () => {
   test('should deny access to non-admin users', async ({ page }) => {
     // Login as regular user
-    await page.goto('http://localhost:5174/login');
+    await page.goto('http://localhost:5173/login');
     await page.fill('input[type="email"], input[type="text"]', 'e2etest@example.com');
     await page.fill('input[type="password"]', 'Test123456!');
     await page.click('button[type="submit"], button:has-text("登录")');
     await page.waitForURL(/\/modules\/ai-tools/, { timeout: 10000 });
 
     // Try to access admin navigation modules page
-    await page.goto('http://localhost:5174/admin/navigation-modules');
+    await page.goto('http://localhost:5173/admin/navigation-modules');
 
     // Should be redirected or see an error
     await page.waitForTimeout(2000);
