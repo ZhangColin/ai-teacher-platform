@@ -2,7 +2,6 @@
   <div class="admin-model-providers-page">
     <div class="page-header">
       <h1>模型供应商配置</h1>
-      <el-button type="primary" @click="showCreateProviderDialog">添加供应商</el-button>
     </div>
 
     <!-- 供应商列表 -->
@@ -18,19 +17,18 @@
           <el-tag v-if="row.is_default" type="warning" size="small" style="margin-left: 5px">默认</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="200">
+      <el-table-column label="操作" width="150">
         <template #default="{ row }">
           <el-button link type="primary" @click="showModelsDialog(row)">模型</el-button>
-          <el-button link type="primary" @click="showEditProviderDialog(row)">编辑</el-button>
-          <el-button link type="danger" @click="handleDeleteProvider(row)">删除</el-button>
+          <el-button link type="primary" @click="showEditProviderDialog(row)">配置</el-button>
         </template>
       </el-table-column>
     </el-table>
 
-    <!-- 创建/编辑供应商对话框 -->
+    <!-- 供应商配置对话框 -->
     <el-dialog
       v-model="providerDialogVisible"
-      :title="editingProvider ? '编辑供应商' : '添加供应商'"
+      title="供应商配置"
       width="600px"
     >
       <el-form :model="providerForm" label-width="120px">
@@ -41,7 +39,12 @@
           <el-input v-model="providerForm.provider_name" />
         </el-form-item>
         <el-form-item label="API密钥">
-          <el-input v-model="providerForm.api_key" type="password" show-password />
+          <el-input v-model="providerForm.api_key" type="password" show-password placeholder="留空则不修改" />
+          <div v-if="getApiKeyUrl(providerForm.provider_code)" class="api-key-link">
+            <a :href="getApiKeyUrl(providerForm.provider_code)" target="_blank" rel="noopener noreferrer">
+              获取 API 密钥 →
+            </a>
+          </div>
         </el-form-item>
         <el-form-item label="API地址">
           <el-input v-model="providerForm.base_url" placeholder="https://api.openai.com/v1" />
@@ -66,7 +69,6 @@
     <el-dialog v-model="modelsDialogVisible" title="模型配置" width="900px">
       <div class="models-header">
         <h3>{{ currentProvider?.provider_name }} - 模型列表</h3>
-        <el-button type="primary" size="small" @click="showCreateModelDialog">添加模型</el-button>
       </div>
       <el-table :data="models" size="small">
         <el-table-column prop="model_name" label="模型名称" width="200" />
@@ -85,19 +87,18 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="150">
+        <el-table-column label="操作" width="100">
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="showEditModelDialog(row)">编辑</el-button>
-            <el-button link type="danger" size="small" @click="handleDeleteModel(row)">删除</el-button>
+            <el-button link type="primary" size="small" @click="showEditModelDialog(row)">配置</el-button>
           </template>
         </el-table-column>
       </el-table>
     </el-dialog>
 
-    <!-- 创建/编辑模型对话框 -->
+    <!-- 模型配置对话框 -->
     <el-dialog
       v-model="modelDialogVisible"
-      :title="editingModel ? '编辑模型' : '添加模型'"
+      title="模型配置"
       width="500px"
     >
       <el-form :model="modelForm" label-width="100px">
@@ -148,7 +149,14 @@ const currentProvider = ref<ModelProviderListItem | null>(null)
 // 供应商表单
 const providerDialogVisible = ref(false)
 const editingProvider = ref<ModelProviderListItem | null>(null)
-const providerForm = ref<CreateModelProviderRequest>({
+const providerForm = ref<{
+  provider_name: string
+  api_key: string
+  base_url: string
+  is_enabled: boolean
+  is_default: boolean
+  order: number
+}>({
   provider_code: '',
   provider_name: '',
   api_key: '',
@@ -186,21 +194,6 @@ const loadProviders = async () => {
   }
 }
 
-// 显示创建供应商对话框
-const showCreateProviderDialog = () => {
-  editingProvider.value = null
-  providerForm.value = {
-    provider_code: '',
-    provider_name: '',
-    api_key: '',
-    base_url: '',
-    is_enabled: true,
-    is_default: false,
-    order: 0
-  }
-  providerDialogVisible.value = true
-}
-
 // 显示编辑供应商对话框
 const showEditProviderDialog = (provider: ModelProviderListItem) => {
   editingProvider.value = provider
@@ -230,20 +223,6 @@ const handleSaveProvider = async () => {
     await loadProviders()
   } catch (error: any) {
     ElMessage.error(error.response?.data?.detail || '保存失败')
-  }
-}
-
-// 删除供应商
-const handleDeleteProvider = async (provider: ModelProviderListItem) => {
-  try {
-    await ElMessageBox.confirm(`确定要删除供应商 "${provider.provider_name}" 吗？`, '确认删除')
-    await ApiService.deleteModelProvider(provider.id)
-    ElMessage.success('删除成功')
-    await loadProviders()
-  } catch (error: any) {
-    if (error !== 'cancel') {
-      ElMessage.error(error.response?.data?.detail || '删除失败')
-    }
   }
 }
 
@@ -330,6 +309,19 @@ const handleDeleteModel = async (model: ModelConfigListItem) => {
   }
 }
 
+// 获取供应商 API 密钥页面 URL
+const getApiKeyUrl = (providerCode: string): string => {
+  const urlMap: Record<string, string> = {
+    'deepseek': 'https://platform.deepseek.com/api_keys',
+    'kimi': 'https://platform.moonshot.cn/console/api-keys',
+    'moonshot': 'https://platform.moonshot.cn/console/api-keys',
+    'openai': 'https://platform.openai.com/api-keys',
+    'zhipu': 'https://open.bigmodel.cn/usercenter/apikeys',
+    'glm': 'https://open.bigmodel.cn/usercenter/apikeys'
+  }
+  return urlMap[providerCode] || ''
+}
+
 onMounted(() => {
   loadProviders()
 })
@@ -356,5 +348,19 @@ onMounted(() => {
 
 .models-header h3 {
   margin: 0;
+}
+
+.api-key-link {
+  margin-top: 5px;
+  font-size: 12px;
+}
+
+.api-key-link a {
+  color: #409eff;
+  text-decoration: none;
+}
+
+.api-key-link a:hover {
+  text-decoration: underline;
 }
 </style>
