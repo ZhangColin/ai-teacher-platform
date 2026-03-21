@@ -233,7 +233,7 @@ class CourseDocumentModel(Base):
 
 class NavigationModuleType(enum.Enum):
     """导航模块类型枚举"""
-    toolset = "toolset"
+    ai_tools = "ai_tools"
     page = "page"
 
 
@@ -257,28 +257,21 @@ class NavigationModuleModel(Base):
     created_at = Column(DateTime, nullable=False, default=datetime.now)
     updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
 
+    # 关系：关联到分类和工具
+    categories = relationship("AIToolCategoryModel",
+                             back_populates="navigation_module",
+                             cascade="all, delete-orphan",
+                             foreign_keys="AIToolCategoryModel.navigation_module_id")
+
+    tools = relationship("AIToolModel",
+                        back_populates="navigation_module",
+                        cascade="all, delete-orphan",
+                        foreign_keys="AIToolModel.navigation_module_id")
+
     # 联合索引
     __table_args__ = (
         Index("idx_navigation_module_order", "order"),
     )
-
-
-class ToolsetModel(Base):
-    """工具集数据库模型"""
-    __tablename__ = "toolsets"
-
-    id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    toolset_id = Column(String(50), unique=True, nullable=False, index=True)
-    name = Column(String(100), nullable=False)
-    description = Column(Text, nullable=True)
-    icon = Column(String(50), nullable=True)
-    order = Column(Integer, nullable=False, default=0)
-    created_at = Column(DateTime, nullable=False, default=datetime.now)
-    updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
-
-    # 关系
-    categories = relationship("AIToolCategoryModel", back_populates="toolset", cascade="all, delete-orphan")
-    tools = relationship("AIToolModel", back_populates="toolset", cascade="all, delete-orphan")
 
 
 class AIToolCategoryModel(Base):
@@ -286,7 +279,9 @@ class AIToolCategoryModel(Base):
     __tablename__ = "ai_tool_categories"
 
     id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    toolset_id = Column(CHAR(36), ForeignKey("toolsets.id", ondelete="CASCADE"), nullable=False, index=True)
+    navigation_module_id = Column(CHAR(36),
+                                  ForeignKey("navigation_modules.id", ondelete="CASCADE"),
+                                  nullable=False, index=True)
     name = Column(String(50), nullable=False)
     icon = Column(String(50), nullable=True)
     order = Column(Integer, nullable=False, default=0)
@@ -294,8 +289,8 @@ class AIToolCategoryModel(Base):
     updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
 
     # 关系
-    toolset = relationship("ToolsetModel", back_populates="categories")
-    tools = relationship("AIToolModel", back_populates="category", cascade="all, delete-orphan")
+    navigation_module = relationship("NavigationModuleModel", back_populates="categories")
+    tools = relationship("AIToolModel", back_populates="category")
 
 
 class AIToolModel(Base):
@@ -304,7 +299,9 @@ class AIToolModel(Base):
 
     id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     tool_id = Column(String(50), unique=True, nullable=False, index=True)
-    toolset_id = Column(CHAR(36), ForeignKey("toolsets.id", ondelete="CASCADE"), nullable=False, index=True)
+    navigation_module_id = Column(CHAR(36),
+                                  ForeignKey("navigation_modules.id", ondelete="CASCADE"),
+                                  nullable=False, index=True)
     category_id = Column(CHAR(36), ForeignKey("ai_tool_categories.id", ondelete="SET NULL"), nullable=True)
     name = Column(String(100), nullable=False)
     description = Column(Text, nullable=True)
@@ -321,12 +318,12 @@ class AIToolModel(Base):
     updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
 
     # 关系
-    toolset = relationship("ToolsetModel", back_populates="tools")
+    navigation_module = relationship("NavigationModuleModel", back_populates="tools")
     category = relationship("AIToolCategoryModel", back_populates="tools")
 
     # 联合索引
     __table_args__ = (
-        Index("idx_ai_tool_toolset_order", "toolset_id", "order"),
+        Index("idx_ai_tool_navigation_module_order", "navigation_module_id", "order"),
         Index("idx_ai_tool_category_order", "category_id", "order"),
     )
 
