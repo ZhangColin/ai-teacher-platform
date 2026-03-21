@@ -3,10 +3,13 @@ AIProvider抽象基类
 
 定义AI提供商的统一接口，支持多模型接入
 """
+import logging
 from abc import ABC, abstractmethod
 from typing import List, AsyncGenerator, Optional
 
 from src.domain.entities.message import Message
+
+logger = logging.getLogger(__name__)
 
 
 class AIProvider(ABC):
@@ -103,6 +106,52 @@ class AIProvider(ABC):
             str: 音频文件URL或base64编码
         """
         pass
+
+    async def upload_file(
+        self,
+        file_path: str,
+        filename: str
+    ) -> Optional[str]:
+        """
+        上传文件到 AI 服务（默认实现）
+
+        不支持文件的 Provider 可覆盖此方法并记录日志
+
+        Args:
+            file_path: 本地文件路径
+            filename: 文件名
+
+        Returns:
+            str: 文件ID，不支持时返回 None
+        """
+        logger.warning(f"{self.__class__.__name__} does not support file upload")
+        return None
+
+    async def chat_with_file(
+        self,
+        messages: List[Message],
+        file_ids: List[str],
+        model: str,
+        temperature: float = 0.7,
+        **kwargs
+    ) -> AsyncGenerator[str, None]:
+        """
+        带文件的流式对话（默认实现）
+
+        不支持文件的 Provider 可覆盖此方法并记录日志
+
+        Args:
+            messages: 消息列表
+            file_ids: 文件ID列表
+            model: 模型名称
+            temperature: 温度参数
+            **kwargs: 其他参数
+
+        Yields:
+            str: 流式返回的文本片段，不支持时 yield 空字符串
+        """
+        logger.warning(f"{self.__class__.__name__} does not support file chat")
+        yield ""
 
     def get_supported_models(self) -> List[str]:
         """
