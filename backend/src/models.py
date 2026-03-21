@@ -12,18 +12,18 @@ logger = logging.getLogger(__name__)
 class NavigationModule(BaseModel):
     """导航模块配置（用于顶部导航栏）"""
     name: str = Field(..., description="模块显示名称")
-    type: Literal["toolset", "page"] = Field(..., description="模块类型：toolset=工具集模块，page=独立页面")
-    config_source: Optional[str] = Field(None, description="配置来源（type=toolset时使用，工具集配置目录路径，如：tools/ai_tools）")
+    type: Literal["ai_tools", "page"] = Field(..., description="模块类型：ai_tools=AI工具模块，page=独立页面")
+    config_source: Optional[str] = Field(None, description="配置来源（type=ai_tools时使用，工具集配置目录路径，如：tools/ai_tools）")
     page_path: Optional[str] = Field(None, description="页面路径（type=page时使用，前端路由路径，如：/common-tools）")
     icon: Optional[str] = Field(None, description="图标标识（可选）")
     order: int = Field(999, description="排序顺序（数字越小越靠前，默认999）")
-    
+
     def validate(self) -> bool:
         """验证导航模块配置是否有效"""
         if not self.name or not self.type:
             return False
-        # toolset 类型必须有 config_source
-        if self.type == "toolset" and not self.config_source:
+        # ai_tools 类型必须有 config_source
+        if self.type == "ai_tools" and not self.config_source:
             return False
         # page 类型必须有 page_path
         if self.type == "page" and not self.page_path:
@@ -48,7 +48,7 @@ class Tool(BaseModel):
     type: Literal["normal", "placeholder", "media"] = Field("normal", description="工具类型")
     welcome_message: str = Field(..., description="欢迎语（配置化展示）")
     order: int = Field(999, description="排序顺序（数字越小越靠前，默认999）")
-    toolset_id: str = Field("ai_tools", description="所属工具集ID（默认ai_tools，保持向后兼容）")
+    navigation_module_id: str = Field("ai_tools", description="所属导航模块ID（默认ai_tools，保持向后兼容）")
     system_prompt_file: Optional[str] = Field(None, description="系统提示词文件路径（相对于工具集配置目录），如果指定则从文件加载system_prompt")
     model: Optional[str] = Field(None, description="使用的AI模型（格式：provider:model_name，如 deepseek:deepseek-coder），如果未指定则使用系统默认")
     
@@ -133,7 +133,7 @@ class ToolListItem(BaseModel):
     visible: bool = Field(True, description="是否在工具选择器中显示")
     type: Literal["normal", "placeholder", "media"] = Field("normal", description="工具类型")
     welcome_message: Optional[str] = Field(None, description="欢迎语（可选，用于占位工具）")
-    toolset_id: str = Field(..., description="所属工具集ID")
+    navigation_module_id: str = Field(..., description="所属导航模块ID")
     model: Optional[str] = Field(None, description="使用的AI模型（格式：provider:model_name），如果未指定则使用系统默认")
 
     # 多模态支持字段（新增）
@@ -1109,7 +1109,7 @@ class AdminNavigationModuleListItem(BaseModel):
     """管理后台 - 导航模块列表项"""
     id: str = Field(..., description="模块ID")
     name: str = Field(..., description="模块名称")
-    type: Literal["toolset", "page"] = Field(..., description="模块类型")
+    type: Literal["ai_tools", "page"] = Field(..., description="模块类型")
     config_source: Optional[str] = Field(None, description="配置来源")
     page_path: Optional[str] = Field(None, description="页面路径")
     icon: Optional[str] = Field(None, description="图标")
@@ -1124,8 +1124,8 @@ class AdminNavigationModuleListResponse(BaseModel):
 class CreateNavigationModuleRequest(BaseModel):
     """创建导航模块请求"""
     name: str = Field(..., description="模块名称", min_length=1, max_length=50)
-    type: Literal["toolset", "page"] = Field(..., description="模块类型")
-    config_source: Optional[str] = Field(None, description="配置来源（type=toolset时必填）")
+    type: Literal["ai_tools", "page"] = Field(..., description="模块类型")
+    config_source: Optional[str] = Field(None, description="配置来源（type=ai_tools时必填）")
     page_path: Optional[str] = Field(None, description="页面路径（type=page时必填）")
     icon: Optional[str] = Field(None, description="图标")
     order: int = Field(0, description="排序顺序")
@@ -1139,7 +1139,7 @@ class CreateNavigationModuleResponse(BaseModel):
 class UpdateNavigationModuleRequest(BaseModel):
     """更新导航模块请求"""
     name: Optional[str] = Field(None, description="模块名称", min_length=1, max_length=50)
-    type: Optional[Literal["toolset", "page"]] = Field(None, description="模块类型")
+    type: Optional[Literal["ai_tools", "page"]] = Field(None, description="模块类型")
     config_source: Optional[str] = Field(None, description="配置来源")
     page_path: Optional[str] = Field(None, description="页面路径")
     icon: Optional[str] = Field(None, description="图标")
@@ -1157,55 +1157,50 @@ class MoveNavigationModuleResponse(BaseModel):
     module: AdminNavigationModuleListItem = Field(..., description="移动后的模块信息")
 
 
-# ==================== 工具集管理模型 ====================
+# ==================== 导航模块分类管理模型 ====================
 
-class AdminToolsetListItem(BaseModel):
-    """管理后台 - 工具集列表项"""
-    id: str = Field(..., description="工具集ID")
-    toolset_id: str = Field(..., description="工具集唯一标识")
-    name: str = Field(..., description="工具集名称")
-    description: Optional[str] = Field(None, description="工具集描述")
+class AdminNavigationModuleCategoryListItem(BaseModel):
+    """导航模块分类列表项"""
+    id: str = Field(..., description="分类ID")
+    navigation_module_id: str = Field(..., description="所属导航模块ID")
+    navigation_module_name: str = Field(..., description="导航模块名称")
+    name: str = Field(..., description="分类名称")
     icon: Optional[str] = Field(None, description="图标")
-    order: int = Field(..., description="排序顺序")
+    order: int = Field(..., description="排序")
+    created_at: str = Field(..., description="创建时间")
+    updated_at: str = Field(..., description="更新时间")
 
 
-class AdminToolsetListResponse(BaseModel):
-    """管理后台 - 工具集列表响应"""
-    toolsets: List[AdminToolsetListItem] = Field(..., description="工具集列表")
+class AdminNavigationModuleCategoryListResponse(BaseModel):
+    """导航模块分类列表响应"""
+    categories: List[AdminNavigationModuleCategoryListItem]
 
 
-class CreateToolsetRequest(BaseModel):
-    """创建工具集请求"""
-    toolset_id: str = Field(..., description="工具集唯一标识", min_length=1, max_length=50)
-    name: str = Field(..., description="工具集名称", min_length=1, max_length=100)
-    description: Optional[str] = Field(None, description="工具集描述")
-    icon: Optional[str] = Field(None, description="图标")
-    order: int = Field(0, description="排序顺序")
+class CreateNavigationModuleCategoryRequest(BaseModel):
+    """创建导航模块分类请求"""
+    navigation_module_id: str = Field(..., description="所属导航模块ID")
+    name: str = Field(..., min_length=1, max_length=50, description="分类名称")
+    icon: Optional[str] = Field(None, max_length=50, description="图标")
+    order: int = Field(0, ge=0, description="排序")
 
 
-class CreateToolsetResponse(BaseModel):
-    """创建工具集响应"""
-    toolset: AdminToolsetListItem = Field(..., description="新创建的工具集信息")
+class CreateNavigationModuleCategoryResponse(BaseModel):
+    """创建导航模块分类响应"""
+    id: str = Field(..., description="分类ID")
+    message: str = Field(..., description="响应消息")
 
 
-class UpdateToolsetRequest(BaseModel):
-    """更新工具集请求"""
-    toolset_id: Optional[str] = Field(None, description="工具集唯一标识", min_length=1, max_length=50)
-    name: Optional[str] = Field(None, description="工具集名称", min_length=1, max_length=100)
-    description: Optional[str] = Field(None, description="工具集描述")
-    icon: Optional[str] = Field(None, description="图标")
-    order: Optional[int] = Field(None, description="排序顺序")
+class UpdateNavigationModuleCategoryRequest(BaseModel):
+    """更新导航模块分类请求"""
+    name: str = Field(..., min_length=1, max_length=50, description="分类名称")
+    icon: Optional[str] = Field(None, max_length=50, description="图标")
+    order: int = Field(..., ge=0, description="排序")
 
 
-class UpdateToolsetResponse(BaseModel):
-    """更新工具集响应"""
-    toolset: AdminToolsetListItem = Field(..., description="更新后的工具集信息")
-
-
-class MoveToolsetResponse(BaseModel):
-    """移动工具集响应"""
-    message: str = Field(..., description="操作结果消息")
-    toolset: AdminToolsetListItem = Field(..., description="移动后的工具集信息")
+class UpdateNavigationModuleCategoryResponse(BaseModel):
+    """更新导航模块分类响应"""
+    id: str = Field(..., description="分类ID")
+    message: str = Field(..., description="响应消息")
 
 
 # ==================== AI工具分类管理模型 ====================
@@ -1213,7 +1208,8 @@ class MoveToolsetResponse(BaseModel):
 class AdminAIToolCategoryListItem(BaseModel):
     """管理后台 - AI工具分类列表项"""
     id: str = Field(..., description="分类ID")
-    toolset_id: str = Field(..., description="所属工具集ID")
+    navigation_module_id: str = Field(..., description="所属导航模块ID")
+    navigation_module_name: str = Field(..., description="导航模块名称")
     name: str = Field(..., description="分类名称")
     icon: Optional[str] = Field(None, description="图标")
     order: int = Field(..., description="排序顺序")
@@ -1226,7 +1222,7 @@ class AdminAIToolCategoryListResponse(BaseModel):
 
 class CreateAIToolCategoryRequest(BaseModel):
     """创建AI工具分类请求"""
-    toolset_id: str = Field(..., description="所属工具集ID")
+    navigation_module_id: str = Field(..., description="所属导航模块ID")
     name: str = Field(..., description="分类名称", min_length=1, max_length=50)
     icon: Optional[str] = Field(None, description="图标")
     order: int = Field(0, description="排序顺序")
@@ -1261,8 +1257,10 @@ class AdminAIToolListItem(BaseModel):
     """管理后台 - AI工具列表项"""
     id: str = Field(..., description="工具ID")
     tool_id: str = Field(..., description="工具唯一标识")
-    toolset_id: str = Field(..., description="所属工具集ID")
+    navigation_module_id: str = Field(..., description="所属导航模块ID")
+    navigation_module_name: str = Field(..., description="导航模块名称")
     category_id: Optional[str] = Field(None, description="所属分类ID")
+    category_name: Optional[str] = Field(None, description="分类名称")
     name: str = Field(..., description="工具名称")
     description: Optional[str] = Field(None, description="工具描述")
     system_prompt: Optional[str] = Field(None, description="系统提示词")
@@ -1285,8 +1283,8 @@ class AdminAIToolListResponse(BaseModel):
 class CreateAIToolRequest(BaseModel):
     """创建AI工具请求"""
     tool_id: str = Field(..., description="工具唯一标识", min_length=1, max_length=50)
-    toolset_id: str = Field(..., description="所属工具集ID")
-    category_id: Optional[str] = Field(None, description="所属分类ID")
+    navigation_module_id: str = Field(..., description="所属导航模块ID")
+    category_id: str = Field(..., description="分类ID（必选）")
     name: str = Field(..., description="工具名称", min_length=1, max_length=100)
     description: Optional[str] = Field(None, description="工具描述")
     system_prompt: Optional[str] = Field(None, description="系统提示词")
@@ -1308,7 +1306,8 @@ class CreateAIToolResponse(BaseModel):
 class UpdateAIToolRequest(BaseModel):
     """更新AI工具请求"""
     tool_id: Optional[str] = Field(None, description="工具唯一标识", min_length=1, max_length=50)
-    category_id: Optional[str] = Field(None, description="所属分类ID")
+    navigation_module_id: Optional[str] = Field(None, description="所属导航模块ID")
+    category_id: Optional[str] = Field(None, description="分类ID（必选）")
     name: Optional[str] = Field(None, description="工具名称", min_length=1, max_length=100)
     description: Optional[str] = Field(None, description="工具描述")
     system_prompt: Optional[str] = Field(None, description="系统提示词")
