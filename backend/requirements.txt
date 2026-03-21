@@ -33,3 +33,9 @@ python-jose[cryptography]==3.3.0
 bcrypt==4.1.2
 alembic==1.13.1
 python-multipart==0.0.21
+
+# 文件解析依赖
+PyPDF2>=3.0.0          # PDF 解析
+python-docx>=1.0.0     # Word 解析
+openpyxl>=3.1.0        # Excel 解析
+python-pptx>=0.6.0     # PPT 解析
