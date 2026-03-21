@@ -566,37 +566,7 @@ async def test_delete_conversation_without_auth(async_client):
 @pytest.mark.asyncio
 async def test_generate_media_audio_sync_mode(logged_in_client, db_session):
     """测试音频生成的同步模式（覆盖make_absolute_url函数）"""
-    import yaml
-    from pathlib import Path
-
-    # 创建一个多模态音频工具配置
-    audio_tool_dir = Path("configs/tools/test_tools")
-    audio_tool_dir.mkdir(parents=True, exist_ok=True)
-
-    audio_tool_config = {
-        'tool_id': 'audio_gen',
-        'name': '音频生成',
-        'description': 'AI音频生成工具（测试用）',
-        'category': 'AI工具',
-        'visible': True,
-        'toolset_id': 'test_tools',
-        'icon': 'speaker-wave',
-        'type': 'media',
-        'order': 2,
-        'system_prompt': '你是一个音频生成助手',
-        'welcome_message': '欢迎使用音频生成工具',
-        'model': 'glm:glm-tts',
-        'content_type': 'multimodal',
-        'media_type': 'audio'
-    }
-
-    config_file = audio_tool_dir / "audio_gen.yaml"
-    with open(config_file, 'w', encoding='utf-8') as f:
-        yaml.dump(audio_tool_config, f, allow_unicode=True)
-
-    # 清除工具服务缓存
-    from src.routers.dependencies import get_tool_service
-    get_tool_service.cache_clear()
+    # audio_gen 工具配置已在 conftest.py 中创建
 
     # Mock AI服务返回同步音频结果
     from src.routers import dependencies
@@ -620,7 +590,6 @@ async def test_generate_media_audio_sync_mode(logged_in_client, db_session):
         assert response.status_code in [200, 400, 503]
 
     dependencies.get_ai_service.cache_clear()
-    get_tool_service.cache_clear()
 
 
 # ==================== 错误处理测试 ====================
@@ -628,37 +597,7 @@ async def test_generate_media_audio_sync_mode(logged_in_client, db_session):
 @pytest.mark.asyncio
 async def test_generate_media_ai_service_error(logged_in_client, db_session):
     """测试AI服务调用失败的情况"""
-    import yaml
-    from pathlib import Path
-
-    # 创建测试工具
-    tool_dir = Path("configs/tools/test_tools")
-    tool_dir.mkdir(parents=True, exist_ok=True)
-
-    tool_config = {
-        'tool_id': 'image_gen',
-        'name': '图片生成',
-        'description': 'AI图片生成工具（测试用）',
-        'category': 'AI工具',
-        'visible': True,
-        'toolset_id': 'test_tools',
-        'icon': 'photo',
-        'type': 'media',
-        'order': 4,
-        'system_prompt': '你是一个图片生成助手',
-        'welcome_message': '欢迎使用图片生成工具',
-        'model': 'glm:cogview-4',
-        'content_type': 'multimodal',
-        'media_type': 'image'
-    }
-
-    config_file = tool_dir / "image_gen.yaml"
-    with open(config_file, 'w', encoding='utf-8') as f:
-        yaml.dump(tool_config, f, allow_unicode=True)
-
-    # 清除工具服务缓存
-    from src.routers.dependencies import get_tool_service
-    get_tool_service.cache_clear()
+    # image_gen 工具配置已在 conftest.py 中创建
 
     # Mock AI服务抛出异常
     from src.routers import dependencies
@@ -679,7 +618,6 @@ async def test_generate_media_ai_service_error(logged_in_client, db_session):
         assert response.status_code == 503
 
     dependencies.get_ai_service.cache_clear()
-    get_tool_service.cache_clear()
 
 
 # ==================== 媒体生成的其他测试 ====================

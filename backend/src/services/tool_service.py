@@ -204,15 +204,20 @@ class ToolService:
     def get_tool_by_id(self, tool_id: str) -> Optional[Tool]:
         """
         根据 tool_id 获取指定的工具
-        
+
         Args:
             tool_id: 工具唯一标识符
-            
+
         Returns:
             Tool 实例，如果不存在返回 None
         """
         tools = self.load_all_tools()
         return next((t for t in tools if t.tool_id == tool_id), None)
+
+    def clear_cache(self) -> None:
+        """清除内部缓存，强制重新加载工具配置"""
+        self._tools_cache = None
+        self._cache_timestamp = None
     
     def load_category_config(self, toolset_id: Optional[str] = None) -> Dict[str, Dict]:
         """

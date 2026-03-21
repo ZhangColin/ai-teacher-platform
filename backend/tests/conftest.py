@@ -11,9 +11,13 @@ sys.path.insert(0, str(backend_dir))
 # 在导入任何模块之前，先创建测试工具配置
 # 这样ToolService在初始化时就能找到测试工具
 
-tools_dir = Path("configs/tools/test_tools")
+# 注意：ToolService 在项目根目录下查找配置文件，所以需要在项目根目录创建
+# 项目根目录是 backend 的父目录
+project_root = Path(__file__).parent.parent.parent
+tools_dir = project_root / "configs" / "tools" / "test_tools"
 tools_dir.mkdir(parents=True, exist_ok=True)
 
+# 创建 text_gen 工具配置
 config_content = """tool_id: text_gen
 name: 文本生成
 description: AI文本生成工具（测试用）
@@ -31,6 +35,46 @@ model: deepseek:deepseek-chat
 
 config_file = tools_dir / "text_gen.yaml"
 config_file.write_text(config_content, encoding='utf-8')
+
+# 创建 audio_gen 工具配置（用于媒体生成测试）
+audio_config = """tool_id: audio_gen
+name: 音频生成
+description: AI音频生成工具（测试用）
+category: AI工具
+visible: true
+toolset_id: test_tools
+icon: speaker-wave
+type: media
+order: 2
+system_prompt: 你是一个音频生成助手
+welcome_message: 欢迎使用音频生成工具
+model: glm:glm-tts
+content_type: multimodal
+media_type: audio
+"""
+
+audio_file = tools_dir / "audio_gen.yaml"
+audio_file.write_text(audio_config, encoding='utf-8')
+
+# 创建 image_gen 工具配置（用于媒体生成测试）
+image_config = """tool_id: image_gen
+name: 图片生成
+description: AI图片生成工具（测试用）
+category: AI工具
+visible: true
+toolset_id: test_tools
+icon: photo
+type: media
+order: 3
+system_prompt: 你是一个图片生成助手
+welcome_message: 欢迎使用图片生成工具
+model: glm:cogview-4
+content_type: multimodal
+media_type: image
+"""
+
+image_file = tools_dir / "image_gen.yaml"
+image_file.write_text(image_config, encoding='utf-8')
 
 import pytest
 import asyncio
