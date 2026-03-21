@@ -786,8 +786,8 @@ export interface ModelListResponse {
 export interface AdminNavigationModuleListItem {
   id: string // 模块ID
   name: string // 模块名称
-  type: 'toolset' | 'page' // 模块类型
-  config_source?: string // 配置来源（type=toolset时使用）
+  type: 'ai_tools' | 'page' // 模块类型
+  config_source?: string // 配置来源（type=ai_tools时使用）
   page_path?: string // 页面路径（type=page时使用）
   icon?: string // 图标标识（heroicons名称）
   order: number // 排序顺序
@@ -805,8 +805,8 @@ export interface AdminNavigationModuleListResponse {
  */
 export interface CreateNavigationModuleRequest {
   name: string // 模块名称
-  type: 'toolset' | 'page' // 模块类型
-  config_source?: string // 配置来源（type=toolset时必填）
+  type: 'ai_tools' | 'page' // 模块类型
+  config_source?: string // 配置来源（type=ai_tools时必填）
   page_path?: string // 页面路径（type=page时必填）
   icon?: string // 图标标识（heroicons名称）
   order?: number // 排序顺序（默认0）
@@ -824,7 +824,7 @@ export interface CreateNavigationModuleResponse {
  */
 export interface UpdateNavigationModuleRequest {
   name?: string // 模块名称
-  type?: 'toolset' | 'page' // 模块类型
+  type?: 'ai_tools' | 'page' // 模块类型
   config_source?: string // 配置来源
   page_path?: string // 页面路径
   icon?: string // 图标标识
@@ -846,80 +846,15 @@ export interface MoveNavigationModuleResponse {
   module: AdminNavigationModuleListItem // 移动后的模块信息
 }
 
-// ==================== 后台管理 - 工具集管理模块 ====================
+// ==================== 后台管理 - 导航模块分类管理模块 ====================
 
 /**
- * 管理后台 - 工具集列表项
+ * 管理后台 - 导航模块分类列表项
  */
-export interface AdminToolsetListItem {
-  id: string // 工具集ID
-  toolset_id: string // 工具集唯一标识符
-  name: string // 工具集名称
-  description?: string // 工具集描述
-  icon?: string // 图标标识（heroicons名称）
-  order: number // 排序顺序
-}
-
-/**
- * 管理后台 - 工具集列表响应
- */
-export interface AdminToolsetListResponse {
-  toolsets: AdminToolsetListItem[] // 工具集列表
-}
-
-/**
- * 创建工具集请求
- */
-export interface CreateToolsetRequest {
-  toolset_id: string // 工具集唯一标识符
-  name: string // 工具集名称
-  description?: string // 工具集描述
-  icon?: string // 图标标识（heroicons名称）
-  order?: number // 排序顺序（默认0）
-}
-
-/**
- * 创建工具集响应
- */
-export interface CreateToolsetResponse {
-  toolset: AdminToolsetListItem // 新创建的工具集信息
-}
-
-/**
- * 更新工具集请求
- */
-export interface UpdateToolsetRequest {
-  toolset_id?: string // 工具集唯一标识符
-  name?: string // 工具集名称
-  description?: string // 工具集描述
-  icon?: string // 图标标识
-  order?: number // 排序顺序
-}
-
-/**
- * 更新工具集响应
- */
-export interface UpdateToolsetResponse {
-  toolset: AdminToolsetListItem // 更新后的工具集信息
-}
-
-/**
- * 移动工具集响应
- */
-export interface MoveToolsetResponse {
-  message: string // 操作结果消息
-  toolset: AdminToolsetListItem // 移动后的工具集信息
-}
-
-// ==================== 后台管理 - AI工具分类管理模块 ====================
-
-/**
- * 管理后台 - AI工具分类列表项
- */
-export interface AdminAIToolCategoryListItem {
+export interface AdminNavigationModuleCategoryListItem {
   id: string // 分类ID
-  toolset_id: string // 所属工具集ID
-  toolset_name: string // 所属工具集名称
+  navigation_module_id: string // 所属导航模块ID
+  navigation_module_name: string // 所属导航模块名称
   name: string // 分类名称
   icon?: string // 分类图标（heroicons名称）
   order: number // 排序顺序
@@ -929,52 +864,51 @@ export interface AdminAIToolCategoryListItem {
 }
 
 /**
- * 管理后台 - AI工具分类列表响应
+ * 管理后台 - 导航模块分类列表响应
  */
-export interface AdminAIToolCategoryListResponse {
-  categories: AdminAIToolCategoryListItem[] // 分类列表
+export interface AdminNavigationModuleCategoryListResponse {
+  categories: AdminNavigationModuleCategoryListItem[] // 分类列表
 }
 
 /**
- * 创建AI工具分类请求
+ * 创建导航模块分类请求
  */
-export interface CreateAIToolCategoryRequest {
-  toolset_id: string // 所属工具集ID
+export interface CreateNavigationModuleCategoryRequest {
+  navigation_module_id: string // 所属导航模块ID
   name: string // 分类名称
   icon?: string // 分类图标（heroicons名称）
   order?: number // 排序顺序（默认0）
 }
 
 /**
- * 创建AI工具分类响应
+ * 创建导航模块分类响应
  */
-export interface CreateAIToolCategoryResponse {
-  category: AdminAIToolCategoryListItem // 新创建的分类信息
+export interface CreateNavigationModuleCategoryResponse {
+  category: AdminNavigationModuleCategoryListItem // 新创建的分类信息
 }
 
 /**
- * 更新AI工具分类请求
+ * 更新导航模块分类请求
  */
-export interface UpdateAIToolCategoryRequest {
-  toolset_id?: string // 所属工具集ID
+export interface UpdateNavigationModuleCategoryRequest {
   name?: string // 分类名称
   icon?: string // 分类图标
   order?: number // 排序顺序
 }
 
 /**
- * 更新AI工具分类响应
+ * 更新导航模块分类响应
  */
-export interface UpdateAIToolCategoryResponse {
-  category: AdminAIToolCategoryListItem // 更新后的分类信息
+export interface UpdateNavigationModuleCategoryResponse {
+  category: AdminNavigationModuleCategoryListItem // 更新后的分类信息
 }
 
 /**
- * 移动AI工具分类响应
+ * 移动导航模块分类响应
  */
-export interface MoveAIToolCategoryResponse {
+export interface MoveNavigationModuleCategoryResponse {
   message: string // 操作结果消息
-  category: AdminAIToolCategoryListItem // 移动后的分类信息
+  category: AdminNavigationModuleCategoryListItem // 移动后的分类信息
 }
 
 // ==================== 后台管理 - AI工具管理模块 ====================
@@ -985,8 +919,8 @@ export interface MoveAIToolCategoryResponse {
 export interface AdminAIToolListItem {
   id: string // 工具ID
   tool_id: string // 工具唯一标识符
-  toolset_id: string // 所属工具集ID
-  toolset_name: string // 所属工具集名称
+  navigation_module_id: string // 所属导航模块ID
+  navigation_module_name: string // 所属导航模块名称
   category_id?: string // 分类ID
   category_name?: string // 分类名称
   name: string // 工具名称
@@ -1015,8 +949,8 @@ export interface AdminAIToolListResponse {
  */
 export interface CreateAIToolRequest {
   tool_id: string // 工具唯一标识符
-  toolset_id: string // 所属工具集ID
-  category_id?: string // 分类ID
+  navigation_module_id: string // 所属导航模块ID
+  category_id: string // 分类ID
   name: string // 工具名称
   description: string // 工具描述
   system_prompt: string // 系统提示词
@@ -1042,7 +976,7 @@ export interface CreateAIToolResponse {
  */
 export interface UpdateAIToolRequest {
   tool_id?: string // 工具唯一标识符
-  toolset_id?: string // 所属工具集ID
+  navigation_module_id?: string // 所属导航模块ID
   category_id?: string // 分类ID
   name?: string // 工具名称
   description?: string // 工具描述
