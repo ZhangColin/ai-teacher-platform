@@ -77,30 +77,40 @@ async def get_navigation_module_tools(
     获取指定导航模块的工具列表
 
     Args:
-        module_id: 导航模块ID
+        module_id: 导航模块ID（支持UUID或config_source值，如 ai-tools、teaching-researcher）
 
     Returns:
         该模块的工具列表，按分类组织
     """
     from src.db_models import NavigationModuleModel, AIToolModel, AIToolCategoryModel
 
-    # 查找导航模块
+    # 查找导航模块 - 先尝试按ID查找，再尝试按config_source查找
     nav_module = db.query(NavigationModuleModel).filter(
         NavigationModuleModel.id == module_id
     ).first()
 
     if not nav_module:
+        # 尝试将简短ID（如 ai-tools）转换为 config_source（如 tools/ai_tools）
+        config_source = f"tools/{module_id.replace('-', '_')}"
+        nav_module = db.query(NavigationModuleModel).filter(
+            NavigationModuleModel.config_source == config_source
+        ).first()
+
+    if not nav_module:
         raise HTTPException(status_code=404, detail="导航模块不存在")
+
+    # 使用找到的模块ID（UUID）查询工具和分类
+    nav_module_id = str(nav_module.id)
 
     # 查询该模块下的工具
     tools = db.query(AIToolModel).filter(
-        AIToolModel.navigation_module_id == module_id,
+        AIToolModel.navigation_module_id == nav_module_id,
         AIToolModel.visible == True
     ).order_by(AIToolModel.order).all()
 
     # 查询分类
     categories = db.query(AIToolCategoryModel).filter(
-        AIToolCategoryModel.navigation_module_id == module_id
+        AIToolCategoryModel.navigation_module_id == nav_module_id
     ).order_by(AIToolCategoryModel.order).all()
 
     # 构建分类字典

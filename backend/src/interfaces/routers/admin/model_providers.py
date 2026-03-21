@@ -33,6 +33,36 @@ def get_model_provider_service(db: Session = Depends(get_db)) -> ModelProviderSe
     return ModelProviderService(db)
 
 
+# ==================== 内置定义 ====================
+
+@router.get("/builtin-providers")
+async def get_builtin_providers():
+    """
+    获取内置供应商列表
+
+    系统支持的供应商类型，管理员可以选择其中一种进行配置
+    """
+    from src.services.builtin_models import get_builtin_providers
+    providers = get_builtin_providers()
+    return {"providers": providers}
+
+
+@router.get("/builtin-models")
+async def get_builtin_models(provider_code: Optional[str] = None):
+    """
+    获取内置模型列表
+
+    Args:
+        provider_code: 可选，按供应商筛选
+
+    Returns:
+        模型列表
+    """
+    from src.services.builtin_models import get_builtin_models
+    models = get_builtin_models(provider_code)
+    return {"models": models}
+
+
 # ==================== 模型供应商管理 ====================
 
 @router.get("", response_model=ModelProviderListResponse)

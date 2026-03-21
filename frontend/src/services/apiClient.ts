@@ -1007,11 +1007,19 @@ export class ApiService {
   }
 
   /**
-   * 获取系统支持的模型列表
+   * 获取系统支持的模型列表（从数据库读取已启用的模型）
    */
-  static async getAvailableModels(): Promise<ModelListItem[]> {
-    const response = await apiClient.get<ModelListItem[]>('/models')
-    return response.data
+  static async getAvailableModels(providerId?: string): Promise<ModelListItem[]> {
+    const response = await apiClient.get<AvailableModelResponse>('/models/available', {
+      params: { provider_id: providerId }
+    })
+    // 将 ModelConfigListItem 转换为 ModelListItem 格式
+    return response.data.models.map(m => ({
+      id: `${m.provider_code}:${m.model_code}`,
+      name: m.model_name,
+      provider: m.provider_name,
+      description: m.capabilities.join(', ')
+    }))
   }
 
   // ==================== 导航模块管理 ====================

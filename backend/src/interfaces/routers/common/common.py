@@ -42,12 +42,8 @@ router = APIRouter(prefix="/api/v1", tags=["通用功能"])
 task_storage: dict[str, dict] = {}
 
 
-@router.get("/navigation", response_model=NavigationResponse)
-async def get_navigation():
-    """获取顶部导航模块配置（公开接口，无需认证）"""
-    config_loader = get_config_loader()
-    modules = config_loader.load_navigation()
-    return NavigationResponse(modules=modules)
+# /navigation 端点已迁移到 interfaces/routers/navigation.py
+# 该端点使用数据库驱动的 ConfigService，支持动态管理导航模块
 
 
 @router.get("/common-tools/categories", response_model=CommonToolCategoryResponse)

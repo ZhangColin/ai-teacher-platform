@@ -46,7 +46,7 @@ const currentComponent = computed(() => {
     return AIToolsLayout
   }
 
-  if (currentModule.value.type === 'toolset') {
+  if (currentModule.value.type === 'ai_tools') {
     // 工具集模块：使用 ToolsetModuleLayout
     return ToolsetModuleLayout
   } else if (currentModule.value.type === 'page') {
@@ -68,7 +68,7 @@ const currentComponentProps = computed(() => {
     return {}
   }
 
-  if (currentModule.value.type === 'toolset') {
+  if (currentModule.value.type === 'ai_tools') {
     // 工具集模块：传递 moduleId
     return { moduleId: moduleId.value }
   }

@@ -20,21 +20,21 @@
         <el-table-column prop="name" label="模块名称" width="200" />
         <el-table-column label="类型" width="120">
           <template #default="{ row }">
-            <el-tag :type="row.type === 'toolset' || row.type === 'ai_tools' ? 'primary' : 'success'">
-              {{ row.type === 'toolset' || row.type === 'ai_tools' ? '工具集' : '页面' }}
+            <el-tag :type="row.type === 'ai_tools' ? 'primary' : 'success'">
+              {{ row.type === 'ai_tools' ? 'AI工具' : '页面' }}
             </el-tag>
           </template>
         </el-table-column>
         <el-table-column label="配置来源/页面路径" min-width="200">
           <template #default="{ row }">
-            <span v-if="row.type === 'toolset' || row.type === 'ai_tools'">{{ row.config_source || '-' }}</span>
+            <span v-if="row.type === 'ai_tools'">{{ row.config_source || '-' }}</span>
             <span v-else>{{ row.page_path || '-' }}</span>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="350" fixed="right">
           <template #default="{ row }">
             <el-button
-              v-if="row.type === 'toolset' || row.type === 'ai_tools'"
+              v-if="row.type === 'ai_tools'"
               size="small"
               @click="handleShowCategories(row)"
             >
@@ -64,14 +64,14 @@
         </el-form-item>
         <el-form-item label="模块类型" prop="type">
           <el-radio-group v-model="form.type">
-            <el-radio value="toolset">工具集</el-radio>
+            <el-radio value="ai_tools">AI工具</el-radio>
             <el-radio value="page">独立页面</el-radio>
           </el-radio-group>
         </el-form-item>
         <el-form-item
           label="配置来源"
           prop="config_source"
-          v-if="form.type === 'toolset'"
+          v-if="form.type === 'ai_tools'"
         >
           <el-input
             v-model="form.config_source"
@@ -183,7 +183,7 @@ const submitting = ref(false)
 // 表单数据
 const form = reactive<CreateNavigationModuleRequest & { id?: string }>({
   name: '',
-  type: 'toolset',
+  type: 'ai_tools',
   config_source: '',
   page_path: '',
   icon: '',
@@ -200,8 +200,8 @@ const rules: FormRules = {
   config_source: [
     {
       validator: (_rule, value, callback) => {
-        if (form.type === 'toolset' && !value) {
-          callback(new Error('工具集类型必须指定配置来源'))
+        if (form.type === 'ai_tools' && !value) {
+          callback(new Error('AI工具类型必须指定配置来源'))
         } else {
           callback()
         }
@@ -269,7 +269,7 @@ function handleCreate() {
   isEditing.value = false
   Object.assign(form, {
     name: '',
-    type: 'toolset',
+    type: 'ai_tools',
     config_source: '',
     page_path: '',
     icon: '',

@@ -22,13 +22,13 @@
     
     <!-- 右侧：聊天区域或敬请期待页面 -->
     <!-- 文本工具：使用 ChatArea -->
-    <ChatArea 
-      v-if="currentTool && currentTool.type === 'normal' && currentTool.content_type === 'text'" 
+    <ChatArea
+      v-if="currentTool && currentTool.type === 'normal' && (!currentTool.content_type || currentTool.content_type === 'text')"
       :tool-id="currentTool.tool_id"
       :welcome-message="currentTool.welcome_message"
-      class="chat-area" 
+      class="chat-area"
     />
-    
+
     <!-- 多模态工具：使用 MediaChatArea -->
     <MediaChatArea
       v-else-if="currentTool && currentTool.type === 'normal' && currentTool.content_type === 'multimodal'"
@@ -37,9 +37,9 @@
       :welcome-message="currentTool.welcome_message || '你好！'"
       class="chat-area"
     />
-    
+
     <!-- 占位工具：显示敬请期待 -->
-    <ComingSoon 
+    <ComingSoon
       v-else-if="currentTool && currentTool.type === 'placeholder'"
       :tool-name="currentTool.name"
       :welcome-message="currentTool.welcome_message"
