@@ -2,7 +2,6 @@
   <div class="admin-model-providers-page">
     <div class="page-header">
       <h1>模型供应商配置</h1>
-      <el-button type="primary" @click="showCreateProviderDialog">添加供应商</el-button>
     </div>
 
     <!-- 供应商列表 -->
@@ -18,30 +17,29 @@
           <el-tag v-if="row.is_default" type="warning" size="small" style="margin-left: 5px">默认</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="200">
+      <el-table-column label="操作" width="150">
         <template #default="{ row }">
           <el-button link type="primary" @click="showModelsDialog(row)">模型</el-button>
-          <el-button link type="primary" @click="showEditProviderDialog(row)">编辑</el-button>
-          <el-button link type="danger" @click="handleDeleteProvider(row)">删除</el-button>
+          <el-button link type="primary" @click="showEditProviderDialog(row)">配置</el-button>
         </template>
       </el-table-column>
     </el-table>
 
-    <!-- 创建/编辑供应商对话框 -->
+    <!-- 供应商配置对话框 -->
     <el-dialog
       v-model="providerDialogVisible"
-      :title="editingProvider ? '编辑供应商' : '添加供应商'"
+      title="供应商配置"
       width="600px"
     >
       <el-form :model="providerForm" label-width="120px">
         <el-form-item label="供应商代码">
-          <el-input v-model="providerForm.provider_code" :disabled="!!editingProvider" />
+          <el-input v-model="providerForm.provider_code" disabled />
         </el-form-item>
         <el-form-item label="供应商名称">
           <el-input v-model="providerForm.provider_name" />
         </el-form-item>
         <el-form-item label="API密钥">
-          <el-input v-model="providerForm.api_key" type="password" show-password />
+          <el-input v-model="providerForm.api_key" type="password" show-password placeholder="留空则不修改" />
         </el-form-item>
         <el-form-item label="API地址">
           <el-input v-model="providerForm.base_url" placeholder="https://api.openai.com/v1" />
@@ -66,7 +64,6 @@
     <el-dialog v-model="modelsDialogVisible" title="模型配置" width="900px">
       <div class="models-header">
         <h3>{{ currentProvider?.provider_name }} - 模型列表</h3>
-        <el-button type="primary" size="small" @click="showCreateModelDialog">添加模型</el-button>
       </div>
       <el-table :data="models" size="small">
         <el-table-column prop="model_name" label="模型名称" width="200" />
@@ -85,24 +82,23 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="150">
+        <el-table-column label="操作" width="100">
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="showEditModelDialog(row)">编辑</el-button>
-            <el-button link type="danger" size="small" @click="handleDeleteModel(row)">删除</el-button>
+            <el-button link type="primary" size="small" @click="showEditModelDialog(row)">配置</el-button>
           </template>
         </el-table-column>
       </el-table>
     </el-dialog>
 
-    <!-- 创建/编辑模型对话框 -->
+    <!-- 模型配置对话框 -->
     <el-dialog
       v-model="modelDialogVisible"
-      :title="editingModel ? '编辑模型' : '添加模型'"
+      title="模型配置"
       width="500px"
     >
       <el-form :model="modelForm" label-width="100px">
         <el-form-item label="模型代码">
-          <el-input v-model="modelForm.model_code" :disabled="!!editingModel" />
+          <el-input v-model="modelForm.model_code" disabled />
         </el-form-item>
         <el-form-item label="模型名称">
           <el-input v-model="modelForm.model_name" />
@@ -130,14 +126,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { ApiService } from '@/services/apiClient'
 import type {
   ModelProviderListItem,
   ModelConfigListItem,
-  CreateModelProviderRequest,
   UpdateModelProviderRequest,
-  CreateModelConfigRequest,
   UpdateModelConfigRequest
 } from '@/types'
 
@@ -148,8 +142,7 @@ const currentProvider = ref<ModelProviderListItem | null>(null)
 // 供应商表单
 const providerDialogVisible = ref(false)
 const editingProvider = ref<ModelProviderListItem | null>(null)
-const providerForm = ref<CreateModelProviderRequest>({
-  provider_code: '',
+const providerForm = ref<UpdateModelProviderRequest>({
   provider_name: '',
   api_key: '',
   base_url: '',
@@ -163,14 +156,10 @@ const modelsDialogVisible = ref(false)
 const modelDialogVisible = ref(false)
 const editingModel = ref<ModelConfigListItem | null>(null)
 const modelForm = ref<{
-  provider_id: string
-  model_code: string
   model_name: string
   capabilitiesArray: string[]
   is_enabled: boolean
 }>({
-  provider_id: '',
-  model_code: '',
   model_name: '',
   capabilitiesArray: ['chat'],
   is_enabled: true
@@ -186,26 +175,10 @@ const loadProviders = async () => {
   }
 }
 
-// 显示创建供应商对话框
-const showCreateProviderDialog = () => {
-  editingProvider.value = null
-  providerForm.value = {
-    provider_code: '',
-    provider_name: '',
-    api_key: '',
-    base_url: '',
-    is_enabled: true,
-    is_default: false,
-    order: 0
-  }
-  providerDialogVisible.value = true
-}
-
 // 显示编辑供应商对话框
 const showEditProviderDialog = (provider: ModelProviderListItem) => {
   editingProvider.value = provider
   providerForm.value = {
-    provider_code: provider.provider_code,
     provider_name: provider.provider_name,
     api_key: '', // 不回填密码
     base_url: provider.base_url || '',
@@ -218,32 +191,14 @@ const showEditProviderDialog = (provider: ModelProviderListItem) => {
 
 // 保存供应商
 const handleSaveProvider = async () => {
+  if (!editingProvider.value) return
   try {
-    if (editingProvider.value) {
-      await ApiService.updateModelProvider(editingProvider.value.id, providerForm.value)
-      ElMessage.success('更新成功')
-    } else {
-      await ApiService.createModelProvider(providerForm.value)
-      ElMessage.success('创建成功')
-    }
+    await ApiService.updateModelProvider(editingProvider.value.id, providerForm.value)
+    ElMessage.success('更新成功')
     providerDialogVisible.value = false
     await loadProviders()
   } catch (error: any) {
     ElMessage.error(error.response?.data?.detail || '保存失败')
-  }
-}
-
-// 删除供应商
-const handleDeleteProvider = async (provider: ModelProviderListItem) => {
-  try {
-    await ElMessageBox.confirm(`确定要删除供应商 "${provider.provider_name}" 吗？`, '确认删除')
-    await ApiService.deleteModelProvider(provider.id)
-    ElMessage.success('删除成功')
-    await loadProviders()
-  } catch (error: any) {
-    if (error !== 'cancel') {
-      ElMessage.error(error.response?.data?.detail || '删除失败')
-    }
   }
 }
 
@@ -259,26 +214,10 @@ const showModelsDialog = async (provider: ModelProviderListItem) => {
   }
 }
 
-// 显示创建模型对话框
-const showCreateModelDialog = () => {
-  if (!currentProvider.value) return
-  editingModel.value = null
-  modelForm.value = {
-    provider_id: currentProvider.value.id,
-    model_code: '',
-    model_name: '',
-    capabilitiesArray: ['chat'],
-    is_enabled: true
-  }
-  modelDialogVisible.value = true
-}
-
 // 显示编辑模型对话框
 const showEditModelDialog = (model: ModelConfigListItem) => {
   editingModel.value = model
   modelForm.value = {
-    provider_id: model.provider_id,
-    model_code: model.model_code,
     model_name: model.model_name,
     capabilitiesArray: model.capabilities,
     is_enabled: model.is_enabled
@@ -288,21 +227,17 @@ const showEditModelDialog = (model: ModelConfigListItem) => {
 
 // 保存模型
 const handleSaveModel = async () => {
+  if (!editingModel.value) return
   try {
     // 将数组转为逗号分隔的字符串
-    const requestData = {
-      ...modelForm.value,
-      capabilities: modelForm.value.capabilitiesArray.join(',')
+    const requestData: UpdateModelConfigRequest = {
+      model_name: modelForm.value.model_name,
+      capabilities: modelForm.value.capabilitiesArray.join(','),
+      is_enabled: modelForm.value.is_enabled
     }
-    delete (requestData as any).capabilitiesArray
 
-    if (editingModel.value) {
-      await ApiService.updateModelConfig(editingModel.value.id, requestData)
-      ElMessage.success('更新成功')
-    } else {
-      await ApiService.createModelConfig(requestData)
-      ElMessage.success('创建成功')
-    }
+    await ApiService.updateModelConfig(editingModel.value.id, requestData)
+    ElMessage.success('更新成功')
     modelDialogVisible.value = false
     if (currentProvider.value) {
       const response = await ApiService.getProviderModels(currentProvider.value.id, true)
@@ -310,23 +245,6 @@ const handleSaveModel = async () => {
     }
   } catch (error: any) {
     ElMessage.error(error.response?.data?.detail || '保存失败')
-  }
-}
-
-// 删除模型
-const handleDeleteModel = async (model: ModelConfigListItem) => {
-  try {
-    await ElMessageBox.confirm(`确定要删除模型 "${model.model_name}" 吗？`, '确认删除')
-    await ApiService.deleteModelConfig(model.id)
-    ElMessage.success('删除成功')
-    if (currentProvider.value) {
-      const response = await ApiService.getProviderModels(currentProvider.value.id, true)
-      models.value = response.models
-    }
-  } catch (error: any) {
-    if (error !== 'cancel') {
-      ElMessage.error(error.response?.data?.detail || '删除失败')
-    }
   }
 }
 
