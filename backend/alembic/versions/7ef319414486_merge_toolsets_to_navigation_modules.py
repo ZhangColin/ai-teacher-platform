@@ -100,24 +100,38 @@ def upgrade() -> None:
         )
 
     # 5. 将 navigation_module_id 设为非空
-    op.alter_column(
-        'ai_tool_categories',
-        'navigation_module_id',
-        nullable=False
-    )
-    op.alter_column(
-        'ai_tools',
-        'navigation_module_id',
-        nullable=False
-    )
+    # MySQL 需要指定完整类型
+    op.execute("""
+        ALTER TABLE ai_tool_categories
+        MODIFY COLUMN navigation_module_id CHAR(36) NOT NULL
+    """)
+    op.execute("""
+        ALTER TABLE ai_tools
+        MODIFY COLUMN navigation_module_id CHAR(36) NOT NULL
+    """)
 
     # 6. 删除旧的外键和列
+    # 注意：外键名称可能是自动生成的，使用 IF EXISTS 风格处理
     # ai_tool_categories
-    op.drop_constraint('fk_ai_tool_categories_toolset', 'ai_tool_categories', type_='foreignkey')
+    try:
+        op.drop_constraint('ai_tool_categories_ibfk_1', 'ai_tool_categories', type_='foreignkey')
+    except:
+        pass
+    try:
+        op.drop_constraint('fk_ai_tool_categories_toolset', 'ai_tool_categories', type_='foreignkey')
+    except:
+        pass
     op.drop_column('ai_tool_categories', 'toolset_id')
 
     # ai_tools
-    op.drop_constraint('fk_ai_tools_toolset', 'ai_tools', type_='foreignkey')
+    try:
+        op.drop_constraint('ai_tools_ibfk_1', 'ai_tools', type_='foreignkey')
+    except:
+        pass
+    try:
+        op.drop_constraint('fk_ai_tools_toolset', 'ai_tools', type_='foreignkey')
+    except:
+        pass
     op.drop_column('ai_tools', 'toolset_id')
 
     # 7. 删除 toolsets 表
