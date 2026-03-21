@@ -201,11 +201,16 @@ class AIToolModel(Base):
 
 所有关联关系在 API 响应和前端界面中显示**友好名称**，而非 GUID：
 
-| 关联字段 | 显示内容 | 示例 |
-|----------|----------|------|
-| navigation_module | `navigation_module_name` | "AI模型能力" |
-| category | `category_name` | "内容生成" |
-| model_provider | `provider_name` | "DeepSeek" |
+| 关联字段 | 显示内容 | 数据来源 | 示例 |
+|----------|----------|----------|------|
+| navigation_module | `navigation_module_name` | `navigation_modules.name` | "AI模型能力" |
+| category | `category_name` | `ai_tool_categories.name` | "内容生成" |
+| model | `model` 字段格式 | 格式: `{provider_code}:{model_code}` | "deepseek:deepseek-chat" |
+
+**说明：**
+- AI 工具的 `model` 字段存储格式为 `provider_code:model_code`（如 `deepseek:deepseek-chat`）
+- 前端显示时，如需显示供应商名称，可通过 `provider_code` 关联 `model_providers` 表获取 `provider_name`
+- 或者在 API 响应中直接返回解析后的 `provider_name` 和 `model_name`
 
 ## 五、后台管理界面设计
 
@@ -312,14 +317,29 @@ class AIToolModel(Base):
 ```python
 # 伪代码示例
 def migrate_toolsets_to_navigation_modules(db: Session):
+    """
+    迁移 toolsets 到 navigation_modules
+
+    映射规则：
+    - navigation_modules.config_source 格式: "tools/{toolset_id}"
+    - 例如: "tools/ai_tools" -> toolset_id = "ai_tools"
+    - 例如: "tools/teaching_researcher" -> toolset_id = "teaching_researcher"
+    """
     # 1. 建立 toolset_id 到 navigation_module_id 的映射
     mapping = {}
     for nav_module in db.query(NavigationModuleModel).filter(
-        NavigationModuleModel.type == "ai_tools"
+        NavigationModuleModel.type == "ai_tools"  # 迁移前类型为 "toolset"
     ).all():
+        if not nav_module.config_source:
+            continue
         # 从 config_source 提取 toolset_id
-        # 如 "tools/ai_tools" -> "ai_tools"
-        toolset_id = nav_module.config_source.split("/")[-1]
+        # 格式: "tools/ai_tools" -> "ai_tools"
+        parts = nav_module.config_source.strip().split("/")
+        if len(parts) >= 2:
+            toolset_id = parts[-1]  # 取最后一部分
+        else:
+            toolset_id = nav_module.config_source
+
         toolset = db.query(ToolsetModel).filter(
             ToolsetModel.toolset_id == toolset_id
         ).first()
@@ -328,15 +348,40 @@ def migrate_toolsets_to_navigation_modules(db: Session):
 
     # 2. 更新 ai_tool_categories
     for category in db.query(AIToolCategoryModel).all():
-        category.navigation_module_id = mapping.get(category.toolset_id)
+        if category.toolset_id in mapping:
+            category.navigation_module_id = mapping[category.toolset_id]
 
     # 3. 更新 ai_tools
     for tool in db.query(AIToolModel).all():
-        tool.navigation_module_id = mapping.get(tool.toolset_id)
+        if tool.toolset_id in mapping:
+            tool.navigation_module_id = mapping[tool.toolset_id]
 
     # 4. 删除 toolsets 表
     # (在 alembic 迁移中处理)
 ```
+
+### 6.3 回滚方案
+
+如果迁移失败，执行以下回滚步骤：
+
+1. **恢复数据库**：从迁移前的备份恢复
+   ```bash
+   # 迁移前执行备份
+   mysqldump -u root -p ai_teacher_platform > backup_before_migration.sql
+
+   # 回滚时恢复
+   mysql -u root -p ai_teacher_platform < backup_before_migration.sql
+   ```
+
+2. **代码回滚**：回退到迁移前的 git commit
+   ```bash
+   git revert <migration-commit>
+   ```
+
+3. **注意事项**：
+   - 迁移前务必备份数据库
+   - 在测试环境先验证迁移脚本
+   - 生产环境迁移时选择低峰期进行
 
 ## 七、前端组件变更
 
