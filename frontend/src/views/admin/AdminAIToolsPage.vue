@@ -11,17 +11,17 @@
       <!-- 筛选器 -->
       <div class="filter-bar">
         <el-select
-          v-model="filterToolsetId"
-          placeholder="筛选工具集"
+          v-model="filterNavigationModuleId"
+          placeholder="筛选导航模块"
           clearable
           @change="handleFilterChange"
           style="width: 200px"
         >
           <el-option
-            v-for="toolset in toolsets"
-            :key="toolset.id"
-            :label="toolset.name"
-            :value="toolset.toolset_id"
+            v-for="module in navigationModules"
+            :key="module.id"
+            :label="module.name"
+            :value="module.id"
           />
         </el-select>
         <el-select
@@ -30,7 +30,7 @@
           clearable
           @change="handleFilterChange"
           style="width: 200px"
-          :disabled="!filterToolsetId"
+          :disabled="!filterNavigationModuleId"
         >
           <el-option
             v-for="category in categories"
@@ -61,7 +61,7 @@
             <span v-else class="text-gray-400">-</span>
           </template>
         </el-table-column>
-        <el-table-column prop="toolset_name" label="工具集" width="150" />
+        <el-table-column prop="navigation_module_name" label="导航模块" width="150" />
         <el-table-column prop="category_name" label="分类" width="150">
           <template #default="{ row }">
             {{ row.category_name || '-' }}
@@ -106,26 +106,25 @@
     >
       <el-form ref="formRef" :model="form" :rules="rules" label-width="140px">
         <el-divider content-position="left">基本信息</el-divider>
-        <el-form-item label="所属工具集" prop="toolset_id">
+        <el-form-item label="所属导航模块" prop="navigation_module_id">
           <el-select
-            v-model="form.toolset_id"
-            placeholder="请选择工具集"
+            v-model="form.navigation_module_id"
+            placeholder="请选择导航模块"
             style="width: 100%"
-            @change="handleToolsetChange"
+            @change="handleNavigationModuleChange"
           >
             <el-option
-              v-for="toolset in toolsets"
-              :key="toolset.id"
-              :label="toolset.name"
-              :value="toolset.toolset_id"
+              v-for="module in navigationModules"
+              :key="module.id"
+              :label="module.name"
+              :value="module.id"
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="工具分类">
+        <el-form-item label="分类" prop="category_id">
           <el-select
             v-model="form.category_id"
-            placeholder="请选择分类（可选）"
-            clearable
+            placeholder="请选择分类"
             style="width: 100%"
           >
             <el-option
@@ -254,8 +253,8 @@ import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'elem
 import { ApiService } from '../../services/apiClient'
 import type {
   AdminAIToolListItem,
-  AdminToolsetListItem,
-  AdminAIToolCategoryListItem,
+  AdminNavigationModuleListItem,
+  AdminNavigationModuleCategoryListItem,
   CreateAIToolRequest,
   UpdateAIToolRequest,
   ModelConfigListItem,
@@ -266,13 +265,13 @@ import MarkdownEditor from '../../components/editor/MarkdownEditor.vue'
 
 // 工具列表
 const tools = ref<AdminAIToolListItem[]>([])
-const toolsets = ref<AdminToolsetListItem[]>([])
-const categories = ref<AdminAIToolCategoryListItem[]>([])
+const navigationModules = ref<AdminNavigationModuleListItem[]>([])
+const categories = ref<AdminNavigationModuleCategoryListItem[]>([])
 const availableModels = ref<ModelConfigListItem[]>([])
 const loading = ref(false)
 
 // 筛选器
-const filterToolsetId = ref<string>()
+const filterNavigationModuleId = ref<string>()
 const filterCategoryId = ref<string>()
 const filterVisible = ref<boolean>()
 
@@ -286,8 +285,8 @@ const promptEditorFullscreen = ref(false)
 // 表单数据
 const form = reactive<CreateAIToolRequest & { id?: string }>({
   tool_id: '',
-  toolset_id: '',
-  category_id: undefined,
+  navigation_module_id: '',
+  category_id: '',
   name: '',
   description: '',
   system_prompt: '',
@@ -301,19 +300,16 @@ const form = reactive<CreateAIToolRequest & { id?: string }>({
   order: 0,
 })
 
-// 可用分类列表（根据选中的工具集过滤）
+// 可用分类列表（根据选中的导航模块过滤）
 const availableCategories = computed(() => {
-  if (!form.toolset_id) return []
-  // 获取选中工具集的ID
-  const selectedToolset = toolsets.value.find((t) => t.toolset_id === form.toolset_id)
-  if (!selectedToolset) return []
-
-  return categories.value.filter((c) => c.toolset_id === selectedToolset.id)
+  if (!form.navigation_module_id) return []
+  return categories.value.filter((c) => c.navigation_module_id === form.navigation_module_id)
 })
 
 // 表单验证规则
 const rules: FormRules = {
-  toolset_id: [{ required: true, message: '请选择所属工具集', trigger: 'change' }],
+  navigation_module_id: [{ required: true, message: '请选择所属导航模块', trigger: 'change' }],
+  category_id: [{ required: true, message: '请选择分类', trigger: 'change' }],
   tool_id: [
     { required: true, message: '请输入工具ID', trigger: 'blur' },
     {
@@ -336,14 +332,14 @@ const rules: FormRules = {
 }
 
 /**
- * 加载工具集列表
+ * 加载导航模块列表
  */
-async function loadToolsets() {
+async function loadNavigationModules() {
   try {
-    const response = await ApiService.getAdminToolsets()
-    toolsets.value = response.toolsets
+    const response = await ApiService.getAdminNavigationModules()
+    navigationModules.value = response.modules
   } catch (error: any) {
-    ElMessage.error(error.message || '加载工具集列表失败')
+    ElMessage.error(error.message || '加载导航模块列表失败')
   }
 }
 
@@ -352,7 +348,9 @@ async function loadToolsets() {
  */
 async function loadCategories() {
   try {
-    const response = await ApiService.getAdminAIToolCategories()
+    const response = await ApiService.getAdminNavigationModuleCategories(
+      filterNavigationModuleId.value || ''
+    )
     categories.value = response.categories
   } catch (error: any) {
     ElMessage.error(error.message || '加载分类列表失败')
@@ -366,7 +364,7 @@ async function loadTools() {
   loading.value = true
   try {
     const response = await ApiService.getAdminAITools(
-      filterToolsetId.value,
+      filterNavigationModuleId.value,
       filterCategoryId.value,
       filterVisible.value
     )
@@ -381,35 +379,45 @@ async function loadTools() {
 /**
  * 筛选变化
  */
-function handleFilterChange() {
-  // 当工具集筛选变化时，清空分类筛选
-  if (filterToolsetId.value) {
-    const selectedToolset = toolsets.value.find((t) => t.toolset_id === filterToolsetId.value)
-    if (selectedToolset) {
-      // 筛选该工具集下的分类
-      const toolsetCategories = categories.value.filter(
-        (c) => c.toolset_id === selectedToolset.id
-      )
-      // 如果当前选中的分类不在新工具集下，清空
-      if (
-        filterCategoryId.value &&
-        !toolsetCategories.find((c) => c.id === filterCategoryId.value)
-      ) {
-        filterCategoryId.value = undefined
-      }
+async function handleFilterChange() {
+  // 当导航模块筛选变化时，清空分类筛选并重新加载分类
+  if (filterNavigationModuleId.value) {
+    await loadCategories()
+    // 如果当前选中的分类不在新导航模块下，清空
+    const moduleCategories = categories.value.filter(
+      (c) => c.navigation_module_id === filterNavigationModuleId.value
+    )
+    if (
+      filterCategoryId.value &&
+      !moduleCategories.find((c) => c.id === filterCategoryId.value)
+    ) {
+      filterCategoryId.value = undefined
     }
   } else {
     filterCategoryId.value = undefined
+    categories.value = []
   }
 
   loadTools()
 }
 
 /**
- * 工具集变化时清空分类
+ * 导航模块变化时清空分类并重新加载分类
  */
-function handleToolsetChange() {
-  form.category_id = undefined
+async function handleNavigationModuleChange() {
+  form.category_id = ''
+  if (form.navigation_module_id) {
+    try {
+      const response = await ApiService.getAdminNavigationModuleCategories(
+        form.navigation_module_id
+      )
+      categories.value = response.categories
+    } catch (error: any) {
+      ElMessage.error(error.message || '加载分类列表失败')
+    }
+  } else {
+    categories.value = []
+  }
 }
 
 /**
@@ -419,8 +427,8 @@ function handleCreate() {
   isEditing.value = false
   Object.assign(form, {
     tool_id: '',
-    toolset_id: filterToolsetId.value || '',
-    category_id: filterCategoryId.value,
+    navigation_module_id: filterNavigationModuleId.value || '',
+    category_id: filterCategoryId.value || '',
     name: '',
     description: '',
     system_prompt: '',
@@ -440,13 +448,24 @@ function handleCreate() {
 /**
  * 编辑工具
  */
-function handleEdit(tool: AdminAIToolListItem) {
+async function handleEdit(tool: AdminAIToolListItem) {
   isEditing.value = true
+  // 加载该导航模块的分类
+  if (tool.navigation_module_id) {
+    try {
+      const response = await ApiService.getAdminNavigationModuleCategories(
+        tool.navigation_module_id
+      )
+      categories.value = response.categories
+    } catch (error: any) {
+      ElMessage.error(error.message || '加载分类列表失败')
+    }
+  }
   Object.assign(form, {
     id: tool.id,
     tool_id: tool.tool_id,
-    toolset_id: tool.toolset_id,
-    category_id: tool.category_id,
+    navigation_module_id: tool.navigation_module_id,
+    category_id: tool.category_id || '',
     name: tool.name,
     description: tool.description,
     system_prompt: tool.system_prompt,
@@ -565,8 +584,7 @@ async function handleDelete(tool: AdminAIToolListItem) {
 
 // 组件挂载时加载数据
 onMounted(() => {
-  loadToolsets()
-  loadCategories()
+  loadNavigationModules()
   loadTools()
   loadAvailableModels()
 })
@@ -574,7 +592,7 @@ onMounted(() => {
 // 加载可用模型列表
 const loadAvailableModels = async () => {
   try {
-    const response = await ApiService.getAvailableModels()
+    const response = await ApiService.getAvailableModelsFromDB()
     availableModels.value = response.models
   } catch (error) {
     console.error('加载可用模型失败:', error)
