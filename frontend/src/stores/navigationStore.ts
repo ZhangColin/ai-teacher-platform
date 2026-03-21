@@ -18,7 +18,7 @@ export const useNavigationStore = defineStore('navigation', () => {
   })
 
   const toolsetModules = computed(() => {
-    return modules.value.filter(m => m.type === 'toolset')
+    return modules.value.filter(m => m.type === 'ai_tools')
   })
 
   const pageModules = computed(() => {
@@ -27,7 +27,7 @@ export const useNavigationStore = defineStore('navigation', () => {
 
   // 辅助函数：从模块配置生成模块ID
   function getModuleId(module: NavigationModule): string {
-    if (module.type === 'toolset' && module.config_source) {
+    if (module.type === 'ai_tools' && module.config_source) {
       // 从 config_source 提取最后一部分作为 ID（如 "tools/ai_tools" -> "ai-tools"）
       const parts = module.config_source.split('/')
       return parts[parts.length - 1]?.replace(/_/g, '-') || ''
@@ -61,7 +61,7 @@ export const useNavigationStore = defineStore('navigation', () => {
       modules.value = [
         {
           name: 'AI工具',
-          type: 'toolset',
+          type: 'ai_tools',
           config_source: 'tools/ai_tools',
           icon: '🤖',
           order: 1
@@ -79,7 +79,7 @@ export const useNavigationStore = defineStore('navigation', () => {
 
   // 获取工具集ID（用于API调用）
   function getToolsetId(module: NavigationModule): string | null {
-    if (module.type === 'toolset' && module.config_source) {
+    if (module.type === 'ai_tools' && module.config_source) {
       // 从 config_source 提取最后一部分（如 "tools/ai_tools" -> "ai_tools"）
       const parts = module.config_source.split('/')
       return parts[parts.length - 1] || null
