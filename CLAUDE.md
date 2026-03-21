@@ -16,7 +16,7 @@
 
 ## 项目概述
 
-AI 智能备课平台是一个基于大语言模型（Kimi/DeepSeek）的教育辅助平台，帮助教师通过自然语言对话创建交互式 HTML5 课件、SVG 可视化图表和 Markdown 教学设计。平台采用模块化工具集架构，AI 工具通过 YAML 配置文件定义，而非硬编码。
+AI 智能备课平台是一个基于大语言模型（DeepSeek/Kimi/OpenAI/GLM）的教育辅助平台，帮助教师通过自然语言对话创建交互式 HTML5 课件、SVG 可视化图表和 Markdown 教学设计。平台采用**数据库驱动架构**，所有 AI 工具、导航模块、模型配置均可通过管理后台动态管理。
 
 ## 开发命令
 
@@ -68,45 +68,21 @@ npx vue-tsc --noEmit # 检查类型但不构建
 
 ## 架构设计
 
-### 模块化工具集系统
+### 数据库驱动的模块化系统
 
-平台的核心创新是**配置驱动的工具集架构**。AI 工具不是硬编码的，而是通过 `configs/` 目录中的 YAML 配置文件定义：
+平台采用**数据库驱动的架构**，所有配置存储在数据库中，通过管理后台动态管理：
 
-```
-configs/
-├── navigation.yaml           # 顶部导航模块配置
-└── tools/
-    ├── ai_tools/             # AI模型能力工具集
-    │   ├── categories.yaml
-    │   └── *.yaml           # 各个工具的配置
-    └── teaching_researcher/  # AI教研员工具集
-        ├── categories.yaml
-        ├── prompts/          # 系统提示词 markdown 文件
-        └── *.yaml           # 各个工具的配置
-```
+**核心数据模型：**
+- `navigation_modules` - 导航模块配置（顶部导航）
+- `ai_tool_categories` - AI 工具分类
+- `ai_tools` - AI 工具配置（系统提示词、模型选择等）
+- `model_providers` - AI 模型供应商配置
+- `builtin_models` - 内置模型列表
 
-**添加新工具的步骤：**
-1. 在 `configs/tools/<toolset>/tool_name.yaml` 创建 YAML 配置
-2. 创建系统提示词文件（通过 `system_prompt_file` 引用）
-3. 如需要，在 `categories.yaml` 中添加分类
-4. 后端通过 `src/services/tool_service.py` 中的 `ToolService` 自动加载配置
-
-**工具配置结构：**
-```yaml
-tool_id: unique_identifier
-name: "显示名称"
-description: "工具描述"
-category: "分类名称"
-icon: "heroicon-name"
-visible: true
-type: "normal" | "media"  # media 工具支持多模态输入输出
-order: 1
-toolset_id: toolset_name
-system_prompt_file: "prompts/file.md"
-model: "deepseek:deepseek-chat"  # provider:module 格式
-welcome_message: |
-  多行欢迎消息
-```
+**管理方式：**
+- 通过 `/admin` 后台管理界面配置所有数据
+- 无需修改代码或重启服务即可添加新工具
+- 支持模型供应商的动态切换和配置
 
 ### 后端结构 (FastAPI)
 
@@ -116,36 +92,61 @@ backend/src/
 ├── database.py                # SQLAlchemy 会话管理
 ├── db_models.py              # ORM 模型（用户、会话、消息、成果物等）
 ├── models.py                 # API 请求/响应的 Pydantic 模型
-├── config_loader.py          # YAML 配置加载工具
+├── config_loader.py          # 配置加载工具
 │
-├── routers/                  # API 端点
-│   ├── auth.py              # /api/v1/auth/* (登录、注册)
-│   ├── users.py             # /api/v1/admin/users/*
-│   ├── tools.py             # /api/v1/tools/*, /api/v1/toolsets/*
-│   ├── sessions.py          # /api/v1/sessions/*
-│   ├── admin_tools.py       # /api/v1/admin/common-tools/*
-│   ├── works.py             # /api/v1/works/*
-│   ├── courses.py           # /api/v1/documents/*
-│   ├── common.py            # 媒体生成端点
-│   └── dependencies.py      # FastAPI 依赖（认证、数据库会话）
+├── interfaces/               # API 接口层
+│   ├── auth.py              # 认证接口
+│   ├── dependencies.py      # FastAPI 依赖（认证、数据库会话）
+│   └── routers/             # API 端点
+│       ├── admin/           # 管理后台路由
+│       │   ├── ai_tools.py              # AI 工具管理
+│       │   ├── model_providers.py       # 模型供应商管理
+│       │   ├── navigation.py            # 导航模块管理
+│       │   ├── navigation_categories.py # 导航分类管理
+│       │   └── tools.py                 # 内置工具管理
+│       ├── auth/              # 认证路由
+│       ├── common/            # 公共工具路由
+│       ├── courses/           # 课程文档路由
+│       ├── sessions/          # 会话管理路由
+│       ├── tools/             # AI 工具路由
+│       ├── users/             # 用户管理路由
+│       ├── works/             # 教案作品路由
+│       ├── models.py          # 路由层模型
+│       └── navigation.py      # 导航配置路由
 │
-└── services/                 # 业务逻辑层
-    ├── ai_service.py        # LLM 集成（OpenAI SDK）
-    ├── auth_service.py      # JWT、密码哈希
-    ├── session_service.py   # 会话/消息管理
-    ├── tool_service.py      # 从 YAML 加载工具配置
-    ├── common_tool_service.py # 内置/HTML 工具 CRUD
-    ├── work_service.py      # 教案作品 CRUD
-    ├── course_service.py    # 课程文档 CRUD
-    ├── artifact_parser.py   # 从 LLM 响应中提取成果物
-    └── title_generator.py   # AI 驱动的会话标题生成
+├── services/                 # 业务逻辑层
+│   ├── ai_service.py        # LLM 集成（OpenAI SDK）
+│   ├── auth_service.py      # JWT、密码哈希
+│   ├── session_service.py   # 会话/消息管理
+│   ├── tool_service.py      # AI 工具服务（从数据库加载）
+│   ├── config_service.py    # 配置管理服务
+│   ├── model_provider_service.py  # 模型供应商服务
+│   ├── builtin_models.py    # 内置模型配置
+│   ├── encryption_service.py # 加密服务
+│   ├── common_tool_service.py # 内置/HTML 工具 CRUD
+│   ├── work_service.py      # 教案作品 CRUD
+│   ├── course_service.py    # 课程文档 CRUD
+│   ├── artifact_parser.py   # 从 LLM 响应中提取成果物
+│   ├── title_generator.py   # AI 驱动的会话标题生成
+│   └── token_service.py     # Token 统计服务
+│
+├── domain/                   # 领域层
+│   ├── entities/            # 领域实体
+│   └── repositories/        # 数据访问接口
+│
+├── infrastructure/           # 基础设施层
+│   └── repositories/        # 数据访问实现
+│
+└── application/              # 应用层
+    └── use_cases/           # 用例实现
 ```
 
 **关键架构模式：**
+- **分层架构**：interfaces → application → domain → infrastructure（DDD 风格）
 - **路由 → 服务 → 模型**：路由层处理 HTTP，服务层包含业务逻辑，模型层处理数据
 - **依赖注入**：`dependencies.py` 中的 `get_current_user()` 和 `get_db()`
 - **成果物解析**：LLM 响应可包含结构化的"成果物"（HTML、SVG、Markdown），通过 `artifact_parser.py` 中的正则表达式提取
-- **多提供商 AI**：通过环境变量配置支持 Kimi 和 DeepSeek
+- **多提供商 AI**：支持 DeepSeek、Kimi、OpenAI、GLM 等多个模型供应商，可动态配置和切换
 
 ### 前端结构 (Vue 3 Composition API)
 
@@ -204,10 +205,11 @@ frontend/src/
 ```
 
 **关键前端模式：**
-- **基于路由的模块**：`/modules/:moduleId` 映射到 `configs/navigation.yaml` 中的工具集
+- **基于路由的模块**：`/modules/:moduleId` 映射到数据库中的导航模块配置
 - **流式聊天**：使用 SSE（`ApiService.chatStream()`）实现实时 LLM 响应
 - **成果物渲染**：`PreviewPanel.vue` 检测成果物类型并相应渲染
 - **管理员权限守卫**：路由守卫检查 `authStore.user?.is_admin` 用于 `/admin/*` 路由
+- **模型选择器**：支持在聊天时动态选择不同的模型供应商和模型
 
 ### 数据库模型 (SQLAlchemy)
 
@@ -226,12 +228,23 @@ WorkCategoryModel (work_categories)
 
 CourseCategoryModel (course_categories)  # 自引用树形结构
   └──> CourseDocumentModel (course_documents)
+
+NavigationModuleModel (navigation_modules)
+  ├── AIToolCategoryModel (ai_tool_categories)
+  │   └──> AIToolModel (ai_tools)
+  └── AIToolModel (ai_tools)
+
+ModelProviderModel (model_providers)
+  └──> BuiltinModel (builtin_models)
 ```
 
 **关系说明：**
 - 用户 → 会话 → 消息 → 成果物（级联删除）
 - 所有分类模型都有 order 字段用于手动排序
 - CourseCategory 通过 `parent_id` 自引用形成树形结构
+- 导航模块关联 AI 工具分类和工具，支持多层级配置
+- 模型供应商管理可用的 AI 模型列表
+- 会话和消息支持模型选择和 Token 统计
 
 ### 认证与授权
 
@@ -247,10 +260,12 @@ CourseCategoryModel (course_categories)  # 自引用树形结构
 必需变量：
 - `DATABASE_URL`：MySQL 连接字符串
 - `JWT_SECRET_KEY`：JWT 签名密钥
-- `CURRENT_PROVIDER`："kimi" 或 "deepseek"
-- `KIMI_API_KEY` 或 `DEEPSEEK_API_KEY`：LLM 提供商凭证
+- `ENCRYPTION_KEY`：API 密钥加密密钥（用于存储模型供应商的 API 密钥）
+- `DEFAULT_MODEL_PROVIDER`：默认模型供应商 ID
 
 完整模板见 `backend/.env.example`。
+
+**注意**：模型供应商的 API 密钥现在通过管理后台配置，存储在数据库中（加密保存）。
 
 ### 前端 (vite.config.ts)
 - 代理 `/api` → `http://127.0.0.1:8000`（后端）
@@ -397,13 +412,27 @@ cd frontend && npm run test:e2e -- tests/e2e/chat.spec.ts --project=chromium
 
 ## 常见任务
 
-### 添加新的 AI 工具（工具集）
-1. 创建目录：`configs/tools/my_toolset/`
-2. 创建 `categories.yaml` 定义工具分类
-3. 创建 `my_tool.yaml` 定义工具配置
-4. 创建 `prompts/my_prompt.md` 定义系统提示词
-5. 在 `configs/navigation.yaml` 的 `modules` 下添加工具集
-6. 重启后端以加载新配置
+### 添加新的 AI 工具
+1. 登录管理后台（`/admin`）
+2. 进入"导航模块管理"，创建或选择一个导航模块
+3. 进入"AI 工具分类管理"，为该模块添加分类
+4. 进入"AI 工具管理"，创建新工具：
+   - 填写工具名称、描述
+   - 选择所属分类和导航模块
+   - 配置系统提示词
+   - 选择默认模型
+   - 设置图标和排序
+5. 保存后前端即可使用新工具（无需重启）
+
+### 配置模型供应商
+1. 登录管理后台（`/admin`）
+2. 进入"模型供应商管理"
+3. 添加新供应商：
+   - 填写供应商名称（如 DeepSeek、OpenAI）
+   - 配置 API 端点
+   - 添加 API 密钥（会加密存储）
+   - 启用内置模型列表
+4. 保存后即可在 AI 工具中使用该供应商的模型
 
 ### 调试 LLM 响应
 - 检查 `backend/src/services/ai_service.py` 了解提供商逻辑
