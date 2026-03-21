@@ -60,8 +60,6 @@
               <span>配置管理</span>
             </template>
             <el-menu-item index="/admin/navigation">导航模块</el-menu-item>
-            <el-menu-item index="/admin/toolsets">工具集</el-menu-item>
-            <el-menu-item index="/admin/ai-tool-categories">AI工具分类</el-menu-item>
             <el-menu-item index="/admin/ai-tools">AI工具</el-menu-item>
             <el-menu-item index="/admin/model-providers">模型供应商</el-menu-item>
           </el-sub-menu>
