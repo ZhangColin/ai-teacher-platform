@@ -4,10 +4,10 @@
 """
 
 from .base_adapter import BaseLLMAdapter
-# from .factory import create_adapter, ADAPTER_REGISTRY  # Task 7 创建
+from .factory import create_adapter, ADAPTER_REGISTRY
 
 __all__ = [
     "BaseLLMAdapter",
-    # "create_adapter",
-    # "ADAPTER_REGISTRY",
+    "create_adapter",
+    "ADAPTER_REGISTRY",
 ]
