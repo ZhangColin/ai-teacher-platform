@@ -4,6 +4,10 @@ import sys
 import logging
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+# 加载环境变量（必须在其他导入之前）
+load_dotenv()
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles

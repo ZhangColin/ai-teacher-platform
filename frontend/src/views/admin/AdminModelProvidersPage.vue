@@ -147,7 +147,6 @@ const currentProvider = ref<ModelProviderListItem | null>(null)
 // 供应商表单
 const providerDialogVisible = ref(false)
 const editingProvider = ref<ModelProviderListItem | null>(null)
-<<<<<<< HEAD
 const providerForm = ref<UpdateModelProviderRequest & { provider_code: string }>({
   provider_code: '',
   provider_name: '',
