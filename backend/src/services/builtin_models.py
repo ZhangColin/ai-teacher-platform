@@ -209,84 +209,104 @@ BUILTIN_MODELS = {
         },
     },
     "glm": {
-        # GLM-5 系列 (2026年2月发布，最新旗舰)
+        # GLM-5 系列 (最新旗舰)
         "glm-5": {
             "name": "GLM-5",
             "capabilities": ["chat", "image", "code"],
-            "description": "智谱最新旗舰 (2026年2月)，744B 参数，面向 Agent 工程设计，开源 SOTA"
+            "description": "最新旗舰基座，编程能力对齐 Claude Opus 4.5，200K 上下文"
         },
         "glm-5-turbo": {
-            "name": "GLM-5 Turbo",
+            "name": "GLM-5-Turbo",
             "capabilities": ["chat", "code"],
-            "description": "GLM-5 Turbo 版，增强外部工具和技能调用能力"
+            "description": "龙虾增强基座，复杂长任务执行连续性好，200K 上下文"
         },
-        "glm-5-reasoning": {
-            "name": "GLM-5 Reasoning",
-            "capabilities": ["chat", "code"],
-            "description": "GLM-5 推理增强版，系统级思维链"
-        },
-        # GLM-4 系列
+        # GLM-4 系列 (高智能)
         "glm-4.7": {
             "name": "GLM-4.7",
             "capabilities": ["chat", "code"],
-            "description": "GLM-4.7 通用模型"
+            "description": "高智能模型，全面升级，编程更强更稳，200K 上下文"
         },
-        "glm-4.5": {
-            "name": "GLM-4.5",
+        "glm-4.7-flashx": {
+            "name": "GLM-4.7-FlashX",
+            "capabilities": ["chat"],
+            "description": "轻量高速，小尺寸强能力，适用于中文写作、翻译等"
+        },
+        "glm-4.6": {
+            "name": "GLM-4.6",
             "capabilities": ["chat", "code"],
-            "description": "GLM-4.5 通用模型"
+            "description": "超强性能，200K 上下文，高级编码能力"
         },
-        "glm-4": {
-            "name": "GLM-4",
+        # GLM-4.5 系列 (高性价比)
+        "glm-4.5-air": {
+            "name": "GLM-4.5-Air",
+            "capabilities": ["chat", "code"],
+            "description": "高性价比，推理编码强劲，128K 上下文"
+        },
+        "glm-4.5-airx": {
+            "name": "GLM-4.5-AirX",
             "capabilities": ["chat"],
-            "description": "GLM-4 基础版 (建议使用 GLM-5)"
+            "description": "高性价比极速版，推理速度快，128K 上下文"
         },
-        "glm-4-flash": {
-            "name": "GLM-4 Flash",
+        # 超长上下文
+        "glm-4-long": {
+            "name": "GLM-4-Long",
             "capabilities": ["chat"],
-            "description": "GLM-4 Flash 低延迟版本"
+            "description": "超长输入，支持 1M 上下文长度"
         },
-        "glm-4-air": {
-            "name": "GLM-4 Air",
+        # 免费模型
+        "glm-4.7-flash": {
+            "name": "GLM-4.7-Flash",
             "capabilities": ["chat"],
-            "description": "GLM-4 Air 经济型版本"
+            "description": "免费模型，最新基座普惠版本"
         },
-        # 多模态系列
-        "glm-4v": {
-            "name": "GLM-4V",
+        # 视觉模型
+        "glm-4.6v": {
+            "name": "GLM-4.6V",
             "capabilities": ["chat", "image"],
-            "description": "GLM-4 视觉理解模型"
+            "description": "旗舰视觉推理，原生支持工具调用"
+        },
+        "glm-ocr": {
+            "name": "GLM-OCR",
+            "capabilities": ["chat", "image"],
+            "description": "轻量图文解析，高精度高效率"
+        },
+        # 图像生成
+        "glm-image": {
+            "name": "GLM-Image",
+            "capabilities": ["image"],
+            "description": "旗舰图像生成，文字渲染 SOTA"
         },
         "cogview-4": {
             "name": "CogView-4",
             "capabilities": ["image"],
-            "description": "智谱图像生成"
+            "description": "高质量图像生成"
         },
-        "cogview-5": {
-            "name": "CogView-5",
+        "cogview-3-flash": {
+            "name": "CogView-3-Flash",
             "capabilities": ["image"],
-            "description": "智谱图像生成 (最新)"
+            "description": "免费图像生成模型"
         },
-        "cogvideox": {
-            "name": "CogVideoX",
+        # 视频生成
+        "cogvideox-3": {
+            "name": "CogVideoX-3",
             "capabilities": ["video"],
-            "description": "智谱视频生成"
+            "description": "高智能旗舰，主观清晰度大幅提升"
         },
-        "cogvideox-2b": {
-            "name": "CogVideoX 2B",
+        "cogvideox-flash": {
+            "name": "CogVideoX-Flash",
             "capabilities": ["video"],
-            "description": "智谱视频生成 2B 版本"
+            "description": "免费视频生成模型"
         },
-        # 音频系列
+        # 语音模型
+        "glm-tts": {
+            "name": "GLM-TTS",
+            "capabilities": ["audio"],
+            "description": "语音合成模型，超拟人语音"
+        },
         "glm-4-voice": {
-            "name": "GLM-4 Voice",
+            "name": "GLM-4-Voice",
             "capabilities": ["audio"],
-            "description": "智谱语音合成"
-        },
-        "chirp": {
-            "name": "Chirp",
-            "capabilities": ["audio"],
-            "description": "智谱语音合成模型"
+            "description": "语音模型，直接理解和生成中英文语音"
         },
     },
     # 豆包/字节跳动 (火山引擎 Doubao Seed 2.0 系列)
