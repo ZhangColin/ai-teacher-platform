@@ -462,6 +462,50 @@ git commit -m "feat: 添加企业积分系统 Pydantic 模型"
 
 ---
 
+### Task 2.5: 执行数据库迁移
+
+**注意**: 在开始编写服务层代码之前，需要先执行数据库迁移，创建新表结构。
+
+- [ ] **Step 1: 生成迁移文件**
+
+```bash
+cd backend && alembic revision --autogenerate -m "add_enterprise_point_system"
+```
+
+- [ ] **Step 2: 检查迁移文件**
+
+查看生成的迁移文件，确认包含了所有新表和字段修改。
+
+- [ ] **Step 3: 执行迁移**
+
+```bash
+cd backend && alembic upgrade head
+```
+
+- [ ] **Step 4: 验证表结构**
+
+```bash
+mysql -u root -p ai_teacher_db -e "SHOW TABLES LIKE '%enterprise%' OR SHOW TABLES LIKE '%point%' OR SHOW TABLES LIKE '%consumption%';"
+```
+
+预期输出：应该看到 `enterprises`, `point_transactions`, `ai_consumptions`, `model_point_rates` 四张表
+
+- [ ] **Step 5: 创建默认企业（可选）**
+
+```sql
+INSERT INTO enterprises (id, name, code, status, balance_gratis, balance_paid, debt_points, created_at, updated_at)
+VALUES ('default-ent-001', '默认企业', 'default', 'active', 10000, 0, 0, NOW(), NOW());
+```
+
+- [ ] **Step 6: 提交**
+
+```bash
+git add backend/alembic/versions/
+git commit -m "feat: 执行企业积分系统数据库迁移"
+```
+
+---
+
 ## 阶段二：服务层（后端）
 
 ### Task 3: 创建 EnterpriseService
@@ -1745,6 +1789,227 @@ git commit -m "feat: 添加企业后台 API"
 
 ---
 
+### Task 8: 创建企业用户管理 API
+
+**Files:**
+- Create: `backend/src/interfaces/routers/enterprise/users.py`
+
+- [ ] **Step 1: 创建用户管理 API**
+
+创建 `backend/src/interfaces/routers/enterprise/users.py`：
+
+```python
+# -*- coding: utf-8 -*-
+"""企业用户管理路由（企业后台）"""
+import logging
+from typing import Annotated, Optional
+from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.orm import Session
+
+from src.models import UserInfo
+from src.database import get_db
+from src.interfaces.dependencies import require_enterprise_admin
+from src.services.user_service import UserService
+from src.services.enterprise_service import EnterpriseService
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/api/v1/enterprise/users", tags=["企业-用户管理"])
+
+
+@router.get("")
+async def get_users(
+    page: int = 1,
+    page_size: int = 20,
+    current_user: Annotated[UserInfo, Depends(require_enterprise_admin)] = None,
+    db: Session = Depends(get_db)
+):
+    """获取企业用户列表"""
+    if page_size > 100:
+        page_size = 100
+
+    from src.db_models import UserModel
+    query = db.query(UserModel).filter(
+        UserModel.enterprise_id == current_user.enterprise_id
+    )
+
+    total = query.count()
+
+    from sqlalchemy import desc
+    users = query.order_by(desc(UserModel.created_at)).offset(
+        (page - 1) * page_size
+    ).limit(page_size).all()
+
+    from src.models import UserListItem
+    items = [
+        UserListItem(
+            user_id=u.user_id,
+            username=u.username,
+            nickname=u.nickname or u.username,
+            email=u.email,
+            phone=u.phone,
+            avatar=u.avatar,
+            is_admin=u.is_admin,
+            created_at=u.created_at
+        )
+        for u in users
+    ]
+
+    return {"users": items, "total": total, "page": page}
+
+
+@router.post("")
+async def create_user(
+    request: dict,
+    current_user: Annotated[UserInfo, Depends(require_enterprise_admin)] = None,
+    db: Session = Depends(get_db)
+):
+    """创建企业用户"""
+    user_service = UserService()
+    try:
+        user = user_service.create_user(
+            username=request["username"],
+            nickname=request.get("nickname"),
+            email=request.get("email"),
+            password=request["password"],
+            phone=request.get("phone"),
+            is_enterprise_admin=False
+        )
+
+        # 关联到当前企业
+        from src.db_models import UserModel
+        user_model = db.query(UserModel).filter(
+            UserModel.user_id == user.user_id
+        ).first()
+        if user_model:
+            user_model.enterprise_id = current_user.enterprise_id
+            db.commit()
+
+        return {"user_id": user.user_id, "message": "创建成功"}
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+
+
+@router.delete("/{user_id}")
+async def delete_user(
+    user_id: str,
+    current_user: Annotated[UserInfo, Depends(require_enterprise_admin)] = None,
+    db: Session = Depends(get_db)
+):
+    """删除企业用户"""
+    from src.db_models import UserModel
+    user = db.query(UserModel).filter(
+        UserModel.user_id == user_id,
+        UserModel.enterprise_id == current_user.enterprise_id
+    ).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    if user.user_id == current_user.user_id:
+        raise HTTPException(status_code=400, detail="不能删除自己")
+
+    try:
+        db.delete(user)
+        db.commit()
+        return {"message": "删除成功"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+```
+
+- [ ] **Step 2: 注册路由**
+
+修改 `backend/src/interfaces/routers/enterprise/__init__.py`：
+
+```python
+from fastapi import APIRouter
+from . import users, points, consumptions
+
+router = APIRouter(prefix="/api/v1/enterprise", tags=["企业后台"])
+router.include_router(users.router)
+router.include_router(points.router)
+router.include_router(consumptions.router)
+```
+
+- [ ] **Step 3: 提交**
+
+```bash
+git add backend/src/interfaces/routers/enterprise/users.py backend/src/interfaces/routers/enterprise/__init__.py
+git commit -m "feat: 添加企业用户管理 API"
+```
+
+---
+
+### Task 9: 修改 Chat 接口集成积分检查和扣费
+
+**Files:**
+- Modify: `backend/src/interfaces/routers/tools/chat.py`
+
+- [ ] **Step 1: 在 AI 请求前检查积分**
+
+找到聊天接口的 POST 方法，在调用 AI 服务前添加积分检查：
+
+```python
+# 在 chat_stream 方法开始处，获取用户信息后
+from src.services.point_service import PointService
+
+# 检查积分
+point_service = PointService(db)
+if not point_service.check_points_before_request(current_user.user_id):
+    raise HTTPException(
+        status_code=403,
+        detail="积分不足，请联系企业管理员充值"
+    )
+```
+
+- [ ] **Step 2: 在 AI 响应后扣减积分**
+
+在流式结束后，记录消费信息：
+
+```python
+# 在流结束后，获取 usage_info 后
+if usage_info:
+    try:
+        from src.services.point_service import PointService
+        point_service = PointService(db)
+
+        points = point_service.calculate_points_from_tokens(
+            provider_code=usage_info.get('model_provider', ''),
+            model_code=usage_info.get('model_name', ''),
+            prompt_tokens=usage_info.get('prompt_tokens', 0),
+            completion_tokens=usage_info.get('completion_tokens', 0)
+        )
+
+        # 扣减积分
+        consumption = point_service.deduct_points(
+            enterprise_id=current_user.enterprise_id,
+            user_id=current_user.user_id,
+            session_id=session_id,
+            message_id=message_id,
+            model_provider=usage_info.get('model_provider', ''),
+            model_name=usage_info.get('model_name', ''),
+            prompt_tokens=usage_info.get('prompt_tokens', 0),
+            completion_tokens=usage_info.get('completion_tokens', 0),
+            points=points
+        )
+
+        logger.info(f"积分扣减完成 - 消耗:{points}（赠送:{consumption.gratis_points_used}, 充值:{consumption.paid_points_used}）")
+
+    except Exception as e:
+        logger.error(f"积分扣减失败: {e}")
+        # 不阻塞响应，但记录错误
+```
+
+- [ ] **Step 3: 提交**
+
+```bash
+git add backend/src/interfaces/routers/tools/chat.py
+git commit -m "feat: 集成积分检查和扣费到聊天接口"
+```
+
+---
+
 ## 阶段四：前端（Vue）
 
 ### Task 9: 添加前端类型定义
@@ -1937,6 +2202,9 @@ git commit -m "feat: 添加企业相关 API 客户端方法"
   </template>
   <el-menu-item index="/admin/enterprises">企业列表</el-menu-item>
 </el-sub-menu>
+
+<!-- 在 script 部分添加图标导入 -->
+import { OfficeBuilding } from '@element-plus/icons-vue'
 ```
 
 - [ ] **Step 2: 提交**
@@ -2640,39 +2908,6 @@ git commit -m "feat: 添加企业后台布局和 Dashboard"
 
 ## 阶段五：集成与测试
 
-### Task 14: 数据库迁移
-
-- [ ] **Step 1: 生成迁移文件**
-
-```bash
-cd backend && alembic revision --autogenerate -m "add_enterprise_point_system"
-```
-
-- [ ] **Step 2: 检查迁移文件**
-
-查看生成的迁移文件，确认包含了所有新表和字段修改。
-
-- [ ] **Step 3: 执行迁移**
-
-```bash
-cd backend && alembic upgrade head
-```
-
-- [ ] **Step 4: 验证表结构**
-
-```bash
-mysql -u root -p ai_teacher_db -e "SHOW TABLES LIKE '%enterprise%' OR SHOW TABLES LIKE '%point%' OR SHOW TABLES LIKE '%consumption%';"
-```
-
-- [ ] **Step 5: 提交**
-
-```bash
-git add backend/alembic/versions/
-git commit -m "feat: 执行企业积分系统数据库迁移"
-```
-
----
-
 ### Task 15: 运行测试验证
 
 - [ ] **Step 1: 运行后端单元测试**
@@ -2709,7 +2944,55 @@ cd frontend && npm run test
 
 ---
 
-### Task 16: 手动测试验收
+### Task 16: 添加前端路由守卫
+
+**Files:**
+- Modify: `frontend/src/router/index.ts`
+
+- [ ] **Step 1: 添加企业管理员权限检查**
+
+在路由守卫中添加企业管理员检查：
+
+```typescript
+router.beforeEach((to, from, next) => {
+  const authStore = useAuthStore()
+
+  const isAuthenticated = authStore.isAuthenticated
+
+  if (to.meta.requiresAuth && !isAuthenticated) {
+    next('/login')
+    return
+  }
+
+  if (to.meta.requiresAdmin && authStore.user?.is_admin !== true) {
+    next('/')
+    return
+  }
+
+  // 新增：企业管理员权限检查
+  if (to.meta.requiresEnterpriseAdmin && authStore.user?.is_enterprise_admin !== true) {
+    next('/')
+    return
+  }
+
+  next()
+})
+```
+
+- [ ] **Step 2: 更新路由 meta**
+
+为 `/enterprise` 路由添加 `requiresEnterpriseAdmin: true`。
+
+- [ ] **Step 3: 提交**
+
+```bash
+git add frontend/src/router/index.ts
+git commit -m "feat: 添加企业管理员路由守卫"
+```
+
+---
+
+### Task 17: 手动测试验收
 
 - [ ] **Step 1: 启动后端服务**
 
