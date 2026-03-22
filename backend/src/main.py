@@ -19,6 +19,7 @@ from src.interfaces.routers.tools import list as tools_list_router
 from src.interfaces.routers.tools import chat as tools_chat_router
 from src.interfaces.routers.tools import conversations as tools_conversations_router
 from src.interfaces.routers.tools import media as tools_media_router
+from src.interfaces.routers.tools import files as files_router
 from src.interfaces.routers.auth import auth as new_auth_router
 from src.interfaces.routers import sessions as new_sessions_router
 from src.interfaces.routers import users as new_users_router
@@ -67,6 +68,9 @@ app.include_router(tools_list_router.router, prefix="/api/v1")
 app.include_router(tools_chat_router.router, prefix="/api/v1")
 app.include_router(tools_conversations_router.router, prefix="/api/v1")
 app.include_router(tools_media_router.router, prefix="/api/v1")
+
+# 文件上传路由
+app.include_router(files_router.router, prefix="/api/v1")
 
 # 认证相关路由（新架构 - interfaces层）
 app.include_router(new_auth_router.router)

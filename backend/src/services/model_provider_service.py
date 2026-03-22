@@ -253,7 +253,8 @@ class ModelProviderService:
         if request.provider_name is not None:
             provider.provider_name = request.provider_name
 
-        if request.api_key is not None:
+        # 只有当 api_key 非空时才更新（空字符串表示不修改）
+        if request.api_key:
             provider.api_key_encrypted = self.encryption.encrypt(request.api_key)
 
         if request.base_url is not None:

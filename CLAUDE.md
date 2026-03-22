@@ -428,11 +428,34 @@ cd frontend && npm run test:e2e -- tests/e2e/chat.spec.ts --project=chromium
 1. 登录管理后台（`/admin`）
 2. 进入"模型供应商管理"
 3. 添加新供应商：
-   - 填写供应商名称（如 DeepSeek、OpenAI）
+   - 填写供应商名称（如 DeepSeek、OpenAI、Kimi）
    - 配置 API 端点
    - 添加 API 密钥（会加密存储）
    - 启用内置模型列表
 4. 保存后即可在 AI 工具中使用该供应商的模型
+
+### 支持的 AI 模型
+
+#### Kimi (Moonshot AI)
+- **API 端点**: `https://api.moonshot.cn`
+- **支持模型**:
+  - `moonshot-v1-8k` - 8K 上下文
+  - `moonshot-v1-32k` - 32K 上下文
+  - `moonshot-v1-128k` - 128K 上下文
+- **特性**: 文件上传、多模态、长上下文
+- **文件支持**: PDF, Word, Excel, PPT, TXT (通过文件 API)
+
+#### DeepSeek
+- **API 端点**: `https://api.deepseek.com`
+- **支持模型**: `deepseek-chat`, `deepseek-coder`
+- **特性**: 高性价比、代码生成
+- **文件支持**: 本地文本提取（不支持文件 API）
+
+#### OpenAI
+- **API 端点**: `https://api.openai.com`
+- **支持模型**: `gpt-4`, `gpt-3.5-turbo`
+- **特性**: 多模态、函数调用
+- **文件支持**: 通过 Files API
 
 ### 调试 LLM 响应
 - 检查 `backend/src/services/ai_service.py` 了解提供商逻辑

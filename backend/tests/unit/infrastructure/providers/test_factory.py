@@ -8,6 +8,7 @@ from unittest.mock import patch, MagicMock
 from src.infrastructure.providers.factory import ProviderFactory
 from src.infrastructure.providers.openai_provider import OpenAIProvider
 from src.infrastructure.providers.deepseek_provider import DeepSeekProvider
+from src.infrastructure.providers.kimi_provider import KimiProvider
 
 
 class TestProviderFactory:
@@ -225,3 +226,18 @@ class TestProviderFactory:
         """测试检查provider注册是否大小写不敏感"""
         assert ProviderFactory.is_provider_registered("OpenAI") is True
         assert ProviderFactory.is_provider_registered("DEEPSEEK") is True
+
+    def test_kimi_provider_registered(self):
+        """测试 Kimi Provider 已注册"""
+        assert "kimi" in ProviderFactory.get_registered_providers()
+        assert ProviderFactory.is_provider_registered("kimi") is True
+
+    def test_create_kimi_provider(self):
+        """测试创建 Kimi Provider"""
+        provider = ProviderFactory.create(
+            provider_name="kimi",
+            api_key="test_key"
+        )
+
+        assert provider is not None
+        assert provider.__class__.__name__ == "KimiProvider"

@@ -33,7 +33,7 @@
     >
       <el-form :model="providerForm" label-width="120px">
         <el-form-item label="供应商代码">
-          <el-input v-model="providerForm.provider_code" :disabled="!!editingProvider" />
+          <el-input v-model="providerForm.provider_code" disabled />
         </el-form-item>
         <el-form-item label="供应商名称">
           <el-input v-model="providerForm.provider_name" />
@@ -103,7 +103,7 @@
     >
       <el-form :model="modelForm" label-width="100px">
         <el-form-item label="模型代码">
-          <el-input v-model="modelForm.model_code" :disabled="!!editingModel" />
+          <el-input v-model="modelForm.model_code" disabled />
         </el-form-item>
         <el-form-item label="模型名称">
           <el-input v-model="modelForm.model_name" />
@@ -131,14 +131,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { ApiService } from '@/services/apiClient'
 import type {
   ModelProviderListItem,
   ModelConfigListItem,
-  CreateModelProviderRequest,
   UpdateModelProviderRequest,
-  CreateModelConfigRequest,
   UpdateModelConfigRequest
 } from '@/types'
 
@@ -149,14 +147,8 @@ const currentProvider = ref<ModelProviderListItem | null>(null)
 // 供应商表单
 const providerDialogVisible = ref(false)
 const editingProvider = ref<ModelProviderListItem | null>(null)
-const providerForm = ref<{
-  provider_name: string
-  api_key: string
-  base_url: string
-  is_enabled: boolean
-  is_default: boolean
-  order: number
-}>({
+<<<<<<< HEAD
+const providerForm = ref<UpdateModelProviderRequest & { provider_code: string }>({
   provider_code: '',
   provider_name: '',
   api_key: '',
@@ -171,13 +163,11 @@ const modelsDialogVisible = ref(false)
 const modelDialogVisible = ref(false)
 const editingModel = ref<ModelConfigListItem | null>(null)
 const modelForm = ref<{
-  provider_id: string
   model_code: string
   model_name: string
   capabilitiesArray: string[]
   is_enabled: boolean
 }>({
-  provider_id: '',
   model_code: '',
   model_name: '',
   capabilitiesArray: ['chat'],
@@ -211,14 +201,19 @@ const showEditProviderDialog = (provider: ModelProviderListItem) => {
 
 // 保存供应商
 const handleSaveProvider = async () => {
+  if (!editingProvider.value) return
   try {
-    if (editingProvider.value) {
-      await ApiService.updateModelProvider(editingProvider.value.id, providerForm.value)
-      ElMessage.success('更新成功')
-    } else {
-      await ApiService.createModelProvider(providerForm.value)
-      ElMessage.success('创建成功')
-    }
+    // 过滤掉空字符串字段，只发送有值的字段
+    const requestData: UpdateModelProviderRequest = {}
+    if (providerForm.value.provider_name) requestData.provider_name = providerForm.value.provider_name
+    if (providerForm.value.api_key) requestData.api_key = providerForm.value.api_key
+    if (providerForm.value.base_url) requestData.base_url = providerForm.value.base_url
+    if (providerForm.value.is_enabled !== undefined) requestData.is_enabled = providerForm.value.is_enabled
+    if (providerForm.value.is_default !== undefined) requestData.is_default = providerForm.value.is_default
+    if (providerForm.value.order !== undefined) requestData.order = providerForm.value.order
+
+    await ApiService.updateModelProvider(editingProvider.value.id, requestData)
+    ElMessage.success('更新成功')
     providerDialogVisible.value = false
     await loadProviders()
   } catch (error: any) {
@@ -238,25 +233,10 @@ const showModelsDialog = async (provider: ModelProviderListItem) => {
   }
 }
 
-// 显示创建模型对话框
-const showCreateModelDialog = () => {
-  if (!currentProvider.value) return
-  editingModel.value = null
-  modelForm.value = {
-    provider_id: currentProvider.value.id,
-    model_code: '',
-    model_name: '',
-    capabilitiesArray: ['chat'],
-    is_enabled: true
-  }
-  modelDialogVisible.value = true
-}
-
 // 显示编辑模型对话框
 const showEditModelDialog = (model: ModelConfigListItem) => {
   editingModel.value = model
   modelForm.value = {
-    provider_id: model.provider_id,
     model_code: model.model_code,
     model_name: model.model_name,
     capabilitiesArray: model.capabilities,
@@ -267,21 +247,17 @@ const showEditModelDialog = (model: ModelConfigListItem) => {
 
 // 保存模型
 const handleSaveModel = async () => {
+  if (!editingModel.value) return
   try {
     // 将数组转为逗号分隔的字符串
-    const requestData = {
-      ...modelForm.value,
-      capabilities: modelForm.value.capabilitiesArray.join(',')
+    const requestData: UpdateModelConfigRequest = {
+      model_name: modelForm.value.model_name,
+      capabilities: modelForm.value.capabilitiesArray.join(','),
+      is_enabled: modelForm.value.is_enabled
     }
-    delete (requestData as any).capabilitiesArray
 
-    if (editingModel.value) {
-      await ApiService.updateModelConfig(editingModel.value.id, requestData)
-      ElMessage.success('更新成功')
-    } else {
-      await ApiService.createModelConfig(requestData)
-      ElMessage.success('创建成功')
-    }
+    await ApiService.updateModelConfig(editingModel.value.id, requestData)
+    ElMessage.success('更新成功')
     modelDialogVisible.value = false
     if (currentProvider.value) {
       const response = await ApiService.getProviderModels(currentProvider.value.id, true)
@@ -289,23 +265,6 @@ const handleSaveModel = async () => {
     }
   } catch (error: any) {
     ElMessage.error(error.response?.data?.detail || '保存失败')
-  }
-}
-
-// 删除模型
-const handleDeleteModel = async (model: ModelConfigListItem) => {
-  try {
-    await ElMessageBox.confirm(`确定要删除模型 "${model.model_name}" 吗？`, '确认删除')
-    await ApiService.deleteModelConfig(model.id)
-    ElMessage.success('删除成功')
-    if (currentProvider.value) {
-      const response = await ApiService.getProviderModels(currentProvider.value.id, true)
-      models.value = response.models
-    }
-  } catch (error: any) {
-    if (error !== 'cancel') {
-      ElMessage.error(error.response?.data?.detail || '删除失败')
-    }
   }
 }
 
