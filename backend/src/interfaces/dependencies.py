@@ -13,6 +13,7 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 from fastapi import HTTPException, status, Depends
+from sqlalchemy.orm import Session
 from src.routers.dependencies import (
     get_tool_service,
     get_ai_service,

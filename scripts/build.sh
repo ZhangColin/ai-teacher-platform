@@ -33,7 +33,7 @@ echo "📦 打包后端..."
 cd "$PROJECT_ROOT/backend"
 
 # 创建目录结构
-mkdir -p "$BACKEND_DIST"/{src,alembic,static,uploads}
+mkdir -p "$BACKEND_DIST"/{src,alembic/versions,static,uploads}
 
 # 配置文件放在与 backend 同级的位置
 mkdir -p "$DIST_DIR/configs"

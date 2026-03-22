@@ -17,6 +17,9 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
+# 需要使用适配器的供应商（非 OpenAI 兼容）
+ADAPTER_PROVIDERS = {'bedrock', 'claude', 'anthropic'}
+
 
 class AIService:
     """AI 服务客户端"""
@@ -130,6 +133,23 @@ class AIService:
 
         logger.info(f"AI 客户端初始化成功 - provider: {provider_code}, base_url: {base_url}, model: {model_code}")
         return client, model_code
+
+    def _create_adapter(self, provider_code: str, api_key: str, base_url: str):
+        """创建 LLM 适配器（用于非 OpenAI 兼容的供应商）"""
+        from src.services.llm import create_adapter
+
+        extra_config = {}
+        # Bedrock 需要特殊处理
+        if provider_code == 'bedrock':
+            # base_url 是区域，不是完整的 URL
+            extra_config = {'region': base_url}
+
+        return create_adapter(
+            provider_code=provider_code,
+            api_key=api_key,
+            base_url=base_url,
+            **extra_config
+        )
     
     async def generate_welcome_message(self, system_prompt: str, model_config: Optional[str] = None) -> str:
         """
@@ -702,14 +722,92 @@ class AIService:
             str | dict: AI生成的回复片段（逐块返回），或包含token使用信息的字典
             Token信息格式：{'type': 'usage', 'prompt_tokens': int, 'completion_tokens': int, 'total_tokens': int, 'model_provider': str, 'model_name': str}
         """
-        # 获取客户端和模型
+        # 解析 provider 和 model
+        if model_config and ":" in model_config:
+            provider_code, model_name = model_config.split(":", 1)
+            provider_code = provider_code.lower()
+        else:
+            # 从默认配置获取 provider
+            from src.services.model_provider_service import ModelProviderService
+            provider_service = ModelProviderService(self.db)
+            provider_info = provider_service.get_default_provider()
+            if not provider_info:
+                raise ValueError("未配置默认模型供应商")
+            provider_code = provider_info.provider_code
+            models = provider_service.get_all_models(
+                provider_id=provider_info.id,
+                include_disabled=False
+            )
+            if not models:
+                raise ValueError(f"默认供应商 [{provider_info.provider_name}] 没有启用的模型")
+            model_name = models[0].model_code
+
+        # 检查是否需要使用适配器
+        use_adapter = provider_code in ADAPTER_PROVIDERS
+
+        if use_adapter:
+            # 使用适配器
+            from src.services.model_provider_service import ModelProviderService
+            from src.services.encryption_service import EncryptionService
+            from src.db_models import ModelProviderModel
+
+            provider_service = ModelProviderService(self.db)
+            encryption = EncryptionService()
+
+            provider_info = provider_service.get_provider_by_code(provider_code)
+            provider_model = self.db.query(ModelProviderModel).filter(
+                ModelProviderModel.id == provider_info.id
+            ).first()
+
+            api_key = encryption.decrypt(provider_model.api_key_encrypted)
+            base_url = provider_info.base_url
+
+            adapter = self._create_adapter(provider_code, api_key, base_url)
+
+            # 构建消息
+            messages = []
+            for msg in history:
+                messages.append({"role": msg["role"], "content": msg["content"]})
+            messages.append({"role": "user", "content": user_message})
+
+            # 打印调试信息
+            logger.info(f"[AIService] 使用适配器模式: provider={provider_code}, model={model_name}")
+
+            # 使用适配器
+            try:
+                accumulated_content = ""
+                async for chunk in adapter.chat_stream(
+                    messages=messages,
+                    model=model_name,
+                    system_prompt=system_prompt,
+                    temperature=0.7
+                ):
+                    if isinstance(chunk, str):
+                        accumulated_content += chunk
+                        yield chunk
+                        await asyncio.sleep(0.001)
+                    elif isinstance(chunk, dict):
+                        # usage 信息
+                        yield {
+                            'type': 'usage',
+                            'prompt_tokens': chunk.get('prompt_tokens', 0),
+                            'completion_tokens': chunk.get('completion_tokens', 0),
+                            'total_tokens': chunk.get('total_tokens', 0),
+                            'model_provider': provider_code,
+                            'model_name': model_name
+                        }
+            except Exception as e:
+                logger.error(f"适配器调用失败: {e}", exc_info=True)
+                yield f"⚠️ AI 服务调用失败: {str(e)}"
+            return
+
+        # 使用 OpenAI 客户端（原有逻辑）
         client, model_name = self._get_ai_client(model_config) if model_config else (self.default_client, self.default_model_name)
 
         # 解析 provider（用于返回 usage 信息）
         if model_config and ":" in model_config:
             provider = model_config.split(":", 1)[0].lower()
         else:
-            # 从默认配置获取 provider
             from src.services.model_provider_service import ModelProviderService
             provider_service = ModelProviderService(self.db)
             provider_info = provider_service.get_default_provider()
@@ -732,7 +830,7 @@ class AIService:
                 'model_name': model_name
             }
             return
-        
+
         try:
             # 构建消息链：System Prompt + History + Current Input
             messages = [{"role": "system", "content": system_prompt}]

@@ -22,9 +22,11 @@ ADAPTER_REGISTRY: Dict[str, Type[BaseLLMAdapter]] = {
     # GLM 独立适配器
     "glm": GLMAdapter,
     "zhipu": GLMAdapter,
-    # AWS Bedrock
-    "claude": BedrockAdapter,
-    "anthropic": BedrockAdapter,
+    # AWS Bedrock (供应商代码: bedrock)
+    "bedrock": BedrockAdapter,
+    # Anthropic 直接 API (如果需要的话，目前使用 Bedrock)
+    # "claude": AnthropicAdapter,  # 待实现
+    # "anthropic": AnthropicAdapter,  # 待实现
     # Google
     "google": GeminiAdapter,
     "gemini": GeminiAdapter,

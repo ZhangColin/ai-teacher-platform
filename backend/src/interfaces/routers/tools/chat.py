@@ -47,7 +47,9 @@ async def chat_stream(
     # 获取工具配置
     tool = tool_service.get_tool_by_id(tool_id)
 
-    # 调试输出
+    # 调试输出 - 打印完整请求
+    import json
+    logger.info(f"🔍 收到请求: {json.dumps({'tool_id': tool_id, 'model': request.model, 'message': request.message[:50] if request.message else None})}")
     logger.info(f"🔍 查找工具: tool_id='{tool_id}'")
     logger.info(f"🔍 找到工具: {tool}")
     logger.info(f"🔍 ToolService实例: {id(tool_service)}")

@@ -28,9 +28,14 @@ BUILTIN_PROVIDERS = {
         "description": "字节跳动豆包大模型"
     },
     "claude": {
-        "name": "Claude (Anthropic)",
+        "name": "Claude (Anthropic 直接 API)",
         "default_base_url": "https://api.anthropic.com/v1",
-        "description": "Anthropic Claude 模型"
+        "description": "Anthropic Claude 模型（直接 API 调用）"
+    },
+    "bedrock": {
+        "name": "AWS Bedrock (Claude)",
+        "default_base_url": "us-west-2",
+        "description": "AWS Bedrock Claude 模型（支持 API Key 认证）"
     },
     "google": {
         "name": "Google Gemini",
@@ -375,6 +380,79 @@ BUILTIN_MODELS = {
             "name": "Claude Sonnet 4",
             "capabilities": ["chat", "image", "code"],
             "description": "Claude Sonnet 4"
+        },
+    },
+    # AWS Bedrock (Claude 模型，使用 Bedrock 专用模型 ID)
+    # 参考: https://platform.claude.com/docs/zh-CN/build-with-claude/claude-on-amazon-bedrock
+    # 模型 ID 格式: us.anthropic.claude-opus-4-6-v1:0 (区域端点)
+    #              anthropic.claude-opus-4-6-v1 (全局端点，无 us. 前缀)
+    "bedrock": {
+        # Claude Opus 4.6
+        "us.anthropic.claude-opus-4-6-v1:0": {
+            "name": "Claude Opus 4.6 (us-west-2)",
+            "capabilities": ["chat", "image", "code"],
+            "description": "Claude Opus 4.6 美国区域端点（推荐用于数据驻留要求）"
+        },
+        "anthropic.claude-opus-4-6-v1": {
+            "name": "Claude Opus 4.6 (Global)",
+            "capabilities": ["chat", "image", "code"],
+            "description": "Claude Opus 4.6 全局端点，动态路由实现最大可用性"
+        },
+        # Claude Sonnet 4.6
+        "us.anthropic.claude-sonnet-4-6": {
+            "name": "Claude Sonnet 4.6 (us-west-2)",
+            "capabilities": ["chat", "image", "code"],
+            "description": "Claude Sonnet 4.6 美国区域端点"
+        },
+        "anthropic.claude-sonnet-4-6": {
+            "name": "Claude Sonnet 4.6 (Global)",
+            "capabilities": ["chat", "image", "code"],
+            "description": "Claude Sonnet 4.6 全局端点"
+        },
+        # Claude Sonnet 4.5
+        "us.anthropic.claude-sonnet-4-5-20250929-v1:0": {
+            "name": "Claude Sonnet 4.5 (us-west-2)",
+            "capabilities": ["chat", "image", "code"],
+            "description": "Claude Sonnet 4.5 美国区域端点"
+        },
+        "anthropic.claude-sonnet-4-5-20250929-v1:0": {
+            "name": "Claude Sonnet 4.5 (Global)",
+            "capabilities": ["chat", "image", "code"],
+            "description": "Claude Sonnet 4.5 全局端点"
+        },
+        # Claude Opus 4.5
+        "us.anthropic.claude-opus-4-5-20251101-v1:0": {
+            "name": "Claude Opus 4.5 (us-west-2)",
+            "capabilities": ["chat", "image", "code"],
+            "description": "Claude Opus 4.5 美国区域端点"
+        },
+        "anthropic.claude-opus-4-5-20251101-v1:0": {
+            "name": "Claude Opus 4.5 (Global)",
+            "capabilities": ["chat", "image", "code"],
+            "description": "Claude Opus 4.5 全局端点"
+        },
+        # Claude Haiku 4.5
+        "us.anthropic.claude-haiku-4-5-20251001-v1:0": {
+            "name": "Claude Haiku 4.5 (us-west-2)",
+            "capabilities": ["chat"],
+            "description": "Claude Haiku 4.5 美国区域端点"
+        },
+        "anthropic.claude-haiku-4-5-20251001-v1:0": {
+            "name": "Claude Haiku 4.5 (Global)",
+            "capabilities": ["chat"],
+            "description": "Claude Haiku 4.5 全局端点"
+        },
+        # Claude 3.5 Haiku (经典版本)
+        "us.anthropic.claude-3-5-haiku-20241022-v1:0": {
+            "name": "Claude 3.5 Haiku (us-west-2)",
+            "capabilities": ["chat"],
+            "description": "Claude 3.5 Haiku 美国区域端点"
+        },
+        # Claude Sonnet 4 (经典版本)
+        "us.anthropic.claude-sonnet-4-20250514-v1:0": {
+            "name": "Claude Sonnet 4 (us-west-2)",
+            "capabilities": ["chat", "image", "code"],
+            "description": "Claude Sonnet 4 美国区域端点"
         },
     },
     # Google Gemini (Gemini 3.1 系列 - 2026年3月最新)

@@ -57,10 +57,11 @@ echo ""
 echo "📤 上传前端文件..."
 sshpass -p "$SERVER_PASS" scp -o StrictHostKeyChecking=no -r "$FRONTEND_DIST"/* "$SERVER_USER@$SERVER_HOST:$SERVER_FRONTEND_DIR/"
 
-# 4. 上传后端文件
+# 4. 上传后端文件（复制目录内容，避免多层嵌套）
 echo ""
 echo "📤 上传后端文件..."
-sshpass -p "$SERVER_PASS" scp -o StrictHostKeyChecking=no -r "$BACKEND_DIST" "$SERVER_USER@$SERVER_HOST:$SERVER_BACKEND_DIR/"
+sshpass -p "$SERVER_PASS" scp -o StrictHostKeyChecking=no -r "$BACKEND_DIST"/* "$SERVER_USER@$SERVER_HOST:$SERVER_BACKEND_DIR/"
+sshpass -p "$SERVER_PASS" scp -o StrictHostKeyChecking=no "$BACKEND_DIST"/.[!.]* "$SERVER_USER@$SERVER_HOST:$SERVER_BACKEND_DIR/" 2>/dev/null || true
 
 # 5. 上传配置文件
 echo ""

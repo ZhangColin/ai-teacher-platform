@@ -421,11 +421,6 @@ class CreateUserRequest(BaseModel):
     is_admin: bool = Field(False, description="是否为管理员（默认为false）")
 
 
-class CreateUserResponse(BaseModel):
-    """创建用户响应"""
-    user: UserListItem = Field(..., description="新创建的用户信息")
-
-
 class UserListItem(BaseModel):
     """用户列表项"""
     user_id: str = Field(..., description="用户唯一标识（UUID）")
@@ -436,6 +431,11 @@ class UserListItem(BaseModel):
     avatar: Optional[str] = Field(None, description="用户头像URL")
     is_admin: bool = Field(False, description="是否为管理员")
     created_at: datetime = Field(..., description="用户创建时间")
+
+
+class CreateUserResponse(BaseModel):
+    """创建用户响应"""
+    user: UserListItem = Field(..., description="新创建的用户信息")
 
 
 class UserListResponse(BaseModel):

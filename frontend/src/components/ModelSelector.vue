@@ -25,14 +25,14 @@
             :key="model.id"
             @click="selectModel(model.id)"
             class="model-option"
-            :class="{ 'is-selected': currentModel === model.id || isDefaultModel(model.id) }"
+            :class="{ 'is-selected': sessionStore.currentModel === model.id || isDefaultModel(model.id) }"
           >
             <div class="model-option-content">
               <span class="model-option-name">{{ model.name }}</span>
               <span class="model-option-provider">{{ model.provider }}</span>
               <span class="model-option-description">{{ model.description }}</span>
             </div>
-            <svg v-if="currentModel === model.id || isDefaultModel(model.id)" class="check-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <svg v-if="sessionStore.currentModel === model.id || isDefaultModel(model.id)" class="check-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
             </svg>
           </button>
@@ -151,8 +151,7 @@ watch(() => sessionStore.toolId, async (newToolId) => {
           if (tool.model) {
             defaultModel.value = tool.model
             console.log('[ModelSelector] 工具默认模型:', tool.model)
-            // 重置手动选择的模型
-            sessionStore.setCurrentModel(null)
+            // 不再重置手动选择的模型，保留用户的选择
           }
           break
         }

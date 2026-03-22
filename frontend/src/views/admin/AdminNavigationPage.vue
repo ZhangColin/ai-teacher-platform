@@ -234,7 +234,14 @@ const categoryFormDialogVisible = ref(false)
 const isEditingCategory = ref(false)
 const categoryFormRef = ref<FormInstance>()
 const categorySubmitting = ref(false)
-const categoryForm = ref<CreateNavigationModuleCategoryRequest & { id?: string }>({
+// 分类表单（不包含 navigation_module_id，在提交时从 currentModule 获取）
+interface CategoryFormData {
+  id?: string
+  name: string
+  icon?: string
+  order: number
+}
+const categoryForm = ref<CategoryFormData>({
   name: '',
   icon: '',
   order: 0,
@@ -445,6 +452,8 @@ function handleEditCategory(category: AdminNavigationModuleCategoryListItem) {
 async function handleSubmitCategory() {
   if (!categoryFormRef.value || !currentModule.value) return
 
+  const moduleId = currentModule.value.id // 保存到局部变量
+
   await categoryFormRef.value.validate(async (valid) => {
     if (!valid) return
 
@@ -454,7 +463,7 @@ async function handleSubmitCategory() {
         // 更新
         const { id, ...requestData } = categoryForm.value
         await ApiService.updateNavigationModuleCategory(
-          currentModule.value.id,
+          moduleId,
           id,
           requestData as UpdateNavigationModuleCategoryRequest
         )
@@ -462,13 +471,13 @@ async function handleSubmitCategory() {
       } else {
         // 创建
         await ApiService.createNavigationModuleCategory(
-          currentModule.value.id,
+          moduleId,
           categoryForm.value as CreateNavigationModuleCategoryRequest
         )
         ElMessage.success('创建分类成功')
       }
       categoryFormDialogVisible.value = false
-      await loadCategories(currentModule.value.id)
+      await loadCategories(moduleId)
     } catch (error: any) {
       ElMessage.error(error.message || '操作失败')
     } finally {

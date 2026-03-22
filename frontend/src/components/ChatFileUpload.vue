@@ -8,7 +8,7 @@
       style="display: none"
     />
     <button
-      @click="$refs.fileInput.click()"
+      @click="fileInput?.click()"
       class="upload-btn"
       :disabled="isUploading"
       :title="uploadTitle"
@@ -41,7 +41,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { apiClient } from '@/services/apiClient'
+import apiClient from '@/services/apiClient'
 import { useSessionStore } from '@/stores/sessionStore'
 
 interface UploadedFile {
