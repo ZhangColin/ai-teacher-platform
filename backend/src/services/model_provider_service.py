@@ -335,13 +335,14 @@ class ModelProviderService:
 
     # ==================== 模型配置 CRUD ====================
 
-    def get_all_models(self, provider_id: Optional[str] = None, include_disabled: bool = False) -> List[ModelConfigListItem]:
+    def get_all_models(self, provider_id: Optional[str] = None, include_disabled: bool = False, capability: Optional[str] = None) -> List[ModelConfigListItem]:
         """
         获取所有模型配置
 
         Args:
             provider_id: 可选的供应商ID过滤
             include_disabled: 是否包含已禁用的模型
+            capability: 可选的能力过滤（如 chat、vision、image_generation 等）
 
         Returns:
             模型配置列表
@@ -351,8 +352,25 @@ class ModelProviderService:
         if provider_id:
             query = query.filter(ModelConfigModel.provider_id == provider_id)
 
+        # 只返回启用供应商的模型
+        query = query.filter(ModelProviderModel.is_enabled == True)
+
         if not include_disabled:
             query = query.filter(ModelConfigModel.is_enabled == True)
+
+        # 按能力过滤（精确匹配逗号分隔的值）
+        if capability:
+            # 使用 LIKE 匹配，确保是完整的能力名称
+            # 匹配模式：capability 在开头、中间或结尾，用逗号分隔
+            from sqlalchemy import or_
+            query = query.filter(
+                or_(
+                    ModelConfigModel.capabilities == capability,  # 只有一个能力
+                    ModelConfigModel.capabilities.like(f'{capability},%'),  # 能力在开头
+                    ModelConfigModel.capabilities.like(f'%,{capability},%'),  # 能力在中间
+                    ModelConfigModel.capabilities.like(f'%,{capability}')  # 能力在结尾
+                )
+            )
 
         models = query.order_by(ModelProviderModel.order, ModelConfigModel.id).all()
 

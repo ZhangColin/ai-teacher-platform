@@ -289,44 +289,33 @@ BUILTIN_MODELS = {
             "description": "智谱语音合成模型"
         },
     },
-    # 豆包/字节跳动 (Doubao 2.0 系列 - 2026年2月发布)
+    # 豆包/字节跳动 (火山引擎 Doubao Seed 2.0 系列)
+    # 使用推理接入点ID (ep-开头)
+    # 官方文档: https://www.volcengine.com/docs/82379/1330310
     "doubao": {
-        "seed-2.0-pro": {
-            "name": "Seed 2.0 Pro",
+        # Doubao-Seed-2.0-pro - 最新旗舰
+        "ep-20260322151359-pk8n2": {
+            "name": "豆包 Seed 2.0 Pro",
             "capabilities": ["chat", "image", "code"],
-            "description": "豆包最新旗舰 (2026年2月)，高性能场景，科学领域媲美 Gemini 3 Pro 和 GPT 5.2"
+            "description": "豆包最新旗舰模型，高性能场景"
         },
-        "seed-2.0-lite": {
-            "name": "Seed 2.0 Lite",
+        # Doubao-Seed-2.0-lite - 平衡版
+        "ep-20260322151700-vnb6f": {
+            "name": "豆包 Seed 2.0 Lite",
             "capabilities": ["chat", "code"],
-            "description": "Seed 2.0 Lite 版，平衡资源和性能"
+            "description": "平衡资源和性能"
         },
-        "seed-2.0-mini": {
-            "name": "Seed 2.0 Mini",
+        # Doubao-Seed-2.0-mini - 轻量版
+        "ep-20260322151739-6zm8m": {
+            "name": "豆包 Seed 2.0 Mini",
             "capabilities": ["chat"],
-            "description": "Seed 2.0 Mini 轻量版"
+            "description": "轻量版，快速响应"
         },
-        "seed-2.0-code": {
-            "name": "Seed 2.0 Code",
+        # Doubao-Seed-2.0-Code - 代码专家
+        "ep-20260322151811-9wmc5": {
+            "name": "豆包 Seed 2.0 Code",
             "capabilities": ["code"],
-            "description": "Seed 2.0 代码专家模型"
-        },
-        # Doubao 1.5 系列
-        "doubao-pro-1.5": {
-            "name": "Doubao Pro 1.5",
-            "capabilities": ["chat", "code"],
-            "description": "Doubao Pro 1.5 通用模型"
-        },
-        "doubao-lite-1.5": {
-            "name": "Doubao Lite 1.5",
-            "capabilities": ["chat"],
-            "description": "Doubao Lite 1.5 经济版"
-        },
-        # 多模态
-        "doubao-vision": {
-            "name": "Doubao Vision",
-            "capabilities": ["chat", "image"],
-            "description": "豆包视觉理解模型"
+            "description": "代码专家模型"
         },
     },
     # Claude/Anthropic (Claude 4.6 系列 - 2026年2月发布)

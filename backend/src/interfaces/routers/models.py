@@ -42,6 +42,8 @@ async def get_available_models(
 @router.get("/models/available", response_model=AvailableModelResponse, tags=["模型配置"])
 async def get_available_models_from_db(
     provider_id: str = None,
+    provider_code: str = None,
+    capability: str = None,
     db: Session = Depends(get_db)
 ):
     """
@@ -50,17 +52,31 @@ async def get_available_models_from_db(
     这是新增的端点，用于替代原来的配置文件方式
 
     Args:
-        provider_id: 可选的供应商ID过滤
+        provider_id: 可选的供应商ID过滤（数据库UUID）
+        provider_code: 可选的供应商代码过滤（如 deepseek, openai, kimi 等）
+        capability: 可选的能力过滤（如 chat、vision、image_generation 等）
         db: 数据库会话
 
     Returns:
-        可用模型列表（仅返回已启用的模型）
+        可用模型列表（仅返回启用供应商的启用模型）
     """
     try:
         service = ModelProviderService(db)
+
+        # 如果提供了 provider_code，先转换为 provider_id
+        actual_provider_id = provider_id
+        if provider_code:
+            provider = service.get_provider_by_code(provider_code)
+            if provider:
+                actual_provider_id = provider.id
+            else:
+                logger.warning(f"❌ 供应商代码 '{provider_code}' 不存在")
+                return AvailableModelResponse(models=[])
+
         models = service.get_all_models(
-            provider_id=provider_id,
-            include_disabled=False  # 只返回启用的模型
+            provider_id=actual_provider_id,
+            include_disabled=False,  # 只返回启用的模型
+            capability=capability
         )
 
         logger.info(f"✅ 返回 {len(models)} 个可用模型（从数据库）")

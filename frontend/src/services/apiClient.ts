@@ -1021,11 +1021,15 @@ export class ApiService {
 
   /**
    * 获取系统支持的模型列表（从数据库读取已启用的模型）
+   * @param providerCode 供应商代码（如 deepseek, openai, kimi 等），非数据库 UUID
+   * @param capability 能力过滤（如 chat, vision, image_generation 等）
    */
-  static async getAvailableModels(providerId?: string): Promise<ModelListItem[]> {
-    const response = await apiClient.get<AvailableModelResponse>('/models/available', {
-      params: { provider_id: providerId }
-    })
+  static async getAvailableModels(providerCode?: string, capability?: string): Promise<ModelListItem[]> {
+    const params: Record<string, string> = {}
+    if (providerCode) params.provider_code = providerCode
+    if (capability) params.capability = capability
+
+    const response = await apiClient.get<AvailableModelResponse>('/models/available', { params })
     // 将 ModelConfigListItem 转换为 ModelListItem 格式
     return response.data.models.map(m => ({
       id: `${m.provider_code}:${m.model_code}`,
@@ -1319,10 +1323,11 @@ export class ApiService {
   /**
    * 获取可用的模型列表（从数据库，公开接口）
    */
-  static async getAvailableModelsFromDB(providerId?: string): Promise<AvailableModelResponse> {
-    const response = await apiClient.get<AvailableModelResponse>('/models/available', {
-      params: { provider_id: providerId }
-    })
+  static async getAvailableModelsFromDB(providerCode?: string): Promise<AvailableModelResponse> {
+    const params: Record<string, string> = {}
+    if (providerCode) params.provider_code = providerCode
+
+    const response = await apiClient.get<AvailableModelResponse>('/models/available', { params })
     return response.data
   }
 }

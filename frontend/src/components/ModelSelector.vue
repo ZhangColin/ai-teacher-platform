@@ -49,7 +49,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useSessionStore } from '../stores/sessionStore'
 import { ApiService } from '../services/apiClient'
-import type { ModelListItem } from '../types'
+import type { ModelListItem, ToolListItem } from '../types'
 
 const sessionStore = useSessionStore()
 const isOpen = ref(false)
@@ -57,6 +57,7 @@ const selectorRef = ref<HTMLElement | null>(null)
 const availableModels = ref<ModelListItem[]>([])
 const loading = ref(false)
 const defaultModel = ref<string | null>(null)
+const currentTool = ref<ToolListItem | null>(null)
 
 // 当前模型显示名称
 const currentModelDisplay = computed(() => {
@@ -78,13 +79,39 @@ function isDefaultModel(modelId: string): boolean {
   return !sessionStore.currentModel && modelId === defaultModel.value
 }
 
+// 根据工具类型推导需要的 AI 能力
+function getRequiredCapability(tool: ToolListItem | null): string | null {
+  if (!tool) return null
+
+  // 多模态工具需要特殊能力
+  if (tool.content_type === 'multimodal') {
+    switch (tool.media_type) {
+      case 'image':
+        return 'vision' // 或 'image_generation'，根据模型配置的能力名称
+      case 'audio':
+        return 'audio'
+      case 'video':
+        return 'video'
+    }
+  }
+
+  // 默认使用 chat 能力
+  return 'chat'
+}
+
 // 加载可用模型列表
 async function loadAvailableModels() {
   loading.value = true
   try {
-    const models = await ApiService.getAvailableModels()
+    // 根据当前工具获取需要的能力
+    const capability = getRequiredCapability(currentTool.value)
+
+    // 调用 API：第一个参数是 providerCode（留空表示所有供应商），第二个参数是 capability
+    const models = await ApiService.getAvailableModels(undefined, capability || undefined)
     availableModels.value = models
-    console.log('[ModelSelector] 已加载模型列表:', models.length, '个模型')
+
+    const capabilityMsg = capability ? `（能力: ${capability}）` : ''
+    console.log(`[ModelSelector] 已加载模型列表${capabilityMsg}:`, models.length, '个模型')
   } catch (error) {
     console.error('[ModelSelector] 加载模型列表失败:', error)
     availableModels.value = []
@@ -111,31 +138,35 @@ function handleClickOutside(event: MouseEvent) {
   }
 }
 
-// 监听工具变化，更新默认模型
+// 监听工具变化，更新默认模型和重新加载模型列表
 watch(() => sessionStore.toolId, async (newToolId) => {
   if (newToolId) {
-    // 从工具列表中获取工具的默认模型
+    // 从工具列表中获取工具信息
     try {
       const toolsResponse = await ApiService.getTools()
       for (const category of toolsResponse.categories) {
         const tool = category.tools.find(t => t.tool_id === newToolId)
-        if (tool && tool.model) {
-          defaultModel.value = tool.model
-          console.log('[ModelSelector] 工具默认模型:', tool.model)
-          // 重置手动选择的模型
-          sessionStore.setCurrentModel(null)
+        if (tool) {
+          currentTool.value = tool
+          if (tool.model) {
+            defaultModel.value = tool.model
+            console.log('[ModelSelector] 工具默认模型:', tool.model)
+            // 重置手动选择的模型
+            sessionStore.setCurrentModel(null)
+          }
           break
         }
       }
+      // 重新加载模型列表（根据工具能力过滤）
+      await loadAvailableModels()
     } catch (error) {
-      console.error('[ModelSelector] 获取工具默认模型失败:', error)
+      console.error('[ModelSelector] 获取工具信息失败:', error)
     }
   }
 }, { immediate: true })
 
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
-  loadAvailableModels()
 })
 
 onUnmounted(() => {
