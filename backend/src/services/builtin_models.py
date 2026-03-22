@@ -22,61 +22,397 @@ BUILTIN_PROVIDERS = {
         "default_base_url": "https://open.bigmodel.cn/api/paas/v4",
         "description": "智谱 AI 大模型"
     },
+    "doubao": {
+        "name": "豆包 (字节跳动)",
+        "default_base_url": "https://ark.cn-beijing.volces.com/api/v3",
+        "description": "字节跳动豆包大模型"
+    },
+    "claude": {
+        "name": "Claude (Anthropic)",
+        "default_base_url": "https://api.anthropic.com/v1",
+        "description": "Anthropic Claude 模型"
+    },
+    "google": {
+        "name": "Google Gemini",
+        "default_base_url": "https://generativelanguage.googleapis.com/v1beta",
+        "description": "Google Gemini 模型"
+    },
 }
 
 # 内置模型定义
 BUILTIN_MODELS = {
     "deepseek": {
+        # V3.2 系列 (2025年12月发布，当前最新)
+        "deepseek-v3.2": {
+            "name": "DeepSeek V3.2",
+            "capabilities": ["chat", "code"],
+            "description": "DeepSeek 最新旗舰模型 (2025年12月)，增强 Agent 能力，推理和代码性能优秀"
+        },
+        "deepseek-v3.2-reasoning": {
+            "name": "DeepSeek V3.2 Reasoning",
+            "capabilities": ["chat", "code"],
+            "description": "DeepSeek V3.2 推理增强版"
+        },
+        # R1 推理系列
+        "deepseek-r1": {
+            "name": "DeepSeek R1",
+            "capabilities": ["chat", "code"],
+            "description": "DeepSeek 推理专家模型"
+        },
+        "deepseek-r1-distill-qwen-32b": {
+            "name": "DeepSeek R1 Distill Qwen 32B",
+            "capabilities": ["chat", "code"],
+            "description": "R1 蒸馏版 (Qwen 32B)"
+        },
+        "deepseek-r1-distill-llama-70b": {
+            "name": "DeepSeek R1 Distill Llama 70B",
+            "capabilities": ["chat", "code"],
+            "description": "R1 蒸馏版 (Llama 70B)"
+        },
+        # V3 系列
+        "deepseek-v3": {
+            "name": "DeepSeek V3",
+            "capabilities": ["chat", "code"],
+            "description": "DeepSeek V3 通用模型 (671B 参数)"
+        },
+        # VL2 视觉语言模型
+        "deepseek-vl2": {
+            "name": "DeepSeek VL2",
+            "capabilities": ["chat", "image"],
+            "description": "DeepSeek 视觉语言模型"
+        },
+        # 经典模型 (兼容保留)
         "deepseek-chat": {
             "name": "DeepSeek Chat",
-            "capabilities": ["chat"],
-            "description": "DeepSeek 对话模型"
+            "capabilities": ["chat", "code"],
+            "description": "DeepSeek 对话模型 (建议使用 V3.2)"
         },
         "deepseek-coder": {
             "name": "DeepSeek Coder",
-            "capabilities": ["chat"],
-            "description": "DeepSeek 代码模型"
+            "capabilities": ["code"],
+            "description": "DeepSeek 代码模型 (建议使用 V3.2)"
         },
     },
     "openai": {
-        "gpt-4": {
-            "name": "GPT-4",
-            "capabilities": ["chat"],
-            "description": "OpenAI GPT-4"
+        # GPT-5 系列 (2026年最新)
+        "gpt-5.4": {
+            "name": "GPT-5.4",
+            "capabilities": ["chat", "image", "code"],
+            "description": "OpenAI 最新旗舰模型 (2026年3月)，支持 1.05M 上下文"
         },
+        "gpt-5.4-mini": {
+            "name": "GPT-5.4 Mini",
+            "capabilities": ["chat", "image", "code"],
+            "description": "GPT-5.4 经济型版本"
+        },
+        "gpt-5.4-thinking": {
+            "name": "GPT-5.4 Thinking",
+            "capabilities": ["chat", "code"],
+            "description": "GPT-5.4 推理增强版"
+        },
+        "gpt-5.3-codex": {
+            "name": "GPT-5.3 Codex",
+            "capabilities": ["code"],
+            "description": "GPT-5.3 代码专家模型，优化 Agent 编程"
+        },
+        "gpt-5.2-codex": {
+            "name": "GPT-5.2 Codex",
+            "capabilities": ["code"],
+            "description": "GPT-5.2 代码模型"
+        },
+        "gpt-5-codex": {
+            "name": "GPT-5 Codex",
+            "capabilities": ["code"],
+            "description": "GPT-5 代码模型"
+        },
+        # GPT-4 系列 (API 仍可用，ChatGPT 已退役)
         "gpt-4o": {
             "name": "GPT-4o",
-            "capabilities": ["chat", "image"],
-            "description": "OpenAI GPT-4o"
+            "capabilities": ["chat", "image", "code"],
+            "description": "GPT-4o 多模态模型 (已从 ChatGPT 退役，API 仍可用)"
+        },
+        "gpt-4o-mini": {
+            "name": "GPT-4o Mini",
+            "capabilities": ["chat", "image", "code"],
+            "description": "GPT-4o Mini (API 仍可用)"
+        },
+        "gpt-4.1": {
+            "name": "GPT-4.1",
+            "capabilities": ["chat", "image", "code"],
+            "description": "GPT-4.1 (已退役，建议使用 GPT-5.4)"
+        },
+        "gpt-4.1-mini": {
+            "name": "GPT-4.1 Mini",
+            "capabilities": ["chat", "image", "code"],
+            "description": "GPT-4.1 Mini (已退役)"
+        },
+        # o 系列推理模型
+        "o3": {
+            "name": "o3",
+            "capabilities": ["chat", "code"],
+            "description": "o3 推理模型"
+        },
+        "o3-mini": {
+            "name": "o3-mini",
+            "capabilities": ["chat", "code"],
+            "description": "o3 迷你推理版"
+        },
+        # 经典模型
+        "gpt-4-turbo": {
+            "name": "GPT-4 Turbo",
+            "capabilities": ["chat", "code"],
+            "description": "GPT-4 Turbo (建议使用 GPT-5 系列)"
+        },
+        "gpt-3.5-turbo": {
+            "name": "GPT-3.5 Turbo",
+            "capabilities": ["chat", "code"],
+            "description": "GPT-3.5 Turbo (建议使用 GPT-5.4-mini)"
         },
     },
     "kimi": {
+        # K2.5 系列 (2026年1月发布，最新旗舰)
+        "kimi-k2.5": {
+            "name": "Kimi K2.5",
+            "capabilities": ["chat", "image", "code"],
+            "description": "Kimi 最新旗舰 (2026年1月)，万亿参数 MoE 模型，支持 256K 超长上下文，原生多模态"
+        },
+        "kimi-k2.5-thinking": {
+            "name": "Kimi K2.5 Thinking",
+            "capabilities": ["chat", "code"],
+            "description": "Kimi K2.5 推理增强版"
+        },
+        "kimi-k2.5-vision": {
+            "name": "Kimi K2.5 Vision",
+            "capabilities": ["chat", "image", "code"],
+            "description": "Kimi K2.5 视觉增强版，支持视觉推理"
+        },
+        # V1 系列
+        "moonshot-v1-1m": {
+            "name": "Moonshot V1 1M",
+            "capabilities": ["chat", "code"],
+            "description": "Moonshot V1 超长上下文版，支持 1M token"
+        },
+        "moonshot-v1-128k": {
+            "name": "Moonshot V1 128K",
+            "capabilities": ["chat", "code"],
+            "description": "Moonshot V1 长上下文版，支持 128K token"
+        },
+        "moonshot-v1-32k": {
+            "name": "Moonshot V1 32K",
+            "capabilities": ["chat", "code"],
+            "description": "Moonshot V1 标准版，支持 32K token"
+        },
         "moonshot-v1-8k": {
-            "name": "Moonshot v1 8K",
+            "name": "Moonshot V1 8K",
             "capabilities": ["chat"],
-            "description": "Kimi 对话模型"
+            "description": "Moonshot V1 基础版，支持 8K token"
         },
     },
     "glm": {
+        # GLM-5 系列 (2026年2月发布，最新旗舰)
+        "glm-5": {
+            "name": "GLM-5",
+            "capabilities": ["chat", "image", "code"],
+            "description": "智谱最新旗舰 (2026年2月)，744B 参数，面向 Agent 工程设计，开源 SOTA"
+        },
+        "glm-5-turbo": {
+            "name": "GLM-5 Turbo",
+            "capabilities": ["chat", "code"],
+            "description": "GLM-5 Turbo 版，增强外部工具和技能调用能力"
+        },
+        "glm-5-reasoning": {
+            "name": "GLM-5 Reasoning",
+            "capabilities": ["chat", "code"],
+            "description": "GLM-5 推理增强版，系统级思维链"
+        },
+        # GLM-4 系列
+        "glm-4.7": {
+            "name": "GLM-4.7",
+            "capabilities": ["chat", "code"],
+            "description": "GLM-4.7 通用模型"
+        },
+        "glm-4.5": {
+            "name": "GLM-4.5",
+            "capabilities": ["chat", "code"],
+            "description": "GLM-4.5 通用模型"
+        },
         "glm-4": {
             "name": "GLM-4",
             "capabilities": ["chat"],
-            "description": "智谱 GLM-4"
+            "description": "GLM-4 基础版 (建议使用 GLM-5)"
         },
-        "glm-4-voice": {
-            "name": "GLM-4 Voice",
-            "capabilities": ["audio"],
-            "description": "智谱语音合成"
+        "glm-4-flash": {
+            "name": "GLM-4 Flash",
+            "capabilities": ["chat"],
+            "description": "GLM-4 Flash 低延迟版本"
+        },
+        "glm-4-air": {
+            "name": "GLM-4 Air",
+            "capabilities": ["chat"],
+            "description": "GLM-4 Air 经济型版本"
+        },
+        # 多模态系列
+        "glm-4v": {
+            "name": "GLM-4V",
+            "capabilities": ["chat", "image"],
+            "description": "GLM-4 视觉理解模型"
         },
         "cogview-4": {
             "name": "CogView-4",
             "capabilities": ["image"],
             "description": "智谱图像生成"
         },
+        "cogview-5": {
+            "name": "CogView-5",
+            "capabilities": ["image"],
+            "description": "智谱图像生成 (最新)"
+        },
         "cogvideox": {
             "name": "CogVideoX",
             "capabilities": ["video"],
             "description": "智谱视频生成"
+        },
+        "cogvideox-2b": {
+            "name": "CogVideoX 2B",
+            "capabilities": ["video"],
+            "description": "智谱视频生成 2B 版本"
+        },
+        # 音频系列
+        "glm-4-voice": {
+            "name": "GLM-4 Voice",
+            "capabilities": ["audio"],
+            "description": "智谱语音合成"
+        },
+        "chirp": {
+            "name": "Chirp",
+            "capabilities": ["audio"],
+            "description": "智谱语音合成模型"
+        },
+    },
+    # 豆包/字节跳动 (Doubao 2.0 系列 - 2026年2月发布)
+    "doubao": {
+        "seed-2.0-pro": {
+            "name": "Seed 2.0 Pro",
+            "capabilities": ["chat", "image", "code"],
+            "description": "豆包最新旗舰 (2026年2月)，高性能场景，科学领域媲美 Gemini 3 Pro 和 GPT 5.2"
+        },
+        "seed-2.0-lite": {
+            "name": "Seed 2.0 Lite",
+            "capabilities": ["chat", "code"],
+            "description": "Seed 2.0 Lite 版，平衡资源和性能"
+        },
+        "seed-2.0-mini": {
+            "name": "Seed 2.0 Mini",
+            "capabilities": ["chat"],
+            "description": "Seed 2.0 Mini 轻量版"
+        },
+        "seed-2.0-code": {
+            "name": "Seed 2.0 Code",
+            "capabilities": ["code"],
+            "description": "Seed 2.0 代码专家模型"
+        },
+        # Doubao 1.5 系列
+        "doubao-pro-1.5": {
+            "name": "Doubao Pro 1.5",
+            "capabilities": ["chat", "code"],
+            "description": "Doubao Pro 1.5 通用模型"
+        },
+        "doubao-lite-1.5": {
+            "name": "Doubao Lite 1.5",
+            "capabilities": ["chat"],
+            "description": "Doubao Lite 1.5 经济版"
+        },
+        # 多模态
+        "doubao-vision": {
+            "name": "Doubao Vision",
+            "capabilities": ["chat", "image"],
+            "description": "豆包视觉理解模型"
+        },
+    },
+    # Claude/Anthropic (Claude 4.6 系列 - 2026年2月发布)
+    "claude": {
+        "claude-opus-4.6": {
+            "name": "Claude Opus 4.6",
+            "capabilities": ["chat", "image", "code"],
+            "description": "Claude 最新旗舰 (2026年)，最高智能等级，改进代码能力"
+        },
+        "claude-sonnet-4.6": {
+            "name": "Claude Sonnet 4.6",
+            "capabilities": ["chat", "image", "code"],
+            "description": "Claude Sonnet 4.6 (2026年2月)，Opus 级智能，更快速度，1/5 成本"
+        },
+        "claude-sonnet-4.5": {
+            "name": "Claude Sonnet 4.5",
+            "capabilities": ["chat", "image", "code"],
+            "description": "Claude Sonnet 4.5"
+        },
+        "claude-haiku-4.6": {
+            "name": "Claude Haiku 4.6",
+            "capabilities": ["chat"],
+            "description": "Claude Haiku 4.6 快速版"
+        },
+        "claude-haiku-4.5": {
+            "name": "Claude Haiku 4.5",
+            "capabilities": ["chat"],
+            "description": "Claude Haiku 4.5 经济版"
+        },
+        # 经典版本
+        "claude-opus-4.5": {
+            "name": "Claude Opus 4.5",
+            "capabilities": ["chat", "image", "code"],
+            "description": "Claude Opus 4.5 (建议使用 4.6)"
+        },
+        "claude-sonnet-4": {
+            "name": "Claude Sonnet 4",
+            "capabilities": ["chat", "image", "code"],
+            "description": "Claude Sonnet 4"
+        },
+    },
+    # Google Gemini (Gemini 3.1 系列 - 2026年3月最新)
+    "google": {
+        # Gemini 3.1 系列 (最新)
+        "gemini-3.1-pro-preview": {
+            "name": "Gemini 3.1 Pro Preview",
+            "capabilities": ["chat", "image", "code"],
+            "description": "Gemini 3.1 Pro (2026年3月最新)，推理优先，1M 上下文，原生多模态"
+        },
+        "gemini-3.1-flash-lite-preview": {
+            "name": "Gemini 3.1 Flash-Lite Preview",
+            "capabilities": ["chat", "code"],
+            "description": "Gemini 3.1 Flash-Lite，2026年最快最便宜的模型"
+        },
+        # Gemini 2.5 系列
+        "gemini-2.5-pro": {
+            "name": "Gemini 2.5 Pro",
+            "capabilities": ["chat", "image", "code"],
+            "description": "Gemini 2.5 Pro，稳定可靠"
+        },
+        "gemini-2.5-flash": {
+            "name": "Gemini 2.5 Flash",
+            "capabilities": ["chat", "code"],
+            "description": "Gemini 2.5 Flash"
+        },
+        # Gemini 2.0 系列 (2026年6月将退役)
+        "gemini-2.0-flash": {
+            "name": "Gemini 2.0 Flash",
+            "capabilities": ["chat", "code"],
+            "description": "Gemini 2.0 Flash (2026年6月1日将退役)"
+        },
+        "gemini-2.0-flash-lite": {
+            "name": "Gemini 2.0 Flash-Lite",
+            "capabilities": ["chat"],
+            "description": "Gemini 2.0 Flash-Lite (2026年6月1日将退役)"
+        },
+        # 1.5 系列
+        "gemini-1.5-pro": {
+            "name": "Gemini 1.5 Pro",
+            "capabilities": ["chat", "image", "code"],
+            "description": "Gemini 1.5 Pro"
+        },
+        "gemini-1.5-flash": {
+            "name": "Gemini 1.5 Flash",
+            "capabilities": ["chat", "code"],
+            "description": "Gemini 1.5 Flash"
         },
     },
 }

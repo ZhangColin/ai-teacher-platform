@@ -317,7 +317,13 @@ const getApiKeyUrl = (providerCode: string): string => {
     'moonshot': 'https://platform.moonshot.cn/console/api-keys',
     'openai': 'https://platform.openai.com/api-keys',
     'zhipu': 'https://open.bigmodel.cn/usercenter/apikeys',
-    'glm': 'https://open.bigmodel.cn/usercenter/apikeys'
+    'glm': 'https://open.bigmodel.cn/usercenter/apikeys',
+    'doubao': 'https://console.volcengine.com/ark',
+    'bytedance': 'https://console.volcengine.com/ark',
+    'claude': 'https://console.anthropic.com/settings/keys',
+    'anthropic': 'https://console.anthropic.com/settings/keys',
+    'google': 'https://aistudio.google.com/app/apikey',
+    'gemini': 'https://aistudio.google.com/app/apikey'
   }
   return urlMap[providerCode] || ''
 }

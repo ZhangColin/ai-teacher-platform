@@ -121,23 +121,39 @@ class AIService:
             if provider == "openai":
                 api_key = os.getenv("OPENAI_API_KEY")
                 base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
-                if not model_name:  # 如果没有指定具体模型，使用默认
-                    model_name = os.getenv("OPENAI_MODEL", "gpt-4")
+                if not model_name:
+                    model_name = os.getenv("OPENAI_MODEL", "gpt-5.4")
             elif provider == "deepseek":
                 api_key = os.getenv("DEEPSEEK_API_KEY")
                 base_url = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
                 if not model_name:
-                    model_name = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
-            elif provider == "kimi":
+                    model_name = os.getenv("DEEPSEEK_MODEL", "deepseek-v3.2")
+            elif provider == "kimi" or provider == "moonshot":
                 api_key = os.getenv("KIMI_API_KEY")
                 base_url = os.getenv("KIMI_BASE_URL", "https://api.moonshot.cn/v1")
                 if not model_name:
-                    model_name = os.getenv("KIMI_MODEL", "moonshot-v1-8k")
-            elif provider == "glm":
+                    model_name = os.getenv("KIMI_MODEL", "kimi-k2.5")
+            elif provider == "glm" or provider == "zhipu":
                 api_key = os.getenv("GLM_API_KEY")
                 base_url = os.getenv("GLM_BASE_URL", "https://open.bigmodel.cn/api/paas/v4")
                 if not model_name:
-                    model_name = os.getenv("GLM_MODEL", "glm-4")
+                    model_name = os.getenv("GLM_MODEL", "glm-5")
+            elif provider == "doubao" or provider == "bytedance":
+                api_key = os.getenv("DOUBAO_API_KEY")
+                base_url = os.getenv("DOUBAO_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3")
+                if not model_name:
+                    model_name = os.getenv("DOUBAO_MODEL", "seed-2.0-pro")
+            elif provider == "claude" or provider == "anthropic":
+                # Claude 使用 Anthropic SDK，但也可以通过 OpenAI 兼容层调用
+                api_key = os.getenv("CLAUDE_API_KEY")
+                base_url = os.getenv("CLAUDE_BASE_URL", "https://api.anthropic.com/v1")
+                if not model_name:
+                    model_name = os.getenv("CLAUDE_MODEL", "claude-opus-4.6")
+            elif provider == "google" or provider == "gemini":
+                api_key = os.getenv("GOOGLE_API_KEY")
+                base_url = os.getenv("GOOGLE_BASE_URL", "https://generativelanguage.googleapis.com/v1beta")
+                if not model_name:
+                    model_name = os.getenv("GOOGLE_MODEL", "gemini-3.1-pro-preview")
             else:
                 logger.warning(f"未知的服务商 [{provider}]，将使用 Mock 模式。")
                 return None, "mock-model"
