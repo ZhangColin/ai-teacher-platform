@@ -67,7 +67,7 @@ import type { GroupedRates, ModelRateFormItem } from '@/types'
 
 interface Props {
   groupedRates: GroupedRates
-  modelValue: ModelRateFormItem[]
+  modelValue?: ModelRateFormItem[]
 }
 
 interface Emits {
