@@ -1607,3 +1607,48 @@ class UpdatePointRateRequest(BaseModel):
     tokens_per_point_output: Optional[int] = None
     is_enabled: Optional[bool] = None
 
+
+# ==================== 模型汇率批量设置 ====================
+
+class RateConfigInfo(BaseModel):
+    """汇率配置信息"""
+    id: str
+    tokens_per_point_input: int | None
+    tokens_per_point_output: int | None
+    is_enabled: bool
+
+
+class ModelRateStatusItem(BaseModel):
+    """模型汇率状态项"""
+    model_config_id: str
+    provider_id: str
+    provider_code: str
+    provider_name: str
+    model_code: str
+    model_name: str
+    is_model_enabled: bool
+    rate_config: RateConfigInfo | None
+
+
+class ModelRatesStatusResponse(BaseModel):
+    """模型汇率状态响应"""
+    models: List[ModelRateStatusItem]
+
+
+class RateUpdateItem(BaseModel):
+    """汇率更新项"""
+    model_config_id: str
+    tokens_per_point_input: int
+    tokens_per_point_output: int
+    is_enabled: bool = True
+
+
+class BatchUpdateRateRequest(BaseModel):
+    """批量更新汇率请求"""
+    updates: List[RateUpdateItem]
+
+
+class BatchUpdateRateResponse(BaseModel):
+    """批量更新汇率响应"""
+    updated: int
+
