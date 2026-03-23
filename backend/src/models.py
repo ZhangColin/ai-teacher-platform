@@ -2,11 +2,38 @@
 import uuid
 import bcrypt
 import logging
+import enum
 from datetime import datetime
 from typing import List, Optional, Literal
 from pydantic import BaseModel, Field, ConfigDict
 
 logger = logging.getLogger(__name__)
+
+
+# ==================== 企业积分系统枚举 ====================
+
+class EnterpriseStatus(str, enum.Enum):
+    """企业状态枚举"""
+    active = "active"
+    suspended = "suspended"
+    archived = "archived"
+
+
+class PointTransactionType(str, enum.Enum):
+    """积分交易类型枚举"""
+    recharge = "recharge"
+    gift = "gift"
+    consume = "consume"
+    refund = "refund"
+    adjust = "adjust"
+
+
+class PointSourceType(str, enum.Enum):
+    """积分来源类型枚举"""
+    online_payment = "online_payment"
+    offline_payment = "offline_payment"
+    admin_gift = "admin_gift"
+    admin_adjust = "admin_adjust"
 
 
 class NavigationModule(BaseModel):
@@ -389,6 +416,10 @@ class UserInfo(BaseModel):
     phone: Optional[str] = Field(None, description="用户手机号（可选，用于登录）")
     avatar: Optional[str] = Field(None, description="用户头像URL（可选，默认头像）")
     is_admin: bool = Field(False, description="是否为管理员")
+    # 企业相关字段
+    enterprise_id: Optional[str] = Field(None, description="所属企业ID")
+    enterprise_name: Optional[str] = Field(None, description="所属企业名称")
+    is_enterprise_admin: bool = Field(False, description="是否为企业管理员")
 
 
 class LoginRequest(BaseModel):
@@ -1438,4 +1469,130 @@ class UpdateModelConfigResponse(BaseModel):
 class AvailableModelResponse(BaseModel):
     """可用模型响应"""
     models: List[ModelConfigListItem] = Field(..., description="可用模型列表（仅返回已启用的）")
+
+
+# ==================== 企业积分系统模型 ====================
+
+class EnterpriseInfo(BaseModel):
+    """企业信息"""
+    id: str
+    name: str
+    code: str
+    status: EnterpriseStatus
+    balance_gratis: int
+    balance_paid: int
+    debt_points: int
+    total_points: int
+    user_count: int = 0
+    created_at: datetime
+
+
+class CreateEnterpriseRequest(BaseModel):
+    """创建企业请求"""
+    name: str = Field(..., min_length=1, max_length=100)
+    code: str = Field(..., min_length=1, max_length=50)
+    initial_gratis: int = Field(0, ge=0)
+
+
+class UpdateEnterpriseRequest(BaseModel):
+    """更新企业请求"""
+    name: Optional[str] = Field(None, min_length=1, max_length=100)
+    status: Optional[EnterpriseStatus] = None
+
+
+class EnterpriseListResponse(BaseModel):
+    """企业列表响应"""
+    enterprises: List[EnterpriseInfo]
+    total: int
+    page: int
+    page_size: int
+
+
+class PointBalanceResponse(BaseModel):
+    """积分余额响应"""
+    balance_gratis: int
+    balance_paid: int
+    debt_points: int
+    total_points: int
+
+
+class AddPointsRequest(BaseModel):
+    """增加积分请求"""
+    amount: int = Field(..., gt=0)
+    source_type: PointSourceType
+    remark: Optional[str] = None
+
+
+class TransactionItem(BaseModel):
+    """交易记录项"""
+    id: str
+    type: PointTransactionType
+    source_type: PointSourceType
+    amount: int
+    balance_before: int
+    balance_after: int
+    remark: Optional[str]
+    created_at: datetime
+
+
+class TransactionListResponse(BaseModel):
+    """交易记录列表响应"""
+    transactions: List[TransactionItem]
+    total: int
+    page: int
+
+
+class ConsumptionItem(BaseModel):
+    """消费记录项"""
+    id: str
+    user_id: str
+    username: Optional[str]
+    model_provider: str
+    model_name: str
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
+    gratis_points_used: int
+    paid_points_used: int
+    total_points: int
+    created_at: datetime
+
+
+class ConsumptionListResponse(BaseModel):
+    """消费记录列表响应"""
+    consumptions: List[ConsumptionItem]
+    total: int
+    page: int
+
+
+class ModelPointRateItem(BaseModel):
+    """模型汇率项"""
+    id: str
+    model_config_id: str
+    provider_code: str
+    model_code: str
+    model_name: str
+    tokens_per_point: int
+    separate_io: bool
+    tokens_per_point_input: Optional[int]
+    tokens_per_point_output: Optional[int]
+    is_enabled: bool
+
+
+class CreatePointRateRequest(BaseModel):
+    """创建汇率配置请求"""
+    model_config_id: str
+    tokens_per_point: int = Field(1000, gt=0)
+    separate_io: bool = False
+    tokens_per_point_input: Optional[int] = None
+    tokens_per_point_output: Optional[int] = None
+
+
+class UpdatePointRateRequest(BaseModel):
+    """更新汇率配置请求"""
+    tokens_per_point: Optional[int] = Field(None, gt=0)
+    separate_io: Optional[bool] = None
+    tokens_per_point_input: Optional[int] = None
+    tokens_per_point_output: Optional[int] = None
+    is_enabled: Optional[bool] = None
 
