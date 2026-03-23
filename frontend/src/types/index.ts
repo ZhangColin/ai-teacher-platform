@@ -185,6 +185,9 @@ export interface UserInfo {
   phone?: string // 用户手机号（可选，用于登录）
   avatar?: string // 用户头像URL（可选，默认头像）
   is_admin?: boolean // 是否为管理员（可选，默认false）
+  enterprise_id?: string // 所属企业ID
+  enterprise_name?: string // 所属企业名称
+  is_enterprise_admin?: boolean // 是否为企业管理员
 }
 
 /**
@@ -1140,4 +1143,113 @@ export interface UpdateModelConfigResponse {
  */
 export interface AvailableModelResponse {
   models: ModelConfigListItem[] // 可用模型列表（仅返回已启用的）
+}
+
+/**
+ * 企业状态枚举
+ */
+export type EnterpriseStatus = 'active' | 'suspended' | 'archived'
+
+/**
+ * 积分交易类型枚举
+ */
+export type PointTransactionType = 'recharge' | 'gift' | 'consume' | 'refund' | 'adjust'
+
+/**
+ * 积分来源类型枚举
+ */
+export type PointSourceType = 'online_payment' | 'offline_payment' | 'admin_gift' | 'admin_adjust'
+
+/**
+ * 企业信息
+ */
+export interface EnterpriseInfo {
+  id: string
+  name: string
+  code: string
+  status: EnterpriseStatus
+  balance_gratis: number
+  balance_paid: number
+  debt_points: number
+  total_points: number
+  user_count: number
+  created_at: string
+}
+
+/**
+ * 创建企业请求
+ */
+export interface CreateEnterpriseRequest {
+  name: string
+  code: string
+  initial_gratis?: number
+}
+
+/**
+ * 积分余额响应
+ */
+export interface PointBalanceResponse {
+  balance_gratis: number
+  balance_paid: number
+  debt_points: number
+  total_points: number
+}
+
+/**
+ * 增加积分请求
+ */
+export interface AddPointsRequest {
+  amount: number
+  source_type: PointSourceType
+  remark?: string
+}
+
+/**
+ * 交易记录项
+ */
+export interface TransactionItem {
+  id: string
+  type: PointTransactionType
+  source_type: PointSourceType
+  amount: number
+  balance_before: number
+  balance_after: number
+  remark?: string
+  created_at: string
+}
+
+/**
+ * 交易记录列表响应
+ */
+export interface TransactionListResponse {
+  transactions: TransactionItem[]
+  total: number
+  page: number
+}
+
+/**
+ * 消费记录项
+ */
+export interface ConsumptionItem {
+  id: string
+  user_id: string
+  username?: string
+  model_provider: string
+  model_name: string
+  prompt_tokens: number
+  completion_tokens: number
+  total_tokens: number
+  gratis_points_used: number
+  paid_points_used: number
+  total_points: number
+  created_at: string
+}
+
+/**
+ * 消费记录列表响应
+ */
+export interface ConsumptionListResponse {
+  consumptions: ConsumptionItem[]
+  total: number
+  page: number
 }
