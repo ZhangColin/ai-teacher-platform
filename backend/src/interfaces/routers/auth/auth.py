@@ -50,6 +50,17 @@ async def login(request: LoginRequest):
     # 计算Token有效期（秒）
     expires_in = 604800 if request.remember_me else 86400  # 7天或24小时
 
+    # 查询企业名称（如果用户属于企业）
+    enterprise_name = None
+    if user.enterprise_id:
+        from src.db_models import EnterpriseModel
+        from src.database import get_db
+        db_gen = get_db()
+        db = next(db_gen)
+        enterprise = db.query(EnterpriseModel).filter(EnterpriseModel.id == user.enterprise_id).first()
+        if enterprise:
+            enterprise_name = enterprise.name
+
     # 构建用户信息（不包含密码）
     user_info = UserInfo(
         user_id=user.user_id,
@@ -58,7 +69,10 @@ async def login(request: LoginRequest):
         email=user.email,
         phone=user.phone,
         avatar=user.avatar,
-        is_admin=user.is_admin
+        is_admin=user.is_admin,
+        is_enterprise_admin=user.is_enterprise_admin or False,
+        enterprise_id=user.enterprise_id,
+        enterprise_name=enterprise_name
     )
 
     return LoginResponse(

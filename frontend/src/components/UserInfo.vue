@@ -16,7 +16,11 @@
       <button v-if="authStore.user.is_admin" @click="goToAdmin" class="dropdown-item admin-button">
         管理后台
       </button>
-      <div v-if="authStore.user.is_admin" class="dropdown-divider"></div>
+      <!-- 企业后台入口（仅企业管理员可见） -->
+      <button v-if="authStore.user.is_enterprise_admin" @click="goToEnterprise" class="dropdown-item enterprise-button">
+        {{ enterpriseAdminLabel }}
+      </button>
+      <div v-if="authStore.user.is_admin || authStore.user.is_enterprise_admin" class="dropdown-divider"></div>
       <button @click="handleLogout" class="dropdown-item logout-button">
         退出
       </button>
@@ -42,6 +46,14 @@ const displayName = computed(() => {
     return authStore.user.nickname || authStore.user.username
   }
   return ''
+})
+
+// 企业管理员入口标签：企业名称 + 管理
+const enterpriseAdminLabel = computed(() => {
+  if (authStore.user?.enterprise_name) {
+    return `${authStore.user.enterprise_name}管理`
+  }
+  return '企业管理'
 })
 
 const userInitial = computed(() => {
@@ -72,6 +84,12 @@ function handleClickOutside(event: MouseEvent) {
 function goToAdmin() {
   showDropdown.value = false
   router.push('/admin')
+}
+
+// 进入企业后台
+function goToEnterprise() {
+  showDropdown.value = false
+  router.push('/enterprise/dashboard')
 }
 
 // 登出
@@ -162,6 +180,10 @@ onUnmounted(() => {
 
 .admin-button {
   @apply text-primary-600 hover:bg-primary-50 cursor-pointer;
+}
+
+.enterprise-button {
+  @apply text-green-600 hover:bg-green-50 cursor-pointer;
 }
 
 .logout-button {

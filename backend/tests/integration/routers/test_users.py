@@ -293,7 +293,8 @@ async def test_create_user_as_admin(async_client, db_session):
         "email": f"newuser_{unique_id}@test.com",
         "password": "password123",
         "phone": "13800138000",
-        "is_admin": False
+        "is_admin": False,
+        "enterprise_id": db_session.test_enterprise_id
     }
     response = await async_client.post("/api/v1/admin/users", json=new_user_data)
     if response.status_code != 201:
@@ -354,7 +355,8 @@ async def test_create_user_duplicate_username(async_client, db_session):
         "username": "existing_user",  # 重复的用户名
         "nickname": "重复用户",
         "email": "different@test.com",
-        "password": "password123"
+        "password": "password123",
+        "enterprise_id": db_session.test_enterprise_id
     }
     response = await async_client.post("/api/v1/admin/users", json=new_user_data)
     assert response.status_code == 409
@@ -1035,7 +1037,8 @@ async def test_create_user_without_optional_fields(async_client, db_session):
     unique_id = str(uuid.uuid4())[:8]
     new_user_data = {
         "username": f"minimal_user_{unique_id}",
-        "password": "password123"
+        "password": "password123",
+        "enterprise_id": db_session.test_enterprise_id
     }
     response = await async_client.post("/api/v1/admin/users", json=new_user_data)
     assert response.status_code == 201

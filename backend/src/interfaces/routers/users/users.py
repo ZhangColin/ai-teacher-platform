@@ -54,6 +54,7 @@ async def get_user_list(
     page: int = 1,
     page_size: int = 20,
     is_admin: Optional[bool] = None,
+    enterprise_id: Optional[str] = None,
     current_user: Annotated[UserInfo, Depends(require_admin)] = None,
 ):
     """获取用户列表（管理员功能）- 支持分页和筛选"""
@@ -65,8 +66,21 @@ async def get_user_list(
     users, total = user_service.get_all_users(
         page=page,
         page_size=page_size,
-        is_admin=is_admin
+        is_admin=is_admin,
+        enterprise_id=enterprise_id
     )
+
+    # 获取所有企业ID，批量查询企业名称
+    from src.db_models import EnterpriseModel
+    enterprise_ids = [u.enterprise_id for u in users if u.enterprise_id]
+    enterprises_map = {}
+    if enterprise_ids:
+        db = user_service._get_db()
+        try:
+            enterprises = db.query(EnterpriseModel).filter(EnterpriseModel.id.in_(enterprise_ids)).all()
+            enterprises_map = {e.id: e.name for e in enterprises}
+        finally:
+            db.close()
 
     # 转换为API响应格式
     user_items = [
@@ -78,6 +92,9 @@ async def get_user_list(
             phone=user.phone,
             avatar=user.avatar,
             is_admin=user.is_admin,
+            enterprise_id=user.enterprise_id,
+            enterprise_name=enterprises_map.get(user.enterprise_id) if user.enterprise_id else None,
+            is_enterprise_admin=user.is_enterprise_admin or False,
             created_at=user.created_at
         )
         for user in users
@@ -99,6 +116,13 @@ async def create_user(
     """创建新用户（管理员功能）"""
     try:
         user_service = get_user_service()
+        # 必须指定企业ID
+        if not request.enterprise_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="创建用户时必须指定所属企业"
+            )
+
         user = user_service.create_user(
             username=request.username,
             nickname=request.nickname,
@@ -107,7 +131,8 @@ async def create_user(
             phone=request.phone,
             avatar=request.avatar,
             is_admin=request.is_admin,
-            enterprise_id=current_user.enterprise_id
+            is_enterprise_admin=request.is_enterprise_admin,
+            enterprise_id=request.enterprise_id
         )
 
         # 转换为API响应格式
@@ -119,6 +144,8 @@ async def create_user(
             phone=user.phone,
             avatar=user.avatar,
             is_admin=user.is_admin,
+            enterprise_id=user.enterprise_id,
+            is_enterprise_admin=user.is_enterprise_admin or False,
             created_at=user.created_at
         )
 
@@ -213,7 +240,9 @@ async def _update_user_impl(
             nickname=request.nickname,
             email=request.email,
             phone=request.phone,
-            is_admin=request.is_admin
+            is_admin=request.is_admin,
+            enterprise_id=request.enterprise_id,
+            is_enterprise_admin=request.is_enterprise_admin
         )
 
         if user is None:
@@ -231,6 +260,8 @@ async def _update_user_impl(
             phone=user.phone,
             avatar=user.avatar,
             is_admin=user.is_admin,
+            enterprise_id=user.enterprise_id,
+            is_enterprise_admin=user.is_enterprise_admin or False,
             created_at=user.created_at
         )
 

@@ -20,7 +20,7 @@ class UserService:
         """获取数据库会话"""
         return SessionLocal()
     
-    def create_user(self, username: str, password: str, nickname: Optional[str] = None, email: Optional[str] = None, phone: Optional[str] = None, avatar: Optional[str] = None, is_admin: bool = False, enterprise_id: Optional[str] = None) -> User:
+    def create_user(self, username: str, password: str, nickname: Optional[str] = None, email: Optional[str] = None, phone: Optional[str] = None, avatar: Optional[str] = None, is_admin: bool = False, is_enterprise_admin: bool = False, enterprise_id: Optional[str] = None) -> User:
         """
         创建新用户
 
@@ -32,6 +32,7 @@ class UserService:
             phone: 用户手机号（可选，用于登录）
             avatar: 用户头像URL（可选）
             is_admin: 是否为管理员（默认为false）
+            is_enterprise_admin: 是否为企业管理员（默认为false）
             enterprise_id: 企业ID（必填）
 
         Returns:
@@ -55,6 +56,7 @@ class UserService:
                 password_hash=user_entity.password_hash,
                 avatar=user_entity.avatar,
                 is_admin=user_entity.is_admin,
+                is_enterprise_admin=is_enterprise_admin,
                 enterprise_id=enterprise_id,
                 created_at=user_entity.created_at
             )
@@ -218,15 +220,16 @@ class UserService:
         finally:
             db.close()
     
-    def get_all_users(self, page: int = 1, page_size: int = 20, is_admin: Optional[bool] = None) -> Tuple[List[User], int]:
+    def get_all_users(self, page: int = 1, page_size: int = 20, is_admin: Optional[bool] = None, enterprise_id: Optional[str] = None) -> Tuple[List[User], int]:
         """
         获取所有用户列表（支持分页和筛选）
-        
+
         Args:
             page: 页码（从1开始）
             page_size: 每页数量
             is_admin: 筛选管理员（true: 仅管理员，false: 仅普通用户，None: 全部）
-            
+            enterprise_id: 筛选企业ID
+
         Returns:
             Tuple[List[User], int]: (用户列表, 总数)
         """
@@ -234,20 +237,24 @@ class UserService:
         try:
             # 计算偏移量
             offset = (page - 1) * page_size
-            
+
             # 构建查询
             query = db.query(UserModel)
-            
+
             # 筛选管理员
             if is_admin is not None:
                 query = query.filter(UserModel.is_admin == is_admin)
-            
+
+            # 筛选企业
+            if enterprise_id is not None:
+                query = query.filter(UserModel.enterprise_id == enterprise_id)
+
             # 获取总数
             total = query.count()
-            
+
             # 获取分页数据（按创建时间倒序）
             user_models = query.order_by(desc(UserModel.created_at)).offset(offset).limit(page_size).all()
-            
+
             # 转换为User实体列表
             users = [
                 User(
@@ -259,27 +266,31 @@ class UserService:
                     password_hash=user_model.password_hash,
                     avatar=user_model.avatar,
                     is_admin=user_model.is_admin,
+                    enterprise_id=user_model.enterprise_id,
+                    is_enterprise_admin=user_model.is_enterprise_admin or False,
                     created_at=user_model.created_at
                 )
                 for user_model in user_models
             ]
-            
+
             return users, total
         finally:
             db.close()
     
     def update_user(
-        self, 
-        user_id: str, 
+        self,
+        user_id: str,
         username: Optional[str] = None,
         nickname: Optional[str] = None,
         email: Optional[str] = None,
         phone: Optional[str] = None,
-        is_admin: Optional[bool] = None
+        is_admin: Optional[bool] = None,
+        enterprise_id: Optional[str] = None,
+        is_enterprise_admin: Optional[bool] = None
     ) -> Optional[User]:
         """
         更新用户信息
-        
+
         Args:
             user_id: 用户ID
             username: 用户名（可选）
@@ -287,10 +298,12 @@ class UserService:
             email: 用户邮箱（可选）
             phone: 用户手机号（可选）
             is_admin: 是否为管理员（可选）
-            
+            enterprise_id: 所属企业ID（可选）
+            is_enterprise_admin: 是否为企业管理员（可选）
+
         Returns:
             User: 更新后的用户实体，如果用户不存在返回None
-            
+
         Raises:
             ValueError: 业务规则错误（用户名/邮箱/手机号冲突，取消最后一个管理员）
         """
@@ -337,6 +350,10 @@ class UserService:
                 user_model.phone = phone
             if is_admin is not None:
                 user_model.is_admin = is_admin
+            if enterprise_id is not None:
+                user_model.enterprise_id = enterprise_id
+            if is_enterprise_admin is not None:
+                user_model.is_enterprise_admin = is_enterprise_admin
             
             db.commit()
             db.refresh(user_model)

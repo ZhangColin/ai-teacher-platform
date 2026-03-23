@@ -56,6 +56,17 @@ async def get_current_user(
             detail="用户不存在"
         )
 
+    # 查询企业名称（如果用户属于企业）
+    enterprise_name = None
+    if user.enterprise_id:
+        from src.db_models import EnterpriseModel
+        from src.database import get_db
+        db_gen = get_db()
+        db = next(db_gen)
+        enterprise = db.query(EnterpriseModel).filter(EnterpriseModel.id == user.enterprise_id).first()
+        if enterprise:
+            enterprise_name = enterprise.name
+
     # 返回用户信息（不包含密码）
     return UserInfo(
         user_id=user.user_id,
@@ -66,7 +77,7 @@ async def get_current_user(
         avatar=user.avatar,
         is_admin=user.is_admin,
         enterprise_id=user.enterprise_id,
-        enterprise_name=None,  # 可以后续优化，从企业表查询
+        enterprise_name=enterprise_name,
         is_enterprise_admin=user.is_enterprise_admin or False
     )
 

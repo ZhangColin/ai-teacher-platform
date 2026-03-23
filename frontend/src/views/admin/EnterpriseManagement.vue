@@ -13,7 +13,6 @@
     <!-- 企业列表 -->
     <el-card class="table-card">
       <el-table :data="enterprises" v-loading="loading" stripe>
-        <el-table-column prop="id" label="ID" width="200" />
         <el-table-column prop="name" label="企业名称" width="200" />
         <el-table-column prop="code" label="企业代码" width="150" />
         <el-table-column label="总积分" width="120">
@@ -39,8 +38,8 @@
         <el-table-column prop="user_count" label="用户数" width="100" />
         <el-table-column label="状态" width="80">
           <template #default="{ row }">
-            <el-tag :type="row.is_active ? 'success' : 'danger'">
-              {{ row.is_active ? '启用' : '禁用' }}
+            <el-tag :type="getStatusType(row.status)">
+              {{ getStatusLabel(row.status) }}
             </el-tag>
           </template>
         </el-table-column>
@@ -130,9 +129,8 @@
       <el-form :model="addPointsForm" :rules="addPointsRules" ref="addPointsFormRef" label-width="100px">
         <el-form-item label="充值类型" prop="source_type">
           <el-radio-group v-model="addPointsForm.source_type">
-            <el-radio label="admin_recharge">管理员充值</el-radio>
-            <el-radio label="recharge">用户充值</el-radio>
-            <el-radio label="event_bonus">活动赠送</el-radio>
+            <el-radio label="offline_payment">线下支付</el-radio>
+            <el-radio label="admin_gift">赠送</el-radio>
           </el-radio-group>
         </el-form-item>
         <el-form-item label="充值数量" prop="amount">
@@ -182,9 +180,9 @@
         </el-table-column>
         <el-table-column prop="model_provider" label="模型供应商" width="120" />
         <el-table-column prop="model_name" label="模型名称" width="150" />
-        <el-table-column prop="prompt_tokens" label="Prompt Tokens" width="120" />
-        <el-table-column prop="completion_tokens" label="Completion Tokens" width="140" />
-        <el-table-column prop="user_id" label="用户ID" width="200" />
+        <el-table-column prop="prompt_tokens" label="提示词Tokens" width="120" />
+        <el-table-column prop="completion_tokens" label="完成Tokens" width="120" />
+        <el-table-column prop="username" label="用户" width="120" />
       </el-table>
       <div class="pagination">
         <el-pagination
@@ -239,7 +237,7 @@ const addPointsFormRef = ref<FormInstance>()
 const currentEnterprise = ref<EnterpriseInfo | null>(null)
 const addPointsForm = reactive({
   amount: 1000,
-  source_type: 'admin_recharge',
+  source_type: 'offline_payment',
   note: ''
 })
 const addPointsRules: FormRules = {
@@ -265,7 +263,7 @@ const loadEnterprises = async () => {
         page_size: pageSize.value
       }
     })
-    enterprises.value = response.data.items
+    enterprises.value = response.data.enterprises
     total.value = response.data.total
   } catch (error: any) {
     ElMessage.error(error.response?.data?.detail || '加载企业列表失败')
@@ -311,7 +309,7 @@ const resetCreateForm = () => {
 const handleAddPoints = (enterprise: EnterpriseInfo) => {
   currentEnterprise.value = enterprise
   addPointsForm.amount = 1000
-  addPointsForm.source_type = 'admin_recharge'
+  addPointsForm.source_type = 'offline_payment'
   addPointsForm.note = ''
   showAddPointsDialog.value = true
 }
@@ -319,11 +317,12 @@ const handleAddPoints = (enterprise: EnterpriseInfo) => {
 // 提交充值
 const handleAddPointsSubmit = async () => {
   if (!addPointsFormRef.value || !currentEnterprise.value) return
+  const enterpriseId = currentEnterprise.value.id
   await addPointsFormRef.value.validate(async (valid) => {
     if (valid) {
       addingPoints.value = true
       try {
-        await apiClient.post(`/admin/enterprises/${currentEnterprise.value.id}/add-points`, {
+        await apiClient.post(`/admin/enterprises/${enterpriseId}/add-points`, {
           amount: addPointsForm.amount,
           source_type: addPointsForm.source_type,
           note: addPointsForm.note
@@ -343,7 +342,7 @@ const handleAddPointsSubmit = async () => {
 // 重置充值表单
 const resetAddPointsForm = () => {
   addPointsForm.amount = 1000
-  addPointsForm.source_type = 'admin_recharge'
+  addPointsForm.source_type = 'offline_payment'
   addPointsForm.note = ''
   addPointsFormRef.value?.clearValidate()
 }
@@ -378,19 +377,23 @@ const loadConsumptions = async () => {
 
 // 切换状态
 const handleToggleStatus = async (enterprise: EnterpriseInfo) => {
-  const action = enterprise.is_active ? '禁用' : '启用'
+  const currentLabel = getStatusLabel(enterprise.status)
+  const newStatus = enterprise.status === 'active' ? 'suspended' : 'active'
+  const newLabel = newStatus === 'active' ? '启用' : '暂停'
   try {
-    await ElMessageBox.confirm(`确定要${action}企业"${enterprise.name}"吗？`, '确认', {
-      type: 'warning'
-    })
+    await ElMessageBox.confirm(
+      `确定要将企业"${enterprise.name}"从"${currentLabel}"改为"${newLabel}"吗？`,
+      '确认',
+      { type: 'warning' }
+    )
     await apiClient.patch(`/admin/enterprises/${enterprise.id}`, {
-      is_active: !enterprise.is_active
+      status: newStatus
     })
-    ElMessage.success(`${action}成功`)
+    ElMessage.success('状态更新成功')
     loadEnterprises()
   } catch (error: any) {
     if (error !== 'cancel') {
-      ElMessage.error(error.response?.data?.detail || `${action}失败`)
+      ElMessage.error(error.response?.data?.detail || '状态更新失败')
     }
   }
 }
@@ -419,6 +422,26 @@ const handleDelete = async (enterprise: EnterpriseInfo) => {
 const formatDateTime = (dateTime: string) => {
   if (!dateTime) return '-'
   return new Date(dateTime).toLocaleString('zh-CN')
+}
+
+// 获取状态标签类型
+const getStatusType = (status: string) => {
+  switch (status) {
+    case 'active': return 'success'
+    case 'suspended': return 'warning'
+    case 'archived': return 'danger'
+    default: return 'info'
+  }
+}
+
+// 获取状态标签文本
+const getStatusLabel = (status: string) => {
+  switch (status) {
+    case 'active': return '正常'
+    case 'suspended': return '暂停'
+    case 'archived': return '归档'
+    default: return status
+  }
 }
 
 onMounted(() => {

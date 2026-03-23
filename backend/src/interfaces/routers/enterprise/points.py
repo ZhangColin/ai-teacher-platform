@@ -12,7 +12,7 @@ from src.services.point_service import PointService
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/v1/enterprise/points", tags=["企业-积分"])
+router = APIRouter(prefix="/points", tags=["企业-积分"])
 
 
 @router.get("/balance", response_model=PointBalanceResponse)

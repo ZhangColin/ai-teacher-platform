@@ -12,14 +12,29 @@
       <div class="filter-bar">
         <el-select
           v-model="filterIsAdmin"
-          placeholder="筛选管理员"
+          placeholder="筛选系统管理员"
           clearable
           @change="handleFilterChange"
-          style="width: 150px"
+          style="width: 180px"
         >
           <el-option label="全部用户" :value="undefined" />
-          <el-option label="仅管理员" :value="true" />
+          <el-option label="仅系统管理员" :value="true" />
           <el-option label="仅普通用户" :value="false" />
+        </el-select>
+        <el-select
+          v-model="filterEnterpriseId"
+          placeholder="筛选企业"
+          clearable
+          @change="handleFilterChange"
+          style="width: 200px"
+        >
+          <el-option label="全部企业" :value="undefined" />
+          <el-option
+            v-for="enterprise in enterprises"
+            :key="enterprise.id"
+            :label="enterprise.name"
+            :value="enterprise.id"
+          />
         </el-select>
       </div>
 
@@ -45,9 +60,20 @@
             {{ row.phone || '-' }}
           </template>
         </el-table-column>
-        <el-table-column prop="is_admin" label="管理员" width="100">
+        <el-table-column prop="is_admin" label="系统管理员" width="120">
           <template #default="{ row }">
             <el-tag v-if="row.is_admin" type="primary">是</el-tag>
+            <el-tag v-else type="info">否</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="enterprise_name" label="企业名称" width="150">
+          <template #default="{ row }">
+            {{ row.enterprise_name || '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="is_enterprise_admin" label="企业管理员" width="120">
+          <template #default="{ row }">
+            <el-tag v-if="row.is_enterprise_admin" type="success">是</el-tag>
             <el-tag v-else type="info">否</el-tag>
           </template>
         </el-table-column>
@@ -118,8 +144,21 @@
             show-password
           />
         </el-form-item>
-        <el-form-item label="管理员">
-          <el-checkbox v-model="createForm.is_admin">设置为管理员</el-checkbox>
+        <el-form-item label="系统管理员">
+          <el-checkbox v-model="createForm.is_admin">设置为系统管理员</el-checkbox>
+        </el-form-item>
+        <el-form-item label="所属企业" prop="enterprise_id">
+          <el-select v-model="createForm.enterprise_id" placeholder="请选择企业" style="width: 100%">
+            <el-option
+              v-for="enterprise in enterprises"
+              :key="enterprise.id"
+              :label="enterprise.name"
+              :value="enterprise.id"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="企业管理员">
+          <el-checkbox v-model="createForm.is_enterprise_admin">设置为企业管理员</el-checkbox>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -157,6 +196,19 @@
         </el-form-item>
         <el-form-item label="管理员">
           <el-checkbox v-model="editForm.is_admin">设置为管理员</el-checkbox>
+        </el-form-item>
+        <el-form-item label="所属企业">
+          <el-select v-model="editForm.enterprise_id" placeholder="请选择企业" clearable>
+            <el-option
+              v-for="enterprise in enterprises"
+              :key="enterprise.id"
+              :label="enterprise.name"
+              :value="enterprise.id"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="企业管理员">
+          <el-checkbox v-model="editForm.is_enterprise_admin">设置为企业管理员</el-checkbox>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -207,6 +259,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { ApiService } from '../../services/apiClient'
+import apiClient from '../../services/apiClient'
 import type {
   UserListItem,
   CreateUserRequest,
@@ -229,6 +282,11 @@ const pageSize = ref(20)
 
 // 筛选器
 const filterIsAdmin = ref<boolean | undefined>(undefined)
+const filterEnterpriseId = ref<string | undefined>(undefined)
+
+// 企业列表
+const enterprises = ref<{ id: string; name: string }[]>([])
+const loadingEnterprises = ref(false)
 
 // 创建用户对话框
 const createDialogVisible = ref(false)
@@ -240,6 +298,8 @@ const createForm = reactive<CreateUserRequest>({
   phone: '',
   password: '',
   is_admin: false,
+  enterprise_id: '',
+  is_enterprise_admin: false,
 })
 
 // 编辑用户对话框
@@ -251,6 +311,8 @@ const editForm = reactive<UpdateUserRequest & { user_id?: string }>({
   email: '',
   phone: '',
   is_admin: false,
+  enterprise_id: undefined,
+  is_enterprise_admin: false,
 })
 
 // 重置密码对话框
@@ -287,6 +349,9 @@ const createRules: FormRules = {
     { required: true, message: '请输入密码', trigger: 'blur' },
     { min: 6, message: '密码长度不能少于6位', trigger: 'blur' },
   ],
+  enterprise_id: [
+    { required: true, message: '请选择所属企业', trigger: 'change' },
+  ],
 }
 
 const editRules: FormRules = {
@@ -317,6 +382,26 @@ const resetPasswordRules: FormRules = {
 }
 
 /**
+ * 加载企业列表
+ */
+async function loadEnterprises() {
+  loadingEnterprises.value = true
+  try {
+    const response = await apiClient.get('/admin/enterprises', {
+      params: { page: 1, page_size: 100 }
+    })
+    enterprises.value = response.data.enterprises.map((e: any) => ({
+      id: e.id,
+      name: e.name
+    }))
+  } catch (error: any) {
+    ElMessage.error(error.response?.data?.detail || '加载企业列表失败')
+  } finally {
+    loadingEnterprises.value = false
+  }
+}
+
+/**
  * 格式化日期
  */
 function formatDate(dateString: string): string {
@@ -339,7 +424,8 @@ async function loadUsers() {
     const response = await ApiService.getUserList(
       currentPage.value,
       pageSize.value,
-      filterIsAdmin.value
+      filterIsAdmin.value,
+      filterEnterpriseId.value
     )
     users.value = response.users
     total.value = response.total
@@ -385,6 +471,8 @@ function handleCreate() {
     phone: '',
     password: '',
     is_admin: false,
+    enterprise_id: undefined,
+    is_enterprise_admin: false,
   })
   createFormRef.value?.clearValidate()
   createDialogVisible.value = true
@@ -424,6 +512,8 @@ function handleEdit(user: UserListItem) {
     email: user.email || '',
     phone: user.phone || '',
     is_admin: user.is_admin || false,
+    enterprise_id: (user as any).enterprise_id || undefined,
+    is_enterprise_admin: (user as any).is_enterprise_admin || false,
   })
   editFormRef.value?.clearValidate()
   editDialogVisible.value = true
@@ -536,6 +626,7 @@ async function handleResetPasswordSubmit() {
 // 组件挂载时加载数据
 onMounted(() => {
   loadUsers()
+  loadEnterprises()
 })
 </script>
 

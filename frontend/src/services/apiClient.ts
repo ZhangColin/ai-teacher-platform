@@ -450,11 +450,13 @@ export class ApiService {
    * @param page 页码（可选，默认1）
    * @param pageSize 每页数量（可选，默认20）
    * @param isAdmin 筛选管理员（可选，true: 仅管理员，false: 仅普通用户，undefined: 全部）
+   * @param enterpriseId 筛选企业ID（可选）
    */
   static async getUserList(
     page: number = 1,
     pageSize: number = 20,
-    isAdmin?: boolean
+    isAdmin?: boolean,
+    enterpriseId?: string
   ): Promise<UserListResponse> {
     const params: Record<string, any> = {
       page,
@@ -462,6 +464,9 @@ export class ApiService {
     }
     if (isAdmin !== undefined) {
       params.is_admin = isAdmin
+    }
+    if (enterpriseId !== undefined) {
+      params.enterprise_id = enterpriseId
     }
     const response = await apiClient.get<UserListResponse>('/admin/users', { params })
     return response.data

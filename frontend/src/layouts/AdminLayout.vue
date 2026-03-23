@@ -22,17 +22,15 @@
           class="admin-menu"
           router
         >
-          <el-menu-item index="/admin/users">
-            <el-icon><User /></el-icon>
-            <span>用户管理</span>
-          </el-menu-item>
-
           <el-sub-menu index="enterprise">
             <template #title>
               <el-icon><OfficeBuilding /></el-icon>
               <span>企业管理</span>
             </template>
+            <el-menu-item index="/admin/users">用户管理</el-menu-item>
             <el-menu-item index="/admin/enterprises">企业列表</el-menu-item>
+            <el-menu-item index="/admin/recharge-management">充值管理</el-menu-item>
+            <el-menu-item index="/admin/consumption-management">消费管理</el-menu-item>
           </el-sub-menu>
 
           <el-sub-menu index="tools">
@@ -87,7 +85,7 @@ import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/authStore'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { User, OfficeBuilding, Tools, Picture, Document, Setting } from '@element-plus/icons-vue'
+import { OfficeBuilding, Tools, Picture, Document, Setting } from '@element-plus/icons-vue'
 import Logo from '../components/Logo.vue'
 
 const router = useRouter()

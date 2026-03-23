@@ -5,7 +5,10 @@ import uuid
 from typing import Optional, List, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, func
-from ..db_models import EnterpriseModel, UserModel, EnterpriseStatus
+from ..db_models import (
+    EnterpriseModel, UserModel, EnterpriseStatus,
+    PointTransactionModel, PointTransactionType, PointSourceType
+)
 
 logger = logging.getLogger(__name__)
 
@@ -55,16 +58,36 @@ class EnterpriseService:
                 name=name,
                 code=code,
                 status=EnterpriseStatus.active,
-                balance_gratis=initial_gratis,
+                balance_gratis=0,  # 先设置为0，后面通过add_points添加
                 balance_paid=0,
                 debt_points=0
             )
 
             self.db.add(enterprise)
+            self.db.flush()  # 获取enterprise.id，但不提交事务
+
+            # 如果有初始赠送积分，创建交易记录
+            if initial_gratis > 0:
+                transaction = PointTransactionModel(
+                    id=str(uuid.uuid4()),
+                    enterprise_id=enterprise.id,
+                    operator_id=None,
+                    type=PointTransactionType.gift,
+                    source_type=PointSourceType.admin_gift,
+                    amount=initial_gratis,
+                    balance_before=0,
+                    balance_after=initial_gratis,
+                    remark="创建企业时赠送的初始积分"
+                )
+                self.db.add(transaction)
+
+                # 更新企业积分余额
+                enterprise.balance_gratis = initial_gratis
+
             self.db.commit()
             self.db.refresh(enterprise)
 
-            logger.info(f"创建企业成功: {name} ({code})")
+            logger.info(f"创建企业成功: {name} ({code}), 初始赠送积分: {initial_gratis}")
             return enterprise
 
         except Exception as e:

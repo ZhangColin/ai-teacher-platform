@@ -452,6 +452,9 @@ class CreateUserRequest(BaseModel):
     password: str = Field(..., description="用户密码", min_length=6)
     avatar: Optional[str] = Field(None, description="用户头像URL（可选，默认使用系统默认头像）")
     is_admin: bool = Field(False, description="是否为管理员（默认为false）")
+    # 企业相关字段
+    enterprise_id: str = Field(..., description="所属企业ID（必填）")
+    is_enterprise_admin: bool = Field(False, description="是否为企业管理员（默认为false）")
 
 
 class UserListItem(BaseModel):
@@ -463,6 +466,9 @@ class UserListItem(BaseModel):
     phone: Optional[str] = Field(None, description="用户手机号（可选，用于登录）")
     avatar: Optional[str] = Field(None, description="用户头像URL")
     is_admin: bool = Field(False, description="是否为管理员")
+    enterprise_id: Optional[str] = Field(None, description="所属企业ID")
+    enterprise_name: Optional[str] = Field(None, description="所属企业名称")
+    is_enterprise_admin: bool = Field(False, description="是否为企业管理员")
     created_at: datetime = Field(..., description="用户创建时间")
 
 
@@ -486,6 +492,9 @@ class UpdateUserRequest(BaseModel):
     email: Optional[str] = Field(None, description="用户邮箱", pattern=r'^[^@]+@[^@]+\.[^@]+$')
     phone: Optional[str] = Field(None, description="用户手机号", pattern=r'^1[3-9]\d{9}$')
     is_admin: Optional[bool] = Field(None, description="是否为管理员")
+    # 企业相关字段
+    enterprise_id: Optional[str] = Field(None, description="所属企业ID")
+    is_enterprise_admin: Optional[bool] = Field(None, description="是否为企业管理员")
 
 
 class UpdateUserResponse(BaseModel):

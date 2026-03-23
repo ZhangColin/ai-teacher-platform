@@ -43,6 +43,18 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAdmin: true },
       },
       {
+        path: 'recharge-management',
+        name: 'admin-recharge-management',
+        component: () => import('../views/admin/RechargeManagement.vue'),
+        meta: { requiresAdmin: true },
+      },
+      {
+        path: 'consumption-management',
+        name: 'admin-consumption-management',
+        component: () => import('../views/admin/ConsumptionManagement.vue'),
+        meta: { requiresAdmin: true },
+      },
+      {
         path: 'tool-categories',
         name: 'admin-tool-categories',
         component: () => import('../views/admin/AdminToolCategoriesPage.vue'),

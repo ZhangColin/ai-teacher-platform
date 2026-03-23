@@ -120,18 +120,23 @@ import { ref, computed } from 'vue'
 import { ApiService } from '@/services/apiClient'
 import type { CreateUserRequest } from '@/types'
 
+const props = defineProps<{
+  enterpriseId: string
+}>()
+
 const emit = defineEmits<{
   close: []
   created: []
 }>()
 
 // 表单数据
-const formData = ref<CreateUserRequest>({
+const formData = ref<Omit<CreateUserRequest, 'enterprise_id'> & { enterprise_id?: string }>({
   username: '',
   email: '',
   phone: undefined,
   password: '',
   avatar: undefined,
+  enterprise_id: props.enterpriseId,
 })
 
 // 表单验证错误
@@ -242,6 +247,7 @@ async function handleSubmit() {
       phone: formData.value.phone?.trim() || undefined,
       password: formData.value.password,
       avatar: formData.value.avatar?.trim() || undefined,
+      enterprise_id: props.enterpriseId,
     })
 
     // 创建成功，触发created事件
@@ -255,6 +261,7 @@ async function handleSubmit() {
       phone: undefined,
       password: '',
       avatar: undefined,
+      enterprise_id: props.enterpriseId,
     }
     errors.value = {}
   } catch (err) {

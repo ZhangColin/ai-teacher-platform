@@ -219,6 +219,9 @@ export interface UserListItem {
   phone?: string // 用户手机号（可选，用于登录）
   avatar?: string // 用户头像URL
   is_admin?: boolean // 是否为管理员（可选，默认false）
+  enterprise_id?: string // 所属企业ID
+  enterprise_name?: string // 所属企业名称
+  is_enterprise_admin?: boolean // 是否为企业管理员
   created_at: string // 用户创建时间（ISO 8601 格式）
 }
 
@@ -243,6 +246,8 @@ export interface CreateUserRequest {
   password: string // 用户密码
   avatar?: string // 用户头像URL（可选）
   is_admin?: boolean // 是否为管理员（可选，默认false）
+  enterprise_id: string // 所属企业ID（必填）
+  is_enterprise_admin?: boolean // 是否为企业管理员（可选，默认false）
 }
 
 /**
@@ -261,6 +266,8 @@ export interface UpdateUserRequest {
   email?: string // 用户邮箱（可选）
   phone?: string // 用户手机号（可选）
   is_admin?: boolean // 是否为管理员（可选）
+  enterprise_id?: string // 所属企业ID（可选）
+  is_enterprise_admin?: boolean // 是否为企业管理员（可选）
 }
 
 /**

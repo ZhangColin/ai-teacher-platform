@@ -10,6 +10,7 @@
     <!-- 创建用户表单（弹窗） -->
     <CreateUserForm
       v-if="showCreateForm"
+      :enterprise-id="currentEnterpriseId"
       @close="showCreateForm = false"
       @created="handleUserCreated"
     />
@@ -61,10 +62,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useAuthStore } from '@/stores/authStore'
 import { ApiService } from '@/services/apiClient'
 import type { UserListItem } from '@/types'
 import CreateUserForm from '@/components/CreateUserForm.vue'
+
+const authStore = useAuthStore()
+const currentEnterpriseId = computed(() => authStore.user?.enterprise_id || '')
 
 const loading = ref(false)
 const error = ref<string | null>(null)
