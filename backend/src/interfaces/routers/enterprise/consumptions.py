@@ -1,0 +1,60 @@
+# -*- coding: utf-8 -*-
+"""消费记录路由（企业后台）"""
+import logging
+from typing import Annotated, Optional
+from datetime import datetime
+from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.orm import Session
+
+from src.models import UserInfo, ConsumptionListResponse, ConsumptionItem
+from src.database import get_db
+from src.interfaces.dependencies import require_enterprise_admin
+from src.services.point_service import PointService
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/api/v1/enterprise/consumptions", tags=["企业-消费记录"])
+
+
+@router.get("", response_model=ConsumptionListResponse)
+async def get_consumptions(
+    page: int = 1,
+    page_size: int = 20,
+    user_id: Optional[str] = None,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    current_user: Annotated[UserInfo, Depends(require_enterprise_admin)] = None,
+    db: Session = Depends(get_db)
+):
+    """获取 AI 消费记录"""
+    if page_size > 100:
+        page_size = 100
+
+    point_service = PointService(db)
+    consumptions, total = point_service.get_consumptions(
+        current_user.enterprise_id, page, page_size, user_id, start_date, end_date
+    )
+
+    items = [
+        ConsumptionItem(
+            id=str(c.id),
+            user_id=c.user_id,
+            username=None,  # TODO: 关联查询用户名
+            model_provider=c.model_provider,
+            model_name=c.model_name,
+            prompt_tokens=c.prompt_tokens,
+            completion_tokens=c.completion_tokens,
+            total_tokens=c.total_tokens,
+            gratis_points_used=c.gratis_points_used,
+            paid_points_used=c.paid_points_used,
+            total_points=c.total_points,
+            created_at=c.created_at
+        )
+        for c in consumptions
+    ]
+
+    return ConsumptionListResponse(
+        consumptions=items,
+        total=total,
+        page=page
+    )
