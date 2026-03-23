@@ -887,6 +887,22 @@ class AIService:
 
             # 在流结束时yield usage信息
             if usage_info:
+                # 计算积分（供接口层使用）
+                try:
+                    from .point_service import PointService
+                    point_service = PointService(self.db)
+                    points = point_service.calculate_points_from_tokens(
+                        provider_code=usage_info.get('model_provider', ''),
+                        model_code=usage_info.get('model_name', ''),
+                        prompt_tokens=usage_info.get('prompt_tokens', 0),
+                        completion_tokens=usage_info.get('completion_tokens', 0)
+                    )
+                    usage_info['points_deducted'] = points
+                    logger.info(f"AI调用完成 - 模型:{provider}:{model_name}, Tokens:{usage_info['total_tokens']}, 积分:{points}")
+                except Exception as e:
+                    logger.error(f"积分计算失败: {e}")
+                    usage_info['points_deducted'] = 0
+
                 yield {
                     'type': 'usage',
                     **usage_info
