@@ -8,6 +8,52 @@ from .database import Base
 import enum
 
 
+class EnterpriseStatus(enum.Enum):
+    """企业状态枚举"""
+    active = "active"
+    suspended = "suspended"
+    archived = "archived"
+
+
+class PointTransactionType(enum.Enum):
+    """积分交易类型枚举"""
+    recharge = "recharge"
+    gift = "gift"
+    consume = "consume"
+    refund = "refund"
+    adjust = "adjust"
+
+
+class PointSourceType(enum.Enum):
+    """积分来源类型枚举"""
+    online_payment = "online_payment"
+    offline_payment = "offline_payment"
+    admin_gift = "admin_gift"
+    admin_adjust = "admin_adjust"
+    ai_consume = "ai_consume"
+
+
+class EnterpriseModel(Base):
+    """企业数据库模型"""
+    __tablename__ = "enterprises"
+
+    id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(100), nullable=False, comment='企业名称')
+    code = Column(String(50), unique=True, nullable=False, index=True, comment='企业代码')
+    status = Column(Enum(EnterpriseStatus), nullable=False, default=EnterpriseStatus.active, comment='企业状态')
+
+    # 积分余额
+    balance_gratis = Column(Integer, nullable=False, default=0, comment='赠送积分余额（非负）')
+    balance_paid = Column(Integer, nullable=False, default=0, comment='充值积分余额（非负）')
+    debt_points = Column(Integer, nullable=False, default=0, comment='负债积分（透支金额，非负）')
+
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
+    updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
+
+    # 关系
+    users = relationship("UserModel", back_populates="enterprise")
+
+
 class UserModel(Base):
     """用户数据库模型（SQLAlchemy ORM）"""
     __tablename__ = "users"
@@ -20,10 +66,14 @@ class UserModel(Base):
     password_hash = Column(String(255), nullable=False)
     avatar = Column(String(500), nullable=True)
     is_admin = Column(Boolean, nullable=False, default=False, index=True)
+    # 企业关联
+    enterprise_id = Column(CHAR(36), ForeignKey("enterprises.id"), nullable=False, index=True, comment='所属企业ID')
+    is_enterprise_admin = Column(Boolean, nullable=False, default=False, index=True, comment='是否企业管理员')
     created_at = Column(DateTime, nullable=False, default=datetime.now)
-    
+
     # 关系
     sessions = relationship("SessionModel", back_populates="user", cascade="all, delete-orphan")
+    enterprise = relationship("EnterpriseModel", back_populates="users")
 
 
 class MessageRole(enum.Enum):
@@ -231,6 +281,61 @@ class CourseDocumentModel(Base):
     )
 
 
+class PointTransactionModel(Base):
+    """积分交易记录数据库模型"""
+    __tablename__ = "point_transactions"
+
+    id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    enterprise_id = Column(CHAR(36), ForeignKey("enterprises.id"), nullable=False, index=True)
+    operator_id = Column(CHAR(36), ForeignKey("users.user_id"), nullable=True, comment='操作人')
+
+    type = Column(Enum(PointTransactionType), nullable=False, comment='交易类型')
+    source_type = Column(Enum(PointSourceType), nullable=False, comment='来源类型')
+
+    amount = Column(Integer, nullable=False, comment='积分金额（正数）')
+    balance_before = Column(Integer, nullable=False, comment='变动前总积分')
+    balance_after = Column(Integer, nullable=False, comment='变动后总积分')
+
+    remark = Column(String(500), nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.now, index=True)
+
+    # 关系
+    enterprise = relationship("EnterpriseModel")
+
+
+class AIConsumptionModel(Base):
+    """AI消费记录数据库模型"""
+    __tablename__ = "ai_consumptions"
+
+    id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    enterprise_id = Column(CHAR(36), ForeignKey("enterprises.id"), nullable=False, index=True)
+    user_id = Column(CHAR(36), ForeignKey("users.user_id"), nullable=False, index=True)
+    session_id = Column(CHAR(36), ForeignKey("sessions.session_id"), nullable=False, index=True)
+    message_id = Column(CHAR(36), ForeignKey("messages.message_id"), nullable=False, index=True)
+
+    # 模型信息
+    model_provider = Column(String(50), nullable=False)
+    model_name = Column(String(100), nullable=False)
+
+    # Token消耗
+    prompt_tokens = Column(Integer, nullable=False)
+    completion_tokens = Column(Integer, nullable=False)
+    total_tokens = Column(Integer, nullable=False)
+
+    # 积分扣减
+    gratis_points_used = Column(Integer, nullable=False, default=0)
+    paid_points_used = Column(Integer, nullable=False, default=0)
+    total_points = Column(Integer, nullable=False)
+
+    created_at = Column(DateTime, nullable=False, default=datetime.now, index=True)
+
+    # 联合索引
+    __table_args__ = (
+        Index("idx_ai_consumption_enterprise_date", "enterprise_id", "created_at"),
+        Index("idx_ai_consumption_user_date", "user_id", "created_at"),
+    )
+
+
 class NavigationModuleType(enum.Enum):
     """导航模块类型枚举"""
     ai_tools = "ai_tools"
@@ -390,9 +495,29 @@ class ModelConfigModel(Base):
 
     # 关系
     provider = relationship("ModelProviderModel", back_populates="models")
+    point_rate = relationship("ModelPointRateModel", uselist=False)
 
     # 联合唯一约束
     __table_args__ = (
         Index("uk_provider_model", "provider_id", "model_code", unique=True),
     )
+
+
+class ModelPointRateModel(Base):
+    """模型积分汇率数据库模型"""
+    __tablename__ = "model_point_rates"
+
+    id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    model_config_id = Column(CHAR(36), ForeignKey("model_configs.id", ondelete="CASCADE"),
+                             nullable=False, unique=True, index=True)
+
+    # 汇率配置
+    tokens_per_point = Column(Integer, nullable=False, default=1000, comment='每积分对应token数')
+    separate_io = Column(Boolean, nullable=False, default=False, comment='是否区分输入输出')
+    tokens_per_point_input = Column(Integer, nullable=True)
+    tokens_per_point_output = Column(Integer, nullable=True)
+
+    is_enabled = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
+    updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
 
