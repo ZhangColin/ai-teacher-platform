@@ -96,43 +96,40 @@ git commit -m "feat: 添加模型汇率批量设置的 Pydantic 模型"
 
 ---
 
-## Task 2: 后端 - 创建汇率管理路由
+## Task 2: 后端 - 扩展汇率管理路由
 
 **Files:**
-- Create: `backend/src/interfaces/routers/admin/model_rates.py`
+- Modify: `backend/src/interfaces/routers/admin/point_rates.py`
 
-- [ ] **Step 1: 创建路由文件**
+**说明**: 在现有的 `point_rates.py` 文件中添加新的端点，而不是创建新文件。
+
+- [ ] **Step 1: 在现有文件中添加新的导入**
+
+在文件开头的导入部分添加：
 
 ```python
-# -*- coding: utf-8 -*-
-"""模型汇率批量设置路由（后台管理员）"""
-import logging
-from typing import Annotated, List
-from fastapi import APIRouter, HTTPException, status, Depends
-from sqlalchemy.orm import Session
-
 from src.models import (
-    UserInfo,
+    # ... 现有导入 ...
     ModelRatesStatusResponse,
     ModelRateStatusItem,
     RateConfigInfo,
     BatchUpdateRateRequest,
     BatchUpdateRateResponse,
 )
-from src.database import get_db
-from src.interfaces.dependencies import require_admin
-from src.db_models import (
-    ModelPointRateModel,
-    ModelConfigModel,
-    ModelProviderModel,
-)
+from src.db_models import ModelConfigModel, ModelProviderModel
+```
 
-logger = logging.getLogger(__name__)
+- [ ] **Step 2: 在现有路由器中添加新的端点**
 
-router = APIRouter(prefix="/api/v1/admin/model-rates", tags=["管理员-模型汇率"])
+在文件末尾（最后一个路由函数之后）添加以下代码：
 
-
+```python
 @router.get("/status", response_model=ModelRatesStatusResponse)
+async def get_model_rates_status(
+    current_user: Annotated[UserInfo, Depends(require_admin)] = None,
+    db: Session = Depends(get_db)
+):
+    """获取所有已启用模型的汇率配置状态"""
 async def get_model_rates_status(
     current_user: Annotated[UserInfo, Depends(require_admin)] = None,
     db: Session = Depends(get_db)
@@ -262,49 +259,13 @@ Expected: "Import success"
 - [ ] **Step 3: 提交**
 
 ```bash
-git add backend/src/interfaces/routers/admin/model_rates.py
-git commit -m "feat: 添加模型汇率批量设置路由"
+git add backend/src/interfaces/routers/admin/point_rates.py
+git commit -m "feat: 在 point_rates.py 中添加批量设置端点"
 ```
 
 ---
 
-## Task 3: 后端 - 注册新路由
-
-**Files:**
-- Modify: `backend/src/main.py`
-
-- [ ] **Step 1: 导入新路由**
-
-找到其他路由导入的位置（约在第 30-50 行），添加：
-
-```python
-from src.interfaces.routers.admin.model_rates import router as model_rates_router
-```
-
-- [ ] **Step 2: 注册路由**
-
-找到 `app.include_router()` 调用的位置，添加：
-
-```python
-app.include_router(model_rates_router)
-```
-
-- [ ] **Step 3: 验证服务器启动**
-
-Run: `cd backend && python -m src.main &`
-Expected: Server starts without errors
-Then: `pkill -f "python -m src.main"`
-
-- [ ] **Step 4: 提交**
-
-```bash
-git add backend/src/main.py
-git commit -m "feat: 注册模型汇率批量设置路由"
-```
-
----
-
-## Task 4: 后端 - 编写集成测试
+## Task 3: 后端 - 编写集成测试
 
 **Files:**
 - Create: `backend/tests/integration/test_model_rates_api.py`
@@ -328,8 +289,13 @@ client = TestClient(app)
 
 
 @pytest.fixture
-def admin_db(test_db: Session):
-    """创建测试管理员"""
+def admin_db_session(db_session: Session):
+    """创建测试管理员和测试数据
+
+    注意：使用 db_session fixture 而不是 test_db
+    db_session 应该在 conftest.py 中定义，提供测试用的数据库会话
+    """
+    # 创建测试管理员
     admin = UserModel(
         username="admin_test",
         nickname="测试管理员",
@@ -337,8 +303,8 @@ def admin_db(test_db: Session):
         is_admin=True,
         enterprise_id="test-enterprise-id"
     )
-    test_db.add(admin)
-    test_db.commit()
+    db_session.add(admin)
+    db_session.commit()
 
     # 创建测试供应商
     provider = ModelProviderModel(
@@ -373,14 +339,14 @@ def admin_db(test_db: Session):
     test_db.commit()
 
 
-def test_get_model_rates_status(admin_db):
+def test_get_model_rates_status(admin_db_session):
     """测试获取模型汇率状态"""
     # 获取管理员 token
-    admin = admin_db.query(UserModel).filter(UserModel.username == "admin_test").first()
+    admin = admin_db_session.query(UserModel).filter(UserModel.username == "admin_test").first()
     token = create_access_token(admin.user_id)
 
     response = client.get(
-        "/api/v1/admin/model-rates/status",
+        "/api/v1/admin/point-rates/status",
         headers={"Authorization": f"Bearer {token}"}
     )
 
@@ -399,14 +365,14 @@ def test_get_model_rates_status(admin_db):
 
 def test_batch_update_rates_create(admin_db):
     """测试批量创建汇率配置"""
-    admin = admin_db.query(UserModel).filter(UserModel.username == "admin_test").first()
+    admin = admin_db_session.query(UserModel).filter(UserModel.username == "admin_test").first()
     token = create_access_token(admin.user_id)
 
     # 获取模型ID
-    model = admin_db.query(ModelConfigModel).filter(ModelConfigModel.model_code == "test-model").first()
+    model = admin_db_session.query(ModelConfigModel).filter(ModelConfigModel.model_code == "test-model").first()
 
     response = client.post(
-        "/api/v1/admin/model-rates/batch-update",
+        "/api/v1/admin/point-rates/batch-update",
         headers={"Authorization": f"Bearer {token}"},
         json={
             "updates": [
@@ -425,7 +391,7 @@ def test_batch_update_rates_create(admin_db):
     assert data["updated"] == 1
 
     # 验证数据库中的记录
-    rate = admin_db.query(ModelPointRateModel).filter(
+    rate = admin_db_session.query(ModelPointRateModel).filter(
         ModelPointRateModel.model_config_id == model.id
     ).first()
     assert rate is not None
@@ -436,10 +402,10 @@ def test_batch_update_rates_create(admin_db):
 
 def test_batch_update_rates_update(admin_db):
     """测试批量更新汇率配置"""
-    admin = admin_db.query(UserModel).filter(UserModel.username == "admin_test").first()
+    admin = admin_db_session.query(UserModel).filter(UserModel.username == "admin_test").first()
     token = create_access_token(admin.user_id)
 
-    model = admin_db.query(ModelConfigModel).filter(ModelConfigModel.model_code == "test-model").first()
+    model = admin_db_session.query(ModelConfigModel).filter(ModelConfigModel.model_code == "test-model").first()
 
     # 先创建配置
     rate = ModelPointRateModel(
@@ -455,7 +421,7 @@ def test_batch_update_rates_update(admin_db):
 
     # 更新配置
     response = client.post(
-        "/api/v1/admin/model-rates/batch-update",
+        "/api/v1/admin/point-rates/batch-update",
         headers={"Authorization": f"Bearer {token}"},
         json={
             "updates": [
@@ -590,7 +556,7 @@ git commit -m "feat: 添加模型汇率批量设置类型定义"
    * 获取所有模型的汇率配置状态
    */
   static async getModelRatesStatus(): Promise<ModelRateStatusItem[]> {
-    const response = await apiClient.get<{ models: ModelRateStatusItem[] }>('/admin/model-rates/status')
+    const response = await apiClient.get<{ models: ModelRateStatusItem[] }>('/admin/point-rates/status')
     return response.models
   }
 
@@ -598,7 +564,7 @@ git commit -m "feat: 添加模型汇率批量设置类型定义"
    * 批量更新模型汇率配置
    */
   static async batchUpdateModelRates(request: BatchUpdateRateRequest): Promise<BatchUpdateRateResponse> {
-    const response = await apiClient.post<BatchUpdateRateResponse>('/admin/model-rates/batch-update', request)
+    const response = await apiClient.post<BatchUpdateRateResponse>('/admin/point-rates/batch-update', request)
     return response
   }
 ```
@@ -1256,28 +1222,29 @@ git commit -m "refactor: 简化模型配置对话框为单表单"
 ## Task 11: 前端 - 添加菜单项
 
 **Files:**
-- Modify: `frontend/src/layouts/AdminLayout.vue` 或管理后台菜单配置所在文件
+- Modify: `frontend/src/layouts/AdminLayout.vue`
 
-- [ ] **Step 1: 找到菜单配置**
+- [ ] **Step 1: 添加图标导入**
 
-查找管理后台的菜单配置，可能在以下位置之一：
-- `frontend/src/layouts/AdminLayout.vue`
-- `frontend/src/views/admin/AdminPage.vue`
-- 单独的菜单配置文件
+在文件开头的 import 部分添加 `Coin` 图标：
 
-- [ ] **Step 2: 添加菜单项**
+```typescript
+import { Setting, User, House, Coin } from '@element-plus/icons-vue'
+```
 
-在"配置管理"或"模型供应商管理"附近添加：
+注意：保留其他已有的图标导入，只添加 `Coin`。
+
+- [ ] **Step 2: 在菜单配置中添加菜单项**
+
+找到菜单配置数组（约在第 63-71 行），在"模型供应商管理"菜单项之后添加：
 
 ```typescript
 {
   path: '/admin/model-rates',
   title: '模型汇率配置',
-  icon: 'Coin'
+  icon: Coin
 }
 ```
-
-注意：确保图标使用 Element Plus 的 `Coin` 图标。
 
 - [ ] **Step 3: 提交**
 
