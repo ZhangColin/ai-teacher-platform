@@ -77,7 +77,8 @@ interface ModelRateFormItem {
   model_name: string
   model_code: string
   provider_id: string
-  provider_name: string
+  provider_code: string               // 供应商代码，与现有类型一致
+  provider_name: string               // 供应商名称，用于展示
   tokens_per_point_input: number | null   // 输入汇率，与现有类型一致
   tokens_per_point_output: number | null  // 输出汇率，与现有类型一致
   is_enabled: boolean                     // 是否启用汇率配置
@@ -91,6 +92,7 @@ interface ModelRateFormItem {
 interface GroupedRates {
   [provider_id: string]: {
     provider_name: string
+    provider_code: string
     models: ModelRateFormItem[]
   }
 }
@@ -170,7 +172,8 @@ async def get_model_rates_status(
 class ModelRateStatusItem(BaseModel):
     model_config_id: str
     provider_id: str
-    provider_name: str
+    provider_code: str      # 供应商代码
+    provider_name: str      # 供应商名称
     model_code: str
     model_name: str
     is_model_enabled: bool
@@ -279,20 +282,26 @@ frontend/src/types/index.ts
 
 ### 5.1 菜单配置
 
-需要在管理后台布局中添加菜单项。根据现有的管理后台菜单结构（通常在 `AdminLayout.vue` 或相关配置中）：
+需要在管理后台布局中添加菜单项。"模型汇率配置"应该放在"配置管理"子菜单下，与"模型供应商配置"在同一分组：
 
 ```typescript
 // 管理后台菜单配置（示例）
 const adminMenuItems = [
-  // ... 现有菜单项
+  // ... 其他菜单
   {
-    path: '/admin/model-rates',
-    title: '模型汇率配置',
-    icon: 'Money', // 或其他合适的图标
-    order: 5       // 菜单排序
+    title: '配置管理',
+    icon: 'Setting',
+    children: [
+      { path: '/admin/navigation', title: '导航模块管理' },
+      { path: '/admin/ai-tools', title: 'AI 工具管理' },
+      { path: '/admin/model-providers', title: '模型供应商管理' },
+      { path: '/admin/model-rates', title: '模型汇率配置', icon: 'Coin' }, // 新增
+    ]
   }
 ]
 ```
+
+**图标说明**：使用 Element Plus 的 `Coin` 图标（`@element-plus/icons-vue` 中可用）。
 
 ### 6. 用户交互流程
 
@@ -320,7 +329,7 @@ const adminMenuItems = [
 1. 输入/输出汇率必须为正整数
 2. 输入汇率不能为空（如果启用汇率配置）
 3. 输出汇率不能为空（如果启用汇率配置）
-4. 批量保存时，跳过验证失败的项并记录错误
+4. 前端在提交前应该验证所有项，确保没有验证错误后再调用批量更新接口
 
 ### 8. 错误处理
 
