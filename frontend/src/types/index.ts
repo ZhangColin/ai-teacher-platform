@@ -1260,3 +1260,123 @@ export interface ConsumptionListResponse {
   total: number
   page: number
 }
+
+// ==================== 模型积分汇率配置模块 ====================
+
+/**
+ * 模型汇率列表项
+ */
+export interface ModelPointRateItem {
+  id: string // 汇率配置ID
+  model_config_id: string // 模型配置ID
+  provider_code: string // 供应商代码
+  model_code: string // 模型代码
+  model_name: string // 模型名称
+  tokens_per_point: number // 每积分对应token数
+  separate_io: boolean // 是否区分输入输出
+  tokens_per_point_input?: number // 输入token每积分对应数
+  tokens_per_point_output?: number // 输出token每积分对应数
+  is_enabled: boolean // 是否启用
+}
+
+/**
+ * 创建汇率配置请求
+ */
+export interface CreatePointRateRequest {
+  model_config_id: string // 模型配置ID
+  tokens_per_point?: number // 每积分对应token数（默认1000）
+  separate_io?: boolean // 是否区分输入输出（默认false）
+  tokens_per_point_input?: number // 输入token汇率
+  tokens_per_point_output?: number // 输出token汇率
+}
+
+/**
+ * 更新汇率配置请求
+ */
+export interface UpdatePointRateRequest {
+  tokens_per_point?: number // 每积分对应token数
+  separate_io?: boolean // 是否区分输入输出
+  tokens_per_point_input?: number // 输入token汇率
+  tokens_per_point_output?: number // 输出token汇率
+  is_enabled?: boolean // 是否启用
+}
+
+// ==================== 模型汇率批量设置 ====================
+
+/**
+ * 汇率配置信息
+ */
+export interface RateConfigInfo {
+  id: string // 汇率配置ID
+  tokens_per_point_input: number | null // 输入token每积分对应数
+  tokens_per_point_output: number | null // 输出token每积分对应数
+  is_enabled: boolean // 是否启用
+}
+
+/**
+ * 模型汇率状态列表项
+ */
+export interface ModelRateStatusItem {
+  model_config_id: string // 模型配置ID
+  provider_id: string // 供应商ID
+  provider_code: string // 供应商代码
+  provider_name: string // 供应商名称
+  model_code: string // 模型代码
+  model_name: string // 模型名称
+  is_model_enabled: boolean // 模型是否启用
+  rate_config: RateConfigInfo | null // 汇率配置（可能为空）
+}
+
+/**
+ * 模型汇率表单项
+ */
+export interface ModelRateFormItem {
+  model_config_id: string // 模型配置ID
+  model_name: string // 模型名称
+  model_code: string // 模型代码
+  provider_id: string // 供应商ID
+  provider_code: string // 供应商代码
+  provider_name: string // 供应商名称
+  tokens_per_point_input?: number // 输入token汇率
+  tokens_per_point_output?: number // 输出token汇率
+  is_enabled: boolean // 是否启用
+  has_existing_config: boolean // 是否已有配置
+  rate_id?: string // 汇率配置ID（更新时需要）
+  _modified: boolean // 是否被修改（内部状态）
+  _original?: Partial<ModelRateFormItem> // 原始值（用于比较变化）
+}
+
+/**
+ * 分组的汇率配置
+ */
+export interface GroupedRates {
+  [provider_id: string]: {
+    provider_name: string // 供应商名称
+    provider_code: string // 供应商代码
+    models: ModelRateFormItem[] // 该供应商下的模型列表
+  }
+}
+
+/**
+ * 批量更新汇率单项
+ */
+export interface BatchRateUpdateItem {
+  model_config_id: string // 模型配置ID
+  tokens_per_point_input: number // 输入token汇率
+  tokens_per_point_output: number // 输出token汇率
+  is_enabled: boolean // 是否启用
+}
+
+/**
+ * 批量更新汇率请求
+ */
+export interface BatchUpdateRateRequest {
+  updates: BatchRateUpdateItem[] // 更新列表
+}
+
+/**
+ * 批量更新汇率响应
+ */
+export interface BatchUpdateRateResponse {
+  updated: number // 更新的数量
+}
