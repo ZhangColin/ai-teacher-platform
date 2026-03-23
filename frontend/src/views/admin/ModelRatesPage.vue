@@ -53,7 +53,10 @@ const groupedRates = computed<GroupedRates>(() => {
         models: []
       }
     }
-    groups[item.provider_id].models.push(item)
+    const group = groups[item.provider_id]
+    if (group) {
+      group.models.push(item)
+    }
   })
 
   return groups
@@ -85,8 +88,8 @@ const loadData = async () => {
         rate_id: item.rate_config?.id,
         _modified: false,
         _original: item.rate_config ? {
-          tokens_per_point_input: item.rate_config.tokens_per_point_input,
-          tokens_per_point_output: item.rate_config.tokens_per_point_output,
+          tokens_per_point_input: item.rate_config.tokens_per_point_input ?? undefined,
+          tokens_per_point_output: item.rate_config.tokens_per_point_output ?? undefined,
           is_enabled: item.rate_config.is_enabled
         } : undefined
       }
@@ -104,7 +107,7 @@ const loadData = async () => {
 }
 
 // 处理单项变化
-const handleItemChange = (item: ModelRateFormItem) => {
+const handleItemChange = (_item: ModelRateFormItem) => {
   // 变化标记已在组件中处理
 }
 

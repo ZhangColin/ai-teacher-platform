@@ -164,15 +164,13 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { ApiService } from '@/services/apiClient'
 import type {
   ModelProviderListItem,
   ModelConfigListItem,
   UpdateModelProviderRequest,
-  ModelPointRateItem,
-  CreatePointRateRequest,
-  UpdatePointRateRequest
+  ModelPointRateItem
 } from '@/types'
 
 const providers = ref<ModelProviderListItem[]>([])

@@ -84,7 +84,10 @@ const activeProviderIds = ref<string[]>([])
 watch(() => props.groupedRates, (newRates) => {
   const keys = Object.keys(newRates)
   if (keys.length > 0 && activeProviderIds.value.length === 0) {
-    activeProviderIds.value = [keys[0]]
+    const firstKey = keys[0]
+    if (firstKey) {
+      activeProviderIds.value = [firstKey]
+    }
   }
 }, { immediate: true })
 
