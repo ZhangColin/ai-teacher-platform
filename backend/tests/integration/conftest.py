@@ -17,7 +17,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from src.database import Base, get_db
 from src.main import app
-from src.db_models import UserModel, CourseCategoryModel, CourseDocumentModel
+from src.db_models import UserModel, CourseCategoryModel, CourseDocumentModel, EnterpriseModel
+from src.db_models import EnterpriseStatus
 from datetime import datetime
 import bcrypt
 
@@ -42,6 +43,20 @@ def integration_db_session() -> Generator[Session, None, None]:
     # 创建会话
     TestingSessionLocal = sessionmaker(bind=test_engine)
     session = TestingSessionLocal()
+
+    # 创建默认测试企业
+    default_enterprise = EnterpriseModel(
+        name="测试企业",
+        code="test_enterprise",
+        balance_gratis=1000000,
+        balance_paid=0,
+        debt_points=0,
+        status=EnterpriseStatus.active
+    )
+    session.add(default_enterprise)
+    session.commit()
+    session.refresh(default_enterprise)
+    session.test_enterprise_id = default_enterprise.id
 
     yield session
 
@@ -118,7 +133,8 @@ def test_user(integration_db_session: Session) -> UserModel:
         username="testuser",
         email="test@example.com",
         password_hash=password_hash,
-        is_admin=False
+        is_admin=False,
+        enterprise_id=integration_db_session.test_enterprise_id
     )
     integration_db_session.add(user)
     integration_db_session.commit()
@@ -136,7 +152,8 @@ def admin_user(integration_db_session: Session) -> UserModel:
         username="admin",
         email="admin@example.com",
         password_hash=password_hash,
-        is_admin=True
+        is_admin=True,
+        enterprise_id=integration_db_session.test_enterprise_id
     )
     integration_db_session.add(user)
     integration_db_session.commit()

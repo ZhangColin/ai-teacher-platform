@@ -106,7 +106,8 @@ async def create_user(
             password=request.password,
             phone=request.phone,
             avatar=request.avatar,
-            is_admin=request.is_admin
+            is_admin=request.is_admin,
+            enterprise_id=current_user.enterprise_id
         )
 
         # 转换为API响应格式

@@ -61,7 +61,8 @@ def test_get_session_messages_returns_messages_for_valid_session(db_session):
             username="testuser",
             email="test@example.com",
             password_hash="hashed_password",
-            is_admin=False
+            is_admin=False,
+            enterprise_id=db_session.test_enterprise_id
         )
         db_session.add(user)
         db_session.commit()
@@ -125,7 +126,8 @@ def test_get_session_messages_validates_user_ownership(db_session):
             username="user1",
             email="user1@example.com",
             password_hash="hashed_password",
-            is_admin=False
+            is_admin=False,
+            enterprise_id=db_session.test_enterprise_id
         )
         db_session.add(user1)
 
@@ -134,7 +136,8 @@ def test_get_session_messages_validates_user_ownership(db_session):
             username="user2",
             email="user2@example.com",
             password_hash="hashed_password",
-            is_admin=False
+            is_admin=False,
+            enterprise_id=db_session.test_enterprise_id
         )
         db_session.add(user2)
         db_session.commit()
@@ -176,7 +179,8 @@ def test_get_session_messages_is_alias_of_get_messages_by_session(db_session):
             username="aliastest",
             email="alias@example.com",
             password_hash="hashed_password",
-            is_admin=False
+            is_admin=False,
+            enterprise_id=db_session.test_enterprise_id
         )
         db_session.add(user)
         db_session.commit()

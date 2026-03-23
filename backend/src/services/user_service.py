@@ -20,10 +20,10 @@ class UserService:
         """获取数据库会话"""
         return SessionLocal()
     
-    def create_user(self, username: str, password: str, nickname: Optional[str] = None, email: Optional[str] = None, phone: Optional[str] = None, avatar: Optional[str] = None, is_admin: bool = False) -> User:
+    def create_user(self, username: str, password: str, nickname: Optional[str] = None, email: Optional[str] = None, phone: Optional[str] = None, avatar: Optional[str] = None, is_admin: bool = False, enterprise_id: Optional[str] = None) -> User:
         """
         创建新用户
-        
+
         Args:
             username: 用户名（必填，必须唯一）
             password: 用户密码（明文）
@@ -32,16 +32,17 @@ class UserService:
             phone: 用户手机号（可选，用于登录）
             avatar: 用户头像URL（可选）
             is_admin: 是否为管理员（默认为false）
-            
+            enterprise_id: 企业ID（必填）
+
         Returns:
             User: 创建的用户实体
-            
+
         Raises:
             ValueError: 用户名、邮箱或手机号已存在
         """
         # 使用User.create方法创建用户实体（密码自动加密）
         user_entity = User.create(username=username, password=password, nickname=nickname, email=email, phone=phone, avatar=avatar, is_admin=is_admin)
-        
+
         db = self._get_db()
         try:
             # 转换为SQLAlchemy模型
@@ -54,9 +55,10 @@ class UserService:
                 password_hash=user_entity.password_hash,
                 avatar=user_entity.avatar,
                 is_admin=user_entity.is_admin,
+                enterprise_id=enterprise_id,
                 created_at=user_entity.created_at
             )
-            
+
             db.add(user_model)
             db.commit()
             db.refresh(user_model)
@@ -71,6 +73,8 @@ class UserService:
                 password_hash=user_model.password_hash,
                 avatar=user_model.avatar,
                 is_admin=user_model.is_admin,
+                enterprise_id=user_model.enterprise_id,
+                is_enterprise_admin=user_model.is_enterprise_admin or False,
                 created_at=user_model.created_at
             )
         except IntegrityError as e:
@@ -111,6 +115,8 @@ class UserService:
                 password_hash=user_model.password_hash,
                 avatar=user_model.avatar,
                 is_admin=user_model.is_admin,
+                enterprise_id=user_model.enterprise_id,
+                is_enterprise_admin=user_model.is_enterprise_admin or False,
                 created_at=user_model.created_at
             )
         finally:
@@ -141,6 +147,8 @@ class UserService:
                 password_hash=user_model.password_hash,
                 avatar=user_model.avatar,
                 is_admin=user_model.is_admin,
+                enterprise_id=user_model.enterprise_id,
+                is_enterprise_admin=user_model.is_enterprise_admin or False,
                 created_at=user_model.created_at
             )
         finally:
@@ -171,6 +179,8 @@ class UserService:
                 password_hash=user_model.password_hash,
                 avatar=user_model.avatar,
                 is_admin=user_model.is_admin,
+                enterprise_id=user_model.enterprise_id,
+                is_enterprise_admin=user_model.is_enterprise_admin or False,
                 created_at=user_model.created_at
             )
         finally:
@@ -201,6 +211,8 @@ class UserService:
                 password_hash=user_model.password_hash,
                 avatar=user_model.avatar,
                 is_admin=user_model.is_admin,
+                enterprise_id=user_model.enterprise_id,
+                is_enterprise_admin=user_model.is_enterprise_admin or False,
                 created_at=user_model.created_at
             )
         finally:
@@ -339,6 +351,8 @@ class UserService:
                 password_hash=user_model.password_hash,
                 avatar=user_model.avatar,
                 is_admin=user_model.is_admin,
+                enterprise_id=user_model.enterprise_id,
+                is_enterprise_admin=user_model.is_enterprise_admin or False,
                 created_at=user_model.created_at
             )
         except IntegrityError:

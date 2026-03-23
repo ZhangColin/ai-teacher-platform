@@ -27,6 +27,7 @@ async def test_get_navigation_modules_as_admin(async_client, db_session):
         created_at=datetime.now()
     )
     db_session.add(admin_user)
+    admin_user.enterprise_id = db_session.test_enterprise_id
     db_session.commit()
     db_session.refresh(admin_user)
 
@@ -64,6 +65,7 @@ async def test_get_navigation_modules_as_admin(async_client, db_session):
     )
     db_session.add(module1)
     db_session.add(module2)
+    module2.enterprise_id = db_session.test_enterprise_id
     db_session.commit()
 
     # 获取导航模块列表
@@ -102,6 +104,7 @@ async def test_get_navigation_modules_as_regular_user(async_client, db_session):
         created_at=datetime.now()
     )
     db_session.add(user)
+    user.enterprise_id = db_session.test_enterprise_id
     db_session.commit()
     db_session.refresh(user)
 
@@ -140,6 +143,7 @@ async def test_create_navigation_module(async_client, db_session):
         created_at=datetime.now()
     )
     db_session.add(admin_user)
+    admin_user.enterprise_id = db_session.test_enterprise_id
     db_session.commit()
     db_session.refresh(admin_user)
 
@@ -195,6 +199,7 @@ async def test_create_navigation_module_duplicate_name(async_client, db_session)
         created_at=datetime.now()
     )
     db_session.add(admin_user)
+    admin_user.enterprise_id = db_session.test_enterprise_id
     db_session.commit()
     db_session.refresh(admin_user)
 
@@ -222,6 +227,7 @@ async def test_create_navigation_module_duplicate_name(async_client, db_session)
         order=1
     )
     db_session.add(existing_module)
+    existing_module.enterprise_id = db_session.test_enterprise_id
     db_session.commit()
 
     # 尝试创建同名模块
@@ -258,6 +264,7 @@ async def test_get_ai_tools_as_admin(async_client, db_session):
         created_at=datetime.now()
     )
     db_session.add(admin_user)
+    admin_user.enterprise_id = db_session.test_enterprise_id
     db_session.commit()
     db_session.refresh(admin_user)
 
@@ -331,6 +338,7 @@ async def test_get_ai_tools_as_admin(async_client, db_session):
     )
     db_session.add(tool1)
     db_session.add(tool2)
+    tool2.enterprise_id = db_session.test_enterprise_id
     db_session.commit()
 
     # 获取所有工具
@@ -365,6 +373,7 @@ async def test_get_ai_tools_with_filters(async_client, db_session):
         created_at=datetime.now()
     )
     db_session.add(admin_user)
+    admin_user.enterprise_id = db_session.test_enterprise_id
     db_session.commit()
     db_session.refresh(admin_user)
 
@@ -438,6 +447,7 @@ async def test_get_ai_tools_with_filters(async_client, db_session):
     )
     db_session.add(tool1)
     db_session.add(tool2)
+    tool2.enterprise_id = db_session.test_enterprise_id
     db_session.commit()
 
     # 测试只获取可见工具
@@ -484,6 +494,7 @@ async def test_create_ai_tool(async_client, db_session):
         created_at=datetime.now()
     )
     db_session.add(admin_user)
+    admin_user.enterprise_id = db_session.test_enterprise_id
     db_session.commit()
     db_session.refresh(admin_user)
 
@@ -519,6 +530,7 @@ async def test_create_ai_tool(async_client, db_session):
         order=1
     )
     db_session.add(category)
+    category.enterprise_id = db_session.test_enterprise_id
     db_session.commit()
 
     # 创建AI工具
@@ -565,6 +577,7 @@ async def test_backward_compatibility_tools_api(async_client, db_session):
         created_at=datetime.now()
     )
     db_session.add(user)
+    user.enterprise_id = db_session.test_enterprise_id
     db_session.commit()
     db_session.refresh(user)
 
@@ -605,6 +618,7 @@ async def test_backward_compatibility_navigation_api(async_client, db_session):
         created_at=datetime.now()
     )
     db_session.add(user)
+    user.enterprise_id = db_session.test_enterprise_id
     db_session.commit()
     db_session.refresh(user)
 

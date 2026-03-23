@@ -64,7 +64,10 @@ async def get_current_user(
         email=user.email,
         phone=user.phone,
         avatar=user.avatar,
-        is_admin=user.is_admin
+        is_admin=user.is_admin,
+        enterprise_id=user.enterprise_id,
+        enterprise_name=None,  # 可以后续优化，从企业表查询
+        is_enterprise_admin=user.is_enterprise_admin or False
     )
 
 

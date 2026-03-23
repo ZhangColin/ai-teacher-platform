@@ -26,6 +26,7 @@ async def test_get_user_list_as_admin(async_client, db_session):
         created_at=datetime.now()
     )
     db_session.add(admin_user)
+    admin_user.enterprise_id = db_session.test_enterprise_id
     db_session.commit()
     db_session.refresh(admin_user)
 

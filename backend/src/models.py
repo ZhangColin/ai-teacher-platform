@@ -371,6 +371,8 @@ class User(BaseModel):
     password_hash: str = Field(..., description="密码哈希值（bcrypt加密）")
     avatar: Optional[str] = Field(None, description="用户头像URL（可选，默认头像）")
     is_admin: bool = Field(False, description="是否为管理员（默认为false）")
+    enterprise_id: Optional[str] = Field(None, description="所属企业ID")
+    is_enterprise_admin: bool = Field(False, description="是否为企业管理员")
     created_at: datetime = Field(default_factory=datetime.now, description="用户创建时间")
     
     def verify_password(self, password: str) -> bool:

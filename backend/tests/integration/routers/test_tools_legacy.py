@@ -102,6 +102,7 @@ async def test_generate_media_with_existing_session(logged_in_client, db_session
         title="测试会话"
     )
     db_session.add(session)
+    session.enterprise_id = db_session.test_enterprise_id
     db_session.commit()
     db_session.refresh(session)
 
@@ -138,6 +139,7 @@ async def test_generate_media_unauthorized_session(logged_in_client, db_session)
         is_admin=False
     )
     db_session.add(other_user)
+    other_user.enterprise_id = db_session.test_enterprise_id
     db_session.commit()
 
     # 创建属于其他用户的会话
@@ -149,6 +151,7 @@ async def test_generate_media_unauthorized_session(logged_in_client, db_session)
         title="其他用户的会话"
     )
     db_session.add(session)
+    session.enterprise_id = db_session.test_enterprise_id
     db_session.commit()
 
     # 尝试使用其他用户的会话
@@ -299,6 +302,7 @@ async def test_chat_with_existing_session(logged_in_client, db_session):
         title="测试会话"
     )
     db_session.add(session)
+    session.enterprise_id = db_session.test_enterprise_id
     db_session.commit()
     db_session.refresh(session)
 
@@ -450,6 +454,7 @@ async def test_get_conversations(logged_in_client, db_session):
         title="测试会话"
     )
     db_session.add(session)
+    session.enterprise_id = db_session.test_enterprise_id
     db_session.commit()
     db_session.refresh(session)
 
@@ -524,6 +529,7 @@ async def test_delete_conversation(logged_in_client, db_session):
         title="测试会话"
     )
     db_session.add(session)
+    session.enterprise_id = db_session.test_enterprise_id
     db_session.commit()
     db_session.refresh(session)
 

@@ -28,6 +28,7 @@ async def test_login_with_username(async_client, db_session):
         created_at=datetime.now()
     )
     db_session.add(user)
+    user.enterprise_id = db_session.test_enterprise_id
     db_session.commit()
     db_session.refresh(user)
 
@@ -62,6 +63,7 @@ async def test_login_with_email(async_client, db_session):
         created_at=datetime.now()
     )
     db_session.add(user)
+    user.enterprise_id = db_session.test_enterprise_id
     db_session.commit()
     db_session.refresh(user)
 
@@ -94,6 +96,7 @@ async def test_login_with_phone(async_client, db_session):
         created_at=datetime.now()
     )
     db_session.add(user)
+    user.enterprise_id = db_session.test_enterprise_id
     db_session.commit()
     db_session.refresh(user)
 
@@ -125,6 +128,7 @@ async def test_login_with_remember_me(async_client, db_session):
         created_at=datetime.now()
     )
     db_session.add(user)
+    user.enterprise_id = db_session.test_enterprise_id
     db_session.commit()
     db_session.refresh(user)
 
@@ -155,6 +159,7 @@ async def test_login_with_wrong_password(async_client, db_session):
         created_at=datetime.now()
     )
     db_session.add(user)
+    user.enterprise_id = db_session.test_enterprise_id
     db_session.commit()
     db_session.refresh(user)
 
@@ -200,6 +205,7 @@ async def test_login_response_includes_all_user_fields(async_client, db_session)
         created_at=datetime.now()
     )
     db_session.add(user)
+    user.enterprise_id = db_session.test_enterprise_id
     db_session.commit()
     db_session.refresh(user)
 
@@ -241,6 +247,7 @@ async def test_get_me_with_valid_token(async_client, db_session):
         created_at=datetime.now()
     )
     db_session.add(user)
+    user.enterprise_id = db_session.test_enterprise_id
     db_session.commit()
     db_session.refresh(user)
 
@@ -303,6 +310,7 @@ async def test_get_me_with_deleted_user(async_client, db_session):
         created_at=datetime.now()
     )
     db_session.add(user)
+    user.enterprise_id = db_session.test_enterprise_id
     db_session.commit()
     db_session.refresh(user)
 
@@ -346,6 +354,7 @@ async def test_login_with_invalid_phone_format(async_client, db_session):
         created_at=datetime.now()
     )
     db_session.add(user)
+    user.enterprise_id = db_session.test_enterprise_id
     db_session.commit()
     db_session.refresh(user)
 
@@ -375,6 +384,7 @@ async def test_login_with_malformed_email(async_client, db_session):
         created_at=datetime.now()
     )
     db_session.add(user)
+    user.enterprise_id = db_session.test_enterprise_id
     db_session.commit()
     db_session.refresh(user)
 
@@ -416,6 +426,7 @@ async def test_login_with_empty_password(async_client, db_session):
         created_at=datetime.now()
     )
     db_session.add(user)
+    user.enterprise_id = db_session.test_enterprise_id
     db_session.commit()
     db_session.refresh(user)
 

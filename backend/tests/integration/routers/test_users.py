@@ -29,7 +29,8 @@ async def test_get_user_list_as_admin(async_client, db_session):
         email="admin@test.com",
         password_hash=password_hash,
         is_admin=True,
-        created_at=datetime.now()
+        created_at=datetime.now(),
+        enterprise_id=db_session.test_enterprise_id
     )
     db_session.add(admin_user)
     db_session.commit()
@@ -73,7 +74,8 @@ async def test_get_user_list_with_pagination(async_client, db_session):
         email="admin@test.com",
         password_hash=password_hash,
         is_admin=True,
-        created_at=datetime.now()
+        created_at=datetime.now(),
+        enterprise_id=db_session.test_enterprise_id
     )
     db_session.add(admin_user)
     db_session.commit()
@@ -86,7 +88,8 @@ async def test_get_user_list_with_pagination(async_client, db_session):
             email=f"user{i}@test.com",
             password_hash=password_hash,
             is_admin=False,
-            created_at=datetime.now()
+            created_at=datetime.now(),
+        enterprise_id=db_session.test_enterprise_id
         )
         db_session.add(user)
     db_session.commit()
@@ -125,7 +128,8 @@ async def test_get_user_list_page_size_limit(async_client, db_session):
         email="admin@test.com",
         password_hash=password_hash,
         is_admin=True,
-        created_at=datetime.now()
+        created_at=datetime.now(),
+        enterprise_id=db_session.test_enterprise_id
     )
     db_session.add(admin_user)
     db_session.commit()
@@ -163,7 +167,8 @@ async def test_get_user_list_filter_by_admin(async_client, db_session):
         email="admin@test.com",
         password_hash=password_hash,
         is_admin=True,
-        created_at=datetime.now()
+        created_at=datetime.now(),
+        enterprise_id=db_session.test_enterprise_id
     )
     db_session.add(admin_user)
 
@@ -172,7 +177,8 @@ async def test_get_user_list_filter_by_admin(async_client, db_session):
         email="normal@test.com",
         password_hash=password_hash,
         is_admin=False,
-        created_at=datetime.now()
+        created_at=datetime.now(),
+        enterprise_id=db_session.test_enterprise_id
     )
     db_session.add(normal_user)
     db_session.commit()
@@ -222,7 +228,8 @@ async def test_get_user_list_as_non_admin(async_client, db_session):
         email="normal@test.com",
         password_hash=password_hash,
         is_admin=False,
-        created_at=datetime.now()
+        created_at=datetime.now(),
+        enterprise_id=db_session.test_enterprise_id
     )
     db_session.add(normal_user)
     db_session.commit()
@@ -260,7 +267,8 @@ async def test_create_user_as_admin(async_client, db_session):
         email="admin@test.com",
         password_hash=password_hash,
         is_admin=True,
-        created_at=datetime.now()
+        created_at=datetime.now(),
+        enterprise_id=db_session.test_enterprise_id
     )
     db_session.add(admin_user)
     db_session.commit()
@@ -312,7 +320,8 @@ async def test_create_user_duplicate_username(async_client, db_session):
         email="admin@test.com",
         password_hash=password_hash,
         is_admin=True,
-        created_at=datetime.now()
+        created_at=datetime.now(),
+        enterprise_id=db_session.test_enterprise_id
     )
     db_session.add(admin_user)
     db_session.commit()
@@ -323,7 +332,8 @@ async def test_create_user_duplicate_username(async_client, db_session):
         email="existing@test.com",
         password_hash=password_hash,
         is_admin=False,
-        created_at=datetime.now()
+        created_at=datetime.now(),
+        enterprise_id=db_session.test_enterprise_id
     )
     db_session.add(normal_user)
     db_session.commit()
@@ -365,7 +375,8 @@ async def test_get_user_by_id(async_client, db_session):
         email="admin@test.com",
         password_hash=password_hash,
         is_admin=True,
-        created_at=datetime.now()
+        created_at=datetime.now(),
+        enterprise_id=db_session.test_enterprise_id
     )
     db_session.add(admin_user)
     db_session.commit()
@@ -377,7 +388,8 @@ async def test_get_user_by_id(async_client, db_session):
         email="target@test.com",
         password_hash=password_hash,
         is_admin=False,
-        created_at=datetime.now()
+        created_at=datetime.now(),
+        enterprise_id=db_session.test_enterprise_id
     )
     db_session.add(target_user)
     db_session.commit()
@@ -417,7 +429,8 @@ async def test_get_user_not_found(async_client, db_session):
         email="admin@test.com",
         password_hash=password_hash,
         is_admin=True,
-        created_at=datetime.now()
+        created_at=datetime.now(),
+        enterprise_id=db_session.test_enterprise_id
     )
     db_session.add(admin_user)
     db_session.commit()
@@ -454,7 +467,8 @@ async def test_update_user(async_client, db_session):
         email="admin@test.com",
         password_hash=password_hash,
         is_admin=True,
-        created_at=datetime.now()
+        created_at=datetime.now(),
+        enterprise_id=db_session.test_enterprise_id
     )
     db_session.add(admin_user)
     db_session.commit()
@@ -465,7 +479,8 @@ async def test_update_user(async_client, db_session):
         email="target@test.com",
         password_hash=password_hash,
         is_admin=False,
-        created_at=datetime.now()
+        created_at=datetime.now(),
+        enterprise_id=db_session.test_enterprise_id
     )
     db_session.add(target_user)
     db_session.commit()
@@ -512,7 +527,8 @@ async def test_update_user_not_found(async_client, db_session):
         email="admin@test.com",
         password_hash=password_hash,
         is_admin=True,
-        created_at=datetime.now()
+        created_at=datetime.now(),
+        enterprise_id=db_session.test_enterprise_id
     )
     db_session.add(admin_user)
     db_session.commit()
@@ -553,7 +569,8 @@ async def test_delete_user(async_client, db_session):
         email="admin@test.com",
         password_hash=password_hash,
         is_admin=True,
-        created_at=datetime.now()
+        created_at=datetime.now(),
+        enterprise_id=db_session.test_enterprise_id
     )
     db_session.add(admin_user)
     db_session.commit()
@@ -564,7 +581,8 @@ async def test_delete_user(async_client, db_session):
         email="target@test.com",
         password_hash=password_hash,
         is_admin=False,
-        created_at=datetime.now()
+        created_at=datetime.now(),
+        enterprise_id=db_session.test_enterprise_id
     )
     db_session.add(target_user)
     db_session.commit()
@@ -604,7 +622,8 @@ async def test_delete_user_not_found(async_client, db_session):
         email="admin@test.com",
         password_hash=password_hash,
         is_admin=True,
-        created_at=datetime.now()
+        created_at=datetime.now(),
+        enterprise_id=db_session.test_enterprise_id
     )
     db_session.add(admin_user)
     db_session.commit()
@@ -641,7 +660,8 @@ async def test_reset_user_password(async_client, db_session):
         email="admin@test.com",
         password_hash=password_hash,
         is_admin=True,
-        created_at=datetime.now()
+        created_at=datetime.now(),
+        enterprise_id=db_session.test_enterprise_id
     )
     db_session.add(admin_user)
     db_session.commit()
@@ -652,7 +672,8 @@ async def test_reset_user_password(async_client, db_session):
         email="target@test.com",
         password_hash=password_hash,
         is_admin=False,
-        created_at=datetime.now()
+        created_at=datetime.now(),
+        enterprise_id=db_session.test_enterprise_id
     )
     db_session.add(target_user)
     db_session.commit()
@@ -696,7 +717,8 @@ async def test_reset_user_password_not_found(async_client, db_session):
         email="admin@test.com",
         password_hash=password_hash,
         is_admin=True,
-        created_at=datetime.now()
+        created_at=datetime.now(),
+        enterprise_id=db_session.test_enterprise_id
     )
     db_session.add(admin_user)
     db_session.commit()
@@ -736,7 +758,8 @@ async def test_require_admin_dependency_non_admin(async_client, db_session):
         email="normal@test.com",
         password_hash=password_hash,
         is_admin=False,
-        created_at=datetime.now()
+        created_at=datetime.now(),
+        enterprise_id=db_session.test_enterprise_id
     )
     db_session.add(normal_user)
     db_session.commit()
@@ -773,7 +796,8 @@ async def test_delete_last_admin(async_client, db_session):
         email="last_admin@test.com",
         password_hash=password_hash,
         is_admin=True,
-        created_at=datetime.now()
+        created_at=datetime.now(),
+        enterprise_id=db_session.test_enterprise_id
     )
     db_session.add(admin_user)
     db_session.commit()
@@ -812,7 +836,8 @@ async def test_update_user_email_conflict(async_client, db_session):
         email="admin@test.com",
         password_hash=password_hash,
         is_admin=True,
-        created_at=datetime.now()
+        created_at=datetime.now(),
+        enterprise_id=db_session.test_enterprise_id
     )
     db_session.add(admin_user)
     db_session.commit()
@@ -823,7 +848,8 @@ async def test_update_user_email_conflict(async_client, db_session):
         email="user1@test.com",
         password_hash=password_hash,
         is_admin=False,
-        created_at=datetime.now()
+        created_at=datetime.now(),
+        enterprise_id=db_session.test_enterprise_id
     )
     db_session.add(user1)
 
@@ -832,7 +858,8 @@ async def test_update_user_email_conflict(async_client, db_session):
         email="user2@test.com",
         password_hash=password_hash,
         is_admin=False,
-        created_at=datetime.now()
+        created_at=datetime.now(),
+        enterprise_id=db_session.test_enterprise_id
     )
     db_session.add(user2)
     db_session.commit()
@@ -875,7 +902,8 @@ async def test_update_user_remove_last_admin(async_client, db_session):
         email="last_admin@test.com",
         password_hash=password_hash,
         is_admin=True,
-        created_at=datetime.now()
+        created_at=datetime.now(),
+        enterprise_id=db_session.test_enterprise_id
     )
     db_session.add(admin_user)
     db_session.commit()
@@ -917,7 +945,8 @@ async def test_update_user_with_all_fields(async_client, db_session):
         email="admin@test.com",
         password_hash=password_hash,
         is_admin=True,
-        created_at=datetime.now()
+        created_at=datetime.now(),
+        enterprise_id=db_session.test_enterprise_id
     )
     db_session.add(admin_user)
     db_session.commit()
@@ -928,7 +957,8 @@ async def test_update_user_with_all_fields(async_client, db_session):
         email="target@test.com",
         password_hash=password_hash,
         is_admin=False,
-        created_at=datetime.now()
+        created_at=datetime.now(),
+        enterprise_id=db_session.test_enterprise_id
     )
     db_session.add(target_user)
     db_session.commit()
@@ -983,7 +1013,8 @@ async def test_create_user_without_optional_fields(async_client, db_session):
         email="admin@test.com",
         password_hash=password_hash,
         is_admin=True,
-        created_at=datetime.now()
+        created_at=datetime.now(),
+        enterprise_id=db_session.test_enterprise_id
     )
     db_session.add(admin_user)
     db_session.commit()
@@ -1027,7 +1058,8 @@ async def test_reset_user_password_too_short(async_client, db_session):
         email="admin@test.com",
         password_hash=password_hash,
         is_admin=True,
-        created_at=datetime.now()
+        created_at=datetime.now(),
+        enterprise_id=db_session.test_enterprise_id
     )
     db_session.add(admin_user)
     db_session.commit()
@@ -1038,7 +1070,8 @@ async def test_reset_user_password_too_short(async_client, db_session):
         email="target@test.com",
         password_hash=password_hash,
         is_admin=False,
-        created_at=datetime.now()
+        created_at=datetime.now(),
+        enterprise_id=db_session.test_enterprise_id
     )
     db_session.add(target_user)
     db_session.commit()
@@ -1082,7 +1115,8 @@ async def test_delete_self(async_client, db_session):
         email="admin@test.com",
         password_hash=password_hash,
         is_admin=True,
-        created_at=datetime.now()
+        created_at=datetime.now(),
+        enterprise_id=db_session.test_enterprise_id
     )
     db_session.add(admin_user)
     db_session.commit()
@@ -1118,7 +1152,8 @@ async def test_update_user_with_put_method(async_client, db_session):
         email="admin_put@test.com",
         password_hash=password_hash,
         is_admin=True,
-        created_at=datetime.now()
+        created_at=datetime.now(),
+        enterprise_id=db_session.test_enterprise_id
     )
     db_session.add(admin_user)
     db_session.commit()
@@ -1129,7 +1164,8 @@ async def test_update_user_with_put_method(async_client, db_session):
         email="target_put@test.com",
         password_hash=password_hash,
         is_admin=False,
-        created_at=datetime.now()
+        created_at=datetime.now(),
+        enterprise_id=db_session.test_enterprise_id
     )
     db_session.add(target_user)
     db_session.commit()

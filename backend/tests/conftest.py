@@ -104,7 +104,8 @@ src.database.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind
 
 from src.database import Base, get_db
 from src.main import app
-from src.db_models import UserModel
+from src.db_models import UserModel, EnterpriseModel
+from src.db_models import EnterpriseStatus
 
 
 # ==================== 数据库 Fixtures ====================
@@ -123,6 +124,21 @@ def db_session() -> Generator[Session, None, None]:
     # 创建会话
     TestingSessionLocal = sessionmaker(bind=test_engine)
     session = TestingSessionLocal()
+
+    # 创建默认测试企业（所有测试用户都关联到此企业）
+    default_enterprise = EnterpriseModel(
+        name="测试企业",
+        code="test_enterprise",
+        balance_gratis=1000000,
+        balance_paid=0,
+        debt_points=0,
+        status=EnterpriseStatus.active
+    )
+    session.add(default_enterprise)
+    session.commit()
+    session.refresh(default_enterprise)
+    # 将企业ID存储在session中，供其他fixture使用
+    session.test_enterprise_id = default_enterprise.id
 
     yield session
 
@@ -217,7 +233,8 @@ def test_user(db_session: Session) -> UserModel:
         username="testuser",
         email="test@example.com",
         password_hash=password_hash,
-        is_admin=False
+        is_admin=False,
+        enterprise_id=db_session.test_enterprise_id
     )
     db_session.add(user)
     db_session.commit()
@@ -239,7 +256,8 @@ def admin_user(db_session: Session) -> UserModel:
         username="admin",
         email="admin@example.com",
         password_hash=password_hash,
-        is_admin=True
+        is_admin=True,
+        enterprise_id=db_session.test_enterprise_id
     )
     db_session.add(user)
     db_session.commit()
@@ -331,6 +349,7 @@ async def logged_in_client(async_client, db_session):
         email="test_logged_in@example.com",
         password_hash=password_hash,
         is_admin=False,
+        enterprise_id=db_session.test_enterprise_id,
         created_at=datetime.now()
     )
     db_session.add(user)
@@ -369,6 +388,7 @@ async def admin_client(async_client, db_session):
         email="admin@example.com",
         password_hash=password_hash,
         is_admin=True,
+        enterprise_id=db_session.test_enterprise_id,
         created_at=datetime.now()
     )
     db_session.add(user)

@@ -31,6 +31,7 @@ async def create_user_and_login(client, db_session, username, password="password
         created_at=datetime.now()
     )
     db_session.add(user)
+    user.enterprise_id = db_session.test_enterprise_id
     db_session.commit()
     db_session.refresh(user)
 
@@ -56,6 +57,7 @@ async def create_session_for_user(db_session, user_id):
         created_at=datetime.now()
     )
     db_session.add(session)
+    session.enterprise_id = db_session.test_enterprise_id
     db_session.commit()
     db_session.refresh(session)
     return session
@@ -470,6 +472,7 @@ async def test_get_task_status_forbidden_user(async_client, db_session):
         created_at=datetime.now()
     )
     db_session.add(other_user)
+    other_user.enterprise_id = db_session.test_enterprise_id
     db_session.commit()
     db_session.refresh(other_user)
 
@@ -482,6 +485,7 @@ async def test_get_task_status_forbidden_user(async_client, db_session):
         created_at=datetime.now()
     )
     db_session.add(session)
+    session.enterprise_id = db_session.test_enterprise_id
     db_session.commit()
     db_session.refresh(session)
 
