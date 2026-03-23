@@ -71,23 +71,31 @@
         <h3>{{ currentProvider?.provider_name }} - 模型列表</h3>
       </div>
       <el-table :data="models" size="small">
-        <el-table-column prop="model_name" label="模型名称" width="200" />
-        <el-table-column prop="model_code" label="代码" width="150" />
-        <el-table-column prop="capabilities" label="能力" width="150">
+        <el-table-column prop="model_name" label="模型名称" width="180" />
+        <el-table-column prop="model_code" label="代码" width="120" />
+        <el-table-column prop="capabilities" label="能力" width="120">
           <template #default="{ row }">
             <el-tag v-for="cap in row.capabilities" :key="cap" size="small" style="margin-right: 5px">
               {{ cap }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="状态" width="80">
+        <el-table-column label="积分汇率" width="120">
+          <template #default="{ row }">
+            <span v-if="getModelPointRate(row.id)">
+              {{ getRateDisplay(row.id) }}
+            </span>
+            <span v-else style="color: #999">未配置</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="状态" width="70">
           <template #default="{ row }">
             <el-tag :type="row.is_enabled ? 'success' : 'info'" size="small">
               {{ row.is_enabled ? '启用' : '禁用' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="100">
+        <el-table-column label="操作" width="120">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="showEditModelDialog(row)">配置</el-button>
           </template>
@@ -95,11 +103,11 @@
       </el-table>
     </el-dialog>
 
-    <!-- 模型配置对话框 -->
+    <!-- 模型配置对话框（简化为单表单） -->
     <el-dialog
       v-model="modelDialogVisible"
       title="模型配置"
-      width="500px"
+      width="600px"
     >
       <el-form :model="modelForm" label-width="100px">
         <el-form-item label="模型代码">
@@ -117,13 +125,38 @@
             <el-checkbox label="code">代码</el-checkbox>
           </el-checkbox-group>
         </el-form-item>
-        <el-form-item label="启用">
+
+        <el-divider content-position="left">积分汇率配置</el-divider>
+
+        <el-form-item label="启用汇率">
+          <el-switch v-model="pointRateForm.rate_enabled" />
+        </el-form-item>
+        <el-form-item label="输入汇率">
+          <el-input-number
+            v-model="pointRateForm.input_rate"
+            :min="1"
+            :disabled="!pointRateForm.rate_enabled"
+            style="width: 200px"
+          />
+          <span style="margin-left: 10px">tokens / 积分</span>
+        </el-form-item>
+        <el-form-item label="输出汇率">
+          <el-input-number
+            v-model="pointRateForm.output_rate"
+            :min="1"
+            :disabled="!pointRateForm.rate_enabled"
+            style="width: 200px"
+          />
+          <span style="margin-left: 10px">tokens / 积分</span>
+        </el-form-item>
+
+        <el-form-item label="启用模型">
           <el-switch v-model="modelForm.is_enabled" />
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="modelDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSaveModel">保存</el-button>
+        <el-button type="primary" @click="handleSaveModel" :loading="modelSaving">保存</el-button>
       </template>
     </el-dialog>
   </div>
@@ -131,18 +164,21 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { ApiService } from '@/services/apiClient'
 import type {
   ModelProviderListItem,
   ModelConfigListItem,
   UpdateModelProviderRequest,
-  UpdateModelConfigRequest
+  ModelPointRateItem,
+  CreatePointRateRequest,
+  UpdatePointRateRequest
 } from '@/types'
 
 const providers = ref<ModelProviderListItem[]>([])
 const models = ref<ModelConfigListItem[]>([])
 const currentProvider = ref<ModelProviderListItem | null>(null)
+const pointRates = ref<ModelPointRateItem[]>([])
 
 // 供应商表单
 const providerDialogVisible = ref(false)
@@ -161,6 +197,7 @@ const providerForm = ref<UpdateModelProviderRequest & { provider_code: string }>
 const modelsDialogVisible = ref(false)
 const modelDialogVisible = ref(false)
 const editingModel = ref<ModelConfigListItem | null>(null)
+const modelSaving = ref(false)
 const modelForm = ref<{
   model_code: string
   model_name: string
@@ -173,6 +210,18 @@ const modelForm = ref<{
   is_enabled: true
 })
 
+// 汇率表单（简化）
+const existingRate = ref<ModelPointRateItem | null>(null)
+const pointRateForm = ref<{
+  rate_enabled: boolean
+  input_rate: number | null
+  output_rate: number | null
+}>({
+  rate_enabled: true,
+  input_rate: null,
+  output_rate: null
+})
+
 // 加载供应商列表
 const loadProviders = async () => {
   try {
@@ -181,6 +230,31 @@ const loadProviders = async () => {
   } catch (error) {
     ElMessage.error('加载供应商列表失败')
   }
+}
+
+// 加载所有汇率配置
+const loadPointRates = async () => {
+  try {
+    pointRates.value = await ApiService.getModelPointRates()
+  } catch (error) {
+    console.error('加载汇率配置失败:', error)
+  }
+}
+
+// 获取模型的汇率配置
+const getModelPointRate = (modelId: string): ModelPointRateItem | null => {
+  return pointRates.value.find(r => r.model_config_id === modelId) || null
+}
+
+// 获取汇率显示文本
+const getRateDisplay = (modelId: string): string => {
+  const rate = getModelPointRate(modelId)
+  if (!rate) return '未配置'
+  if (!rate.is_enabled) return '已禁用'
+  if (rate.separate_io) {
+    return `输入:${rate.tokens_per_point_input} 输出:${rate.tokens_per_point_output}`
+  }
+  return `${rate.tokens_per_point} tokens/积分`
 }
 
 // 显示编辑供应商对话框
@@ -202,7 +276,6 @@ const showEditProviderDialog = (provider: ModelProviderListItem) => {
 const handleSaveProvider = async () => {
   if (!editingProvider.value) return
   try {
-    // 过滤掉空字符串字段，只发送有值的字段
     const requestData: UpdateModelProviderRequest = {}
     if (providerForm.value.provider_name) requestData.provider_name = providerForm.value.provider_name
     if (providerForm.value.api_key) requestData.api_key = providerForm.value.api_key
@@ -226,6 +299,7 @@ const showModelsDialog = async (provider: ModelProviderListItem) => {
   try {
     const response = await ApiService.getProviderModels(provider.id, true)
     models.value = response.models
+    await loadPointRates()
     modelsDialogVisible.value = true
   } catch (error) {
     ElMessage.error('加载模型列表失败')
@@ -241,29 +315,91 @@ const showEditModelDialog = (model: ModelConfigListItem) => {
     capabilitiesArray: model.capabilities,
     is_enabled: model.is_enabled
   }
+
+  // 加载汇率配置
+  const rate = getModelPointRate(model.id)
+  if (rate) {
+    existingRate.value = rate
+    pointRateForm.value = {
+      rate_enabled: rate.is_enabled,
+      input_rate: rate.tokens_per_point_input || null,
+      output_rate: rate.tokens_per_point_output || null
+    }
+  } else {
+    existingRate.value = null
+    pointRateForm.value = {
+      rate_enabled: true,
+      input_rate: null,
+      output_rate: null
+    }
+  }
+
   modelDialogVisible.value = true
 }
 
-// 保存模型
+// 保存模型配置（包含汇率）
 const handleSaveModel = async () => {
   if (!editingModel.value) return
+
+  // 验证汇率
+  if (pointRateForm.value.rate_enabled) {
+    if (!pointRateForm.value.input_rate || !pointRateForm.value.output_rate) {
+      ElMessage.error('启用汇率时，必须设置输入和输出汇率')
+      return
+    }
+  }
+
+  modelSaving.value = true
   try {
-    // 将数组转为逗号分隔的字符串
-    const requestData: UpdateModelConfigRequest = {
+    // 1. 更新模型基本信息
+    await ApiService.updateModelConfig(editingModel.value.id, {
       model_name: modelForm.value.model_name,
       capabilities: modelForm.value.capabilitiesArray.join(','),
       is_enabled: modelForm.value.is_enabled
+    })
+
+    // 2. 处理汇率配置
+    if (pointRateForm.value.rate_enabled && pointRateForm.value.input_rate && pointRateForm.value.output_rate) {
+      if (existingRate.value) {
+        // 更新现有汇率
+        await ApiService.updateModelPointRate(existingRate.value.id, {
+          separate_io: true,
+          tokens_per_point_input: pointRateForm.value.input_rate,
+          tokens_per_point_output: pointRateForm.value.output_rate,
+          is_enabled: true
+        })
+      } else {
+        // 创建新汇率
+        const newRate = await ApiService.createModelPointRate({
+          model_config_id: editingModel.value.id,
+          tokens_per_point: 1000,
+          separate_io: true,
+          tokens_per_point_input: pointRateForm.value.input_rate,
+          tokens_per_point_output: pointRateForm.value.output_rate
+        })
+        pointRates.value.push(newRate)
+        existingRate.value = newRate
+      }
+    } else if (existingRate.value) {
+      // 禁用汇率配置
+      await ApiService.updateModelPointRate(existingRate.value.id, {
+        is_enabled: false
+      })
     }
 
-    await ApiService.updateModelConfig(editingModel.value.id, requestData)
-    ElMessage.success('更新成功')
+    ElMessage.success('保存成功')
     modelDialogVisible.value = false
+
+    // 刷新数据
+    await loadPointRates()
     if (currentProvider.value) {
       const response = await ApiService.getProviderModels(currentProvider.value.id, true)
       models.value = response.models
     }
   } catch (error: any) {
     ElMessage.error(error.response?.data?.detail || '保存失败')
+  } finally {
+    modelSaving.value = false
   }
 }
 
@@ -288,6 +424,7 @@ const getApiKeyUrl = (providerCode: string): string => {
 
 onMounted(() => {
   loadProviders()
+  loadPointRates()
 })
 </script>
 
