@@ -334,6 +334,8 @@ const showEditModelDialog = (model: ModelConfigListItem) => {
     }
   }
 
+  // 关闭模型列表对话框，打开单个模型配置对话框
+  modelsDialogVisible.value = false
   modelDialogVisible.value = true
 }
 
