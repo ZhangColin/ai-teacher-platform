@@ -358,7 +358,7 @@ def test_get_model_rates_status(admin_db_session):
     assert "rate_config" in model
 
 
-def test_batch_update_rates_create(admin_db):
+def test_batch_update_rates_create(admin_db_session):
     """测试批量创建汇率配置"""
     admin = admin_db_session.query(UserModel).filter(UserModel.username == "admin_test").first()
     token = create_access_token(admin.user_id)
@@ -395,7 +395,7 @@ def test_batch_update_rates_create(admin_db):
     assert rate.separate_io == True
 
 
-def test_batch_update_rates_update(admin_db):
+def test_batch_update_rates_update(admin_db_session):
     """测试批量更新汇率配置"""
     admin = admin_db_session.query(UserModel).filter(UserModel.username == "admin_test").first()
     token = create_access_token(admin.user_id)
@@ -411,8 +411,8 @@ def test_batch_update_rates_update(admin_db):
         tokens_per_point_output=1000,
         is_enabled=True,
     )
-    admin_db.add(rate)
-    admin_db.commit()
+    admin_db_session.add(rate)
+    admin_db_session.commit()
 
     # 更新配置
     response = client.post(
@@ -433,7 +433,7 @@ def test_batch_update_rates_update(admin_db):
     assert response.status_code == 200
 
     # 验证更新
-    admin_db.refresh(rate)
+    admin_db_session.refresh(rate)
     assert rate.tokens_per_point_input == 3000
     assert rate.tokens_per_point_output == 1500
     assert rate.is_enabled == False
