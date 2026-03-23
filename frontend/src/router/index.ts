@@ -108,6 +108,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('../views/admin/AdminModelProvidersPage.vue'),
         meta: { requiresAdmin: true },
       },
+      {
+        path: 'model-rates',
+        name: 'AdminModelRates',
+        component: () => import('../views/admin/ModelRatesPage.vue'),
+        meta: { requiresAdmin: true, title: '模型汇率配置' },
+      },
     ],
   },
   {
