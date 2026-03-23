@@ -50,6 +50,11 @@ class EnterpriseModel(Base):
     created_at = Column(DateTime, nullable=False, default=datetime.now)
     updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
 
+    @property
+    def total_points(self):
+        """总积分 = 赠送积分 + 充值积分 - 负债积分"""
+        return self.balance_gratis + self.balance_paid - self.debt_points
+
     # 关系
     users = relationship("UserModel", back_populates="enterprise")
 
