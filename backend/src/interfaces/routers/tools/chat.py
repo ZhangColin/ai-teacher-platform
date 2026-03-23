@@ -20,6 +20,7 @@ from src.services.ai_service import AIService
 from src.services.session_service import SessionService
 from src.services.tool_service import ToolService
 from src.services.token_service import TokenService
+from src.services.point_service import PointService
 from src.database import get_db
 from typing import Annotated
 from src.interfaces.auth import get_current_user
@@ -120,6 +121,17 @@ async def chat_stream(
         # 获取流式响应
         async def generate():
             try:
+                # 检查积分（在开始 AI 请求之前）
+                db = next(get_db())
+                try:
+                    point_service = PointService(db)
+                    if not point_service.check_points_before_request(current_user.user_id):
+                        yield f"data: {json.dumps({'error': '积分不足，请联系企业管理员充值'}, ensure_ascii=False)}\n\n"
+                        yield "data: [DONE]\n\n"
+                        return
+                finally:
+                    db.close()
+
                 # 首先发送 session_id 事件（如果是新会话）
                 session_event = json.dumps({
                     "type": "session_id",
@@ -172,12 +184,14 @@ async def chat_stream(
                 logger.info(f"✅ AI 消息已保存（含token信息）")
 
                 # 记录Token使用日志
+                ai_message_id = None  # 保存消息ID供后续使用
                 if usage_info and model_provider and model_name:
                     try:
                         # 获取当前消息的ID（刚刚保存的AI消息）
                         messages = session_service.get_messages_by_session(session_id, user_id=current_user.user_id)
                         if messages and len(messages) > 0:
                             ai_message = messages[-1]  # 最后一条消息就是刚保存的AI消息
+                            ai_message_id = ai_message.message_id
                             if ai_message.message_id:
                                 # 创建token日志
                                 from sqlalchemy.orm import Session
@@ -199,6 +213,31 @@ async def chat_stream(
                                     db.close()
                     except Exception as e:
                         logger.error(f"❌ 记录Token日志失败: {e}", exc_info=True)
+
+                # 扣减积分
+                if usage_info and model_provider and model_name and ai_message_id:
+                    try:
+                        db = next(get_db())
+                        try:
+                            point_service = PointService(db)
+                            points = usage_info.get('points_deducted', 0)
+                            if points > 0:
+                                consumption = point_service.deduct_points(
+                                    enterprise_id=current_user.enterprise_id,
+                                    user_id=current_user.user_id,
+                                    session_id=session_id,
+                                    message_id=ai_message_id,
+                                    model_provider=model_provider,
+                                    model_name=model_name,
+                                    prompt_tokens=usage_info.get('prompt_tokens', 0),
+                                    completion_tokens=usage_info.get('completion_tokens', 0),
+                                    points=points
+                                )
+                                logger.info(f"✅ 积分扣减完成 - 消耗:{points}（赠送:{consumption.gratis_points_used}, 充值:{consumption.paid_points_used}）")
+                        finally:
+                            db.close()
+                    except Exception as e:
+                        logger.error(f"❌ 积分扣减失败: {e}", exc_info=True)
 
                 # 更新会话的模型选择（如果用户手动选择了模型）
                 if request.model and model_provider and model_name:
