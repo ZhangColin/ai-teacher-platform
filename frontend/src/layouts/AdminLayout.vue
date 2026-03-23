@@ -68,6 +68,10 @@
             <el-menu-item index="/admin/navigation">导航模块</el-menu-item>
             <el-menu-item index="/admin/ai-tools">AI工具</el-menu-item>
             <el-menu-item index="/admin/model-providers">模型供应商</el-menu-item>
+            <el-menu-item index="/admin/model-rates">
+              <el-icon><Coin /></el-icon>
+              <span>模型汇率配置</span>
+            </el-menu-item>
           </el-sub-menu>
         </el-menu>
       </el-aside>
@@ -85,7 +89,7 @@ import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/authStore'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { OfficeBuilding, Tools, Picture, Document, Setting } from '@element-plus/icons-vue'
+import { OfficeBuilding, Tools, Picture, Document, Setting, Coin } from '@element-plus/icons-vue'
 import Logo from '../components/Logo.vue'
 
 const router = useRouter()
