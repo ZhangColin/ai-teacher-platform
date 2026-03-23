@@ -85,8 +85,9 @@ def upgrade() -> None:
     op.create_index(op.f('ix_ai_tools_tool_id'), 'ai_tools', ['tool_id'], unique=True)
     op.create_index(op.f('ix_ai_tools_toolset_id'), 'ai_tools', ['toolset_id'], unique=False)
     op.create_index(op.f('ix_ai_tools_visible'), 'ai_tools', ['visible'], unique=False)
-    op.drop_index('idx_message_id', table_name='artifacts')
-    op.create_index(op.f('ix_artifacts_message_id'), 'artifacts', ['message_id'], unique=False)
+    # 注释掉索引操作：idx_message_id 被外键引用，无法删除
+    # op.drop_index('idx_message_id', table_name='artifacts')
+    # op.create_index(op.f('ix_artifacts_message_id'), 'artifacts', ['message_id'], unique=False)
     op.drop_index('idx_category_id', table_name='common_tools')
     op.drop_index('idx_category_order', table_name='common_tools')
     op.drop_index('idx_visible', table_name='common_tools')

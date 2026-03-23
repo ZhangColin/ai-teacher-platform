@@ -8,6 +8,7 @@ import { useNavigationStore } from '../stores/navigationStore'
 declare module 'vue-router' {
   interface RouteMeta {
     requiresAdmin?: boolean
+    requiresEnterpriseAdmin?: boolean
   }
 }
 
@@ -94,6 +95,39 @@ const routes: RouteRecordRaw[] = [
         name: 'admin-model-providers',
         component: () => import('../views/admin/AdminModelProvidersPage.vue'),
         meta: { requiresAdmin: true },
+      },
+    ],
+  },
+  {
+    path: '/enterprise',
+    name: 'enterprise',
+    component: () => import('../layouts/EnterpriseLayout.vue'),
+    redirect: '/enterprise/dashboard',
+    meta: { requiresEnterpriseAdmin: true },
+    children: [
+      {
+        path: 'dashboard',
+        name: 'enterprise-dashboard',
+        component: () => import('../views/enterprise/EnterpriseDashboard.vue'),
+        meta: { requiresEnterpriseAdmin: true },
+      },
+      {
+        path: 'users',
+        name: 'enterprise-users',
+        component: () => import('../views/enterprise/EnterpriseUsers.vue'),
+        meta: { requiresEnterpriseAdmin: true },
+      },
+      {
+        path: 'points',
+        name: 'enterprise-points',
+        component: () => import('../views/enterprise/EnterprisePoints.vue'),
+        meta: { requiresEnterpriseAdmin: true },
+      },
+      {
+        path: 'consumptions',
+        name: 'enterprise-consumptions',
+        component: () => import('../views/enterprise/EnterpriseConsumptions.vue'),
+        meta: { requiresEnterpriseAdmin: true },
       },
     ],
   },
@@ -243,6 +277,27 @@ router.beforeEach(async (to: RouteLocationNormalized, _from: RouteLocationNormal
     // 检查是否为管理员
     if (!authStore.user?.is_admin) {
       // 非管理员，跳转到首页
+      next('/modules/ai-tools')
+      return
+    }
+  }
+
+  // 检查是否需要企业管理员权限
+  if (to.meta.requiresEnterpriseAdmin) {
+    // 如果用户信息不存在，先获取用户信息
+    if (!authStore.user) {
+      try {
+        await authStore.fetchUserInfo()
+      } catch (error) {
+        // 获取用户信息失败，跳转到登录页
+        next('/login')
+        return
+      }
+    }
+
+    // 检查是否为企业管理员
+    if (!authStore.user?.is_enterprise_admin) {
+      // 非企业管理员，跳转到首页
       next('/modules/ai-tools')
       return
     }

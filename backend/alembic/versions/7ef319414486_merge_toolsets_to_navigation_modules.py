@@ -35,21 +35,8 @@ def upgrade() -> None:
         sa.Column('navigation_module_id', sa.CHAR(36), nullable=True)
     )
 
-    # 3. 创建外键约束
-    op.create_foreign_key(
-        'fk_ai_tool_categories_nav_module',
-        'ai_tool_categories', 'navigation_modules',
-        ['navigation_module_id'], ['id'],
-        ondelete='CASCADE'
-    )
-    op.create_foreign_key(
-        'fk_ai_tools_nav_module',
-        'ai_tools', 'navigation_modules',
-        ['navigation_module_id'], ['id'],
-        ondelete='CASCADE'
-    )
-
-    # 4. 数据迁移：建立 toolset_id 到 navigation_module_id 的映射
+    # 3. 数据迁移：建立 toolset_id 到 navigation_module_id 的映射
+    # 注意：先不创建外键约束，等数据迁移完成后再处理
     connection = op.get_bind()
 
     # 获取所有 type='toolset' 的导航模块
@@ -109,6 +96,20 @@ def upgrade() -> None:
         ALTER TABLE ai_tools
         MODIFY COLUMN navigation_module_id CHAR(36) NOT NULL
     """)
+
+    # 5.5. 创建外键约束（在修改列属性之后）
+    op.create_foreign_key(
+        'fk_ai_tool_categories_nav_module',
+        'ai_tool_categories', 'navigation_modules',
+        ['navigation_module_id'], ['id'],
+        ondelete='CASCADE'
+    )
+    op.create_foreign_key(
+        'fk_ai_tools_nav_module',
+        'ai_tools', 'navigation_modules',
+        ['navigation_module_id'], ['id'],
+        ondelete='CASCADE'
+    )
 
     # 6. 删除旧的外键和列
     # 注意：外键名称可能是自动生成的，使用 IF EXISTS 风格处理
