@@ -130,11 +130,6 @@ async def get_model_rates_status(
     db: Session = Depends(get_db)
 ):
     """获取所有已启用模型的汇率配置状态"""
-async def get_model_rates_status(
-    current_user: Annotated[UserInfo, Depends(require_admin)] = None,
-    db: Session = Depends(get_db)
-):
-    """获取所有已启用模型的汇率配置状态"""
     # 查询所有已启用的供应商
     enabled_providers = db.query(ModelProviderModel).filter(
         ModelProviderModel.is_enabled == True
@@ -253,7 +248,7 @@ async def batch_update_rates(
 
 - [ ] **Step 2: 验证代码语法**
 
-Run: `cd backend && python -c "from src.interfaces.routers.admin.model_rates import router; print('Import success')"`
+Run: `cd backend && python -c "from src.interfaces.routers.admin.point_rates import router; print('Import success')"`
 Expected: "Import success"
 
 - [ ] **Step 3: 提交**
@@ -313,8 +308,8 @@ def admin_db_session(db_session: Session):
         base_url="https://api.test.com",
         is_enabled=True,
     )
-    test_db.add(provider)
-    test_db.commit()
+    db_session.add(provider)
+    db_session.commit()
 
     # 创建测试模型
     model = ModelConfigModel(
@@ -324,19 +319,19 @@ def admin_db_session(db_session: Session):
         capabilities="chat",
         is_enabled=True,
     )
-    test_db.add(model)
-    test_db.commit()
+    db_session.add(model)
+    db_session.commit()
 
-    yield test_db
+    yield db_session
 
     # 清理
-    test_db.query(ModelPointRateModel).filter(
+    db_session.query(ModelPointRateModel).filter(
         ModelPointRateModel.model_config_id == model.id
     ).delete()
-    test_db.query(ModelConfigModel).filter(ModelConfigModel.id == model.id).delete()
-    test_db.query(ModelProviderModel).filter(ModelProviderModel.id == provider.id).delete()
-    test_db.query(UserModel).filter(UserModel.user_id == admin.user_id).delete()
-    test_db.commit()
+    db_session.query(ModelConfigModel).filter(ModelConfigModel.id == model.id).delete()
+    db_session.query(ModelProviderModel).filter(ModelProviderModel.id == provider.id).delete()
+    db_session.query(UserModel).filter(UserModel.user_id == admin.user_id).delete()
+    db_session.commit()
 
 
 def test_get_model_rates_status(admin_db_session):
