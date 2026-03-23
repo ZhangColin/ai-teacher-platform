@@ -94,6 +94,14 @@ import type {
   UpdateModelConfigRequest,
   UpdateModelConfigResponse,
   AvailableModelResponse,
+  // 模型积分汇率配置
+  ModelPointRateItem,
+  CreatePointRateRequest,
+  UpdatePointRateRequest,
+  // 模型汇率批量设置
+  ModelRateStatusItem,
+  BatchUpdateRateRequest,
+  BatchUpdateRateResponse,
 } from '../types'
 import type { NavigationResponse } from '../types/navigation'
 
@@ -1333,6 +1341,58 @@ export class ApiService {
     if (providerCode) params.provider_code = providerCode
 
     const response = await apiClient.get<AvailableModelResponse>('/models/available', { params })
+    return response.data
+  }
+
+  // ==================== 模型积分汇率配置 API ====================
+
+  /**
+   * 获取所有模型汇率配置（管理后台）
+   */
+  static async getModelPointRates(): Promise<ModelPointRateItem[]> {
+    const response = await apiClient.get<ModelPointRateItem[]>('/admin/point-rates')
+    return response.data
+  }
+
+  /**
+   * 创建模型汇率配置（管理后台）
+   */
+  static async createModelPointRate(request: CreatePointRateRequest): Promise<ModelPointRateItem> {
+    const response = await apiClient.post<ModelPointRateItem>('/admin/point-rates', request)
+    return response.data
+  }
+
+  /**
+   * 更新模型汇率配置（管理后台）
+   */
+  static async updateModelPointRate(
+    rateId: string,
+    request: UpdatePointRateRequest
+  ): Promise<ModelPointRateItem> {
+    const response = await apiClient.patch<ModelPointRateItem>(`/admin/point-rates/${rateId}`, request)
+    return response.data
+  }
+
+  /**
+   * 删除模型汇率配置（管理后台）
+   */
+  static async deleteModelPointRate(rateId: string): Promise<void> {
+    await apiClient.delete(`/admin/point-rates/${rateId}`)
+  }
+
+  /**
+   * 获取所有模型的汇率配置状态
+   */
+  static async getModelRatesStatus(): Promise<ModelRateStatusItem[]> {
+    const response = await apiClient.get<{ models: ModelRateStatusItem[] }>('/admin/point-rates/status')
+    return response.data.models
+  }
+
+  /**
+   * 批量更新模型汇率配置
+   */
+  static async batchUpdateModelRates(request: BatchUpdateRateRequest): Promise<BatchUpdateRateResponse> {
+    const response = await apiClient.post<BatchUpdateRateResponse>('/admin/point-rates/batch-update', request)
     return response.data
   }
 }
