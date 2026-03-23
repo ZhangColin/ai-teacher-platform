@@ -77,15 +77,15 @@ interface ModelRateFormItem {
   model_name: string
   model_code: string
   provider_id: string
-  provider_code: string               // 供应商代码，与现有类型一致
-  provider_name: string               // 供应商名称，用于展示
-  tokens_per_point_input: number | null   // 输入汇率，与现有类型一致
-  tokens_per_point_output: number | null  // 输出汇率，与现有类型一致
-  is_enabled: boolean                     // 是否启用汇率配置
-  has_existing_config: boolean            // 是否已有汇率配置
-  rate_id: string | null                  // 现有汇率配置的 ID（如果有）
-  _modified: boolean                      // 内部标记，是否被修改
-  _original?: Partial<ModelRateFormItem>  // 原始值用于对比
+  provider_code: string                  // 供应商代码，与现有类型一致
+  provider_name: string                  // 供应商名称，用于展示
+  tokens_per_point_input?: number        // 输入汇率，可选（与现有类型一致）
+  tokens_per_point_output?: number       // 输出汇率，可选（与现有类型一致）
+  is_enabled: boolean                    // 是否启用汇率配置
+  has_existing_config: boolean           // 是否已有汇率配置
+  rate_id?: string                       // 现有汇率配置的 ID（如果有）
+  _modified: boolean                     // 内部标记，是否被修改
+  _original?: Partial<ModelRateFormItem> // 原始值用于对比
 }
 
 // 分组数据结构
@@ -181,8 +181,8 @@ class ModelRateStatusItem(BaseModel):
 
 class RateConfigInfo(BaseModel):
     id: str
-    tokens_per_point_input: int
-    tokens_per_point_output: int
+    tokens_per_point_input: int | None   # 输入汇率，可能为空
+    tokens_per_point_output: int | None  # 输出汇率，可能为空
     is_enabled: bool
 
 class ModelRatesStatusResponse(BaseModel):
