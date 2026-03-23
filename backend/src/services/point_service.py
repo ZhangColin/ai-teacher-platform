@@ -306,6 +306,55 @@ class PointService:
 
         return consumptions, total
 
+    def get_all_transactions(
+        self,
+        page: int = 1,
+        page_size: int = 20,
+        enterprise_id: Optional[str] = None
+    ) -> tuple:
+        """获取所有充值记录（管理员）"""
+        query = self.db.query(PointTransactionModel).filter(
+            PointTransactionModel.amount > 0  # 只看充值记录
+        )
+
+        if enterprise_id:
+            query = query.filter(PointTransactionModel.enterprise_id == enterprise_id)
+
+        total = query.count()
+
+        transactions = query.order_by(
+            PointTransactionModel.created_at.desc()
+        ).offset((page - 1) * page_size).limit(page_size).all()
+
+        return transactions, total
+
+    def get_all_consumptions(
+        self,
+        page: int = 1,
+        page_size: int = 20,
+        enterprise_id: Optional[str] = None,
+        user_id: Optional[str] = None
+    ) -> tuple:
+        """获取所有消费记录（管理员）"""
+        query = self.db.query(AIConsumptionModel)
+
+        if enterprise_id:
+            # 通过用户的企业ID筛选
+            query = query.join(UserModel, AIConsumptionModel.user_id == UserModel.user_id).filter(
+                UserModel.enterprise_id == enterprise_id
+            )
+
+        if user_id:
+            query = query.filter(AIConsumptionModel.user_id == user_id)
+
+        total = query.count()
+
+        consumptions = query.order_by(
+            AIConsumptionModel.created_at.desc()
+        ).offset((page - 1) * page_size).limit(page_size).all()
+
+        return consumptions, total
+
     # 私有方法
 
     def _get_user_enterprise(self, user_id: str) -> Optional[EnterpriseModel]:

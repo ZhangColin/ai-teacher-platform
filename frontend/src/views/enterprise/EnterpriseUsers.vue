@@ -203,7 +203,7 @@ const loadUsers = async () => {
     }
 
     const response = await apiClient.get('/enterprise/users', { params })
-    users.value = response.data.items
+    users.value = response.data.users || []
     total.value = response.data.total
   } catch (error: any) {
     ElMessage.error(error.response?.data?.detail || '加载用户列表失败')
@@ -306,12 +306,13 @@ const handleToggleStatus = async (user: any) => {
 // 重置密码
 const handleResetPassword = async (user: any) => {
   try {
-    const { value } = await ElMessageBox.prompt('请输入新密码', `重置 ${user.nickname || user.username} 的密码`, {
+    const result = await ElMessageBox.prompt('请输入新密码', `重置 ${user.nickname || user.username} 的密码`, {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       inputPattern: /^.{6,}$/,
       inputErrorMessage: '密码长度至少6个字符'
     })
+    const value = (result as any).value
     await apiClient.post(`/enterprise/users/${user.user_id}/reset-password`, {
       new_password: value
     })

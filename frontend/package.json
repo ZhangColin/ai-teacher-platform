@@ -26,6 +26,7 @@
     "@traptitech/markdown-it-katex": "^3.6.0",
     "@types/dompurify": "^3.0.5",
     "dompurify": "^3.3.1",
+    "echarts": "^5.6.0",
     "element-plus": "^2.13.1",
     "html2pdf.js": "^0.10.1",
     "katex": "^0.16.27",

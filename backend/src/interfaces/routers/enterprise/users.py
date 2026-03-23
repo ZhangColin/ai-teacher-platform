@@ -14,7 +14,7 @@ from src.db_models import UserModel
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/v1/enterprise/users", tags=["企业-用户管理"])
+router = APIRouter(prefix="/users", tags=["企业-用户管理"])
 
 
 @router.get("")

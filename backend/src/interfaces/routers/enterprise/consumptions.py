@@ -13,7 +13,7 @@ from src.services.point_service import PointService
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/v1/enterprise/consumptions", tags=["企业-消费记录"])
+router = APIRouter(prefix="/consumptions", tags=["企业-消费记录"])
 
 
 @router.get("", response_model=ConsumptionListResponse)
@@ -58,3 +58,60 @@ async def get_consumptions(
         total=total,
         page=page
     )
+
+
+@router.get("/stats")
+async def get_consumption_stats(
+    days: int = 30,
+    current_user: Annotated[UserInfo, Depends(require_enterprise_admin)] = None,
+    db: Session = Depends(get_db)
+):
+    """获取消费统计数据"""
+    from src.db_models import AIConsumptionModel
+    from sqlalchemy import func, extract
+    from datetime import timedelta
+
+    if days > 365:
+        days = 365
+
+    start_date = datetime.now() - timedelta(days=days)
+
+    # 获取趋势数据（按日期分组）
+    trend_query = db.query(
+        func.date(AIConsumptionModel.created_at).label('date'),
+        func.sum(AIConsumptionModel.total_points).label('points')
+    ).filter(
+        AIConsumptionModel.enterprise_id == current_user.enterprise_id,
+        AIConsumptionModel.created_at >= start_date
+    ).group_by(
+        func.date(AIConsumptionModel.created_at)
+    ).order_by(
+        func.date(AIConsumptionModel.created_at)
+    )
+
+    trend_data = [
+        {"date": str(row.date), "points": row.points or 0}
+        for row in trend_query.all()
+    ]
+
+    # 获取模型分布数据
+    model_query = db.query(
+        AIConsumptionModel.model_name,
+        func.sum(AIConsumptionModel.total_points).label('points')
+    ).filter(
+        AIConsumptionModel.enterprise_id == current_user.enterprise_id
+    ).group_by(
+        AIConsumptionModel.model_name
+    ).order_by(
+        func.sum(AIConsumptionModel.total_points).desc()
+    )
+
+    model_data = [
+        {"name": row.model_name, "value": row.points or 0}
+        for row in model_query.all()
+    ]
+
+    return {
+        "trend": trend_data,
+        "model_distribution": model_data
+    }
