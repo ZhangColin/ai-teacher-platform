@@ -350,7 +350,7 @@ PaymentService.handle_notify()
 2. 返回工行错误响应：`{"return_code": -1, "return_msg": "签名验证失败"}`
 3. 不处理业务逻辑，不更新订单状态
 
-### 5.2 订单状态流转
+### 5.3 订单状态流转
 
 ```
 created（已创建）
