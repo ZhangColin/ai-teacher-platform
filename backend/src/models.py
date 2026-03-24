@@ -1684,13 +1684,6 @@ class CreatePaymentOrderRequest(BaseModel):
     """创建支付订单请求"""
     amount: int = Field(..., ge=100, le=500000, description="金额（分），最小100，最大500000")
 
-    @classmethod
-    def validate_amount(cls, v: int) -> int:
-        """验证金额为整数"""
-        if v % 1 != 0:  # 整数校验
-            raise ValueError('金额必须为整数')
-        return v
-
 
 class PaymentOrderResponse(BaseModel):
     """支付订单响应"""
