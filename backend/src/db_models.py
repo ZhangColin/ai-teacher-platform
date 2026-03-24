@@ -1,7 +1,7 @@
 """SQLAlchemy ORM 数据模型"""
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, DateTime, Text, Enum, ForeignKey, Index, Integer, Boolean
+from sqlalchemy import Column, String, DateTime, Text, Enum, ForeignKey, Index, Integer, Boolean, JSON
 from sqlalchemy.dialects.mysql import CHAR
 from sqlalchemy.orm import relationship
 from .database import Base
@@ -31,6 +31,16 @@ class PointSourceType(enum.Enum):
     admin_gift = "admin_gift"
     admin_adjust = "admin_adjust"
     ai_consume = "ai_consume"
+
+
+class PaymentOrderStatus(enum.Enum):
+    """支付订单状态枚举"""
+    created = "created"
+    processing = "processing"
+    paid = "paid"
+    failed = "failed"
+    cancelled = "cancelled"
+    timeout = "timeout"
 
 
 class EnterpriseModel(Base):
@@ -526,4 +536,51 @@ class ModelPointRateModel(Base):
     is_enabled = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, nullable=False, default=datetime.now)
     updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
+
+
+class PaymentOrderModel(Base):
+    """支付订单数据库模型"""
+    __tablename__ = "payment_orders"
+
+    id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(CHAR(36), ForeignKey("users.user_id"), nullable=False, index=True)
+
+    # 订单号
+    out_trade_no = Column(String(64), unique=True, nullable=False, index=True, comment='商户订单号')
+    third_trade_no = Column(String(64), nullable=True, comment='工行流水号')
+
+    # 金额
+    amount = Column(Integer, nullable=False, comment='金额（分）')
+
+    # 状态和渠道
+    status = Column(Enum(PaymentOrderStatus), nullable=False, default=PaymentOrderStatus.created, index=True)
+    pay_channel = Column(String(20), nullable=False, default="icbc_aggregate", comment='支付渠道')
+
+    # 扩展字段
+    business_type = Column(String(20), nullable=False, default="recharge", comment='业务类型')
+    business_id = Column(String(36), nullable=True, comment='业务ID')
+
+    # 工行返回数据
+    pay_url = Column(String(512), nullable=True, comment='支付URL')
+    qr_code_data = Column(String(512), nullable=True, comment='二维码数据')
+    icbc_response = Column(JSON, nullable=True, comment='工行完整响应')
+
+    # 时间记录
+    submitted_at = Column(DateTime, nullable=True, comment='发起时间')
+    paid_at = Column(DateTime, nullable=True, comment='支付时间')
+    expire_at = Column(DateTime, nullable=True, comment='超时时间')
+    notified_at = Column(DateTime, nullable=True, comment='回调到达时间')
+
+    # 回调相关
+    notify_data = Column(JSON, nullable=True, comment='回调原始数据')
+    notify_verify_result = Column(Boolean, nullable=True, comment='回调验签结果')
+
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
+    updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
+
+    # 联合索引
+    __table_args__ = (
+        Index("idx_payment_user_status", "user_id", "status"),
+        Index("idx_payment_created", "created_at"),
+    )
 
