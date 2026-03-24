@@ -1667,3 +1667,83 @@ class BatchUpdateRateResponse(BaseModel):
     """批量更新汇率响应"""
     updated: int
 
+
+# ==================== 支付相关模型 ====================
+
+class PaymentOrderStatus(str, enum.Enum):
+    """支付订单状态"""
+    created = "created"
+    processing = "processing"
+    paid = "paid"
+    failed = "failed"
+    cancelled = "cancelled"
+    timeout = "timeout"
+
+
+class CreatePaymentOrderRequest(BaseModel):
+    """创建支付订单请求"""
+    amount: int = Field(..., ge=100, le=500000, description="金额（分），最小100，最大500000")
+
+    @classmethod
+    def validate_amount(cls, v: int) -> int:
+        """验证金额为整数"""
+        if v % 1 != 0:  # 整数校验
+            raise ValueError('金额必须为整数')
+        return v
+
+
+class PaymentOrderResponse(BaseModel):
+    """支付订单响应"""
+    id: str
+    out_trade_no: str
+    amount: int
+    status: PaymentOrderStatus
+    qr_code_data: Optional[str] = None
+    expire_at: Optional[datetime] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class RechargeRecordResponse(BaseModel):
+    """充值记录响应"""
+    id: str
+    amount: int
+    points: int
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class RechargeListResponse(BaseModel):
+    """充值记录列表响应"""
+    items: list[RechargeRecordResponse]
+    total: int
+
+
+class IcbcNotifyRequest(BaseModel):
+    """工行回调请求（动态字段）"""
+    pass  # 工行回调字段不固定，直接从 request 读取
+
+
+class TestNotifyRequest(BaseModel):
+    """测试回调请求"""
+    out_trade_no: str
+    return_code: str = "0"
+    third_trade_no: Optional[str] = None
+    total_amt: str
+
+
+class SystemConfigResponse(BaseModel):
+    """系统配置响应"""
+    key: str
+    value: str
+    description: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class UpdateSystemConfigRequest(BaseModel):
+    """更新系统配置请求"""
+    points_per_yuan: int = Field(..., ge=1, le=10000, description="1元对应的积分数量")
+
