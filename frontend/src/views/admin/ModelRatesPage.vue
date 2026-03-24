@@ -84,7 +84,9 @@ const loadData = async () => {
         tokens_per_point_input: item.rate_config?.tokens_per_point_input ?? undefined,
         tokens_per_point_output: item.rate_config?.tokens_per_point_output ?? undefined,
         is_enabled: item.rate_config?.is_enabled ?? true,
-        has_existing_config: item.rate_config !== null,
+        has_existing_config: item.rate_config !== null &&
+          item.rate_config.tokens_per_point_input !== null &&
+          item.rate_config.tokens_per_point_output !== null,
         rate_id: item.rate_config?.id,
         _modified: false,
         _original: item.rate_config ? {

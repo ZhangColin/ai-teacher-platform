@@ -108,6 +108,7 @@
       v-model="modelDialogVisible"
       title="模型配置"
       width="600px"
+      append-to-body
     >
       <el-form :model="modelForm" label-width="100px">
         <el-form-item label="模型代码">
@@ -332,8 +333,7 @@ const showEditModelDialog = (model: ModelConfigListItem) => {
     }
   }
 
-  // 关闭模型列表对话框，打开单个模型配置对话框
-  modelsDialogVisible.value = false
+  // 保持模型列表对话框打开，在上层打开单个模型配置对话框
   modelDialogVisible.value = true
 }
 
