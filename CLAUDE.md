@@ -469,3 +469,15 @@ cd backend
 alembic revision --autogenerate -m "描述"
 alembic upgrade head
 ```
+
+### 测试支付回调
+
+1. 登录管理后台，访问 `/admin/payment/test`
+2. 输入订单号，选择测试场景
+3. 点击"发送测试回调"
+
+### 配置积分兑换比例
+
+1. 登录管理后台
+2. 访问 `/admin/payment/config`
+3. 修改 `points_per_yuan` 配置

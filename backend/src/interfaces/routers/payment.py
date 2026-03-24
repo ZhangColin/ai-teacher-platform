@@ -18,7 +18,7 @@ from src.db_models import PaymentOrderModel
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/payment", tags=["payment"])
+router = APIRouter(prefix="/api/v1/payment", tags=["payment"])
 
 
 def get_icbc_client():
