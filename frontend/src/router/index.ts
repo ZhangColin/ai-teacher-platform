@@ -114,6 +114,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('../views/admin/ModelRatesPage.vue'),
         meta: { requiresAdmin: true, title: '模型汇率配置' },
       },
+      {
+        path: 'payment/test',
+        name: 'PaymentTest',
+        component: () => import('../views/admin/PaymentTestView.vue'),
+        meta: { requiresAdmin: true },
+      },
     ],
   },
   {
