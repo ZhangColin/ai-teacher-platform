@@ -35,6 +35,8 @@
 | amount | Integer | 金额（分）|
 | status | Enum | 订单状态（索引）|
 | pay_channel | String(20) | 支付渠道（默认 icbc_aggregate）|
+| business_type | String(20) | 业务类型（默认 recharge）|
+| business_id | String(36) | 业务ID（预留，当前为空）|
 | pay_url | String(512) | 支付URL |
 | qr_code_data | String(512) | 二维码数据 |
 | icbc_response | JSON | 工行下单响应 |
@@ -78,12 +80,14 @@
 
 ### 2.3 point_transactions（积分交易表）- 修改
 
+**说明**：该表已存在于系统中，用于记录积分交易历史。本次修改新增两个字段：
+
 新增字段：
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| payment_id | CHAR(36) | 关联的支付订单ID |
-| amount | Integer | 充值金额（分）|
+| payment_id | CHAR(36) | 关联的支付订单ID（可为空，仅充值类型有值）|
+| amount | Integer | 充值金额（分）（可为空，仅充值类型有值）|
 
 ## 3. API 接口
 
@@ -99,6 +103,19 @@ POST /api/v1/payment/create-order
 ```json
 {
   "amount": 10000  // 金额，单位：分（100元）
+}
+```
+
+**金额限制**：
+- 最小金额：100分（1元）
+- 最大金额：500000分（5000元）
+- 金额必须为整数（分）
+
+**错误响应**：
+```json
+{
+  "error": "INVALID_AMOUNT",
+  "message": "金额必须在100-500000分之间"
 }
 ```
 
@@ -192,13 +209,35 @@ POST /api/v1/admin/payment/test-notify
 class IcbcClient:
     """工行聚合支付客户端"""
 
+    def __init__(
+        self,
+        app_id: str,
+        mer_id: str,
+        mer_prtcl_no: str,
+        private_key: str,
+        public_key: str,
+        device_info: str,
+        notify_url: str
+    ):
+        """初始化工行客户端"""
+
     async def create_order(
         self,
         out_trade_no: str,
         amount: int,
-        expire_time: int
+        expire_time: int = 900
     ) -> dict:
-        """调用工行统一下单接口"""
+        """
+        调用工行统一下单接口
+
+        Args:
+            out_trade_no: 商户订单号
+            amount: 金额（分）
+            expire_time: 超时时间（秒），默认900秒（15分钟）
+
+        Returns:
+            工行响应，包含 pay_url 等字段
+        """
 
     async def query_order(
         self,
@@ -209,17 +248,30 @@ class IcbcClient:
     def _sign(
         self,
         data: dict,
-        sign_type: str = "RSA2"
+        sign_type: str = "RSA2",
+        charset: str = "UTF-8"
     ) -> str:
-        """RSA2 签名"""
+        """
+        RSA2 签名
+
+        工行签名规则：
+        1. 参数按字典序排序
+        2. 拼接成 key1=value1&key2=value2 格式
+        3. 使用商户私钥签名
+        """
 
     def _verify(
         self,
         data: dict,
         sign: str,
-        sign_type: str = "RSA"
+        sign_type: str = "RSA",
+        charset: str = "UTF-8"
     ) -> bool:
-        """RSA 验签"""
+        """
+        RSA 验签
+
+        使用工行公钥验证签名
+        """
 ```
 
 ### 4.2 PaymentService（支付服务）
@@ -280,11 +332,23 @@ class PaymentService:
     ↓
 PaymentService.handle_notify()
     ├─ 验签
+    │   ├─ 成功 → 继续
+    │   └─ 失败 → 记录日志，返回错误给工行（return_code=-1）
+    ├─ 检查 return_code
+    │   ├─ 0（成功）→ 继续
+    │   └─ 其他 → 标记为 failed
     ├─ 更新 status=paid
     ├─ 调用 PointService.add_points()
     ├─ 创建 PointTransaction
     └─ 更新 PaymentOrder 关联信息
 ```
+
+### 5.2 回调验签失败处理
+
+验签失败时：
+1. 记录错误日志（包含回调原始数据）
+2. 返回工行错误响应：`{"return_code": -1, "return_msg": "签名验证失败"}`
+3. 不处理业务逻辑，不更新订单状态
 
 ### 5.2 订单状态流转
 
@@ -303,15 +367,18 @@ processing（支付中）
 
 ### 6.1 环境变量（.env）
 
+工行无独立测试环境，开发时直接使用生产地址。通过控制测试金额（如0.01元）来降低风险。
+
 ```bash
-# 工行聚合支付配置
+# 工行聚合支付配置（生产环境）
 ICBC_APP_ID=xxx                      # 应用编号
 ICBC_MER_ID=xxx                      # 商户编号
 ICBC_MER_PRTCL_NO=xxx                # 协议编号
-ICBC_MY_PRIVATE_KEY=xxx              # 商户私钥
-ICBC_APIGW_PUBLIC_KEY=xxx            # 工行公钥
-ICBC_DEVICE_INFO=xxx                 # 设备号
-ICBC_NOTIFY_URL=https://...          # 回调地址
+ICBC_MY_PRIVATE_KEY=xxx              # 商户私钥（RSA2）
+ICBC_APIGW_PUBLIC_KEY=xxx            # 工行公钥（RSA）
+ICBC_DEVICE_INFO=xxx                 # 设备号（自定义）
+ICBC_NOTIFY_URL=https://your-domain.com/api/v1/payment/icbc/notify  # 回调地址
+ICBC_API_URL=https://gw.open.icbc.com.cn  # 工行API地址
 ```
 
 ### 6.2 系统配置（数据库）
@@ -356,6 +423,12 @@ POST /api/v1/admin/payment/test-notify
 - 自定义金额输入
 - 二维码展示（使用 qrcode.js）
 - 轮询订单状态（每3秒）
+
+**轮询策略**：
+- 间隔：3秒
+- 最大轮询次数：300次（15分钟）
+- 超时后停止轮询，显示"订单超时"提示
+- 支付成功后停止轮询，显示成功页面
 
 ### 8.2 状态展示
 
