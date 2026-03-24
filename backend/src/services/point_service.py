@@ -83,7 +83,9 @@ class PointService:
         amount: int,
         source_type: PointSourceType,
         operator_id: str = None,
-        remark: str = None
+        remark: str = None,
+        payment_id: str = None,
+        payment_amount: int = None
     ) -> PointTransactionModel:
         """
         增加积分（充值/赠送）
@@ -96,6 +98,8 @@ class PointService:
             source_type: 来源类型
             operator_id: 操作人ID
             remark: 备注
+            payment_id: 关联的支付订单ID
+            payment_amount: 充值金额（分）
 
         Returns:
             创建的交易记录
@@ -135,7 +139,9 @@ class PointService:
                     amount=amount,
                     balance_before=balance_before,
                     balance_after=enterprise.total_points,
-                    remark=remark
+                    remark=remark,
+                    payment_id=payment_id,
+                    payment_amount=payment_amount
                 )
 
                 self.db.add(transaction)
