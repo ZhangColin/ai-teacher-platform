@@ -310,6 +310,8 @@ class PointTransactionModel(Base):
 
     amount = Column(Integer, nullable=False, comment='积分金额（正数）')
     balance_before = Column(Integer, nullable=False, comment='变动前总积分')
+    payment_id = Column(CHAR(36), nullable=True, comment='关联的支付订单ID')
+    payment_amount = Column(Integer, nullable=True, comment='充值金额（分）')
     balance_after = Column(Integer, nullable=False, comment='变动后总积分')
 
     remark = Column(String(500), nullable=True)
@@ -583,4 +585,16 @@ class PaymentOrderModel(Base):
         Index("idx_payment_user_status", "user_id", "status"),
         Index("idx_payment_created", "created_at"),
     )
+
+
+class SystemConfigModel(Base):
+    """系统配置数据库模型"""
+    __tablename__ = "system_configs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    key = Column(String(50), unique=True, nullable=False, index=True, comment='配置键')
+    value = Column(String(500), nullable=False, comment='配置值')
+    description = Column(String(200), nullable=True, comment='配置描述')
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
+    updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
 
