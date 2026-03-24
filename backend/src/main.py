@@ -34,7 +34,9 @@ from src.interfaces.routers.admin import ai_tools as new_admin_ai_tools_router
 from src.interfaces.routers.admin import model_providers as new_admin_model_providers_router
 from src.interfaces.routers.admin import enterprises as new_admin_enterprises_router
 from src.interfaces.routers.admin import point_rates as new_admin_point_rates_router
+from src.interfaces.routers.admin import payment_admin as new_admin_payment_router
 from src.interfaces.routers import enterprise as new_enterprise_router
+from src.interfaces.routers import payment as new_payment_router
 from src.interfaces.routers import works as new_works_router
 from src.interfaces.routers import courses as new_courses_router
 from src.interfaces.routers import common as new_common_router
@@ -96,9 +98,13 @@ app.include_router(new_admin_ai_tools_router.router)
 app.include_router(new_admin_model_providers_router.router)
 app.include_router(new_admin_enterprises_router.router)
 app.include_router(new_admin_point_rates_router.router)
+app.include_router(new_admin_payment_router.router)
 
 # 企业后台路由
 app.include_router(new_enterprise_router.router)
+
+# 支付路由
+app.include_router(new_payment_router.router)
 
 # 用户管理路由（旧路由 - 已迁移到 interfaces 层）
 # 已迁移到 interfaces 层的端点：
@@ -259,11 +265,27 @@ async def startup_event():
     logger.info(f"项目根目录: {project_root}")
     logger.info(f"静态文件目录: {static_dir}")
 
+    # 启动支付定时任务
+    try:
+        from src.tasks.payment_tasks import start_scheduler
+        start_scheduler()
+        logger.info("支付定时任务已启动")
+    except Exception as e:
+        logger.error(f"启动支付定时任务失败: {e}", exc_info=True)
+
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """应用关闭时的清理操作"""
     logger.info("AI Teacher Platform Backend 关闭中...")
+
+    # 停止支付定时任务
+    try:
+        from src.tasks.payment_tasks import stop_scheduler
+        stop_scheduler()
+        logger.info("支付定时任务已停止")
+    except Exception as e:
+        logger.error(f"停止支付定时任务失败: {e}", exc_info=True)
 
 
 if __name__ == "__main__":
