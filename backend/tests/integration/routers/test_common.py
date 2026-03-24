@@ -855,22 +855,29 @@ async def test_get_task_status_unsupported_media_type(async_client, db_session):
     task_storage.clear()
     task_storage.update(local_task_storage)
 
-    # Mock Session Service
-    with patch('src.interfaces.routers.common.common.get_session_service') as mock_get_session:
-        mock_session_service = AsyncMock()
-        mock_session = MagicMock()
-        mock_session.user_id = user.user_id
-        mock_session_service.get_session.return_value = mock_session
-        mock_get_session.return_value = mock_session_service
+    # Mock AI Service - 即使不支持的类型，也需要mock以避免实际调用
+    with patch('src.interfaces.routers.common.common.get_ai_service') as mock_get_ai:
+        mock_ai = AsyncMock()
+        # 设置一个默认的返回值，避免调用时出错
+        mock_ai.get_image_result = AsyncMock(side_effect=NotImplementedError("audio not supported"))
+        mock_get_ai.return_value = mock_ai
 
-        response = await async_client.get(
-            f"/api/v1/tasks/{task_id}",
-            headers={"Authorization": f"Bearer {token}"}
-        )
+        # Mock Session Service
+        with patch('src.interfaces.routers.common.common.get_session_service') as mock_get_session:
+            mock_session_service = AsyncMock()
+            mock_session = MagicMock()
+            mock_session.user_id = user.user_id
+            mock_session_service.get_session.return_value = mock_session
+            mock_get_session.return_value = mock_session_service
 
-        # 由于代码在try-except中，501错误会被捕获并转换为processing状态
-        # 最终返回200状态码
-        assert response.status_code == 200
+            response = await async_client.get(
+                f"/api/v1/tasks/{task_id}",
+                headers={"Authorization": f"Bearer {token}"}
+            )
+
+            # 由于代码在try-except中，错误会被捕获
+            # 最终返回200状态码，状态为processing或failed
+            assert response.status_code == 200
 
 
 @pytest.mark.asyncio

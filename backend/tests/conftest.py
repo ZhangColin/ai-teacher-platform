@@ -191,7 +191,10 @@ async def async_client(_app_with_tools, db_session) -> AsyncGenerator[AsyncClien
         get_session_service,
         get_auth_service,
     )
+    from src.interfaces.dependencies import get_ai_service_with_db
     from src.database import get_db
+    from src.services.ai_service import AIService
+    from unittest.mock import AsyncMock
 
     # 覆盖数据库依赖，使用测试数据库会话
     def override_get_db():
@@ -200,7 +203,31 @@ async def async_client(_app_with_tools, db_session) -> AsyncGenerator[AsyncClien
         finally:
             pass
 
+    # 创建 mock AI 服务
+    def mock_ai_service_with_db():
+        mock_service = AsyncMock(spec=AIService)
+        # 设置默认的聊天方法
+        async def mock_chat(*args, **kwargs):
+            return ("AI回复", {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15})
+
+        async def mock_chat_stream(*args, **kwargs):
+            yield "AI"
+            yield "回复"
+
+        mock_service.chat = mock_chat
+        mock_service.chat_stream = mock_chat_stream
+        mock_service.get_image_result = AsyncMock(return_value={
+            "task_status": "SUCCESS",
+            "image_result": [{"url": "http://example.com/image.png"}]
+        })
+        mock_service.get_video_result = AsyncMock(return_value={
+            "task_status": "SUCCESS",
+            "video_result": [{"url": "http://example.com/video.mp4"}]
+        })
+        return mock_service
+
     _app_with_tools.dependency_overrides[get_db] = override_get_db
+    _app_with_tools.dependency_overrides[get_ai_service_with_db] = mock_ai_service_with_db
 
     # 清除所有服务cache，强制重新创建
     get_user_service.cache_clear()
@@ -349,6 +376,7 @@ async def logged_in_client(async_client, db_session):
         email="test_logged_in@example.com",
         password_hash=password_hash,
         is_admin=False,
+        is_active=True,
         enterprise_id=db_session.test_enterprise_id,
         created_at=datetime.now()
     )
@@ -388,6 +416,7 @@ async def admin_client(async_client, db_session):
         email="admin@example.com",
         password_hash=password_hash,
         is_admin=True,
+        is_active=True,
         enterprise_id=db_session.test_enterprise_id,
         created_at=datetime.now()
     )

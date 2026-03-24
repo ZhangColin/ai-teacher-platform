@@ -10,6 +10,26 @@ from src.models import User
 from src.db_models import UserModel
 
 
+def create_mock_user_model(**kwargs):
+    """创建 Mock UserModel 对象，包含所有必要字段"""
+    defaults = {
+        'user_id': 'user123',
+        'username': 'testuser',
+        'nickname': '测试',
+        'email': 'test@example.com',
+        'phone': '13800138000',
+        'password_hash': 'hash123',
+        'avatar': 'avatar.jpg',
+        'is_admin': False,
+        'is_active': True,
+        'is_enterprise_admin': False,
+        'enterprise_id': 'enterprise123',  # 添加 enterprise_id
+        'created_at': datetime.now()
+    }
+    defaults.update(kwargs)
+    return MagicMock(**defaults)
+
+
 class TestUserService:
     """UserService 测试类"""
 
@@ -153,17 +173,7 @@ class TestUserService:
     def test_get_user_by_email_found(self, mock_session_local):
         """测试根据邮箱查找用户 - 找到"""
         mock_db = MagicMock()
-        mock_user_model = MagicMock(
-            user_id="user123",
-            username="testuser",
-            nickname="测试",
-            email="test@example.com",
-            phone="13800138000",
-            password_hash="hash123",
-            avatar="avatar.jpg",
-            is_admin=False,
-            created_at=datetime.now()
-        )
+        mock_user_model = create_mock_user_model()
         mock_db.query.return_value.filter.return_value.first.return_value = mock_user_model
         mock_session_local.return_value = mock_db
 
@@ -192,17 +202,7 @@ class TestUserService:
     def test_get_user_by_phone_found(self, mock_session_local):
         """测试根据手机号查找用户 - 找到"""
         mock_db = MagicMock()
-        mock_user_model = MagicMock(
-            user_id="user123",
-            username="testuser",
-            nickname="测试",
-            email="test@example.com",
-            phone="13800138000",
-            password_hash="hash123",
-            avatar="avatar.jpg",
-            is_admin=False,
-            created_at=datetime.now()
-        )
+        mock_user_model = create_mock_user_model()
         mock_db.query.return_value.filter.return_value.first.return_value = mock_user_model
         mock_session_local.return_value = mock_db
 
@@ -230,17 +230,7 @@ class TestUserService:
     def test_get_user_by_username_found(self, mock_session_local):
         """测试根据用户名查找用户 - 找到"""
         mock_db = MagicMock()
-        mock_user_model = MagicMock(
-            user_id="user123",
-            username="testuser",
-            nickname="测试",
-            email="test@example.com",
-            phone="13800138000",
-            password_hash="hash123",
-            avatar="avatar.jpg",
-            is_admin=False,
-            created_at=datetime.now()
-        )
+        mock_user_model = create_mock_user_model()
         mock_db.query.return_value.filter.return_value.first.return_value = mock_user_model
         mock_session_local.return_value = mock_db
 
@@ -268,17 +258,7 @@ class TestUserService:
     def test_get_user_by_id_found(self, mock_session_local):
         """测试根据ID查找用户 - 找到"""
         mock_db = MagicMock()
-        mock_user_model = MagicMock(
-            user_id="user123",
-            username="testuser",
-            nickname="测试",
-            email="test@example.com",
-            phone="13800138000",
-            password_hash="hash123",
-            avatar="avatar.jpg",
-            is_admin=False,
-            created_at=datetime.now()
-        )
+        mock_user_model = create_mock_user_model()
         mock_db.query.return_value.filter.return_value.first.return_value = mock_user_model
         mock_session_local.return_value = mock_db
 
@@ -312,7 +292,7 @@ class TestUserService:
 
         # Mock 返回的用户列表
         mock_user_models = [
-            MagicMock(
+            create_mock_user_model(
                 user_id=f"user{i}",
                 username=f"user{i}",
                 nickname=None,
@@ -321,7 +301,6 @@ class TestUserService:
                 password_hash="hash",
                 avatar=None,
                 is_admin=False,
-                created_at=datetime.now()
             )
             for i in range(20)
         ]
@@ -344,7 +323,7 @@ class TestUserService:
         mock_db.query.return_value = mock_query
 
         mock_user_models = [
-            MagicMock(
+            create_mock_user_model(
                 user_id=f"user{i}",
                 username=f"user{i}",
                 nickname=None,
@@ -353,7 +332,6 @@ class TestUserService:
                 password_hash="hash",
                 avatar=None,
                 is_admin=False,
-                created_at=datetime.now()
             )
             for i in range(10)
         ]
@@ -391,7 +369,7 @@ class TestUserService:
         mock_db.query.return_value = mock_query
 
         mock_user_models = [
-            MagicMock(
+            create_mock_user_model(
                 user_id=f"admin{i}",
                 username=f"admin{i}",
                 nickname=None,
@@ -400,7 +378,6 @@ class TestUserService:
                 password_hash="hash",
                 avatar=None,
                 is_admin=True,
-                created_at=datetime.now()
             )
             for i in range(5)
         ]
@@ -438,7 +415,7 @@ class TestUserService:
         mock_db.query.return_value = mock_query
 
         mock_user_models = [
-            MagicMock(
+            create_mock_user_model(
                 user_id=f"user{i}",
                 username=f"user{i}",
                 nickname=None,
@@ -447,7 +424,6 @@ class TestUserService:
                 password_hash="hash",
                 avatar=None,
                 is_admin=False,
-                created_at=datetime.now()
             )
             for i in range(20)
         ]
@@ -477,7 +453,7 @@ class TestUserService:
     def test_update_user_success(self, mock_session_local):
         """测试成功更新用户"""
         mock_db = MagicMock()
-        mock_user_model = MagicMock(
+        mock_user_model = create_mock_user_model(
             user_id="user123",
             username="oldname",
             nickname="旧昵称",
@@ -582,7 +558,7 @@ class TestUserService:
     def test_update_user_can_revoke_admin_if_multiple(self, mock_session_local):
         """测试有多个管理员时可以取消一个"""
         mock_db = MagicMock()
-        mock_user_model = MagicMock(
+        mock_user_model = create_mock_user_model(
             user_id="user123",
             username="admin",
             nickname="管理员",
@@ -607,7 +583,7 @@ class TestUserService:
     def test_update_user_same_values_no_conflict(self, mock_session_local):
         """测试更新为相同的值不会产生冲突"""
         mock_db = MagicMock()
-        mock_user_model = MagicMock(
+        mock_user_model = create_mock_user_model(
             user_id="user123",
             username="testuser",
             nickname="测试",

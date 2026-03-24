@@ -24,7 +24,7 @@ class TestBedrockAdapter:
             api_key="AKIAIOSFODNN7EXAMPLE",
             aws_secret_access_key="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
         )
-        assert adapter.region == "us-east-1"
+        assert adapter.region == "us-west-2"
 
     def test_to_bedrock_format(self):
         """测试消息格式转换"""

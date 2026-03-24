@@ -371,10 +371,11 @@ class User(BaseModel):
     password_hash: str = Field(..., description="密码哈希值（bcrypt加密）")
     avatar: Optional[str] = Field(None, description="用户头像URL（可选，默认头像）")
     is_admin: bool = Field(False, description="是否为管理员（默认为false）")
+    is_active: bool = Field(True, description="用户是否激活（默认为true）")
     enterprise_id: Optional[str] = Field(None, description="所属企业ID")
     is_enterprise_admin: bool = Field(False, description="是否为企业管理员")
     created_at: datetime = Field(default_factory=datetime.now, description="用户创建时间")
-    
+
     def verify_password(self, password: str) -> bool:
         """验证密码是否正确"""
         return bcrypt.checkpw(password.encode('utf-8'), self.password_hash.encode('utf-8'))
@@ -386,7 +387,7 @@ class User(BaseModel):
     def is_administrator(self) -> bool:
         """判断是否为管理员"""
         return self.is_admin
-    
+
     @classmethod
     def create(cls, username: str, password: str, nickname: Optional[str] = None, email: Optional[str] = None, phone: Optional[str] = None, avatar: Optional[str] = None, is_admin: bool = False) -> "User":
         """创建新用户（密码自动加密）"""
@@ -452,6 +453,7 @@ class CreateUserRequest(BaseModel):
     password: str = Field(..., description="用户密码", min_length=6)
     avatar: Optional[str] = Field(None, description="用户头像URL（可选，默认使用系统默认头像）")
     is_admin: bool = Field(False, description="是否为管理员（默认为false）")
+    is_active: bool = Field(True, description="用户是否激活（默认为true）")
     # 企业相关字段
     enterprise_id: str = Field(..., description="所属企业ID（必填）")
     is_enterprise_admin: bool = Field(False, description="是否为企业管理员（默认为false）")
@@ -466,9 +468,11 @@ class UserListItem(BaseModel):
     phone: Optional[str] = Field(None, description="用户手机号（可选，用于登录）")
     avatar: Optional[str] = Field(None, description="用户头像URL")
     is_admin: bool = Field(False, description="是否为管理员")
+    is_active: bool = Field(True, description="用户是否激活")
     enterprise_id: Optional[str] = Field(None, description="所属企业ID")
     enterprise_name: Optional[str] = Field(None, description="所属企业名称")
     is_enterprise_admin: bool = Field(False, description="是否为企业管理员")
+    total_consumed: int = Field(0, description="总消耗积分")
     created_at: datetime = Field(..., description="用户创建时间")
 
 
@@ -492,6 +496,7 @@ class UpdateUserRequest(BaseModel):
     email: Optional[str] = Field(None, description="用户邮箱", pattern=r'^[^@]+@[^@]+\.[^@]+$')
     phone: Optional[str] = Field(None, description="用户手机号", pattern=r'^1[3-9]\d{9}$')
     is_admin: Optional[bool] = Field(None, description="是否为管理员")
+    is_active: Optional[bool] = Field(None, description="用户是否激活")
     # 企业相关字段
     enterprise_id: Optional[str] = Field(None, description="所属企业ID")
     is_enterprise_admin: Optional[bool] = Field(None, description="是否为企业管理员")
@@ -1557,7 +1562,8 @@ class ConsumptionItem(BaseModel):
     """消费记录项"""
     id: str
     user_id: str
-    username: Optional[str]
+    username: Optional[str] = None
+    nickname: Optional[str] = None
     model_provider: str
     model_name: str
     prompt_tokens: int
@@ -1566,14 +1572,23 @@ class ConsumptionItem(BaseModel):
     gratis_points_used: int
     paid_points_used: int
     total_points: int
+    points: int  # 前端使用的字段别名
     created_at: datetime
+
+
+class ConsumptionStats(BaseModel):
+    """消费统计数据"""
+    today_consumed: int
+    month_consumed: int
+    total_consumed: int
 
 
 class ConsumptionListResponse(BaseModel):
     """消费记录列表响应"""
-    consumptions: List[ConsumptionItem]
+    items: List[ConsumptionItem]
     total: int
     page: int
+    stats: Optional[ConsumptionStats] = None
 
 
 class ModelPointRateItem(BaseModel):

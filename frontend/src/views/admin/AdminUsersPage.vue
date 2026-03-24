@@ -22,6 +22,17 @@
           <el-option label="仅普通用户" :value="false" />
         </el-select>
         <el-select
+          v-model="filterIsActive"
+          placeholder="筛选状态"
+          clearable
+          @change="handleFilterChange"
+          style="width: 150px"
+        >
+          <el-option label="全部状态" :value="undefined" />
+          <el-option label="启用" :value="true" />
+          <el-option label="禁用" :value="false" />
+        </el-select>
+        <el-select
           v-model="filterEnterpriseId"
           placeholder="筛选企业"
           clearable
@@ -64,6 +75,13 @@
           <template #default="{ row }">
             <el-tag v-if="row.is_admin" type="primary">是</el-tag>
             <el-tag v-else type="info">否</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="is_active" label="状态" width="100">
+          <template #default="{ row }">
+            <el-tag :type="row.is_active ? 'success' : 'danger'">
+              {{ row.is_active ? '启用' : '禁用' }}
+            </el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="enterprise_name" label="企业名称" width="150">
@@ -147,6 +165,9 @@
         <el-form-item label="系统管理员">
           <el-checkbox v-model="createForm.is_admin">设置为系统管理员</el-checkbox>
         </el-form-item>
+        <el-form-item label="状态">
+          <el-switch v-model="createForm.is_active" active-text="启用" inactive-text="禁用" />
+        </el-form-item>
         <el-form-item label="所属企业" prop="enterprise_id">
           <el-select v-model="createForm.enterprise_id" placeholder="请选择企业" style="width: 100%">
             <el-option
@@ -196,6 +217,9 @@
         </el-form-item>
         <el-form-item label="管理员">
           <el-checkbox v-model="editForm.is_admin">设置为管理员</el-checkbox>
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-switch v-model="editForm.is_active" active-text="启用" inactive-text="禁用" />
         </el-form-item>
         <el-form-item label="所属企业">
           <el-select v-model="editForm.enterprise_id" placeholder="请选择企业" clearable>
@@ -282,6 +306,7 @@ const pageSize = ref(20)
 
 // 筛选器
 const filterIsAdmin = ref<boolean | undefined>(undefined)
+const filterIsActive = ref<boolean | undefined>(undefined)
 const filterEnterpriseId = ref<string | undefined>(undefined)
 
 // 企业列表
@@ -298,6 +323,7 @@ const createForm = reactive<CreateUserRequest>({
   phone: '',
   password: '',
   is_admin: false,
+  is_active: true,
   enterprise_id: '',
   is_enterprise_admin: false,
 })
@@ -311,6 +337,7 @@ const editForm = reactive<UpdateUserRequest & { user_id?: string }>({
   email: '',
   phone: '',
   is_admin: false,
+  is_active: true,
   enterprise_id: undefined,
   is_enterprise_admin: false,
 })
@@ -471,6 +498,7 @@ function handleCreate() {
     phone: '',
     password: '',
     is_admin: false,
+    is_active: true,
     enterprise_id: undefined,
     is_enterprise_admin: false,
   })
@@ -512,6 +540,7 @@ function handleEdit(user: UserListItem) {
     email: user.email || '',
     phone: user.phone || '',
     is_admin: user.is_admin || false,
+    is_active: (user as any).is_active !== undefined ? (user as any).is_active : true,
     enterprise_id: (user as any).enterprise_id || undefined,
     is_enterprise_admin: (user as any).is_enterprise_admin || false,
   })

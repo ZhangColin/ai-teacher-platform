@@ -92,6 +92,7 @@ async def get_user_list(
             phone=user.phone,
             avatar=user.avatar,
             is_admin=user.is_admin,
+            is_active=user.is_active,
             enterprise_id=user.enterprise_id,
             enterprise_name=enterprises_map.get(user.enterprise_id) if user.enterprise_id else None,
             is_enterprise_admin=user.is_enterprise_admin or False,
@@ -131,6 +132,7 @@ async def create_user(
             phone=request.phone,
             avatar=request.avatar,
             is_admin=request.is_admin,
+            is_active=request.is_active,
             is_enterprise_admin=request.is_enterprise_admin,
             enterprise_id=request.enterprise_id
         )
@@ -144,6 +146,7 @@ async def create_user(
             phone=user.phone,
             avatar=user.avatar,
             is_admin=user.is_admin,
+            is_active=user.is_active,
             enterprise_id=user.enterprise_id,
             is_enterprise_admin=user.is_enterprise_admin or False,
             created_at=user.created_at
@@ -182,6 +185,7 @@ async def get_user(
         phone=user.phone,
         avatar=user.avatar,
         is_admin=user.is_admin,
+        is_active=user.is_active,
         created_at=user.created_at
     )
 
@@ -241,6 +245,7 @@ async def _update_user_impl(
             email=request.email,
             phone=request.phone,
             is_admin=request.is_admin,
+            is_active=request.is_active,
             enterprise_id=request.enterprise_id,
             is_enterprise_admin=request.is_enterprise_admin
         )
@@ -260,6 +265,7 @@ async def _update_user_impl(
             phone=user.phone,
             avatar=user.avatar,
             is_admin=user.is_admin,
+            is_active=user.is_active,
             enterprise_id=user.enterprise_id,
             is_enterprise_admin=user.is_enterprise_admin or False,
             created_at=user.created_at

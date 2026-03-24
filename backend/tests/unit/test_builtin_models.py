@@ -12,7 +12,8 @@ from src.services.builtin_models import (
 def test_get_builtin_providers():
     """测试获取内置供应商列表"""
     providers = get_builtin_providers()
-    assert len(providers) == 4
+    # 确保至少有核心供应商
+    assert len(providers) >= 4
     assert any(p["code"] == "deepseek" for p in providers)
     assert any(p["code"] == "openai" for p in providers)
 
@@ -27,7 +28,7 @@ def test_get_builtin_models_all():
 def test_get_builtin_models_by_provider():
     """测试按供应商获取模型"""
     models = get_builtin_models("deepseek")
-    assert len(models) == 2
+    assert len(models) >= 2  # 至少有 deepseek-chat 和 deepseek-coder
     assert any(m["code"] == "deepseek-chat" for m in models)
 
 

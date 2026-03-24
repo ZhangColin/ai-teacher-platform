@@ -62,7 +62,7 @@ class EnterpriseModel(Base):
 class UserModel(Base):
     """用户数据库模型（SQLAlchemy ORM）"""
     __tablename__ = "users"
-    
+
     user_id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     username = Column(String(50), unique=True, nullable=False, index=True)
     nickname = Column(String(50), nullable=True)
@@ -71,6 +71,7 @@ class UserModel(Base):
     password_hash = Column(String(255), nullable=False)
     avatar = Column(String(500), nullable=True)
     is_admin = Column(Boolean, nullable=False, default=False, index=True)
+    is_active = Column(Boolean, nullable=False, default=True, index=True, comment='用户是否激活')
     # 企业关联
     enterprise_id = Column(CHAR(36), ForeignKey("enterprises.id"), nullable=False, index=True, comment='所属企业ID')
     is_enterprise_admin = Column(Boolean, nullable=False, default=False, index=True, comment='是否企业管理员')

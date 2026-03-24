@@ -219,6 +219,7 @@ export interface UserListItem {
   phone?: string // 用户手机号（可选，用于登录）
   avatar?: string // 用户头像URL
   is_admin?: boolean // 是否为管理员（可选，默认false）
+  is_active?: boolean // 用户是否激活（可选，默认true）
   enterprise_id?: string // 所属企业ID
   enterprise_name?: string // 所属企业名称
   is_enterprise_admin?: boolean // 是否为企业管理员
@@ -246,6 +247,7 @@ export interface CreateUserRequest {
   password: string // 用户密码
   avatar?: string // 用户头像URL（可选）
   is_admin?: boolean // 是否为管理员（可选，默认false）
+  is_active?: boolean // 用户是否激活（可选，默认true）
   enterprise_id: string // 所属企业ID（必填）
   is_enterprise_admin?: boolean // 是否为企业管理员（可选，默认false）
 }
@@ -266,6 +268,7 @@ export interface UpdateUserRequest {
   email?: string // 用户邮箱（可选）
   phone?: string // 用户手机号（可选）
   is_admin?: boolean // 是否为管理员（可选）
+  is_active?: boolean // 用户是否激活（可选）
   enterprise_id?: string // 所属企业ID（可选）
   is_enterprise_admin?: boolean // 是否为企业管理员（可选）
 }
@@ -1241,6 +1244,7 @@ export interface ConsumptionItem {
   id: string
   user_id: string
   username?: string
+  nickname?: string
   model_provider: string
   model_name: string
   prompt_tokens: number
@@ -1249,16 +1253,27 @@ export interface ConsumptionItem {
   gratis_points_used: number
   paid_points_used: number
   total_points: number
+  points: number  // 前端使用的字段别名
   created_at: string
+}
+
+/**
+ * 消费统计数据
+ */
+export interface ConsumptionStats {
+  today_consumed: number
+  month_consumed: number
+  total_consumed: number
 }
 
 /**
  * 消费记录列表响应
  */
 export interface ConsumptionListResponse {
-  consumptions: ConsumptionItem[]
+  items: ConsumptionItem[]
   total: number
   page: number
+  stats?: ConsumptionStats
 }
 
 // ==================== 模型积分汇率配置模块 ====================

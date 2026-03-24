@@ -284,7 +284,8 @@ class PointService:
         page_size: int = 20,
         user_id: str = None,
         start_date = None,
-        end_date = None
+        end_date = None,
+        model_name: str = None
     ) -> tuple:
         """获取消费记录列表"""
         query = self.db.query(AIConsumptionModel).filter(
@@ -297,6 +298,8 @@ class PointService:
             query = query.filter(AIConsumptionModel.created_at >= start_date)
         if end_date:
             query = query.filter(AIConsumptionModel.created_at <= end_date)
+        if model_name:
+            query = query.filter(AIConsumptionModel.model_name == model_name)
 
         total = query.count()
 

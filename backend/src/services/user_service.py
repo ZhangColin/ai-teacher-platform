@@ -20,7 +20,7 @@ class UserService:
         """获取数据库会话"""
         return SessionLocal()
     
-    def create_user(self, username: str, password: str, nickname: Optional[str] = None, email: Optional[str] = None, phone: Optional[str] = None, avatar: Optional[str] = None, is_admin: bool = False, is_enterprise_admin: bool = False, enterprise_id: Optional[str] = None) -> User:
+    def create_user(self, username: str, password: str, nickname: Optional[str] = None, email: Optional[str] = None, phone: Optional[str] = None, avatar: Optional[str] = None, is_admin: bool = False, is_active: bool = True, is_enterprise_admin: bool = False, enterprise_id: Optional[str] = None) -> User:
         """
         创建新用户
 
@@ -32,6 +32,7 @@ class UserService:
             phone: 用户手机号（可选，用于登录）
             avatar: 用户头像URL（可选）
             is_admin: 是否为管理员（默认为false）
+            is_active: 用户是否激活（默认为true）
             is_enterprise_admin: 是否为企业管理员（默认为false）
             enterprise_id: 企业ID（必填）
 
@@ -56,6 +57,7 @@ class UserService:
                 password_hash=user_entity.password_hash,
                 avatar=user_entity.avatar,
                 is_admin=user_entity.is_admin,
+                is_active=is_active,
                 is_enterprise_admin=is_enterprise_admin,
                 enterprise_id=enterprise_id,
                 created_at=user_entity.created_at
@@ -64,7 +66,7 @@ class UserService:
             db.add(user_model)
             db.commit()
             db.refresh(user_model)
-            
+
             # 转换回User实体
             return User(
                 user_id=user_model.user_id,
@@ -75,6 +77,7 @@ class UserService:
                 password_hash=user_model.password_hash,
                 avatar=user_model.avatar,
                 is_admin=user_model.is_admin,
+                is_active=user_model.is_active,
                 enterprise_id=user_model.enterprise_id,
                 is_enterprise_admin=user_model.is_enterprise_admin or False,
                 created_at=user_model.created_at
@@ -285,6 +288,7 @@ class UserService:
         email: Optional[str] = None,
         phone: Optional[str] = None,
         is_admin: Optional[bool] = None,
+        is_active: Optional[bool] = None,
         enterprise_id: Optional[str] = None,
         is_enterprise_admin: Optional[bool] = None
     ) -> Optional[User]:
@@ -298,6 +302,7 @@ class UserService:
             email: 用户邮箱（可选）
             phone: 用户手机号（可选）
             is_admin: 是否为管理员（可选）
+            is_active: 用户是否激活（可选）
             enterprise_id: 所属企业ID（可选）
             is_enterprise_admin: 是否为企业管理员（可选）
 
@@ -313,32 +318,32 @@ class UserService:
             user_model = db.query(UserModel).filter(UserModel.user_id == user_id).first()
             if user_model is None:
                 return None
-            
+
             # 检查是否尝试取消最后一个管理员
             if is_admin is not None and not is_admin and user_model.is_admin:
                 # 查询管理员总数
                 admin_count = db.query(UserModel).filter(UserModel.is_admin == True).count()
                 if admin_count <= 1:
                     raise ValueError("不允许取消最后一个管理员的管理员权限")
-            
+
             # 检查用户名冲突
             if username is not None and username != user_model.username:
                 existing = db.query(UserModel).filter(UserModel.username == username).first()
                 if existing:
                     raise ValueError("用户名已被其他用户使用")
-            
+
             # 检查邮箱冲突
             if email is not None and email != user_model.email:
                 existing = db.query(UserModel).filter(UserModel.email == email).first()
                 if existing:
                     raise ValueError("邮箱已被其他用户使用")
-            
+
             # 检查手机号冲突
             if phone is not None and phone != user_model.phone:
                 existing = db.query(UserModel).filter(UserModel.phone == phone).first()
                 if existing:
                     raise ValueError("手机号已被其他用户使用")
-            
+
             # 更新字段
             if username is not None:
                 user_model.username = username
@@ -350,14 +355,16 @@ class UserService:
                 user_model.phone = phone
             if is_admin is not None:
                 user_model.is_admin = is_admin
+            if is_active is not None:
+                user_model.is_active = is_active
             if enterprise_id is not None:
                 user_model.enterprise_id = enterprise_id
             if is_enterprise_admin is not None:
                 user_model.is_enterprise_admin = is_enterprise_admin
-            
+
             db.commit()
             db.refresh(user_model)
-            
+
             # 转换回User实体
             return User(
                 user_id=user_model.user_id,
@@ -368,6 +375,7 @@ class UserService:
                 password_hash=user_model.password_hash,
                 avatar=user_model.avatar,
                 is_admin=user_model.is_admin,
+                is_active=user_model.is_active,
                 enterprise_id=user_model.enterprise_id,
                 is_enterprise_admin=user_model.is_enterprise_admin or False,
                 created_at=user_model.created_at

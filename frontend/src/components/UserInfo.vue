@@ -1,5 +1,10 @@
 <template>
   <div v-if="authStore.isAuthenticated && authStore.user" class="user-info">
+    <!-- 积分显示（仅企业用户显示） -->
+    <div v-if="authStore.user.enterprise_id" class="points-display">
+      <span class="points-icon">💎</span>
+      <span class="points-value">{{ formatPoints(userPoints) }}</span>
+    </div>
     <div class="user-avatar" @click="toggleDropdown">
       <span class="avatar-text">{{ userInitial }}</span>
     </div>
@@ -32,13 +37,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
+import apiClient from '@/services/apiClient'
+import { ElMessage } from 'element-plus'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const showDropdown = ref(false)
+const userPoints = ref(0)
 
 // 显示名称：优先使用昵称，如未填写则使用用户名
 const displayName = computed(() => {
@@ -66,6 +74,29 @@ const userInitial = computed(() => {
   }
   return 'U'
 })
+
+// 格式化积分显示
+function formatPoints(points: number): string {
+  if (points >= 10000) {
+    return (points / 10000).toFixed(1) + 'w'
+  }
+  return points.toString()
+}
+
+// 加载用户积分
+async function loadUserPoints() {
+  if (!authStore.user?.enterprise_id) {
+    return
+  }
+
+  try {
+    const response = await apiClient.get('/enterprise/points/balance')
+    userPoints.value = response.data.total_points || 0
+  } catch (error) {
+    // 静默失败，不影响用户体验
+    console.error('加载积分失败:', error)
+  }
+}
 
 // 切换下拉菜单
 function toggleDropdown() {
@@ -101,6 +132,14 @@ function handleLogout() {
 
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
+  loadUserPoints()
+})
+
+// 监听用户登录状态变化，重新加载积分
+watch(() => authStore.isAuthenticated, (isAuthenticated) => {
+  if (isAuthenticated) {
+    loadUserPoints()
+  }
 })
 
 onUnmounted(() => {
@@ -131,6 +170,19 @@ onUnmounted(() => {
 
 .user-name {
   @apply text-sm text-gray-900 font-medium;
+}
+
+/* 积分显示 */
+.points-display {
+  @apply flex items-center gap-1 px-3 py-1 rounded-full bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200;
+}
+
+.points-icon {
+  font-size: 14px;
+}
+
+.points-value {
+  @apply text-sm font-semibold text-amber-600;
 }
 
 /* 平板端响应式（768px - 1023px） */
@@ -194,6 +246,10 @@ onUnmounted(() => {
 @media (max-width: 767px) {
   .user-name {
     display: none; /* 移动端只显示头像 */
+  }
+
+  .points-display {
+    display: none; /* 移动端隐藏积分 */
   }
   
   .user-avatar {
