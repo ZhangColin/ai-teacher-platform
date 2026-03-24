@@ -12,13 +12,13 @@ from src.models import ChatRequest, ChatResponse, Message, Artifact, UserInfo
 from src.interfaces.dependencies import (
     get_ai_service_with_db,
     get_session_service,
-    get_tool_service,
+    get_config_service,
     get_artifact_parser,
     get_title_generator,
 )
 from src.services.ai_service import AIService
 from src.services.session_service import SessionService
-from src.services.tool_service import ToolService
+from src.services.config_service import ConfigService
 from src.services.token_service import TokenService
 from src.services.point_service import PointService
 from src.database import get_db
@@ -37,7 +37,7 @@ async def chat_stream(
     current_user: Annotated[UserInfo, Depends(get_current_user)],
     ai_service: AIService = Depends(get_ai_service_with_db),
     session_service: SessionService = Depends(get_session_service),
-    tool_service: ToolService = Depends(get_tool_service),
+    config_service: ConfigService = Depends(get_config_service),
     title_generator = Depends(get_title_generator),
 ):
     """
@@ -46,15 +46,13 @@ async def chat_stream(
     使用Server-Sent Events (SSE)返回AI的流式响应
     """
     # 获取工具配置
-    tool = tool_service.get_tool_by_id(tool_id)
+    tool = config_service.get_tool_by_id(tool_id)
 
     # 调试输出 - 打印完整请求
     import json
     logger.info(f"🔍 收到请求: {json.dumps({'tool_id': tool_id, 'model': request.model, 'message': request.message[:50] if request.message else None})}")
     logger.info(f"🔍 查找工具: tool_id='{tool_id}'")
     logger.info(f"🔍 找到工具: {tool}")
-    logger.info(f"🔍 ToolService实例: {id(tool_service)}")
-    logger.info(f"🔍 config_dir: {tool_service.config_dir}")
 
     if not tool:
         raise HTTPException(status_code=404, detail=f"Tool '{tool_id}' not found")
@@ -306,7 +304,7 @@ async def chat_non_stream(
     current_user: Annotated[UserInfo, Depends(get_current_user)],
     ai_service: AIService = Depends(get_ai_service_with_db),
     session_service: SessionService = Depends(get_session_service),
-    tool_service: ToolService = Depends(get_tool_service),
+    config_service: ConfigService = Depends(get_config_service),
     artifact_parser = Depends(get_artifact_parser),
     title_generator = Depends(get_title_generator),
 ):
@@ -316,7 +314,7 @@ async def chat_non_stream(
     返回完整的AI响应
     """
     # 获取工具配置
-    tool = tool_service.get_tool_by_id(tool_id)
+    tool = config_service.get_tool_by_id(tool_id)
     if not tool:
         raise HTTPException(status_code=404, detail=f"Tool '{tool_id}' not found")
 

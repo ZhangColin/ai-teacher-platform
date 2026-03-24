@@ -25,9 +25,10 @@ from src.interfaces.auth import get_current_user
 from src.interfaces.dependencies import (
     get_ai_service,
     get_session_service,
-    get_tool_service,
+    get_config_service,
     get_title_generator,
 )
+from src.services.config_service import ConfigService
 
 logger = logging.getLogger(__name__)
 
@@ -80,22 +81,30 @@ async def generate_media(
     try:
         logger.info(f"收到多模态生成请求 - 工具: {tool_id}, size={media_request.size}, count={media_request.count}, style={media_request.style}")
 
-        tool_service = get_tool_service()
+        # 使用数据库配置服务
+        from src.database import get_db
+        from src.services.config_service import ConfigService
+        db = next(get_db())
+        try:
+            config_service = ConfigService(db)
+
+            # 1. 获取工具配置
+            tool = config_service.get_tool_by_id(tool_id)
+            if not tool:
+                raise HTTPException(status_code=404, detail="工具不存在")
+
+            # 验证是多模态工具
+            if tool.content_type != "multimodal":
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"工具 {tool_id} 不支持多模态生成，请使用文本对话接口"
+                )
+        finally:
+            db.close()
+
         session_service = get_session_service()
         ai_service = get_ai_service()
         title_generator = get_title_generator()
-
-        # 1. 获取工具配置
-        tool = tool_service.get_tool_by_id(tool_id)
-        if not tool:
-            raise HTTPException(status_code=404, detail="工具不存在")
-
-        # 验证是多模态工具
-        if tool.content_type != "multimodal":
-            raise HTTPException(
-                status_code=400,
-                detail=f"工具 {tool_id} 不支持多模态生成，请使用文本对话接口"
-            )
 
         # 2. 创建或获取会话
         session_id = media_request.session_id

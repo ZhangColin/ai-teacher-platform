@@ -118,6 +118,8 @@ def db_session() -> Generator[Session, None, None]:
     - 每个测试函数独立数据库
     - 自动清理
     """
+    import uuid
+
     # 创建所有表
     Base.metadata.create_all(test_engine)
 
@@ -125,10 +127,11 @@ def db_session() -> Generator[Session, None, None]:
     TestingSessionLocal = sessionmaker(bind=test_engine)
     session = TestingSessionLocal()
 
-    # 创建默认测试企业（所有测试用户都关联到此企业）
+    # 创建默认测试企业（使用唯一 code 避免并行测试冲突）
+    unique_suffix = str(uuid.uuid4())[:8]
     default_enterprise = EnterpriseModel(
         name="测试企业",
-        code="test_enterprise",
+        code=f"test_enterprise_{unique_suffix}",
         balance_gratis=1000000,
         balance_paid=0,
         debt_points=0,
@@ -139,6 +142,88 @@ def db_session() -> Generator[Session, None, None]:
     session.refresh(default_enterprise)
     # 将企业ID存储在session中，供其他fixture使用
     session.test_enterprise_id = default_enterprise.id
+
+    # 创建测试导航模块
+    from src.db_models import (
+        NavigationModuleModel, NavigationModuleType,
+        AIToolCategoryModel, AIToolModel, AIToolType
+    )
+
+    test_nav_module = NavigationModuleModel(
+        id=f"test_tools_{unique_suffix}",
+        name="测试工具",
+        type=NavigationModuleType.ai_tools,
+        config_source="database",
+        icon="beaker",
+        order=999
+    )
+    session.add(test_nav_module)
+
+    # 创建测试工具分类
+    test_category = AIToolCategoryModel(
+        name="AI工具",
+        navigation_module_id=f"test_tools_{unique_suffix}",
+        icon="chat-bubble-left",
+        order=1
+    )
+    session.add(test_category)
+    session.commit()
+
+    # 创建测试工具 - text_gen
+    text_gen_tool = AIToolModel(
+        tool_id="text_gen",
+        name="文本生成",
+        description="AI文本生成工具（测试用）",
+        navigation_module_id=f"test_tools_{unique_suffix}",
+        category_id=test_category.id,
+        icon="chat-bubble-left",
+        visible=True,
+        type=AIToolType.normal,
+        order=1,
+        system_prompt="你是一个AI助手",
+        welcome_message="欢迎使用文本生成工具\n",
+        model="deepseek:deepseek-chat"
+    )
+    session.add(text_gen_tool)
+
+    # 创建测试工具 - audio_gen
+    audio_gen_tool = AIToolModel(
+        tool_id="audio_gen",
+        name="音频生成",
+        description="AI音频生成工具（测试用）",
+        navigation_module_id=f"test_tools_{unique_suffix}",
+        category_id=test_category.id,
+        icon="speaker-wave",
+        visible=True,
+        type=AIToolType.media,
+        order=2,
+        system_prompt="你是一个音频生成助手",
+        welcome_message="欢迎使用音频生成工具",
+        model="glm:glm-tts",
+        content_type="multimodal",
+        media_type="audio"
+    )
+    session.add(audio_gen_tool)
+
+    # 创建测试工具 - image_gen
+    image_gen_tool = AIToolModel(
+        tool_id="image_gen",
+        name="图片生成",
+        description="AI图片生成工具（测试用）",
+        navigation_module_id=f"test_tools_{unique_suffix}",
+        category_id=test_category.id,
+        icon="photo",
+        visible=True,
+        type=AIToolType.media,
+        order=3,
+        system_prompt="你是一个图片生成助手",
+        welcome_message="欢迎使用图片生成工具",
+        model="glm:cogview-4",
+        content_type="multimodal",
+        media_type="image"
+    )
+    session.add(image_gen_tool)
+    session.commit()
 
     yield session
 
