@@ -4,6 +4,8 @@ import hashlib
 import json
 import logging
 from typing import Optional
+from datetime import datetime, timedelta
+import httpx
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.backends import default_backend
@@ -158,3 +160,108 @@ class IcbcClient:
         # 拼接
         sign_str = "&".join([f"{k}={v}" for k, v in sorted_params])
         return sign_str
+
+    async def create_order(
+        self,
+        out_trade_no: str,
+        amount: int,
+        expire_time: int = 900,
+        body: str = "积分充值",
+    ) -> dict:
+        """
+        调用工行统一下单接口
+
+        Args:
+            out_trade_no: 商户订单号
+            amount: 金额（分）
+            expire_time: 过期时间（秒），默认 900 秒（15 分钟）
+            body: 商品描述
+
+        Returns:
+            工行响应结果
+        """
+        biz_content = {
+            "mer_id": self.mer_id,
+            "mer_prtcl_no": self.mer_prtcl_no,
+            "out_trade_no": out_trade_no,
+            "orig_date_time": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+            "fee_type": "001",
+            "total_fee": str(amount),
+            "pay_mode": "9",
+            "access_type": "9",
+            "notify_type": "HS",
+            "result_type": "0",
+            "expire_time": str(expire_time),
+            "body": body,
+            "mer_url": self.notify_url,
+            "device_info": self.device_info,
+            "icbc_appid": self.app_id,
+        }
+
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        params = {
+            "app_id": self.app_id,
+            "format": "json",
+            "charset": "UTF-8",
+            "sign_type": "RSA2",
+            "timestamp": timestamp,
+            "biz_content": json.dumps(biz_content, ensure_ascii=False),
+        }
+
+        sign_str = self._build_sign_str(params)
+        sign = self._sign(sign_str, "RSA2")
+        params["sign"] = sign
+
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.post(
+                self.API_CREATE_ORDER,
+                json=params,
+                headers={"Content-Type": "application/json"}
+            )
+            response.raise_for_status()
+            result = response.json()
+
+        logger.info(f"工行下单响应: {result}")
+        return result
+
+    async def query_order(self, out_trade_no: str) -> dict:
+        """
+        调用工行订单查询接口
+
+        Args:
+            out_trade_no: 商户订单号
+
+        Returns:
+            工行响应结果
+        """
+        biz_content = {
+            "mer_id": self.mer_id,
+            "mer_prtcl_no": self.mer_prtcl_no,
+            "out_trade_no": out_trade_no,
+        }
+
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        params = {
+            "app_id": self.app_id,
+            "format": "json",
+            "charset": "UTF-8",
+            "sign_type": "RSA2",
+            "timestamp": timestamp,
+            "biz_content": json.dumps(biz_content, ensure_ascii=False),
+        }
+
+        sign_str = self._build_sign_str(params)
+        sign = self._sign(sign_str, "RSA2")
+        params["sign"] = sign
+
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.post(
+                self.API_QUERY_ORDER,
+                json=params,
+                headers={"Content-Type": "application/json"}
+            )
+            response.raise_for_status()
+            result = response.json()
+
+        logger.info(f"工行查询响应: {result}")
+        return result
