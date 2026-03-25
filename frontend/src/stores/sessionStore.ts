@@ -223,6 +223,14 @@ export const useSessionStore = defineStore('session', () => {
         timestamp: msg.timestamp || (msg as any).created_at,
         artifacts: msg.artifacts || [],
       }))
+
+      // 恢复模型选择
+      if (response.model_provider && response.model_name) {
+        currentModel.value = `${response.model_provider}:${response.model_name}`
+        console.log('[sessionStore] 恢复会话模型:', currentModel.value)
+      } else {
+        currentModel.value = null
+      }
     } catch (err) {
       error.value = err instanceof Error ? err.message : '恢复会话失败'
       throw err
