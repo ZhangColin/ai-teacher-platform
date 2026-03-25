@@ -137,10 +137,19 @@ def get_course_service() -> CourseService:
     return CourseService()
 
 
-@lru_cache
-def get_title_generator() -> TitleGenerator:
-    """获取标题生成器实例（单例）"""
-    return TitleGenerator()
+def get_title_generator(db: Session = Depends(get_db)) -> TitleGenerator:
+    """
+    获取标题生成器实例
+
+    注意：不使用 @lru_cache，因为每次需要新的数据库会话
+
+    Args:
+        db: 数据库会话（通过依赖注入）
+
+    Returns:
+        TitleGenerator 实例
+    """
+    return TitleGenerator(db)
 
 
 @lru_cache

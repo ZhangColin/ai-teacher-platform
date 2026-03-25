@@ -1,105 +1,83 @@
 """会话标题生成服务"""
 import logging
-from typing import Optional, Tuple
+from typing import Optional
 from openai import OpenAI
-import os
-from dotenv import load_dotenv
+from sqlalchemy.orm import Session
 
-# 加载环境变量
-load_dotenv()
+from src.services.model_provider_service import ModelProviderService
 
 logger = logging.getLogger(__name__)
 
 
 class TitleGenerator:
     """会话标题生成器"""
-    
-    def __init__(self):
-        """初始化标题生成器"""
-        self.client, self.model_name = self._get_ai_client()
-    
-    def _get_ai_client(self) -> Tuple[Optional[OpenAI], str]:
+
+    def __init__(self, db: Session):
         """
-        获取 AI 客户端和模型名称
-        优先级：TITLE_GENERATION_MODEL > DeepSeek > CURRENT_PROVIDER
-        
+        初始化标题生成器
+
+        Args:
+            db: 数据库会话
+        """
+        self.db = db
+        self.model_provider_service = ModelProviderService(db)
+
+    def _get_ai_client(self, provider_code: str, model_name: str) -> Optional[OpenAI]:
+        """
+        根据供应商代码和模型名称获取 AI 客户端
+
+        Args:
+            provider_code: 供应商代码（如 deepseek, openai）
+            model_name: 模型名称
+
         Returns:
-            (client, model_name) 元组
+            OpenAI 客户端，如果获取失败返回 None
         """
-        # 1. 检查是否配置了标题生成专用模型
-        title_model_config = os.getenv("TITLE_GENERATION_MODEL")
-        if title_model_config and ":" in title_model_config:
-            provider, model_name = title_model_config.split(":", 1)
-            provider = provider.lower()
-            logger.info(f"标题生成使用配置的专用模型: {provider}:{model_name}")
-        else:
-            # 2. 优先尝试 DeepSeek（成本最低）
-            api_key = os.getenv("DEEPSEEK_API_KEY")
-            if api_key and api_key.startswith("sk-"):
-                provider = "deepseek"
-                model_name = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
-                logger.info(f"标题生成使用 DeepSeek（成本优先）")
-            else:
-                # 3. 使用当前配置的服务商
-                provider = os.getenv("CURRENT_PROVIDER", "deepseek").lower()
-                model_name = None  # 稍后从环境变量读取
-                logger.info(f"标题生成使用系统默认服务商: {provider}")
-        
-        # 根据服务商获取配置
-        api_key = ""
-        base_url = ""
-        
-        if provider == "openai":
-            api_key = os.getenv("OPENAI_API_KEY")
-            base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
-            if not model_name:
-                model_name = os.getenv("OPENAI_MODEL", "gpt-4")
-        elif provider == "deepseek":
-            api_key = os.getenv("DEEPSEEK_API_KEY")
-            base_url = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
-            if not model_name:
-                model_name = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
-        elif provider == "kimi":
-            api_key = os.getenv("KIMI_API_KEY")
-            base_url = os.getenv("KIMI_BASE_URL", "https://api.moonshot.cn/v1")
-            if not model_name:
-                model_name = os.getenv("KIMI_MODEL", "moonshot-v1-8k")
-        else:
-            logger.warning(f"标题生成服务：未知的服务商 [{provider}]")
-            return None, ""
-        
-        # 校验 API Key
-        if not api_key or not api_key.startswith("sk-"):
-            logger.warning("标题生成服务：未找到有效的 API Key")
-            return None, ""
-        
-        # 创建客户端
-        client = OpenAI(
-            api_key=api_key,
-            base_url=base_url,
-            timeout=30.0,  # 标题生成使用较短的超时时间
-            max_retries=1  # 只重试一次
-        )
-        
-        logger.info(f"标题生成服务初始化成功 - 服务商: {provider}, 模型: {model_name}")
-        return client, model_name
-    
+        try:
+            # 从数据库获取供应商配置
+            provider = self.model_provider_service.get_provider_by_code(provider_code)
+            if not provider:
+                logger.warning(f"标题生成：供应商 '{provider_code}' 不存在")
+                return None
+
+            if not provider.is_enabled:
+                logger.warning(f"标题生成：供应商 '{provider_code}' 已禁用")
+                return None
+
+            # 获取解密后的 API Key
+            api_key = self.model_provider_service.get_provider_api_key(provider.id)
+            base_url = provider.base_url
+
+            # 创建客户端
+            client = OpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                timeout=30.0,
+                max_retries=1
+            )
+
+            logger.info(f"标题生成客户端创建成功 - 服务商: {provider_code}, 模型: {model_name}")
+            return client
+
+        except Exception as e:
+            logger.error(f"标题生成：获取 AI 客户端失败 - {e}")
+            return None
+
     async def generate_title(
         self,
         user_message: str,
-        ai_response: Optional[str] = None
+        ai_response: Optional[str] = None,
+        model_provider: Optional[str] = None,
+        model_name: Optional[str] = None
     ) -> str:
         """
         智能生成会话标题
 
-        策略：
-        1. 用户消息为空：直接返回"新对话"
-        2. 如果用户消息 < 10字符：使用用户消息+AI回复前300字
-        3. 否则：只使用用户消息前500字
-
         Args:
             user_message: 用户消息
             ai_response: AI回复（可选）
+            model_provider: 模型供应商代码（可选）
+            model_name: 模型名称（可选）
 
         Returns:
             生成的标题（8-15个字）
@@ -110,8 +88,15 @@ class TitleGenerator:
         if not user_msg:
             return "新对话"
 
-        # 如果没有AI客户端，使用降级方案
-        if not self.client:
+        # 如果没有指定模型，使用降级方案
+        if not model_provider or not model_name:
+            logger.warning("标题生成：未指定模型，使用降级方案")
+            return self._fallback_title(user_message)
+
+        # 获取 AI 客户端
+        client = self._get_ai_client(model_provider, model_name)
+        if not client:
+            logger.warning("标题生成：无法获取 AI 客户端，使用降级方案")
             return self._fallback_title(user_message)
 
         # 策略选择：短消息需要AI回复辅助
@@ -130,23 +115,20 @@ AI回复：{ai_preview}
 直接输出标题，无需标点："""
 
         try:
-            logger.info(f"开始生成会话标题 - 用户消息长度: {len(user_msg)}, 使用模型: {self.model_name}")
+            logger.info(f"开始生成会话标题 - 使用模型: {model_provider}:{model_name}")
 
-            response = self.client.chat.completions.create(
-                model=self.model_name,  # 使用配置的模型
+            response = client.chat.completions.create(
+                model=model_name,
                 messages=[
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=30,  # 标题不需要太长
+                max_tokens=30,
                 temperature=0.7
             )
 
             title = response.choices[0].message.content.strip()
-
-            # 清理标题（去除标点符号）
             title = self._clean_title(title)
 
-            # 限制长度
             if len(title) > 30:
                 title = title[:30]
 
@@ -155,47 +137,21 @@ AI回复：{ai_preview}
 
         except Exception as e:
             logger.error(f"AI生成标题失败: {e}")
-            # 降级方案
             return self._fallback_title(user_message)
 
     def _clean_title(self, title: str) -> str:
-        """
-        清理标题，移除标点符号
-
-        Args:
-            title: 原始标题
-
-        Returns:
-            清理后的标题
-        """
-        # 定义需要移除的标点符号
+        """清理标题，移除标点符号"""
         punctuation = '"\'。，！？、：；""''《》【】（）[]{}、，。！？；：'
-
-        # 移除所有标点符号
         for char in punctuation:
             title = title.replace(char, '')
-
         return title.strip()
-    
+
     def _fallback_title(self, user_message: str) -> str:
-        """
-        降级方案：使用简单截取生成标题
-
-        Args:
-            user_message: 用户消息
-
-        Returns:
-            截取的标题（最多30个字符）
-        """
+        """降级方案：使用简单截取生成标题"""
         msg = user_message.strip()
-
         if not msg:
             return "新对话"
-
-        # 去除换行符
         msg = msg.replace('\n', ' ').replace('\r', ' ')
-
-        # 截取前30个字符，超过则添加"..."
         if len(msg) > 30:
             return msg[:30]
         else:
