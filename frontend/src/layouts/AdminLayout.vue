@@ -98,7 +98,7 @@ import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/authStore'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { OfficeBuilding, Tools, Picture, Document, Setting, Coin, Wallet } from '@element-plus/icons-vue'
+import { OfficeBuilding, Tools, Picture, Document, Setting, Wallet } from '@element-plus/icons-vue'
 import Logo from '../components/Logo.vue'
 
 const router = useRouter()

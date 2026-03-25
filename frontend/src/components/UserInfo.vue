@@ -41,7 +41,6 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import apiClient from '@/services/apiClient'
-import { ElMessage } from 'element-plus'
 
 const router = useRouter()
 const authStore = useAuthStore()
