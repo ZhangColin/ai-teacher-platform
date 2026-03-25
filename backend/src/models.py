@@ -4,7 +4,7 @@ import bcrypt
 import logging
 import enum
 from datetime import datetime
-from typing import List, Optional, Literal, Any, Annotated
+from typing import List, Optional, Literal, Any, Annotated, Union
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 from pydantic import BeforeValidator
 
@@ -12,11 +12,11 @@ logger = logging.getLogger(__name__)
 
 
 # 空字符串转 None 的验证器（用于可选字符串字段）
-def empty_str_to_none(value: Any) -> Any:
-    """将空字符串转换为 None，用于可选字段的验证"""
-    if value == "" or value is None:
+def empty_str_to_none(value: Any) -> Optional[str]:
+    """将空字符串或 null 转换为 None，用于可选字段的验证"""
+    if value is None or value == "":
         return None
-    return value
+    return str(value)
 
 
 # ==================== 企业积分系统枚举 ====================
@@ -375,8 +375,8 @@ class User(BaseModel):
     user_id: str = Field(..., description="用户唯一标识（UUID）")
     username: str = Field(..., description="用户名（必填，用于登录，必须唯一）", min_length=1, max_length=50)
     nickname: Optional[str] = Field(None, description="用户昵称（可选，用于显示，如未填写则使用用户名）")
-    email: Optional[Annotated[str, BeforeValidator(empty_str_to_none)]] = Field(None, description="用户邮箱（可选，用于登录）", pattern=r'^[^@]+@[^@]+\.[^@]+$')
-    phone: Optional[Annotated[str, BeforeValidator(empty_str_to_none)]] = Field(None, description="用户手机号（可选，用于登录）", pattern=r'^1[3-9]\d{9}$')
+    email: Annotated[Optional[str], BeforeValidator(empty_str_to_none)] = Field(None, description="用户邮箱（可选，用于登录）", pattern=r'^[^@]+@[^@]+\.[^@]+$')
+    phone: Annotated[Optional[str], BeforeValidator(empty_str_to_none)] = Field(None, description="用户手机号（可选，用于登录）", pattern=r'^1[3-9]\d{9}$')
     password_hash: str = Field(..., description="密码哈希值（bcrypt加密）")
     avatar: Optional[str] = Field(None, description="用户头像URL（可选，默认头像）")
     is_admin: bool = Field(False, description="是否为管理员（默认为false）")
@@ -457,8 +457,8 @@ class CreateUserRequest(BaseModel):
     """创建用户请求"""
     username: str = Field(..., description="用户名（必填，用于登录，必须唯一）", min_length=1, max_length=50)
     nickname: Optional[str] = Field(None, description="用户昵称（可选，用于显示，如未填写则使用用户名）")
-    email: Optional[Annotated[str, BeforeValidator(empty_str_to_none)]] = Field(None, description="用户邮箱（可选，用于登录）", pattern=r'^[^@]+@[^@]+\.[^@]+$')
-    phone: Optional[Annotated[str, BeforeValidator(empty_str_to_none)]] = Field(None, description="用户手机号（可选，用于登录）", pattern=r'^1[3-9]\d{9}$')
+    email: Annotated[Optional[str], BeforeValidator(empty_str_to_none)] = Field(None, description="用户邮箱（可选，用于登录）", pattern=r'^[^@]+@[^@]+\.[^@]+$')
+    phone: Annotated[Optional[str], BeforeValidator(empty_str_to_none)] = Field(None, description="用户手机号（可选，用于登录）", pattern=r'^1[3-9]\d{9}$')
     password: str = Field(..., description="用户密码", min_length=6)
     avatar: Optional[str] = Field(None, description="用户头像URL（可选，默认使用系统默认头像）")
     is_admin: bool = Field(False, description="是否为管理员（默认为false）")
@@ -502,8 +502,8 @@ class UpdateUserRequest(BaseModel):
     """更新用户信息请求"""
     username: Optional[str] = Field(None, description="用户名", min_length=1, max_length=50)
     nickname: Optional[str] = Field(None, description="用户昵称", max_length=50)
-    email: Optional[Annotated[str, BeforeValidator(empty_str_to_none)]] = Field(None, description="用户邮箱", pattern=r'^[^@]+@[^@]+\.[^@]+$')
-    phone: Optional[Annotated[str, BeforeValidator(empty_str_to_none)]] = Field(None, description="用户手机号", pattern=r'^1[3-9]\d{9}$')
+    email: Annotated[Optional[str], BeforeValidator(empty_str_to_none)] = Field(None, description="用户邮箱", pattern=r'^[^@]+@[^@]+\.[^@]+$')
+    phone: Annotated[Optional[str], BeforeValidator(empty_str_to_none)] = Field(None, description="用户手机号", pattern=r'^1[3-9]\d{9}$')
     is_admin: Optional[bool] = Field(None, description="是否为管理员")
     is_active: Optional[bool] = Field(None, description="用户是否激活")
     # 企业相关字段
