@@ -149,11 +149,31 @@ git commit -m "feat: 会话详情接口返回模型信息"
 ## Task 4: 前端恢复会话模型选择
 
 **文件:**
-- Modify: `frontend/src/stores/sessionStore.ts:184-231`
+- Modify: `frontend/src/stores/sessionStore.ts:219-225`
+- Modify: `frontend/src/services/apiClient.ts`（如需要）
 
-- [ ] **Step 1: 修改 restoreSession 函数**
+- [ ] **Step 1: 验证类型定义已包含模型字段**
 
-打开 `frontend/src/stores/sessionStore.ts`，找到 `restoreSession` 函数（约第 184 行），在设置 `messages.value` 之后添加模型恢复逻辑：
+打开 `frontend/src/types/index.ts`，找到 `SessionDetailResponse` 接口（约第 151 行），确认已包含：
+
+```typescript
+export interface SessionDetailResponse {
+  session_id: string
+  tool_id: string
+  title: string
+  created_at: string
+  updated_at: string
+  messages: Message[]
+  model_provider?: string  // 确认此行存在
+  model_name?: string      // 确认此行存在
+}
+```
+
+如果不存在，添加这两个字段。
+
+- [ ] **Step 2: 修改 restoreSession 函数**
+
+打开 `frontend/src/stores/sessionStore.ts`，找到 `restoreSession` 函数（约第 184 行），在设置 `messages.value` 之后（约第 219-225 行）添加模型恢复逻辑：
 
 ```diff
 // 转换消息格式
@@ -425,141 +445,118 @@ git commit -m "refactor: 标题生成使用数据库配置的模型"
 
 ## Task 6: 标题生成扣减积分
 
+**说明**：此任务需要在 Task 5 完成后执行。
+
+**修改策略**：
+1. 在 TitleGenerator 中添加 `generate_title_with_usage` 方法，返回 token 使用信息
+2. 修改 chat.py 中的标题生成调用，使用新方法并扣减积分
+3. 同时修改流式和非流式两个接口
+
 **文件:**
-- Modify: `backend/src/interfaces/routers/tools/chat.py:254-280`
+- Modify: `backend/src/services/title_generator.py`
+- Modify: `backend/src/interfaces/routers/tools/chat.py`
 
-- [ ] **Step 1: 修改标题生成后的扣积分逻辑**
+### Step 1: 添加 generate_title_with_usage 方法
 
-打开 `backend/src/interfaces/routers/tools/chat.py`，找到标题生成的代码块（约第 254 行），修改为：
-
-```diff
-if len(messages) == 2:  # 第一轮对话：1条用户消息 + 1条AI回复
-    try:
-        _logger.info(f"🎯 检测到第一轮对话，开始生成会话标题")
-
-+       # 获取当前使用的模型配置（用于标题生成）
-+       title_model_provider = model_provider or (session.model_provider if session else None)
-+       title_model_name = model_name or (session.model_name if session else None)
-+
-+       # 如果没有可用模型，跳过标题生成
-+       if not title_model_provider or not title_model_name:
-+           _logger.warning("⚠️ 无可用模型，跳过标题生成")
-+       else:
-+           # 生成标题
-+           title = await title_generator.generate_title(
-+               user_message=request.message,
-+               ai_response=full_response,
-+               model_provider=title_model_provider,
-+               model_name=title_model_name
-+           )
-+           # 更新会话标题
-+           session_service.update_session_title(session_id, title, user_id=current_user.user_id)
-+           _logger.info(f"✅ 会话标题已生成并更新：{title}")
-+           # 发送标题生成完成事件
-+           yield f"data: {json.dumps({'type': 'title_generated', 'session_id': session_id, 'title': title}, ensure_ascii=False)}\n\n"
-+
--       _logger.info(f"🎯 检测到第一轮对话，开始生成会话标题 - 用户消息: {request.message[:50]}")
--       # 生成标题
--       title = await title_generator.generate_title(request.message, full_response)
--       # 更新会话标题
--       session_service.update_session_title(session_id, title, user_id=current_user.user_id)
--       _logger.info(f"✅ 会话标题已生成并更新：{title}")
--       # 发送标题生成完成事件（包含 session_id，前端用于刷新列表）
--       yield f"data: {json.dumps({'type': 'title_generated', 'session_id': session_id, 'title': title}, ensure_ascii=False)}\n\n"
-+
-    except Exception as e:
--       _logger.error(f"❌ 生成会话标题失败，使用降级方案: {e}", exc_info=True)
--       # 降级方案：使用简单截取
--       try:
--           fallback_title = title_generator._fallback_title(request.message)
--           session_service.update_session_title(session_id, fallback_title, user_id=current_user.user_id)
--           _logger.info(f"⚠️ 使用降级方案生成标题：{fallback_title}")
--           # 发送降级标题事件
--           yield f"data: {json.dumps({'type': 'title_generated', 'session_id': session_id, 'title': fallback_title}, ensure_ascii=False)}\n\n"
--       except Exception as e2:
--           _logger.error(f"❌ 降级方案也失败了: {e2}", exc_info=True)
-+       _logger.error(f"❌ 生成会话标题失败: {e}", exc_info=True)
-else:
-    _logger.info(f"⏭️ 非第一轮对话，跳过标题生成（消息数: {len(messages)}）")
-```
-
-注意：标题生成使用会话的模型，已经在对话流程中扣减了积分。标题生成是额外的 AI 调用，需要单独扣积分。但由于标题生成使用的是同一个流式响应的上下文（实际上是额外的 API 调用），我们需要：
-
-实际上，标题生成需要单独调用 AI API，这意味着需要单独扣积分。让我补充完整的扣积分逻辑。
-
-- [ ] **Step 2: 添加标题生成扣积分逻辑**
-
-在 `chat.py` 的 `generate()` 函数中，标题生成成功后添加扣积分逻辑：
-
-在标题生成的 try 块中，生成标题后添加：
+打开 `backend/src/services/title_generator.py`，在 `_fallback_title` 方法之后添加新方法：
 
 ```python
-# 标题生成成功后，记录 token 并扣减积分
-# 注意：这里需要从标题生成 API 响应中获取 usage 信息
-# 由于我们使用的是标准 OpenAI 客户端，可以获取 usage
-```
-
-但是，当前的 `TitleGenerator.generate_title()` 方法没有返回 token 使用信息。我们需要修改它来返回这些信息。
-
-- [ ] **Step 3: 修改 TitleGenerator 返回 token 信息**
-
-打开 `backend/src/services/title_generator.py`，修改 `generate_title` 方法返回值：
-
-```diff
-- async def generate_title(
-+ async def generate_title_with_usage(
-      self,
-      user_message: str,
-      ai_response: Optional[str] = None,
-      model_provider: Optional[str] = None,
-      model_name: Optional[str] = None
-- ) -> str:
-+ ) -> Tuple[str, Optional[dict]]:
-```
-
-修改返回语句：
-
-```diff
-- return title if title else "新对话"
-+ usage = {
-+     'prompt_tokens': response.usage.prompt_tokens if response.usage else 0,
-+     'completion_tokens': response.usage.completion_tokens if response.usage else 0,
-+     'total_tokens': response.usage.total_tokens if response.usage else 0
-+ }
-+ return (title if title else "新对话", usage)
-```
-
-同时添加一个兼容方法：
-
-```python
-async def generate_title(
+async def generate_title_with_usage(
     self,
     user_message: str,
     ai_response: Optional[str] = None,
     model_provider: Optional[str] = None,
     model_name: Optional[str] = None
-) -> str:
-    """兼容方法：只返回标题"""
-    title, _ = await self.generate_title_with_usage(
-        user_message=user_message,
-        ai_response=ai_response,
-        model_provider=model_provider,
-        model_name=model_name
-    )
-    return title
+) -> Tuple[str, Optional[dict]]:
+    """
+    生成标题并返回 token 使用信息
+
+    Returns:
+        (标题, token使用信息字典) 元组
+        token使用信息格式: {'prompt_tokens': int, 'completion_tokens': int, 'total_tokens': int}
+    """
+    user_msg = user_message.strip()
+    if not user_msg:
+        return ("新对话", None)
+
+    if not model_provider or not model_name:
+        logger.warning("标题生成：未指定模型，使用降级方案")
+        return (self._fallback_title(user_message), None)
+
+    client = self._get_ai_client(model_provider, model_name)
+    if not client:
+        logger.warning("标题生成：无法获取 AI 客户端，使用降级方案")
+        return (self._fallback_title(user_message), None)
+
+    # 构造 prompt
+    if len(user_msg) < 10:
+        ai_preview = (ai_response[:300] if ai_response else "")
+        prompt = f"""请为以下对话生成一个简洁的标题（8-15个字）。
+用户消息：{user_msg}
+AI回复：{ai_preview}
+
+直接输出标题，无需标点："""
+    else:
+        prompt = f"""请为以下用户提问生成一个简洁的标题（8-15个字）。
+用户提问：{user_msg[:500]}
+
+直接输出标题，无需标点："""
+
+    try:
+        logger.info(f"开始生成会话标题 - 使用模型: {model_provider}:{model_name}")
+        response = client.chat.completions.create(
+            model=model_name,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=30,
+            temperature=0.7
+        )
+
+        title = response.choices[0].message.content.strip()
+        title = self._clean_title(title)
+        if len(title) > 30:
+            title = title[:30]
+
+        # 提取 token 使用信息
+        usage = None
+        if hasattr(response, 'usage') and response.usage:
+            usage = {
+                'prompt_tokens': response.usage.prompt_tokens,
+                'completion_tokens': response.usage.completion_tokens,
+                'total_tokens': response.usage.total_tokens
+            }
+            logger.info(f"标题生成成功: {title}, tokens: {usage['total_tokens']}")
+        else:
+            logger.info(f"标题生成成功: {title} (无 token 信息)")
+
+        return (title if title else "新对话", usage)
+
+    except Exception as e:
+        logger.error(f"AI生成标题失败: {e}")
+        return (self._fallback_title(user_message), None)
 ```
 
-- [ ] **Step 4: 在 chat.py 中使用新方法并扣积分**
+### Step 2: 修改流式接口的标题生成（chat_stream）
 
-修改 `chat.py` 中的标题生成调用（在 Step 1 的 else 块内）：
+打开 `backend/src/interfaces/routers/tools/chat.py`，找到流式接口中的标题生成代码块（约第 254 行），找到这一行：
+
+```python
+title = await title_generator.generate_title(
+    user_message=request.message,
+    ai_response=full_response,
+    model_provider=model_provider,
+    model_name=model_name
+)
+```
+
+替换为：
 
 ```python
 # 生成标题（带 token 信息）
 title, title_usage = await title_generator.generate_title_with_usage(
     user_message=request.message,
     ai_response=full_response,
-    model_provider=title_model_provider,
-    model_name=title_model_name
+    model_provider=model_provider,
+    model_name=model_name
 )
 
 # 更新会话标题
@@ -567,58 +564,57 @@ session_service.update_session_title(session_id, title, user_id=current_user.use
 _logger.info(f"✅ 会话标题已生成并更新：{title}")
 
 # 扣减标题生成的积分
-if title_usage and title_usage['total_tokens'] > 0:
+if title_usage and title_usage.get('total_tokens', 0) > 0:
     try:
-        db_inner = next(get_db())
+        db_title = next(get_db())
         try:
-            point_service_inner = PointService(db_inner)
-            # 计算积分（使用 PointService 的方法）
-            points = point_service_inner.calculate_points_from_tokens(
-                provider_code=title_model_provider,
-                model_code=title_model_name,
-                prompt_tokens=title_usage['prompt_tokens'],
-                completion_tokens=title_usage['completion_tokens']
+            point_service_title = PointService(db_title)
+            # 计算积分
+            points = point_service_title.calculate_points_from_tokens(
+                provider_code=model_provider,
+                model_code=model_name,
+                prompt_tokens=title_usage.get('prompt_tokens', 0),
+                completion_tokens=title_usage.get('completion_tokens', 0)
             )
             points = max(1, points)  # 至少扣除1积分
 
-            # 扣减积分（message_id 传入空字符串表示标题生成）
-            point_service_inner.deduct_points(
+            # 扣减积分
+            point_service_title.deduct_points(
                 enterprise_id=current_user.enterprise_id,
                 user_id=current_user.user_id,
                 session_id=session_id,
-                message_id="",  # 标题生成没有关联消息，使用空字符串
-                model_provider=title_model_provider,
-                model_name=title_model_name,
-                prompt_tokens=title_usage['prompt_tokens'],
-                completion_tokens=title_usage['completion_tokens'],
+                message_id="",  # 标题生成没有关联消息
+                model_provider=model_provider,
+                model_name=model_name,
+                prompt_tokens=title_usage.get('prompt_tokens', 0),
+                completion_tokens=title_usage.get('completion_tokens', 0),
                 points=points
             )
             _logger.info(f"✅ 标题生成积分扣减完成 - 消耗:{points}")
         finally:
-            db_inner.close()
+            db_title.close()
     except Exception as e:
         _logger.error(f"❌ 标题生成扣积分失败: {e}", exc_info=True)
-
-# 发送标题生成完成事件
-yield f"data: {json.dumps({'type': 'title_generated', 'session_id': session_id, 'title': title}, ensure_ascii=False)}\n\n"
 ```
 
-- [ ] **Step 5: 同步修改非流式接口**
+### Step 3: 修改非流式接口的标题生成（chat_non_stream）
 
-对非流式接口 `chat_non_stream` 做同样的修改。
+打开 `backend/src/interfaces/routers/tools/chat.py`，找到非流式接口 `chat_non_stream`（约第 304 行），找到标题生成代码块（约第 455 行），做与 Step 2 相同的修改。
 
-- [ ] **Step 6: 运行测试**
+**注意**：非流式接口中 AI 响应变量名是 `response_content` 而不是 `full_response`。
+
+### Step 4: 运行测试
 
 ```bash
 cd backend
-python -m pytest tests/integration/ -v -k chat
+python -m pytest tests/integration/routers/tools/test_chat.py -v
 ```
 
-- [ ] **Step 7: 提交**
+### Step 5: 提交
 
 ```bash
 git add backend/src/services/title_generator.py backend/src/interfaces/routers/tools/chat.py
-git commit -m "feat: 标题生成扣减积分"
+git commit -m "feat: 标题生成使用会话模型并扣减积分"
 ```
 
 ---
