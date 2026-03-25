@@ -131,4 +131,5 @@ Thumbs.db
 Thumbs.db:encryptable
 
 # 异常目录模式（测试错误创建的）
-ov=*/
+ov=*/*.pyc
+__pycache__/
