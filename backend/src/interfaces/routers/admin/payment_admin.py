@@ -18,7 +18,7 @@ from src.db_models import PaymentOrderModel, SystemConfigModel, PointTransaction
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/admin/payment", tags=["admin-payment"])
+router = APIRouter(prefix="/api/v1/admin/payment", tags=["admin-payment"])
 
 
 def get_payment_service(db: Session = Depends(get_db)) -> "PaymentService":
@@ -32,8 +32,8 @@ def get_payment_service(db: Session = Depends(get_db)) -> "PaymentService":
         app_id=os.getenv("ICBC_APP_ID", ""),
         mer_id=os.getenv("ICBC_MER_ID", ""),
         mer_prtcl_no=os.getenv("ICBC_MER_PRTCL_NO", ""),
-        private_key=os.getenv("ICBC_PRIVATE_KEY", ""),
-        public_key=os.getenv("ICBC_PUBLIC_KEY", ""),
+        private_key=os.getenv("ICBC_MY_PRIVATE_KEY", ""),
+        public_key=os.getenv("ICBC_APIGW_PUBLIC_KEY", ""),
         device_info=os.getenv("ICBC_DEVICE_INFO", ""),
         notify_url=os.getenv("ICBC_NOTIFY_URL", ""),
     )

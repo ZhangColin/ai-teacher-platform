@@ -110,12 +110,24 @@ class PaymentService:
 
         # 5. 调用工行下单接口
         try:
-            icbc_response = await self.icbc_client.create_order(
-                out_trade_no=out_trade_no,
-                amount=amount,
-                expire_time=expire_time,
-                body=body
-            )
+            # ===== 测试模式：模拟工行返回 =====
+            # TODO: 正式环境时取消注释下面的真实调用
+            # icbc_response = await self.icbc_client.create_order(
+            #     out_trade_no=out_trade_no,
+            #     amount=amount,
+            #     expire_time=expire_time,
+            #     body=body
+            # )
+
+            # 模拟工行返回结果
+            icbc_response = {
+                "return_status": "S",
+                "biz_content": {
+                    "pay_url": "https://test.icbc.com.cn/pay/mock",
+                    "qr_code_data": f"https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=MOCK_PAYMENT_{out_trade_no}",
+                    "trade_no": f"ICBC{int(datetime.now().timestamp())}"
+                }
+            }
 
             # 6. 更新订单状态
             order.status = PaymentOrderStatus.processing
@@ -174,7 +186,19 @@ class PaymentService:
         # 如果订单未完成，主动查询工行
         if order.status in [PaymentOrderStatus.created, PaymentOrderStatus.processing]:
             try:
-                icbc_response = await self.icbc_client.query_order(order.out_trade_no)
+                # ===== 测试模式：模拟工行返回 =====
+                # TODO: 正式环境时取消注释下面的真实调用
+                # icbc_response = await self.icbc_client.query_order(order.out_trade_no)
+
+                # 模拟工行返回（订单仍为支付中状态）
+                icbc_response = {
+                    "return_status": "S",
+                    "biz_content": {
+                        "order_status": "0",  # 0=支付中, 1=支付成功
+                        "trade_no": order.third_trade_no
+                    }
+                }
+
                 order.icbc_response = icbc_response
 
                 # 解析支付状态

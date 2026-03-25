@@ -73,6 +73,16 @@
               <span>模型汇率配置</span>
             </el-menu-item>
           </el-sub-menu>
+
+          <el-sub-menu index="payment">
+            <template #title>
+              <el-icon><Wallet /></el-icon>
+              <span>支付管理</span>
+            </template>
+            <el-menu-item index="/admin/payment/orders">支付订单</el-menu-item>
+            <el-menu-item index="/admin/payment/config">支付配置</el-menu-item>
+            <el-menu-item index="/admin/payment/test">回调测试</el-menu-item>
+          </el-sub-menu>
         </el-menu>
       </el-aside>
 
@@ -89,7 +99,7 @@ import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/authStore'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { OfficeBuilding, Tools, Picture, Document, Setting, Coin } from '@element-plus/icons-vue'
+import { OfficeBuilding, Tools, Picture, Document, Setting, Coin, Wallet } from '@element-plus/icons-vue'
 import Logo from '../components/Logo.vue'
 
 const router = useRouter()

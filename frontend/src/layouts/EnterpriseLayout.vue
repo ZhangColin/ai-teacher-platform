@@ -45,6 +45,11 @@
             <el-icon><Document /></el-icon>
             <span>消费记录</span>
           </el-menu-item>
+
+          <el-menu-item index="/enterprise/recharge">
+            <el-icon><WalletFilled /></el-icon>
+            <span>积分充值</span>
+          </el-menu-item>
         </el-menu>
       </el-aside>
 
@@ -61,7 +66,7 @@ import { computed, ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/authStore'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { DataAnalysis, User, Coin, Document } from '@element-plus/icons-vue'
+import { DataAnalysis, User, Coin, Document, WalletFilled } from '@element-plus/icons-vue'
 import Logo from '../components/Logo.vue'
 import apiClient from '@/services/apiClient'
 import type { EnterpriseInfo } from '@/types'

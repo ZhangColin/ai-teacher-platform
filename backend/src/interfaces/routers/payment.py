@@ -30,8 +30,8 @@ def get_icbc_client():
         app_id=os.getenv("ICBC_APP_ID", ""),
         mer_id=os.getenv("ICBC_MER_ID", ""),
         mer_prtcl_no=os.getenv("ICBC_MER_PRTCL_NO", ""),
-        private_key=os.getenv("ICBC_PRIVATE_KEY", ""),
-        public_key=os.getenv("ICBC_PUBLIC_KEY", ""),
+        private_key=os.getenv("ICBC_MY_PRIVATE_KEY", ""),
+        public_key=os.getenv("ICBC_APIGW_PUBLIC_KEY", ""),
         device_info=os.getenv("ICBC_DEVICE_INFO", ""),
         notify_url=os.getenv("ICBC_NOTIFY_URL", ""),
     )
@@ -224,3 +224,28 @@ async def icbc_notify(
     except Exception as e:
         logger.error(f"处理工行回调失败: {e}", exc_info=True)
         return {"return_code": "1", "return_msg": "系统异常"}
+
+
+@router.get("/config")
+async def get_payment_config(db: Session = Depends(get_db)):
+    """
+    获取支付配置（用户端）
+
+    返回积分兑换比例等公开配置信息
+    """
+    from src.db_models import SystemConfigModel
+
+    config = db.query(SystemConfigModel).filter(
+        SystemConfigModel.key == "points_per_yuan"
+    ).first()
+
+    points_per_yuan = 100  # 默认值
+    if config:
+        try:
+            points_per_yuan = int(config.value)
+        except (ValueError, TypeError):
+            pass
+
+    return {
+        "points_per_yuan": points_per_yuan
+    }

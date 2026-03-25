@@ -105,7 +105,8 @@ class PointService:
             创建的交易记录
         """
         try:
-            with self.db.begin():
+            # 使用嵌套事务（savepoint）以支持在已有事务中调用
+            with self.db.begin_nested():
                 # 1. 获取企业（加锁）
                 enterprise = self._get_enterprise_for_update(enterprise_id)
 

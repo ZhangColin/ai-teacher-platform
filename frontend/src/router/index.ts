@@ -115,6 +115,18 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAdmin: true, title: '模型汇率配置' },
       },
       {
+        path: 'payment/orders',
+        name: 'PaymentOrders',
+        component: () => import('../views/admin/PaymentOrdersView.vue'),
+        meta: { requiresAdmin: true },
+      },
+      {
+        path: 'payment/config',
+        name: 'PaymentConfig',
+        component: () => import('../views/admin/PaymentConfigView.vue'),
+        meta: { requiresAdmin: true },
+      },
+      {
         path: 'payment/test',
         name: 'PaymentTest',
         component: () => import('../views/admin/PaymentTestView.vue'),
@@ -151,6 +163,12 @@ const routes: RouteRecordRaw[] = [
         path: 'consumptions',
         name: 'enterprise-consumptions',
         component: () => import('../views/enterprise/EnterpriseConsumptions.vue'),
+        meta: { requiresEnterpriseAdmin: true },
+      },
+      {
+        path: 'recharge',
+        name: 'enterprise-recharge',
+        component: () => import('../views/enterprise/EnterpriseRecharge.vue'),
         meta: { requiresEnterpriseAdmin: true },
       },
     ],

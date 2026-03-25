@@ -90,7 +90,7 @@ async function handleSubmit() {
       out_trade_no: formData.value.out_trade_no,
       return_code: formData.value.return_code,
       third_trade_no: formData.value.third_trade_no,
-      total_amt: formData.value.total_amt
+      total_amt: String(formData.value.total_amt)
     })
 
     ElMessage.success('测试通知发送成功')
