@@ -551,7 +551,7 @@ async def generate_title(
 
 - [ ] **Step 4: 在 chat.py 中使用新方法并扣积分**
 
-修改 `chat.py` 中的标题生成调用：
+修改 `chat.py` 中的标题生成调用（在 Step 1 的 else 块内）：
 
 ```python
 # 生成标题（带 token 信息）
@@ -564,28 +564,29 @@ title, title_usage = await title_generator.generate_title_with_usage(
 
 # 更新会话标题
 session_service.update_session_title(session_id, title, user_id=current_user.user_id)
+_logger.info(f"✅ 会话标题已生成并更新：{title}")
 
 # 扣减标题生成的积分
 if title_usage and title_usage['total_tokens'] > 0:
     try:
-        db = next(get_db())
+        db_inner = next(get_db())
         try:
-            point_service = PointService(db)
-            # 计算积分
-            from src.services.point_service import get_model_rate_config
-            rate_config = get_model_rate_config(db, title_model_provider, title_model_name)
-            points = calculate_points_from_tokens(
-                title_usage['prompt_tokens'],
-                title_usage['completion_tokens'],
-                rate_config
+            point_service_inner = PointService(db_inner)
+            # 计算积分（使用 PointService 的方法）
+            points = point_service_inner.calculate_points_from_tokens(
+                provider_code=title_model_provider,
+                model_code=title_model_name,
+                prompt_tokens=title_usage['prompt_tokens'],
+                completion_tokens=title_usage['completion_tokens']
             )
             points = max(1, points)  # 至少扣除1积分
 
-            point_service.deduct_points(
+            # 扣减积分（message_id 传入空字符串表示标题生成）
+            point_service_inner.deduct_points(
                 enterprise_id=current_user.enterprise_id,
                 user_id=current_user.user_id,
                 session_id=session_id,
-                message_id=None,  # 标题生成没有关联消息
+                message_id="",  # 标题生成没有关联消息，使用空字符串
                 model_provider=title_model_provider,
                 model_name=title_model_name,
                 prompt_tokens=title_usage['prompt_tokens'],
@@ -594,9 +595,12 @@ if title_usage and title_usage['total_tokens'] > 0:
             )
             _logger.info(f"✅ 标题生成积分扣减完成 - 消耗:{points}")
         finally:
-            db.close()
+            db_inner.close()
     except Exception as e:
         _logger.error(f"❌ 标题生成扣积分失败: {e}", exc_info=True)
+
+# 发送标题生成完成事件
+yield f"data: {json.dumps({'type': 'title_generated', 'session_id': session_id, 'title': title}, ensure_ascii=False)}\n\n"
 ```
 
 - [ ] **Step 5: 同步修改非流式接口**
