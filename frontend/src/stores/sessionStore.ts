@@ -96,6 +96,9 @@ export const useSessionStore = defineStore('session', () => {
           model: currentModel.value || undefined, // 传递当前选择的模型
         },
         (data) => {
+          // 调试日志：记录所有收到的数据
+          console.log('[sessionStore] 收到 SSE 数据:', data)
+
           // 处理流式数据块
           if (data.type === 'session_id') {
             // 更新会话ID

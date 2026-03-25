@@ -356,7 +356,12 @@ export class ApiService {
             if (jsonStr) {
               try {
                 const data = JSON.parse(jsonStr)
-                onChunk({ type: 'content', ...data })
+                // 调试日志
+                console.log('[apiClient] SSE 收到数据:', data)
+                // 如果数据没有 type 字段，默认为 content 类型
+                // 如果数据已有 type 字段（如 error），保持原样
+                const chunk = data.type ? data : { type: 'content', ...data }
+                onChunk(chunk)
               } catch (e) {
                 console.error('解析 SSE 数据失败:', e, trimmedLine)
               }
@@ -379,7 +384,9 @@ export class ApiService {
         } else if (jsonStr) {
           try {
             const data = JSON.parse(jsonStr)
-            onChunk({ type: 'content', ...data })
+            console.log('[apiClient] SSE 最后一行数据:', data)
+            const chunk = data.type ? data : { type: 'content', ...data }
+            onChunk(chunk)
           } catch (e) {
             console.error('解析 SSE 数据失败:', e, trimmedBuffer)
           }
