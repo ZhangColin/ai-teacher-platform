@@ -159,6 +159,7 @@ export const useSessionStore = defineStore('session', () => {
             }
           } else if (data.type === 'error') {
             // 错误处理
+            console.error('[sessionStore] 收到错误类型消息:', data)
             throw new Error(data.error || '发送消息失败')
           }
         }

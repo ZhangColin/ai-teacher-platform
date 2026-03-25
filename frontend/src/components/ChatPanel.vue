@@ -15,7 +15,7 @@
 
       <!-- 错误消息放在消息区域内，确保可见 -->
       <Transition name="fade">
-        <div v-if="error" class="error-message" role="alert" aria-live="assertive" data-testid="error-message">
+        <div v-if="displayError" class="error-message" role="alert" aria-live="assertive" data-testid="error-message">
           <svg class="error-icon" role="img" aria-label="警告" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M12 9V13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
             <circle cx="12" cy="17" r="1" fill="currentColor"/>
@@ -23,7 +23,7 @@
           </svg>
           <div class="error-content">
             <div class="error-title">出错了</div>
-            <div class="error-detail">{{ error }}</div>
+            <div class="error-detail">{{ displayError }}</div>
             <button class="retry-button" @click="handleRetry" data-testid="retry-button">
               重试
             </button>
@@ -47,13 +47,29 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import MessageList from './chat/MessageList.vue';
 import ChatInput from './chat/ChatInput.vue';
 import ModelSelector from './ModelSelector.vue';
 import WelcomeMessage from './WelcomeMessage.vue';
 import { useSessionStore } from '../stores/sessionStore';
 import type { Message } from '@/types';
+
+// 调试：监听 error 变化
+const sessionStore = useSessionStore();
+watch(() => props.error, (newError) => {
+  console.log('[ChatPanel] props.error 变化:', newError);
+}, { immediate: true });
+
+watch(() => sessionStore.error, (newError) => {
+  console.log('[ChatPanel] sessionStore.error 变化:', newError);
+});
+
+// 调试：计算当前显示的 error
+const displayError = computed(() => {
+  console.log('[ChatPanel] displayError computed, props.error:', props.error);
+  return props.error;
+});
 
 interface Props {
   toolId?: string;
