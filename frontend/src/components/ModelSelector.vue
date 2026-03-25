@@ -46,7 +46,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useSessionStore } from '../stores/sessionStore'
 import { ApiService } from '../services/apiClient'
 import type { ModelListItem, ToolListItem } from '../types'
@@ -123,6 +123,13 @@ async function loadAvailableModels() {
 // 切换下拉框
 function toggleDropdown() {
   isOpen.value = !isOpen.value
+  if (isOpen.value) {
+    nextTick(() => {
+      const list = selectorRef.value?.querySelector('.model-list')
+      const selected = list?.querySelector('.is-selected')
+      selected?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    })
+  }
 }
 
 // 选择模型
