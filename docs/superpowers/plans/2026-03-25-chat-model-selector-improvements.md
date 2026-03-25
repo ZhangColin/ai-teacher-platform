@@ -122,7 +122,8 @@ return SessionDetailResponse(
     title=session.title,
     created_at=session.created_at,
     updated_at=session.updated_at,
-    messages=message_list
+-   messages=message_list
++   messages=message_list,
 +   model_provider=session.model_provider,
 +   model_name=session.model_name
 )
@@ -383,7 +384,7 @@ AI回复：{ai_preview}
 
 - [ ] **Step 2: 修改依赖注入**
 
-打开 `backend/src/interfaces/dependencies.py`，找到 `get_title_generator` 函数并修改：
+打开 `backend/src/routers/dependencies.py`，找到 `get_title_generator` 函数并修改：
 
 ```diff
 - def get_title_generator() -> TitleGenerator:
@@ -537,7 +538,15 @@ AI回复：{ai_preview}
 
 ### Step 2: 修改流式接口的标题生成（chat_stream）
 
-打开 `backend/src/interfaces/routers/tools/chat.py`，找到流式接口中的标题生成代码块（约第 254 行），找到这一行：
+打开 `backend/src/interfaces/routers/tools/chat.py`：
+
+首先确认文件顶部有 `PointService` 导入（如果没有则添加）：
+
+```python
+from src.services.point_service import PointService
+```
+
+然后找到流式接口中的标题生成代码块（约第 254 行），找到这一行：
 
 ```python
 title = await title_generator.generate_title(
