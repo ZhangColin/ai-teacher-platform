@@ -57,7 +57,12 @@ async def get_session_detail(
                 created_at=msg.created_at,
                 timestamp=msg.timestamp or msg.created_at,
                 artifacts=msg.artifacts,
-                media_content=msg.media_content  # 添加多模态内容字段
+                media_content=msg.media_content,  # 添加多模态内容字段
+                model_provider=getattr(msg, 'model_provider', None),
+                model_name=getattr(msg, 'model_name', None),
+                prompt_tokens=getattr(msg, 'prompt_tokens', None),
+                completion_tokens=getattr(msg, 'completion_tokens', None),
+                total_tokens=getattr(msg, 'total_tokens', None)
             )
         )
 

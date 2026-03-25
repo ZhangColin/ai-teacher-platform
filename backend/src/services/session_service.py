@@ -330,7 +330,9 @@ class SessionService:
             tool_id=session_model.tool_id,
             title=session_model.title,
             created_at=session_model.created_at,
-            updated_at=session_model.updated_at
+            updated_at=session_model.updated_at,
+            model_provider=getattr(session_model, 'model_provider', None),
+            model_name=getattr(session_model, 'model_name', None)
         )
     
     def _to_domain_model_message(self, message_model: MessageModel) -> MessageDomain:
@@ -343,7 +345,12 @@ class SessionService:
             created_at=message_model.created_at,
             timestamp=message_model.created_at,  # 兼容前端
             artifacts=[],  # 成果物需要单独查询
-            media_content=getattr(message_model, 'media_content', None)  # 多模态内容
+            media_content=getattr(message_model, 'media_content', None),  # 多模态内容
+            model_provider=getattr(message_model, 'model_provider', None),
+            model_name=getattr(message_model, 'model_name', None),
+            prompt_tokens=getattr(message_model, 'prompt_tokens', None),
+            completion_tokens=getattr(message_model, 'completion_tokens', None),
+            total_tokens=getattr(message_model, 'total_tokens', None)
         )
     
     # ==================== 多模态支持方法 ====================
