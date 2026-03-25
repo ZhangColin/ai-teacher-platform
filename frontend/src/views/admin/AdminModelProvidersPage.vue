@@ -2,6 +2,7 @@
   <div class="admin-model-providers-page">
     <div class="page-header">
       <h1>模型供应商配置</h1>
+      <el-button type="primary" @click="showAddProviderDialog">新增供应商</el-button>
     </div>
 
     <!-- 供应商列表 -->
@@ -25,21 +26,44 @@
       </el-table-column>
     </el-table>
 
-    <!-- 供应商配置对话框 -->
+    <!-- 供应商配置对话框（编辑） -->
     <el-dialog
       v-model="providerDialogVisible"
-      title="供应商配置"
+      :title="editingProvider ? '编辑供应商' : '新增供应商'"
       width="600px"
     >
       <el-form :model="providerForm" label-width="120px">
+        <el-form-item label="供应商类型" v-if="!editingProvider">
+          <el-select
+            v-model="selectedBuiltinProvider"
+            placeholder="选择供应商类型"
+            @change="onBuiltinProviderChange"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="provider in builtinProviders"
+              :key="provider.code"
+              :label="`${provider.name} (${provider.code})`"
+              :value="provider.code"
+            >
+              <div style="display: flex; justify-content: space-between">
+                <span>{{ provider.name }}</span>
+                <span style="color: #999; font-size: 12px">{{ provider.code }}</span>
+              </div>
+            </el-option>
+          </el-select>
+          <div style="color: #999; font-size: 12px; margin-top: 5px">
+            {{ getSelectedBuiltinProvider?.description }}
+          </div>
+        </el-form-item>
         <el-form-item label="供应商代码">
-          <el-input v-model="providerForm.provider_code" disabled />
+          <el-input v-model="providerForm.provider_code" :disabled="!!editingProvider" />
         </el-form-item>
         <el-form-item label="供应商名称">
           <el-input v-model="providerForm.provider_name" />
         </el-form-item>
         <el-form-item label="API密钥">
-          <el-input v-model="providerForm.api_key" type="password" show-password placeholder="留空则不修改" />
+          <el-input v-model="providerForm.api_key" type="password" show-password placeholder="请输入API密钥" />
           <div v-if="getApiKeyUrl(providerForm.provider_code)" class="api-key-link">
             <a :href="getApiKeyUrl(providerForm.provider_code)" target="_blank" rel="noopener noreferrer">
               获取 API 密钥 →
@@ -61,7 +85,9 @@
       </el-form>
       <template #footer>
         <el-button @click="providerDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSaveProvider">保存</el-button>
+        <el-button type="primary" @click="handleSaveProvider" :loading="providerSaving">
+          {{ editingProvider ? '保存' : '创建' }}
+        </el-button>
       </template>
     </el-dialog>
 
@@ -69,6 +95,7 @@
     <el-dialog v-model="modelsDialogVisible" title="模型配置" width="900px">
       <div class="models-header">
         <h3>{{ currentProvider?.provider_name }} - 模型列表</h3>
+        <el-button type="primary" size="small" @click="showAddModelDialog">新增模型</el-button>
       </div>
       <el-table :data="models" size="small">
         <el-table-column prop="model_name" label="模型名称" width="180" />
@@ -103,19 +130,19 @@
       </el-table>
     </el-dialog>
 
-    <!-- 模型配置对话框（简化为单表单） -->
+    <!-- 模型配置对话框（编辑/新增） -->
     <el-dialog
       v-model="modelDialogVisible"
-      title="模型配置"
+      :title="editingModel ? '编辑模型' : '新增模型'"
       width="600px"
       append-to-body
     >
       <el-form :model="modelForm" label-width="100px">
         <el-form-item label="模型代码">
-          <el-input v-model="modelForm.model_code" disabled />
+          <el-input v-model="modelForm.model_code" :disabled="!!editingModel" placeholder="如: gpt-4o" />
         </el-form-item>
         <el-form-item label="模型名称">
-          <el-input v-model="modelForm.model_name" />
+          <el-input v-model="modelForm.model_name" placeholder="如: GPT-4o" />
         </el-form-item>
         <el-form-item label="支持能力">
           <el-checkbox-group v-model="modelForm.capabilitiesArray">
@@ -157,20 +184,23 @@
       </el-form>
       <template #footer>
         <el-button @click="modelDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSaveModel" :loading="modelSaving">保存</el-button>
+        <el-button type="primary" @click="handleSaveModel" :loading="modelSaving">
+          {{ editingModel ? '保存' : '创建' }}
+        </el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { ApiService } from '@/services/apiClient'
 import type {
   ModelProviderListItem,
   ModelConfigListItem,
   UpdateModelProviderRequest,
+  CreateModelProviderRequest,
   ModelPointRateItem
 } from '@/types'
 
@@ -178,11 +208,14 @@ const providers = ref<ModelProviderListItem[]>([])
 const models = ref<ModelConfigListItem[]>([])
 const currentProvider = ref<ModelProviderListItem | null>(null)
 const pointRates = ref<ModelPointRateItem[]>([])
+const builtinProviders = ref<Array<{ code: string; name: string; default_base_url: string; description: string }>>([])
 
 // 供应商表单
 const providerDialogVisible = ref(false)
 const editingProvider = ref<ModelProviderListItem | null>(null)
-const providerForm = ref<UpdateModelProviderRequest & { provider_code: string }>({
+const providerSaving = ref(false)
+const selectedBuiltinProvider = ref<string>('')
+const providerForm = ref<CreateModelProviderRequest & { provider_code: string }>({
   provider_code: '',
   provider_name: '',
   api_key: '',
@@ -190,6 +223,12 @@ const providerForm = ref<UpdateModelProviderRequest & { provider_code: string }>
   is_enabled: true,
   is_default: false,
   order: 0
+})
+
+// 计算属性：获取选中的内置供应商
+const getSelectedBuiltinProvider = computed(() => {
+  if (!selectedBuiltinProvider.value) return null
+  return builtinProviders.value.find(p => p.code === selectedBuiltinProvider.value) || null
 })
 
 // 模型表单
@@ -209,7 +248,7 @@ const modelForm = ref<{
   is_enabled: true
 })
 
-// 汇率表单（简化）
+// 汇率表单
 const existingRate = ref<ModelPointRateItem | null>(null)
 const pointRateForm = ref<{
   rate_enabled: boolean
@@ -220,6 +259,16 @@ const pointRateForm = ref<{
   input_rate: null,
   output_rate: null
 })
+
+// 加载内置供应商列表
+const loadBuiltinProviders = async () => {
+  try {
+    const response = await ApiService.getBuiltinProviders()
+    builtinProviders.value = response.providers
+  } catch (error) {
+    console.error('加载内置供应商列表失败:', error)
+  }
+}
 
 // 加载供应商列表
 const loadProviders = async () => {
@@ -256,9 +305,36 @@ const getRateDisplay = (modelId: string): string => {
   return `${rate.tokens_per_point} tokens/积分`
 }
 
+// 显示新增供应商对话框
+const showAddProviderDialog = () => {
+  editingProvider.value = null
+  selectedBuiltinProvider.value = ''
+  providerForm.value = {
+    provider_code: '',
+    provider_name: '',
+    api_key: '',
+    base_url: '',
+    is_enabled: true,
+    is_default: false,
+    order: 0
+  }
+  providerDialogVisible.value = true
+}
+
+// 当选择内置供应商时
+const onBuiltinProviderChange = (code: string) => {
+  const provider = builtinProviders.value.find(p => p.code === code)
+  if (provider) {
+    providerForm.value.provider_code = code
+    providerForm.value.provider_name = provider.name
+    providerForm.value.base_url = provider.default_base_url
+  }
+}
+
 // 显示编辑供应商对话框
 const showEditProviderDialog = (provider: ModelProviderListItem) => {
   editingProvider.value = provider
+  selectedBuiltinProvider.value = ''
   providerForm.value = {
     provider_code: provider.provider_code,
     provider_name: provider.provider_name,
@@ -271,24 +347,61 @@ const showEditProviderDialog = (provider: ModelProviderListItem) => {
   providerDialogVisible.value = true
 }
 
-// 保存供应商
+// 保存供应商（新增或编辑）
 const handleSaveProvider = async () => {
-  if (!editingProvider.value) return
-  try {
-    const requestData: UpdateModelProviderRequest = {}
-    if (providerForm.value.provider_name) requestData.provider_name = providerForm.value.provider_name
-    if (providerForm.value.api_key) requestData.api_key = providerForm.value.api_key
-    if (providerForm.value.base_url) requestData.base_url = providerForm.value.base_url
-    if (providerForm.value.is_enabled !== undefined) requestData.is_enabled = providerForm.value.is_enabled
-    if (providerForm.value.is_default !== undefined) requestData.is_default = providerForm.value.is_default
-    if (providerForm.value.order !== undefined) requestData.order = providerForm.value.order
+  // 验证
+  if (!providerForm.value.provider_code) {
+    ElMessage.error('请选择供应商类型')
+    return
+  }
+  if (!providerForm.value.provider_name) {
+    ElMessage.error('请输入供应商名称')
+    return
+  }
+  if (!providerForm.value.api_key && !editingProvider.value) {
+    ElMessage.error('请输入API密钥')
+    return
+  }
+  if (!providerForm.value.base_url) {
+    ElMessage.error('请输入API地址')
+    return
+  }
 
-    await ApiService.updateModelProvider(editingProvider.value.id, requestData)
-    ElMessage.success('更新成功')
+  providerSaving.value = true
+  try {
+    if (editingProvider.value) {
+      // 编辑现有供应商
+      const requestData: UpdateModelProviderRequest = {}
+      if (providerForm.value.provider_name) requestData.provider_name = providerForm.value.provider_name
+      if (providerForm.value.api_key) requestData.api_key = providerForm.value.api_key
+      if (providerForm.value.base_url) requestData.base_url = providerForm.value.base_url
+      if (providerForm.value.is_enabled !== undefined) requestData.is_enabled = providerForm.value.is_enabled
+      if (providerForm.value.is_default !== undefined) requestData.is_default = providerForm.value.is_default
+      if (providerForm.value.order !== undefined) requestData.order = providerForm.value.order
+
+      await ApiService.updateModelProvider(editingProvider.value.id, requestData)
+      ElMessage.success('更新成功')
+    } else {
+      // 新增供应商
+      const createData: CreateModelProviderRequest = {
+        provider_code: providerForm.value.provider_code,
+        provider_name: providerForm.value.provider_name,
+        api_key: providerForm.value.api_key,
+        base_url: providerForm.value.base_url,
+        is_enabled: providerForm.value.is_enabled,
+        is_default: providerForm.value.is_default,
+        order: providerForm.value.order
+      }
+      await ApiService.createModelProvider(createData)
+      ElMessage.success('创建成功')
+    }
+
     providerDialogVisible.value = false
     await loadProviders()
   } catch (error: any) {
     ElMessage.error(error.response?.data?.detail || '保存失败')
+  } finally {
+    providerSaving.value = false
   }
 }
 
@@ -303,6 +416,25 @@ const showModelsDialog = async (provider: ModelProviderListItem) => {
   } catch (error) {
     ElMessage.error('加载模型列表失败')
   }
+}
+
+// 显示新增模型对话框
+const showAddModelDialog = () => {
+  if (!currentProvider.value) return
+  editingModel.value = null
+  modelForm.value = {
+    model_code: '',
+    model_name: '',
+    capabilitiesArray: ['chat'],
+    is_enabled: true
+  }
+  existingRate.value = null
+  pointRateForm.value = {
+    rate_enabled: true,
+    input_rate: null,
+    output_rate: null
+  }
+  modelDialogVisible.value = true
 }
 
 // 显示编辑模型对话框
@@ -333,13 +465,20 @@ const showEditModelDialog = (model: ModelConfigListItem) => {
     }
   }
 
-  // 保持模型列表对话框打开，在上层打开单个模型配置对话框
   modelDialogVisible.value = true
 }
 
-// 保存模型配置（包含汇率）
+// 保存模型配置（新增或编辑）
 const handleSaveModel = async () => {
-  if (!editingModel.value) return
+  // 验证
+  if (!modelForm.value.model_code) {
+    ElMessage.error('请输入模型代码')
+    return
+  }
+  if (!modelForm.value.model_name) {
+    ElMessage.error('请输入模型名称')
+    return
+  }
 
   // 验证汇率
   if (pointRateForm.value.rate_enabled) {
@@ -351,15 +490,40 @@ const handleSaveModel = async () => {
 
   modelSaving.value = true
   try {
-    // 1. 更新模型基本信息
-    await ApiService.updateModelConfig(editingModel.value.id, {
-      model_name: modelForm.value.model_name,
-      capabilities: modelForm.value.capabilitiesArray.join(','),
-      is_enabled: modelForm.value.is_enabled
-    })
+    if (editingModel.value) {
+      // 编辑现有模型
+      await ApiService.updateModelConfig(editingModel.value.id, {
+        model_name: modelForm.value.model_name,
+        capabilities: modelForm.value.capabilitiesArray.join(','),
+        is_enabled: modelForm.value.is_enabled
+      })
+      ElMessage.success('保存成功')
+    } else {
+      // 新增模型
+      if (!currentProvider.value) {
+        ElMessage.error('请先选择供应商')
+        return
+      }
+      const newModel = await ApiService.createModelConfig({
+        provider_id: currentProvider.value.id,
+        model_code: modelForm.value.model_code,
+        model_name: modelForm.value.model_name,
+        capabilities: modelForm.value.capabilitiesArray.join(','),
+        is_enabled: modelForm.value.is_enabled
+      })
+      models.value.push(newModel.model)
+      ElMessage.success('创建成功')
+    }
 
-    // 2. 处理汇率配置
+    // 处理汇率配置（仅当启用汇率时）
     if (pointRateForm.value.rate_enabled && pointRateForm.value.input_rate && pointRateForm.value.output_rate) {
+      const lastModel = models.value[models.value.length - 1]
+      const modelId = editingModel.value?.id || lastModel?.id || ''
+      if (!modelId) {
+        ElMessage.error('无法获取模型ID')
+        return
+      }
+
       if (existingRate.value) {
         // 更新现有汇率
         await ApiService.updateModelPointRate(existingRate.value.id, {
@@ -371,7 +535,7 @@ const handleSaveModel = async () => {
       } else {
         // 创建新汇率
         const newRate = await ApiService.createModelPointRate({
-          model_config_id: editingModel.value.id,
+          model_config_id: modelId,
           tokens_per_point: 1000,
           separate_io: true,
           tokens_per_point_input: pointRateForm.value.input_rate,
@@ -380,14 +544,8 @@ const handleSaveModel = async () => {
         pointRates.value.push(newRate)
         existingRate.value = newRate
       }
-    } else if (existingRate.value) {
-      // 禁用汇率配置
-      await ApiService.updateModelPointRate(existingRate.value.id, {
-        is_enabled: false
-      })
     }
 
-    ElMessage.success('保存成功')
     modelDialogVisible.value = false
 
     // 刷新数据
@@ -423,6 +581,7 @@ const getApiKeyUrl = (providerCode: string): string => {
 }
 
 onMounted(() => {
+  loadBuiltinProviders()
   loadProviders()
   loadPointRates()
 })
@@ -438,6 +597,10 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+}
+
+.page-header h1 {
+  margin: 0;
 }
 
 .models-header {

@@ -1229,6 +1229,14 @@ export class ApiService {
   // ==================== 模型供应商配置 API ====================
 
   /**
+   * 获取内置供应商列表（管理后台）
+   */
+  static async getBuiltinProviders(): Promise<{ providers: Array<{ code: string; name: string; default_base_url: string; description: string }> }> {
+    const response = await apiClient.get('/admin/model-providers/builtin-providers')
+    return response.data
+  }
+
+  /**
    * 获取所有模型供应商（管理后台）
    */
   static async getModelProviders(includeDisabled = false): Promise<ModelProviderListResponse> {

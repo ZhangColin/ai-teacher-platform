@@ -42,6 +42,11 @@ BUILTIN_PROVIDERS = {
         "default_base_url": "https://generativelanguage.googleapis.com/v1beta",
         "description": "Google Gemini 模型"
     },
+    "newapi": {
+        "name": "NewAPI",
+        "default_base_url": "https://your-newapi-domain.com/v1",
+        "description": "AI 聚合平台，兼容 OpenAI API 规范"
+    },
 }
 
 # 内置模型定义
