@@ -41,15 +41,14 @@
           <span>积分交易记录</span>
           <el-radio-group v-model="transactionFilter" size="small" @change="loadTransactions">
             <el-radio-button label="">全部</el-radio-button>
-            <el-radio-button label="gratis">赠送</el-radio-button>
-            <el-radio-button label="paid">充值</el-radio-button>
-            <el-radio-button label="admin_recharge">管理员充值</el-radio-button>
-            <el-radio-button label="event_bonus">活动赠送</el-radio-button>
+            <el-radio-button label="online_payment">线上支付</el-radio-button>
+            <el-radio-button label="offline_payment">线下支付</el-radio-button>
+            <el-radio-button label="admin_gift">赠送</el-radio-button>
           </el-radio-group>
         </div>
       </template>
       <el-table :data="transactions" v-loading="loading" stripe>
-        <el-table-column prop="created_at" label="时间" width="180">
+        <el-table-column prop="created_at" label="充值时间" width="180">
           <template #default="{ row }">
             {{ formatDateTime(row.created_at) }}
           </template>
@@ -57,20 +56,26 @@
         <el-table-column label="类型" width="120">
           <template #default="{ row }">
             <el-tag :type="getTypeColor(row.source_type)" size="small">
-              {{ getTypeLabel(row.source_type) }}
+              {{ row.source_type_label || getTypeLabel(row.source_type) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="积分变动" width="120">
+        <el-table-column prop="balance_before" label="充值前" width="120" />
+        <el-table-column label="充值" width="120">
           <template #default="{ row }">
             <span :class="row.amount > 0 ? 'points-add' : 'points-deduct'">
               {{ row.amount > 0 ? '+' : '' }}{{ row.amount }}
             </span>
           </template>
         </el-table-column>
-        <el-table-column prop="balance_after" label="交易后余额" width="120" />
-        <el-table-column prop="note" label="备注" show-overflow-tooltip />
-        <el-table-column prop="admin_username" label="操作人" width="120" />
+        <el-table-column prop="balance_after" label="充值后" width="120" />
+        <el-table-column label="充值金额" width="120">
+          <template #default="{ row }">
+            {{ row.payment_amount ? `¥${row.payment_amount}` : '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="operator_name" label="操作人" width="120" />
+        <el-table-column prop="remark" label="备注" show-overflow-tooltip />
       </el-table>
 
       <!-- 分页 -->
@@ -143,15 +148,12 @@ const loadTransactions = async () => {
   }
 }
 
-// 获取类型标签
+// 获取类型标签（后备，优先使用后端返回的 source_type_label）
 const getTypeLabel = (type: string) => {
   const labels: Record<string, string> = {
-    gratis: '赠送',
-    paid: '充值',
-    admin_recharge: '管理员充值',
-    recharge: '用户充值',
-    event_bonus: '活动赠送',
-    register_bonus: '注册赠送'
+    online_payment: '线上支付',
+    offline_payment: '线下支付',
+    admin_gift: '赠送'
   }
   return labels[type] || type
 }
@@ -159,12 +161,9 @@ const getTypeLabel = (type: string) => {
 // 获取类型颜色
 const getTypeColor = (type: string) => {
   const colors: Record<string, string> = {
-    gratis: 'success',
-    paid: 'warning',
-    admin_recharge: 'primary',
-    recharge: 'warning',
-    event_bonus: 'success',
-    register_bonus: 'success'
+    online_payment: 'warning',
+    offline_payment: 'warning',
+    admin_gift: 'success'
   }
   return colors[type] || 'info'
 }

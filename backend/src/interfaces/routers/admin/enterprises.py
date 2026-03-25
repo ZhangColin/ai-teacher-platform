@@ -186,7 +186,7 @@ async def get_all_point_transactions(
             'online_payment': '线上支付',
             'admin_gift': '赠送',
             'admin_adjust': '管理员调整'
-        }.get(t.source_type, t.source_type)
+        }.get(t.source_type.value if hasattr(t.source_type, 'value') else t.source_type, str(t.source_type))
 
         items.append({
             "id": str(t.id),
