@@ -37,6 +37,12 @@ def get_db():
     db = SessionLocal()
     try:
         yield db
+        # 操作成功，提交事务
+        db.commit()
+    except Exception:
+        # 发生异常，回滚事务
+        db.rollback()
+        raise
     finally:
         db.close()
 

@@ -105,58 +105,55 @@ class PointService:
             创建的交易记录
         """
         try:
-            # 使用嵌套事务（savepoint）以支持在已有事务中调用
-            with self.db.begin_nested():
-                # 1. 获取企业（加锁）
-                enterprise = self._get_enterprise_for_update(enterprise_id)
+            # 1. 获取企业（加锁）
+            enterprise = self._get_enterprise_for_update(enterprise_id)
 
-                if not enterprise:
-                    raise ValueError("企业不存在")
+            if not enterprise:
+                raise ValueError("企业不存在")
 
-                balance_before = enterprise.total_points
+            balance_before = enterprise.total_points
 
-                # 2. 优先抵扣负债
-                if enterprise.debt_points > 0:
-                    debt_to_clear = min(enterprise.debt_points, amount)
-                    enterprise.debt_points -= debt_to_clear
-                    remaining = amount - debt_to_clear
+            # 2. 优先抵扣负债
+            if enterprise.debt_points > 0:
+                debt_to_clear = min(enterprise.debt_points, amount)
+                enterprise.debt_points -= debt_to_clear
+                remaining = amount - debt_to_clear
+            else:
+                remaining = amount
+
+            # 3. 剩余部分增加余额
+            if remaining > 0:
+                if source_type == PointSourceType.admin_gift:
+                    enterprise.balance_gratis += remaining
                 else:
-                    remaining = amount
+                    enterprise.balance_paid += remaining
 
-                # 3. 剩余部分增加余额
-                if remaining > 0:
-                    if source_type == PointSourceType.admin_gift:
-                        enterprise.balance_gratis += remaining
-                    else:
-                        enterprise.balance_paid += remaining
+            # 4. 创建交易记录
+            transaction = PointTransactionModel(
+                id=str(uuid.uuid4()),
+                enterprise_id=enterprise_id,
+                operator_id=operator_id,
+                type=PointTransactionType.recharge if source_type != PointSourceType.admin_gift else PointTransactionType.gift,
+                source_type=source_type,
+                amount=amount,
+                balance_before=balance_before,
+                balance_after=enterprise.total_points,
+                remark=remark,
+                payment_id=payment_id,
+                payment_amount=payment_amount
+            )
 
-                # 4. 创建交易记录
-                transaction = PointTransactionModel(
-                    id=str(uuid.uuid4()),
-                    enterprise_id=enterprise_id,
-                    operator_id=operator_id,
-                    type=PointTransactionType.recharge if source_type != PointSourceType.admin_gift else PointTransactionType.gift,
-                    source_type=source_type,
-                    amount=amount,
-                    balance_before=balance_before,
-                    balance_after=enterprise.total_points,
-                    remark=remark,
-                    payment_id=payment_id,
-                    payment_amount=payment_amount
-                )
+            self.db.add(transaction)
+            self.db.flush()
 
-                self.db.add(transaction)
-                self.db.flush()
+            logger.info(
+                f"积分增加成功 - 企业:{enterprise_id}, 金额:{amount}, "
+                f"来源:{source_type}, 操作人:{operator_id}"
+            )
 
-                logger.info(
-                    f"积分增加成功 - 企业:{enterprise_id}, 金额:{amount}, "
-                    f"来源:{source_type}, 操作人:{operator_id}"
-                )
-
-                return transaction
+            return transaction
 
         except Exception as e:
-            self.db.rollback()
             logger.error(f"增加积分失败: {e}", exc_info=True)
             raise
 
@@ -191,63 +188,56 @@ class PointService:
         Returns:
             创建的消费记录
         """
-        try:
-            with self.db.begin():
-                # 1. 获取企业（加锁）
-                enterprise = self._get_enterprise_for_update(enterprise_id)
+        # 1. 获取企业（加锁）
+        enterprise = self._get_enterprise_for_update(enterprise_id)
 
-                if not enterprise:
-                    raise ValueError("企业不存在")
+        if not enterprise:
+            raise ValueError("企业不存在")
 
-                # 2. 计算扣减分配
-                gratis_to_deduct = min(enterprise.balance_gratis, points)
-                paid_to_deduct = points - gratis_to_deduct
+        # 2. 计算扣减分配
+        gratis_to_deduct = min(enterprise.balance_gratis, points)
+        paid_to_deduct = points - gratis_to_deduct
 
-                # 3. 执行扣减
-                enterprise.balance_gratis -= gratis_to_deduct
+        # 3. 执行扣减
+        enterprise.balance_gratis -= gratis_to_deduct
 
-                if paid_to_deduct <= enterprise.balance_paid:
-                    # 充值积分足够
-                    enterprise.balance_paid -= paid_to_deduct
-                    actual_paid_used = paid_to_deduct
-                else:
-                    # 充值积分不够，产生负债
-                    remaining = paid_to_deduct - enterprise.balance_paid
-                    enterprise.balance_paid = 0
-                    enterprise.debt_points += remaining
-                    actual_paid_used = enterprise.balance_paid + (paid_to_deduct - remaining)
+        if paid_to_deduct <= enterprise.balance_paid:
+            # 充值积分足够
+            enterprise.balance_paid -= paid_to_deduct
+            actual_paid_used = paid_to_deduct
+        else:
+            # 充值积分不够，产生负债
+            remaining = paid_to_deduct - enterprise.balance_paid
+            enterprise.balance_paid = 0
+            enterprise.debt_points += remaining
+            actual_paid_used = enterprise.balance_paid + (paid_to_deduct - remaining)
 
-                # 4. 创建消费记录
-                consumption = AIConsumptionModel(
-                    id=str(uuid.uuid4()),
-                    enterprise_id=enterprise_id,
-                    user_id=user_id,
-                    session_id=session_id,
-                    message_id=message_id,
-                    model_provider=model_provider,
-                    model_name=model_name,
-                    prompt_tokens=prompt_tokens,
-                    completion_tokens=completion_tokens,
-                    total_tokens=prompt_tokens + completion_tokens,
-                    gratis_points_used=gratis_to_deduct,
-                    paid_points_used=actual_paid_used,
-                    total_points=points
-                )
+        # 4. 创建消费记录
+        consumption = AIConsumptionModel(
+            id=str(uuid.uuid4()),
+            enterprise_id=enterprise_id,
+            user_id=user_id,
+            session_id=session_id,
+            message_id=message_id,
+            model_provider=model_provider,
+            model_name=model_name,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=prompt_tokens + completion_tokens,
+            gratis_points_used=gratis_to_deduct,
+            paid_points_used=actual_paid_used,
+            total_points=points
+        )
 
-                self.db.add(consumption)
-                self.db.flush()
+        self.db.add(consumption)
+        self.db.flush()
 
-                logger.info(
-                    f"积分扣减成功 - 企业:{enterprise_id}, 用户:{user_id}, "
-                    f"积分:{points} (赠送:{gratis_to_deduct}, 充值:{actual_paid_used})"
-                )
+        logger.info(
+            f"积分扣减成功 - 企业:{enterprise_id}, 用户:{user_id}, "
+            f"积分:{points} (赠送:{gratis_to_deduct}, 充值:{actual_paid_used})"
+        )
 
-                return consumption
-
-        except Exception as e:
-            self.db.rollback()
-            logger.error(f"积分扣减失败: {e}", exc_info=True)
-            raise
+        return consumption
 
     def get_enterprise_balance(self, enterprise_id: str) -> Optional[dict]:
         """获取企业积分余额"""
