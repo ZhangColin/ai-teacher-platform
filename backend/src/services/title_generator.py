@@ -1,6 +1,6 @@
 """会话标题生成服务"""
 import logging
-from typing import Optional
+from typing import Optional, Tuple
 from openai import OpenAI
 from sqlalchemy.orm import Session
 
@@ -156,3 +156,76 @@ AI回复：{ai_preview}
             return msg[:30]
         else:
             return msg
+
+    async def generate_title_with_usage(
+        self,
+        user_message: str,
+        ai_response: Optional[str] = None,
+        model_provider: Optional[str] = None,
+        model_name: Optional[str] = None
+    ) -> Tuple[str, Optional[dict]]:
+        """
+        生成标题并返回 token 使用信息
+
+        Returns:
+            (标题, token使用信息字典) 元组
+            token使用信息格式: {'prompt_tokens': int, 'completion_tokens': int, 'total_tokens': int}
+        """
+        user_msg = user_message.strip()
+        if not user_msg:
+            return ("新对话", None)
+
+        if not model_provider or not model_name:
+            logger.warning("标题生成：未指定模型，使用降级方案")
+            return (self._fallback_title(user_message), None)
+
+        client = self._get_ai_client(model_provider, model_name)
+        if not client:
+            logger.warning("标题生成：无法获取 AI 客户端，使用降级方案")
+            return (self._fallback_title(user_message), None)
+
+        # 构造 prompt
+        if len(user_msg) < 10:
+            ai_preview = (ai_response[:300] if ai_response else "")
+            prompt = f"""请为以下对话生成一个简洁的标题（8-15个字）。
+用户消息：{user_msg}
+AI回复：{ai_preview}
+
+直接输出标题，无需标点："""
+        else:
+            prompt = f"""请为以下用户提问生成一个简洁的标题（8-15个字）。
+用户提问：{user_msg[:500]}
+
+直接输出标题，无需标点："""
+
+        try:
+            logger.info(f"开始生成会话标题 - 使用模型: {model_provider}:{model_name}")
+            response = client.chat.completions.create(
+                model=model_name,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=30,
+                temperature=0.7
+            )
+
+            title = response.choices[0].message.content.strip()
+            title = self._clean_title(title)
+            if len(title) > 30:
+                title = title[:30]
+
+            # 提取 token 使用信息
+            usage = None
+            if hasattr(response, 'usage') and response.usage:
+                usage = {
+                    'prompt_tokens': response.usage.prompt_tokens,
+                    'completion_tokens': response.usage.completion_tokens,
+                    'total_tokens': response.usage.total_tokens
+                }
+                logger.info(f"标题生成成功: {title}, tokens: {usage['total_tokens']}")
+            else:
+                logger.info(f"标题生成成功: {title} (无 token 信息)")
+
+            return (title if title else "新对话", usage)
+
+        except Exception as e:
+            logger.error(f"AI生成标题失败: {e}")
+            return (self._fallback_title(user_message), None)

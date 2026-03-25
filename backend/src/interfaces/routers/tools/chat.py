@@ -258,8 +258,8 @@ async def chat_stream(
                 if len(messages) == 2:  # 第一轮对话：1条用户消息 + 1条AI回复
                     try:
                         _logger.info(f"🎯 检测到第一轮对话，开始生成会话标题 - 用户消息: {request.message[:50]}")
-                        # 生成标题
-                        title = await title_generator.generate_title(
+                        # 生成标题（带 token 信息）
+                        title, title_usage = await title_generator.generate_title_with_usage(
                             user_message=request.message,
                             ai_response=full_response,
                             model_provider=model_provider,
@@ -270,6 +270,39 @@ async def chat_stream(
                         _logger.info(f"✅ 会话标题已生成并更新：{title}")
                         # 发送标题生成完成事件（包含 session_id，前端用于刷新列表）
                         yield f"data: {json.dumps({'type': 'title_generated', 'session_id': session_id, 'title': title}, ensure_ascii=False)}\n\n"
+
+                        # 扣减标题生成的积分
+                        if title_usage and title_usage.get('total_tokens', 0) > 0:
+                            try:
+                                db_title = next(get_db())
+                                try:
+                                    point_service_title = PointService(db_title)
+                                    # 计算积分
+                                    points = point_service_title.calculate_points_from_tokens(
+                                        provider_code=model_provider,
+                                        model_code=model_name,
+                                        prompt_tokens=title_usage.get('prompt_tokens', 0),
+                                        completion_tokens=title_usage.get('completion_tokens', 0)
+                                    )
+                                    points = max(1, points)  # 至少扣除1积分
+
+                                    # 扣减积分
+                                    consumption = point_service_title.deduct_points(
+                                        enterprise_id=current_user.enterprise_id,
+                                        user_id=current_user.user_id,
+                                        session_id=session_id,
+                                        message_id="",  # 标题生成没有关联消息
+                                        model_provider=model_provider,
+                                        model_name=model_name,
+                                        prompt_tokens=title_usage.get('prompt_tokens', 0),
+                                        completion_tokens=title_usage.get('completion_tokens', 0),
+                                        points=points
+                                    )
+                                    _logger.info(f"✅ 标题生成积分扣减完成 - 消耗:{points}（赠送:{consumption.gratis_points_used}, 充值:{consumption.paid_points_used}）")
+                                finally:
+                                    db_title.close()
+                            except Exception as e:
+                                _logger.error(f"❌ 标题生成扣积分失败: {e}", exc_info=True)
                     except Exception as e:
                         _logger.error(f"❌ 生成会话标题失败，使用降级方案: {e}", exc_info=True)
                         # 降级方案：使用简单截取
@@ -460,8 +493,8 @@ async def chat_non_stream(
         if len(messages) == 2:  # 第一轮对话：1条用户消息 + 1条AI回复
             try:
                 logger.info(f"检测到第一轮对话，开始生成会话标题 - 用户消息: {request.message[:50]}")
-                # 生成标题
-                title = await title_generator.generate_title(
+                # 生成标题（带 token 信息）
+                title, title_usage = await title_generator.generate_title_with_usage(
                     user_message=request.message,
                     ai_response=response_content,
                     model_provider=model_provider,
@@ -470,6 +503,39 @@ async def chat_non_stream(
                 # 更新会话标题
                 session_service.update_session_title(session_id, title, user_id=current_user.user_id)
                 logger.info(f"会话标题已生成并更新：{title}")
+
+                # 扣减标题生成的积分
+                if title_usage and title_usage.get('total_tokens', 0) > 0:
+                    try:
+                        db_title = next(get_db())
+                        try:
+                            point_service_title = PointService(db_title)
+                            # 计算积分
+                            points = point_service_title.calculate_points_from_tokens(
+                                provider_code=model_provider,
+                                model_code=model_name,
+                                prompt_tokens=title_usage.get('prompt_tokens', 0),
+                                completion_tokens=title_usage.get('completion_tokens', 0)
+                            )
+                            points = max(1, points)  # 至少扣除1积分
+
+                            # 扣减积分
+                            consumption = point_service_title.deduct_points(
+                                enterprise_id=current_user.enterprise_id,
+                                user_id=current_user.user_id,
+                                session_id=session_id,
+                                message_id="",  # 标题生成没有关联消息
+                                model_provider=model_provider,
+                                model_name=model_name,
+                                prompt_tokens=title_usage.get('prompt_tokens', 0),
+                                completion_tokens=title_usage.get('completion_tokens', 0),
+                                points=points
+                            )
+                            logger.info(f"✅ 标题生成积分扣减完成 - 消耗:{points}（赠送:{consumption.gratis_points_used}, 充值:{consumption.paid_points_used}）")
+                        finally:
+                            db_title.close()
+                    except Exception as e:
+                        logger.error(f"❌ 标题生成扣积分失败: {e}", exc_info=True)
             except Exception as e:
                 logger.error(f"生成会话标题失败，使用降级方案: {e}", exc_info=True)
                 # 降级方案：使用简单截取
