@@ -66,7 +66,7 @@ const currentModelDisplay = computed(() => {
     // 如果没有手动选择模型，显示默认模型
     if (defaultModel.value) {
       const model = availableModels.value.find(m => m.id === defaultModel.value)
-      return model ? `${model.name}（默认）` : defaultModel.value
+      return model ? model.name : defaultModel.value
     }
     return '默认模型'
   }
