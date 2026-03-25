@@ -12,24 +12,25 @@
         :streaming-content="streamingContent"
         :auto-scroll="autoScroll"
       />
-    </div>
 
-    <Transition name="fade">
-      <div v-if="error" class="error-message" role="alert" aria-live="assertive" data-testid="error-message">
-        <svg class="error-icon" role="img" aria-label="警告" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 9V13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          <circle cx="12" cy="17" r="1" fill="currentColor"/>
-          <path d="M12 2L2.5 11.5V20C2.5 20.8284 3.17157 21.5 4 21.5H20C20.8284 21.5 21.5 20.8284 21.5 20V11.5L12 2Z" stroke="currentColor" stroke-width="2"/>
-        </svg>
-        <div class="error-content">
-          <div class="error-title">出错了</div>
-          <div class="error-detail">{{ error }}</div>
-          <button class="retry-button" @click="handleRetry" data-testid="retry-button">
-            重试
-          </button>
+      <!-- 错误消息放在消息区域内，确保可见 -->
+      <Transition name="fade">
+        <div v-if="error" class="error-message" role="alert" aria-live="assertive" data-testid="error-message">
+          <svg class="error-icon" role="img" aria-label="警告" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 9V13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="12" cy="17" r="1" fill="currentColor"/>
+            <path d="M12 2L2.5 11.5V20C2.5 20.8284 3.17157 21.5 4 21.5H20C20.8284 21.5 21.5 20.8284 21.5 20V11.5L12 2Z" stroke="currentColor" stroke-width="2"/>
+          </svg>
+          <div class="error-content">
+            <div class="error-title">出错了</div>
+            <div class="error-detail">{{ error }}</div>
+            <button class="retry-button" @click="handleRetry" data-testid="retry-button">
+              重试
+            </button>
+          </div>
         </div>
-      </div>
-    </Transition>
+      </Transition>
+    </div>
 
     <!-- 输入工具栏 -->
     <div class="input-toolbar">
