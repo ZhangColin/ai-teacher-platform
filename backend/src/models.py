@@ -549,6 +549,8 @@ class SessionDetailResponse(BaseModel):
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="最后更新时间")
     messages: List[Message] = Field(..., description="消息列表")
+    model_provider: Optional[str] = Field(None, description="AI服务提供商")
+    model_name: Optional[str] = Field(None, description="模型名称")
 
 
 class MarkdownToWordRequest(BaseModel):

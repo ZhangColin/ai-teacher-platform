@@ -67,7 +67,9 @@ async def get_session_detail(
         title=session.title,
         created_at=session.created_at,
         updated_at=session.updated_at,
-        messages=message_list
+        messages=message_list,
+        model_provider=session.model_provider,
+        model_name=session.model_name
     )
 
 
