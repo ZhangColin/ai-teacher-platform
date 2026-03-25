@@ -126,8 +126,20 @@ async def chat_stream(
                 db = next(get_db())
                 try:
                     point_service = PointService(db)
-                    if not point_service.check_points_before_request(current_user.user_id):
-                        yield f"data: {json.dumps({'error': '积分不足，请联系企业管理员充值'}, ensure_ascii=False)}\n\n"
+                    # 捕获可能的异常，确保返回友好的错误消息
+                    try:
+                        has_points = point_service.check_points_before_request(current_user.user_id)
+                        if not has_points:
+                            yield f"data: {json.dumps({'type': 'error', 'error': '积分不足，请联系企业管理员充值'}, ensure_ascii=False)}\n\n"
+                            yield "data: [DONE]\n\n"
+                            return
+                    except ValueError as e:
+                        # 处理用户未关联企业等异常情况
+                        error_msg = str(e)
+                        if "未关联企业" in error_msg:
+                            yield f"data: {json.dumps({'type': 'error', 'error': '您尚未关联企业，请联系管理员'}, ensure_ascii=False)}\n\n"
+                        else:
+                            yield f"data: {json.dumps({'type': 'error', 'error': f'积分检查失败：{error_msg}'}, ensure_ascii=False)}\n\n"
                         yield "data: [DONE]\n\n"
                         return
                 finally:
@@ -416,6 +428,23 @@ async def chat_non_stream(
             model_config = tool.model if tool.model else None
 
         logger.info(f"📊 使用模型配置: {model_config or '系统默认'}")
+
+        # 检查积分（在调用 AI 请求之前）
+        db = next(get_db())
+        try:
+            point_service = PointService(db)
+            try:
+                has_points = point_service.check_points_before_request(current_user.user_id)
+                if not has_points:
+                    raise HTTPException(status_code=402, detail="积分不足，请联系企业管理员充值")
+            except ValueError as e:
+                error_msg = str(e)
+                if "未关联企业" in error_msg:
+                    raise HTTPException(status_code=400, detail="您尚未关联企业，请联系管理员")
+                else:
+                    raise HTTPException(status_code=500, detail=f"积分检查失败：{error_msg}")
+        finally:
+            db.close()
 
         # 获取AI响应（现在返回元组：(content, usage_info)）
         response_content, usage_info = await ai_service.chat(
