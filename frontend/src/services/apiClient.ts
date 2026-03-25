@@ -363,7 +363,13 @@ export class ApiService {
                 const chunk = data.type ? data : { type: 'content', ...data }
                 onChunk(chunk)
               } catch (e) {
-                console.error('解析 SSE 数据失败:', e, trimmedLine)
+                // 检查是否是 JSON 解析错误
+                if (e instanceof SyntaxError) {
+                  console.error('解析 SSE 数据失败:', e, trimmedLine)
+                } else {
+                  // 其他错误（如业务逻辑抛出的错误）应该传播出去
+                  throw e
+                }
               }
             }
           } else if (trimmedLine === '') {
@@ -388,7 +394,13 @@ export class ApiService {
             const chunk = data.type ? data : { type: 'content', ...data }
             onChunk(chunk)
           } catch (e) {
-            console.error('解析 SSE 数据失败:', e, trimmedBuffer)
+            // 检查是否是 JSON 解析错误
+            if (e instanceof SyntaxError) {
+              console.error('解析 SSE 数据失败:', e, trimmedBuffer)
+            } else {
+              // 其他错误（如业务逻辑抛出的错误）应该传播出去
+              throw e
+            }
           }
         }
       }
