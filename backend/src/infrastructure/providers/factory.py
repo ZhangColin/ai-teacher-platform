@@ -11,6 +11,7 @@ from src.infrastructure.providers.base import AIProvider
 from src.infrastructure.providers.openai_provider import OpenAIProvider
 from src.infrastructure.providers.deepseek_provider import DeepSeekProvider
 from src.infrastructure.providers.kimi_provider import KimiProvider
+from src.infrastructure.providers.newapi_provider import NewAPIProvider
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,7 @@ class ProviderFactory:
         "openai": OpenAIProvider,
         "deepseek": DeepSeekProvider,
         "kimi": KimiProvider,
+        "newapi": NewAPIProvider,  # 新增
     }
 
     @classmethod
