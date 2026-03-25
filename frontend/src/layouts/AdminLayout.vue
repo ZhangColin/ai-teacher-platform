@@ -69,7 +69,6 @@
             <el-menu-item index="/admin/ai-tools">AI工具</el-menu-item>
             <el-menu-item index="/admin/model-providers">模型供应商</el-menu-item>
             <el-menu-item index="/admin/model-rates">
-              <el-icon><Coin /></el-icon>
               <span>模型汇率配置</span>
             </el-menu-item>
           </el-sub-menu>
