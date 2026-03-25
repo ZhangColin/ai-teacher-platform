@@ -166,3 +166,58 @@ class TestNewAPIProviderMessageConversion:
     def test_convert_role_system(self):
         """测试 role 转换 - system"""
         assert self.provider._convert_role(MessageRole.SYSTEM) == "system"
+
+
+class TestProviderFactoryRegistration:
+    """测试 ProviderFactory 注册"""
+
+    def test_newapi_is_registered(self):
+        """测试 newapi 已注册到 ProviderFactory"""
+        from src.infrastructure.providers.factory import ProviderFactory
+
+        assert "newapi" in ProviderFactory.get_registered_providers()
+
+    def test_is_provider_registered_returns_true(self):
+        """测试 is_provider_registered 对 newapi 返回 True"""
+        from src.infrastructure.providers.factory import ProviderFactory
+
+        assert ProviderFactory.is_provider_registered("newapi") is True
+        assert ProviderFactory.is_provider_registered("NewAPI") is True  # 大小写不敏感
+
+    def test_create_newapi_provider(self):
+        """测试通过工厂创建 NewAPIProvider"""
+        from src.infrastructure.providers.factory import ProviderFactory
+
+        provider = ProviderFactory.create(
+            provider_name="newapi",
+            api_key="test-key",
+            base_url="https://newapi.example.com/v1"
+        )
+
+        assert isinstance(provider, NewAPIProvider)
+        assert provider._api_key == "test-key"
+        assert provider._base_url == "https://newapi.example.com/v1"
+
+    def test_create_newapi_provider_case_insensitive(self):
+        """测试创建 provider 时名称大小写不敏感"""
+        from src.infrastructure.providers.factory import ProviderFactory
+
+        provider1 = ProviderFactory.create(
+            provider_name="newapi",
+            api_key="test-key",
+            base_url="https://newapi.example.com/v1"
+        )
+        provider2 = ProviderFactory.create(
+            provider_name="NewAPI",
+            api_key="test-key",
+            base_url="https://newapi.example.com/v1"
+        )
+        provider3 = ProviderFactory.create(
+            provider_name="NEWAPI",
+            api_key="test-key",
+            base_url="https://newapi.example.com/v1"
+        )
+
+        assert isinstance(provider1, NewAPIProvider)
+        assert isinstance(provider2, NewAPIProvider)
+        assert isinstance(provider3, NewAPIProvider)
