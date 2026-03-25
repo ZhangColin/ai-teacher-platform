@@ -6,14 +6,12 @@ Create Date: 2026-03-25 16:00:00.000000
 
 """
 from typing import Sequence, Union
-import os
 import uuid
 from datetime import datetime
 
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker
-from cryptography.fernet import Fernet
 
 
 # revision identifiers, used by Alembic.
@@ -23,43 +21,22 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
-# NewAPI 常用模型定义
+# NewAPI 常用模型定义（用户可在后台添加更多）
 NEWAPI_MODELS = {
     "gpt-4o": {"name": "GPT-4o", "capabilities": ["chat", "image", "code"]},
     "gpt-4o-mini": {"name": "GPT-4o Mini", "capabilities": ["chat", "image", "code"]},
-    "gpt-4.1": {"name": "GPT-4.1", "capabilities": ["chat", "image", "code"]},
-    "o3": {"name": "o3", "capabilities": ["chat", "code"]},
     "o3-mini": {"name": "o3-mini", "capabilities": ["chat", "code"]},
-    "claude-opus-4.6": {"name": "Claude Opus 4.6", "capabilities": ["chat", "image", "code"]},
     "claude-sonnet-4.6": {"name": "Claude Sonnet 4.6", "capabilities": ["chat", "image", "code"]},
-    "claude-haiku-4.6": {"name": "Claude Haiku 4.6", "capabilities": ["chat"]},
     "deepseek-v3": {"name": "DeepSeek V3", "capabilities": ["chat", "code"]},
-    "deepseek-chat": {"name": "DeepSeek Chat", "capabilities": ["chat", "code"]},
     "deepseek-r1": {"name": "DeepSeek R1", "capabilities": ["chat", "code"]},
-    "gemini-2.5-pro": {"name": "Gemini 2.5 Pro", "capabilities": ["chat", "image", "code"]},
     "gemini-2.5-flash": {"name": "Gemini 2.5 Flash", "capabilities": ["chat", "code"]},
-    "glm-4.7": {"name": "GLM-4.7", "capabilities": ["chat", "code"]},
     "glm-4.6": {"name": "GLM-4.6", "capabilities": ["chat", "code"]},
 }
-
-
-def encrypt_api_key(plaintext: str, key: str) -> str:
-    """加密 API Key"""
-    cipher = Fernet(key.encode())
-    return cipher.encrypt(plaintext.encode()).decode()
 
 
 def upgrade() -> None:
     """Upgrade schema - 添加 NewAPI 供应商"""
 
-    # 获取加密密钥
-    encryption_key = os.getenv("API_KEY_ENCRYPTION_KEY")
-    if not encryption_key:
-        # 如果没有配置加密密钥，生成一个临时密钥
-        encryption_key = Fernet.generate_key().decode()
-        print(f"⚠️  未配置 API_KEY_ENCRYPTION_KEY，使用临时密钥")
-
-    # 获取绑定引擎
     bind = op.get_bind()
     Session = sessionmaker(bind=bind)
     session = Session()
@@ -67,24 +44,12 @@ def upgrade() -> None:
     try:
         # 检查 NewAPI 供应商是否已存在
         result = session.execute(
-            sa.select(sa.text("*")).select_from(sa.text("model_providers")).where(
-                sa.text("provider_code = 'newapi'")
-            )
+            sa.text("SELECT id FROM model_providers WHERE provider_code = 'newapi' LIMIT 1")
         )
         existing = result.fetchone()
 
         if existing:
             print("ℹ️  NewAPI 供应商已存在，跳过初始化")
-            return
-
-        # 获取 NewAPI 配置
-        newapi_key = os.getenv("NEWAPI_API_KEY")
-        newapi_base_url = os.getenv("NEWAPI_BASE_URL", "https://your-newapi-domain.com/v1")
-
-        # 只有配置了 API Key 时才创建
-        if not newapi_key or newapi_key == "sk-your-newapi-api-key-here":
-            print("ℹ️  未配置 NEWAPI_API_KEY，跳过 NewAPI 供应商初始化")
-            print("   如需使用 NewAPI，请在 .env 中配置 NEWAPI_API_KEY 和 NEWAPI_BASE_URL")
             return
 
         # 准备供应商数据
@@ -94,9 +59,9 @@ def upgrade() -> None:
             "id": provider_id,
             "provider_code": "newapi",
             "provider_name": "NewAPI",
-            "api_key_encrypted": encrypt_api_key(newapi_key, encryption_key),
-            "base_url": newapi_base_url,
-            "is_enabled": True,
+            "api_key_encrypted": "",  # 留空，用户在后台配置
+            "base_url": "https://your-newapi-domain.com/v1",
+            "is_enabled": False,  # 默认禁用，配置后启用
             "is_default": False,
             "order": 10,
             "created_at": now,
@@ -149,6 +114,7 @@ def upgrade() -> None:
 
         session.commit()
         print(f"✅ 初始化 NewAPI 供应商和 {len(models_data)} 个常用模型配置")
+        print("   请在管理后台配置 API 密钥和地址后启用")
 
     except Exception as e:
         session.rollback()
