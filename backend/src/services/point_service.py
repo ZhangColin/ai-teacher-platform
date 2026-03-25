@@ -38,7 +38,15 @@ class PointService:
         """
         enterprise = self._get_user_enterprise(user_id)
         if not enterprise:
+            logger.warning(f"🚫 积分检查失败: 用户 {user_id} 未关联企业")
             raise ValueError("用户未关联企业")
+
+        # 详细记录积分状态
+        logger.info(
+            f"🔍 积分检查 - 用户:{user_id}, 企业:{enterprise.id}, "
+            f"赠送积分:{enterprise.balance_gratis}, 充值积分:{enterprise.balance_paid}, "
+            f"负债积分:{enterprise.debt_points}, 总积分:{enterprise.total_points}"
+        )
 
         return enterprise.total_points > 0
 

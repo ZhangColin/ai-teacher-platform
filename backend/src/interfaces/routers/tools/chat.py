@@ -128,14 +128,18 @@ async def chat_stream(
                     point_service = PointService(db)
                     # 捕获可能的异常，确保返回友好的错误消息
                     try:
+                        logger.info(f"🔍 开始积分检查 - 用户:{current_user.user_id}")
                         has_points = point_service.check_points_before_request(current_user.user_id)
+                        logger.info(f"🔍 积分检查结果 - has_points:{has_points}")
                         if not has_points:
+                            logger.warning(f"🚫 积分不足，拒绝请求 - 用户:{current_user.user_id}")
                             yield f"data: {json.dumps({'type': 'error', 'error': '积分不足，请联系企业管理员充值'}, ensure_ascii=False)}\n\n"
                             yield "data: [DONE]\n\n"
                             return
                     except ValueError as e:
                         # 处理用户未关联企业等异常情况
                         error_msg = str(e)
+                        logger.error(f"🚫 积分检查异常 - 用户:{current_user.user_id}, 错误:{error_msg}")
                         if "未关联企业" in error_msg:
                             yield f"data: {json.dumps({'type': 'error', 'error': '您尚未关联企业，请联系管理员'}, ensure_ascii=False)}\n\n"
                         else:
