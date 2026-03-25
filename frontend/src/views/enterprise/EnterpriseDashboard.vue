@@ -53,7 +53,7 @@
     <!-- 操作按钮区域 -->
     <el-card class="action-card">
       <div class="action-buttons">
-        <el-button type="primary" size="large" @click="showRechargeDialog = true">
+        <el-button type="primary" size="large" @click="goToRecharge">
           <el-icon><Wallet /></el-icon>
           <span>在线充值</span>
         </el-button>
@@ -73,7 +73,14 @@
       <el-col :span="12">
         <el-card class="chart-card">
           <template #header>
-            <span class="chart-title">本月消耗趋势</span>
+            <div class="chart-header">
+              <span class="chart-title">{{ chartTitle }}</span>
+              <el-radio-group v-model="timeRange" size="small" @change="handleTimeRangeChange">
+                <el-radio-button value="day">日</el-radio-button>
+                <el-radio-button value="week">周</el-radio-button>
+                <el-radio-button value="month">月</el-radio-button>
+              </el-radio-group>
+            </div>
           </template>
           <div ref="trendChartRef" class="chart-container"></div>
         </el-card>
@@ -191,6 +198,27 @@ const topUsers = ref<any[]>([])
 const loadingUsers = ref(false)
 const showRechargeDialog = ref(false)
 
+// 时间范围选择
+type TimeRange = 'day' | 'week' | 'month'
+const timeRange = ref<TimeRange>('month')
+
+// 时间范围对应的天数
+const timeRangeDays: Record<TimeRange, number> = {
+  day: 1,
+  week: 7,
+  month: 30
+}
+
+// 计算图表标题
+const chartTitle = computed(() => {
+  const titles = {
+    day: '今日消耗趋势',
+    week: '本周消耗趋势',
+    month: '本月消耗趋势'
+  }
+  return titles[timeRange.value]
+})
+
 // 图表引用
 const trendChartRef = ref<HTMLElement>()
 const modelChartRef = ref<HTMLElement>()
@@ -258,12 +286,12 @@ const loadTopUsers = async () => {
 /**
  * 加载消费统计数据
  */
-const loadConsumptionStats = async () => {
+const loadConsumptionStats = async (days?: number) => {
   if (!userInfo.value?.enterprise_id) return
 
   try {
     const response = await apiClient.get('/enterprise/consumptions/stats', {
-      params: { days: 30 }
+      params: { days: days || timeRangeDays[timeRange.value] }
     })
 
     const stats = response.data
@@ -273,6 +301,13 @@ const loadConsumptionStats = async () => {
     // 失败时使用空数据初始化图表
     initCharts([], [])
   }
+}
+
+/**
+ * 处理时间范围切换
+ */
+const handleTimeRangeChange = () => {
+  loadConsumptionStats()
 }
 
 /**
@@ -289,6 +324,11 @@ const initCharts = (trendData: any[] = [], modelData: any[] = []) => {
 const initTrendChart = (trendData: any[] = []) => {
   if (!trendChartRef.value) return
 
+  // 如果图表已存在，先销毁
+  if (trendChart) {
+    trendChart.dispose()
+  }
+
   trendChart = echarts.init(trendChartRef.value)
 
   // 如果有数据，使用真实数据；否则显示空图表
@@ -296,10 +336,29 @@ const initTrendChart = (trendData: any[] = []) => {
   const data: number[] = []
 
   if (trendData.length > 0) {
-    // 填充真实数据
+    // 根据时间范围确定日期格式
     trendData.forEach(item => {
       const date = new Date(item.date)
-      dates.push(`${date.getMonth() + 1}/${date.getDate()}`)
+      let dateStr = ''
+
+      switch (timeRange.value) {
+        case 'day':
+          // 日视图：显示小时
+          dateStr = `${date.getHours()}:00`
+          break
+        case 'week':
+          // 周视图：显示星期几
+          const weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+          dateStr = weekDays[date.getDay()] || '周日'
+          break
+        case 'month':
+        default:
+          // 月视图：显示月/日
+          dateStr = `${date.getMonth() + 1}/${date.getDate()}`
+          break
+      }
+
+      dates.push(dateStr)
       data.push(item.points)
     })
   }
@@ -352,6 +411,11 @@ const initTrendChart = (trendData: any[] = []) => {
  */
 const initModelChart = (modelData: any[] = []) => {
   if (!modelChartRef.value) return
+
+  // 如果图表已存在，先销毁
+  if (modelChart) {
+    modelChart.dispose()
+  }
 
   modelChart = echarts.init(modelChartRef.value)
 
@@ -456,6 +520,13 @@ const goToTransactions = () => {
 }
 
 /**
+ * 跳转到在线充值
+ */
+const goToRecharge = () => {
+  router.push('/enterprise/recharge')
+}
+
+/**
  * 跳转到消费记录
  */
 const goToConsumptions = () => {
@@ -474,9 +545,10 @@ onMounted(async () => {
   await loadEnterpriseInfo()
   await loadTopUsers()
   await loadConsumptionStats()
+  // 注意：loadConsumptionStats 内部已经调用了 initCharts，不需要重复调用
 
   await nextTick()
-  initCharts()
+  // 等待 DOM 渲染完成，确保图表容器已存在
 
   window.addEventListener('resize', handleResize)
 })
@@ -606,6 +678,12 @@ onUnmounted(() => {
   font-size: 16px;
   font-weight: 600;
   color: #303133;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .chart-container {
