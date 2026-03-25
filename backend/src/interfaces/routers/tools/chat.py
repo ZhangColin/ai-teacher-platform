@@ -118,6 +118,9 @@ async def chat_stream(
 
         # 获取流式响应
         async def generate():
+            # 直接获取 logger 以避免作用域问题
+            import logging
+            _logger = logging.getLogger(__name__)
             try:
                 # 检查积分（在开始 AI 请求之前）
                 db = next(get_db())
@@ -150,7 +153,7 @@ async def chat_stream(
                     if isinstance(chunk, dict):
                         if chunk.get('type') == 'usage':
                             usage_info = chunk
-                            logger.info(f"📊 收到Token使用信息: {usage_info}")
+                            _logger.info(f"📊 收到Token使用信息: {usage_info}")
                             continue  # 不发送usage信息给前端
                     else:
                         # 普通内容chunk
@@ -179,7 +182,7 @@ async def chat_stream(
                     completion_tokens=usage_info.get('completion_tokens') if usage_info else None,
                     total_tokens=usage_info.get('total_tokens') if usage_info else None
                 )
-                logger.info(f"✅ AI 消息已保存（含token信息）")
+                _logger.info(f"✅ AI 消息已保存（含token信息）")
 
                 # 记录Token使用日志
                 ai_message_id = None  # 保存消息ID供后续使用
@@ -206,11 +209,11 @@ async def chat_stream(
                                         completion_tokens=usage_info['completion_tokens'],
                                         total_tokens=usage_info['total_tokens']
                                     )
-                                    logger.info(f"✅ Token日志已记录")
+                                    _logger.info(f"✅ Token日志已记录")
                                 finally:
                                     db.close()
                     except Exception as e:
-                        logger.error(f"❌ 记录Token日志失败: {e}", exc_info=True)
+                        _logger.error(f"❌ 记录Token日志失败: {e}", exc_info=True)
 
                 # 扣减积分
                 if usage_info and model_provider and model_name and ai_message_id:
@@ -231,11 +234,11 @@ async def chat_stream(
                                     completion_tokens=usage_info.get('completion_tokens', 0),
                                     points=points
                                 )
-                                logger.info(f"✅ 积分扣减完成 - 消耗:{points}（赠送:{consumption.gratis_points_used}, 充值:{consumption.paid_points_used}）")
+                                _logger.info(f"✅ 积分扣减完成 - 消耗:{points}（赠送:{consumption.gratis_points_used}, 充值:{consumption.paid_points_used}）")
                         finally:
                             db.close()
                     except Exception as e:
-                        logger.error(f"❌ 积分扣减失败: {e}", exc_info=True)
+                        _logger.error(f"❌ 积分扣减失败: {e}", exc_info=True)
 
                 # 更新会话的模型选择（如果用户手动选择了模型）
                 if request.model and model_provider and model_name:
@@ -245,38 +248,38 @@ async def chat_stream(
                         model_name=model_name,
                         user_id=current_user.user_id
                     )
-                    logger.info(f"✅ 会话模型已更新为 {model_provider}:{model_name}")
+                    _logger.info(f"✅ 会话模型已更新为 {model_provider}:{model_name}")
 
                 # 检查是否是第一轮对话，如果是则生成标题
                 messages = session_service.get_messages_by_session(session_id, user_id=current_user.user_id)
-                logger.info(f"📊 会话消息数量检查 - 会话ID: {session_id}, 消息数: {len(messages)}")
+                _logger.info(f"📊 会话消息数量检查 - 会话ID: {session_id}, 消息数: {len(messages)}")
 
                 if len(messages) == 2:  # 第一轮对话：1条用户消息 + 1条AI回复
                     try:
-                        logger.info(f"🎯 检测到第一轮对话，开始生成会话标题 - 用户消息: {request.message[:50]}")
+                        _logger.info(f"🎯 检测到第一轮对话，开始生成会话标题 - 用户消息: {request.message[:50]}")
                         # 生成标题
                         title = await title_generator.generate_title(request.message, full_response)
                         # 更新会话标题
                         session_service.update_session_title(session_id, title, user_id=current_user.user_id)
-                        logger.info(f"✅ 会话标题已生成并更新：{title}")
+                        _logger.info(f"✅ 会话标题已生成并更新：{title}")
                         # 发送标题生成完成事件（包含 session_id，前端用于刷新列表）
                         yield f"data: {json.dumps({'type': 'title_generated', 'session_id': session_id, 'title': title}, ensure_ascii=False)}\n\n"
                     except Exception as e:
-                        logger.error(f"❌ 生成会话标题失败，使用降级方案: {e}", exc_info=True)
+                        _logger.error(f"❌ 生成会话标题失败，使用降级方案: {e}", exc_info=True)
                         # 降级方案：使用简单截取
                         try:
                             fallback_title = title_generator._fallback_title(request.message)
                             session_service.update_session_title(session_id, fallback_title, user_id=current_user.user_id)
-                            logger.info(f"⚠️ 使用降级方案生成标题：{fallback_title}")
+                            _logger.info(f"⚠️ 使用降级方案生成标题：{fallback_title}")
                             # 发送降级标题事件
                             yield f"data: {json.dumps({'type': 'title_generated', 'session_id': session_id, 'title': fallback_title}, ensure_ascii=False)}\n\n"
                         except Exception as e2:
-                            logger.error(f"❌ 降级方案也失败了: {e2}", exc_info=True)
+                            _logger.error(f"❌ 降级方案也失败了: {e2}", exc_info=True)
                 else:
-                    logger.info(f"⏭️ 非第一轮对话，跳过标题生成（消息数: {len(messages)}）")
+                    _logger.info(f"⏭️ 非第一轮对话，跳过标题生成（消息数: {len(messages)}）")
 
             except Exception as e:
-                logger.error(f"Chat stream error: {e}")
+                _logger.error(f"Chat stream error: {e}")
                 error_data = json.dumps({"error": str(e)}, ensure_ascii=False)
                 yield f"data: {error_data}\n\n"
 

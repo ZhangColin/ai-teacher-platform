@@ -20,6 +20,12 @@ logger = logging.getLogger(__name__)
 # 需要使用适配器的供应商（非 OpenAI 兼容）
 ADAPTER_PROVIDERS = {'bedrock', 'claude', 'anthropic'}
 
+# 模型特定配置（某些模型有特殊的参数限制）
+MODEL_SPECIFIC_CONFIG = {
+    # kimi-k2.5 只支持 temperature=1
+    'kimi-k2.5': {'temperature': 1},
+}
+
 
 class AIService:
     """AI 服务客户端"""
@@ -130,12 +136,24 @@ class AIService:
 
         # 创建客户端
         logger.info(f"创建 OpenAI 客户端 - provider: {provider_code}, base_url: {base_url}, model: {model_code}")
-        client = OpenAI(
-            api_key=api_key,
-            base_url=base_url,
-            timeout=timeout_seconds,
-            max_retries=2
-        )
+
+        # newapi 供应商需要特殊处理（httpx 与 NewAPI 不兼容）
+        if provider_code == "newapi":
+            # 标记为使用自定义客户端，在后续调用中特殊处理
+            client = OpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                timeout=timeout_seconds,
+                max_retries=0  # 禁用重试
+            )
+            client._use_custom_http = True  # 标记
+        else:
+            client = OpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                timeout=timeout_seconds,
+                max_retries=2
+            )
 
         logger.info(f"AI 客户端初始化成功 - provider: {provider_code}, base_url: {base_url}, model: {model_code}")
         return client, model_code
@@ -546,20 +564,20 @@ class AIService:
         # 获取客户端和模型
         client, model_name = self._get_ai_client(model_config) if model_config else (self.default_client, self.default_model_name)
 
-        # 解析 provider（用于返回 usage 信息）
+        # 解析 provider_code（用于返回 usage 信息和 newapi 特殊处理）
         if model_config and ":" in model_config:
-            provider = model_config.split(":", 1)[0].lower()
+            provider_code = model_config.split(":", 1)[0].lower()
         else:
             # 测试环境支持：使用默认供应商
             testing = os.getenv("PYTEST_CURRENT_TEST") or os.getenv("TESTING")
             if testing:
-                provider = os.getenv("CURRENT_PROVIDER", "deepseek")
+                provider_code = os.getenv("CURRENT_PROVIDER", "deepseek")
             else:
-                # 从默认配置获取 provider
+                # 从默认配置获取 provider_code
                 from src.services.model_provider_service import ModelProviderService
                 provider_service = ModelProviderService(self.db)
                 provider_info = provider_service.get_default_provider()
-                provider = provider_info.provider_code if provider_info else "unknown"
+                provider_code = provider_info.provider_code if provider_info else "unknown"
 
         # 无客户端时的模拟返回
         if not client:
@@ -578,8 +596,70 @@ class AIService:
             
             # 记录系统提示词（用于调试）
             logger.info(f"对话请求 - 系统提示词长度: {len(system_prompt)} 字符, 历史消息数: {len(history)}, 用户消息: {user_message[:50]}..., 使用模型: {model_name}")
-            
-            response = client.chat.completions.create(
+
+            # newapi 供应商使用 aiohttp（httpx 与 NewAPI 不兼容）
+            if provider_code == "newapi":
+                import aiohttp
+
+                # 重新获取 API 密钥和 base_url
+                provider_service = ModelProviderService(self.db)
+                encryption = EncryptionService()
+                provider_info = provider_service.get_provider_by_code(provider_code)
+                provider_model = self.db.query(ModelProviderModel).filter(
+                    ModelProviderModel.id == provider_info.id
+                ).first()
+                newapi_key = encryption.decrypt(provider_model.api_key_encrypted)
+                newapi_url = provider_info.base_url
+
+                # 获取模型特定配置（如 temperature 限制）
+                model_config = MODEL_SPECIFIC_CONFIG.get(model_name, {})
+                temperature = model_config.get('temperature', 0.7)
+
+                headers = {
+                    'Authorization': f'Bearer {newapi_key}',
+                    'Content-Type': 'application/json'
+                }
+                payload = {
+                    'model': model_name,
+                    'messages': messages,
+                    'stream': False,
+                    'temperature': temperature
+                }
+
+                # 记录请求详情（用于调试）
+                print(f"[NewAPI Debug] URL: {newapi_url}/chat/completions")
+                print(f"[NewAPI Debug] Model: {model_name}")
+                print(f"[NewAPI Debug] Payload: {json.dumps(payload, ensure_ascii=False)[:500]}")
+                print(f"[NewAPI Debug] Headers: Authorization=Bearer {newapi_key[:10]}...")
+
+                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=120.0)) as session:
+                    async with session.post(
+                        f'{newapi_url}/chat/completions',
+                        headers=headers,
+                        json=payload
+                    ) as response:
+                        if response.status != 200:
+                            error_text = await response.text()
+                            print(f"[NewAPI Debug] Error response: {error_text}")
+                            try:
+                                error_json = await response.json()
+                                print(f"[NewAPI Debug] Error JSON: {error_json}")
+                            except:
+                                pass
+                            return f"⚠️ AI服务调用失败: HTTP {response.status}\n请稍后重试或联系管理员。", None
+
+                        response_data = await response.json()
+                        result = response_data['choices'][0]['message']['content']
+                        usage_info = {
+                            'prompt_tokens': response_data.get('usage', {}).get('prompt_tokens', 0),
+                            'completion_tokens': response_data.get('usage', {}).get('completion_tokens', 0),
+                            'total_tokens': response_data.get('usage', {}).get('total_tokens', 0),
+                            'model_provider': provider_code,
+                            'model_name': model_name
+                        }
+
+            else:
+                response = client.chat.completions.create(
                 model=model_name,
                 messages=messages,
                 temperature=0.7
@@ -595,7 +675,7 @@ class AIService:
                     'prompt_tokens': response.usage.prompt_tokens,
                     'completion_tokens': response.usage.completion_tokens,
                     'total_tokens': response.usage.total_tokens,
-                    'model_provider': provider,
+                    'model_provider': provider_code,
                     'model_name': model_name
                 }
                 logger.info(f"Token使用: {usage_info}")
@@ -892,7 +972,7 @@ class AIService:
         # 使用 OpenAI 客户端（原有逻辑）
         client, model_name = self._get_ai_client(model_config) if model_config else (self.default_client, self.default_model_name)
 
-        # 解析 provider（用于返回 usage 信息）
+        # 解析 provider_code（用于返回 usage 信息）
         if model_config and ":" in model_config:
             provider = model_config.split(":", 1)[0].lower()
         else:
@@ -905,6 +985,9 @@ class AIService:
                 provider_service = ModelProviderService(self.db)
                 provider_info = provider_service.get_default_provider()
                 provider = provider_info.provider_code if provider_info else "unknown"
+
+        # 统一变量名：为了和 newapi 处理代码兼容，provider_code = provider
+        provider_code = provider
 
         # 无客户端时的模拟返回
         if not client:
@@ -927,17 +1010,115 @@ class AIService:
         try:
             # 构建消息链：System Prompt + History + Current Input
             messages = [{"role": "system", "content": system_prompt}]
-            
+
             # 添加历史消息
             for msg in history:
                 messages.append({"role": msg["role"], "content": msg["content"]})
-            
+
             # 添加当前用户消息
             messages.append({"role": "user", "content": user_message})
-            
+
             # 记录系统提示词（用于调试）
             logger.info(f"流式对话请求 - 系统提示词长度: {len(system_prompt)} 字符, 历史消息数: {len(history)}, 用户消息: {user_message[:50]}..., 使用模型: {model_name}")
-            
+
+            # newapi 供应商使用 aiohttp（httpx 与 NewAPI 不兼容）
+            if provider_code == "newapi":
+                import aiohttp
+                import json as json_module
+                from src.services.model_provider_service import ModelProviderService
+                from src.services.encryption_service import EncryptionService
+                from src.db_models import ModelProviderModel
+
+                # 重新获取 API 密钥和 base_url
+                provider_service = ModelProviderService(self.db)
+                encryption = EncryptionService()
+                provider_info = provider_service.get_provider_by_code(provider_code)
+                provider_model = self.db.query(ModelProviderModel).filter(
+                    ModelProviderModel.id == provider_info.id
+                ).first()
+                newapi_key = encryption.decrypt(provider_model.api_key_encrypted)
+                newapi_url = provider_info.base_url
+
+                # 获取模型特定配置（如 temperature 限制）
+                model_config = MODEL_SPECIFIC_CONFIG.get(model_name, {})
+                temperature = model_config.get('temperature', 0.7)
+
+                headers = {
+                    'Authorization': f'Bearer {newapi_key}',
+                    'Content-Type': 'application/json'
+                }
+                payload = {
+                    'model': model_name,
+                    'messages': messages,
+                    'stream': True,
+                    'temperature': temperature
+                }
+
+                # 记录请求详情（用于调试）
+                print(f"[NewAPI Debug Stream] URL: {newapi_url}/chat/completions")
+                print(f"[NewAPI Debug Stream] Model: {model_name}")
+                print(f"[NewAPI Debug Stream] Payload: {json.dumps(payload, ensure_ascii=False)[:500]}")
+                print(f"[NewAPI Debug Stream] Headers: Authorization=Bearer {newapi_key[:10]}...")
+
+                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=120.0)) as session:
+                    async with session.post(
+                        f'{newapi_url}/chat/completions',
+                        headers=headers,
+                        json=payload
+                    ) as response:
+                        print(f"[NewAPI Debug Stream] Response status: {response.status}")
+                        if response.status != 200:
+                            error_text = await response.text()
+                            print(f"[NewAPI Debug Stream] Error response: {error_text}")
+                            try:
+                                error_json = await response.json()
+                                print(f"[NewAPI Debug Stream] Error JSON: {error_json}")
+                            except:
+                                pass
+                            yield f"⚠️ AI服务调用失败: HTTP {response.status}\n请稍后重试或联系管理员。"
+                            # 返回空的 usage
+                            yield {
+                                'type': 'usage',
+                                'prompt_tokens': 0,
+                                'completion_tokens': 0,
+                                'total_tokens': 0,
+                                'model_provider': provider_code,
+                                'model_name': model_name
+                            }
+                            return
+
+                        accumulated_content = ""
+                        async for line in response.content:
+                            if line:
+                                line_text = line.decode('utf-8').strip()
+                                if line_text.startswith('data: '):
+                                    line_text = line_text[6:]  # 去掉 'data: '
+                                elif line_text.startswith('data:'):
+                                    line_text = line_text[5:]  # 去掉 'data:'
+                                if line_text == '[DONE]':
+                                    break
+                                try:
+                                    chunk_data = json_module.loads(line_text)
+                                    if 'choices' in chunk_data and chunk_data['choices']:
+                                        delta = chunk_data['choices'][0].get('delta', {})
+                                        content = delta.get('content', '')
+                                        if content:
+                                            accumulated_content += content
+                                            yield content
+                                except json_module.JSONDecodeError:
+                                    pass
+
+                        # 返回 usage
+                        yield {
+                            'type': 'usage',
+                            'prompt_tokens': 0,
+                            'completion_tokens': len(accumulated_content),
+                            'total_tokens': len(accumulated_content),
+                            'model_provider': provider_code,
+                            'model_name': model_name
+                        }
+                return
+
             # 使用流式输出（同步调用，需要在异步函数中处理）
             # 注意：OpenAI 客户端的流式调用是同步的，需要在异步上下文中处理
             stream = client.chat.completions.create(

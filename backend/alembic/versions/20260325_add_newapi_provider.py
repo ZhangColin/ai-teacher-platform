@@ -21,21 +21,8 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
-# NewAPI 常用模型定义（用户可在后台添加更多）
-NEWAPI_MODELS = {
-    "gpt-4o": {"name": "GPT-4o", "capabilities": ["chat", "image", "code"]},
-    "gpt-4o-mini": {"name": "GPT-4o Mini", "capabilities": ["chat", "image", "code"]},
-    "o3-mini": {"name": "o3-mini", "capabilities": ["chat", "code"]},
-    "claude-sonnet-4.6": {"name": "Claude Sonnet 4.6", "capabilities": ["chat", "image", "code"]},
-    "deepseek-v3": {"name": "DeepSeek V3", "capabilities": ["chat", "code"]},
-    "deepseek-r1": {"name": "DeepSeek R1", "capabilities": ["chat", "code"]},
-    "gemini-2.5-flash": {"name": "Gemini 2.5 Flash", "capabilities": ["chat", "code"]},
-    "glm-4.6": {"name": "GLM-4.6", "capabilities": ["chat", "code"]},
-}
-
-
 def upgrade() -> None:
-    """Upgrade schema - 添加 NewAPI 供应商"""
+    """Upgrade schema - 添加 NewAPI 供应商（不包含预置模型）"""
 
     bind = op.get_bind()
     Session = sessionmaker(bind=bind)
@@ -84,37 +71,9 @@ def upgrade() -> None:
         )
         session.execute(model_providers_table.insert(), [provider_data])
 
-        # 插入常用模型配置
-        models_data = []
-        for model_code, model_config in NEWAPI_MODELS.items():
-            models_data.append({
-                "id": str(uuid.uuid4()),
-                "provider_id": provider_id,
-                "model_code": model_code,
-                "model_name": model_config["name"],
-                "capabilities": ",".join(model_config["capabilities"]),
-                "is_enabled": True,
-                "created_at": now,
-                "updated_at": now,
-            })
-
-        if models_data:
-            model_configs_table = sa.table(
-                "model_configs",
-                sa.column("id", sa.CHAR(36)),
-                sa.column("provider_id", sa.CHAR(36)),
-                sa.column("model_code", sa.String(50)),
-                sa.column("model_name", sa.String(100)),
-                sa.column("capabilities", sa.String(50)),
-                sa.column("is_enabled", sa.Boolean),
-                sa.column("created_at", sa.DateTime),
-                sa.column("updated_at", sa.DateTime),
-            )
-            session.execute(model_configs_table.insert(), models_data)
-
         session.commit()
-        print(f"✅ 初始化 NewAPI 供应商和 {len(models_data)} 个常用模型配置")
-        print("   请在管理后台配置 API 密钥和地址后启用")
+        print("✅ 初始化 NewAPI 供应商（请在管理后台手动添加模型）")
+        print("   提示: 配置 API 密钥和地址后，可在管理后台逐个添加模型")
 
     except Exception as e:
         session.rollback()
