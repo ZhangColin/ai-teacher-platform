@@ -221,3 +221,458 @@ class TestProviderFactoryRegistration:
         assert isinstance(provider1, NewAPIProvider)
         assert isinstance(provider2, NewAPIProvider)
         assert isinstance(provider3, NewAPIProvider)
+
+
+class TestNewAPIProviderChatStream:
+    """测试流式对话"""
+
+    def setup_method(self):
+        """每个测试前创建 provider 实例"""
+        self.patcher = patch("src.infrastructure.providers.newapi_provider.AsyncOpenAI")
+        self.mock_openai = self.patcher.start()
+        self.provider = NewAPIProvider(
+            api_key="test-key",
+            base_url="https://newapi.example.com/v1"
+        )
+
+    def teardown_method(self):
+        """每个测试后清理"""
+        self.patcher.stop()
+
+    @pytest.mark.asyncio
+    async def test_chat_stream_yields_content(self):
+        """测试流式对话返回内容"""
+        # 创建 mock 流式响应
+        async def mock_stream_generator():
+            mock_chunk = Mock()
+            mock_chunk.choices = [Mock()]
+            mock_chunk.choices[0].delta.content = "Hello"
+            yield mock_chunk
+
+        mock_completion = Mock()
+        mock_completion.create = Mock(return_value=mock_stream_generator())
+
+        self.provider._client.chat.completions = mock_completion
+
+        messages = [
+            Message(
+                id="1",
+                session_id="session-1",
+                role=MessageRole.USER,
+                content="Hello",
+                artifact=None,
+                created_at=datetime.now()
+            )
+        ]
+
+        result = []
+        async for chunk in self.provider.chat_stream(messages, model="gpt-4"):
+            result.append(chunk)
+
+        assert result == ["Hello"]
+        mock_completion.create.assert_called_once_with(
+            model="gpt-4",
+            messages=[{"role": "user", "content": "Hello"}],
+            temperature=0.7,
+            max_tokens=None,
+            stream=True
+        )
+
+    @pytest.mark.asyncio
+    async def test_chat_stream_with_temperature_and_max_tokens(self):
+        """测试流式对话带温度和最大token参数"""
+        async def mock_stream_generator():
+            mock_chunk = Mock()
+            mock_chunk.choices = [Mock()]
+            mock_chunk.choices[0].delta.content = "Response"
+            yield mock_chunk
+
+        mock_completion = Mock()
+        mock_completion.create = Mock(return_value=mock_stream_generator())
+
+        self.provider._client.chat.completions = mock_completion
+
+        messages = [
+            Message(
+                id="1",
+                session_id="session-1",
+                role=MessageRole.USER,
+                content="Test",
+                artifact=None,
+                created_at=datetime.now()
+            )
+        ]
+
+        async for _ in self.provider.chat_stream(
+            messages,
+            model="gpt-4",
+            temperature=0.5,
+            max_tokens=1000
+        ):
+            pass
+
+        mock_completion.create.assert_called_once_with(
+            model="gpt-4",
+            messages=[{"role": "user", "content": "Test"}],
+            temperature=0.5,
+            max_tokens=1000,
+            stream=True
+        )
+
+    @pytest.mark.asyncio
+    async def test_chat_stream_handles_empty_chunks(self):
+        """测试流式对话处理空内容块"""
+        async def mock_stream_generator():
+            # 空内容块
+            mock_chunk_empty = Mock()
+            mock_chunk_empty.choices = [Mock()]
+            mock_chunk_empty.choices[0].delta.content = None
+            yield mock_chunk_empty
+
+            # 有内容块
+            mock_chunk_content = Mock()
+            mock_chunk_content.choices = [Mock()]
+            mock_chunk_content.choices[0].delta.content = "Hello"
+            yield mock_chunk_content
+
+        mock_completion = Mock()
+        mock_completion.create = Mock(return_value=mock_stream_generator())
+
+        self.provider._client.chat.completions = mock_completion
+
+        messages = [
+            Message(
+                id="1",
+                session_id="session-1",
+                role=MessageRole.USER,
+                content="Test",
+                artifact=None,
+                created_at=datetime.now()
+            )
+        ]
+
+        result = []
+        async for chunk in self.provider.chat_stream(messages, model="gpt-4"):
+            result.append(chunk)
+
+        assert result == ["Hello"]
+
+    @pytest.mark.asyncio
+    async def test_chat_stream_handles_exception(self):
+        """测试流式对话处理异常"""
+        mock_completion = Mock()
+        mock_completion.create = Mock(side_effect=Exception("API Error"))
+        self.provider._client.chat.completions = mock_completion
+
+        messages = [
+            Message(
+                id="1",
+                session_id="session-1",
+                role=MessageRole.USER,
+                content="Test",
+                artifact=None,
+                created_at=datetime.now()
+            )
+        ]
+
+        with pytest.raises(Exception, match="API Error"):
+            async for _ in self.provider.chat_stream(messages, model="gpt-4"):
+                pass
+
+
+class TestNewAPIProviderChat:
+    """测试非流式对话"""
+
+    def setup_method(self):
+        """每个测试前创建 provider 实例"""
+        self.patcher = patch("src.infrastructure.providers.newapi_provider.AsyncOpenAI")
+        self.patcher.start()
+        self.provider = NewAPIProvider(
+            api_key="test-key",
+            base_url="https://newapi.example.com/v1"
+        )
+
+    def teardown_method(self):
+        """每个测试后清理"""
+        self.patcher.stop()
+
+    @pytest.mark.asyncio
+    async def test_chat_returns_response_content(self):
+        """测试非流式对话返回响应内容"""
+        mock_response = Mock()
+        mock_response.choices = [Mock()]
+        mock_response.choices[0].message.content = "Hello, human!"
+
+        mock_completion = AsyncMock()
+        mock_completion.create = AsyncMock(return_value=mock_response)
+        self.provider._client.chat.completions = mock_completion
+
+        messages = [
+            Message(
+                id="1",
+                session_id="session-1",
+                role=MessageRole.USER,
+                content="Hello",
+                artifact=None,
+                created_at=datetime.now()
+            )
+        ]
+
+        result = await self.provider.chat(messages, model="gpt-4")
+
+        assert result == "Hello, human!"
+        mock_completion.create.assert_called_once_with(
+            model="gpt-4",
+            messages=[{"role": "user", "content": "Hello"}],
+            temperature=0.7,
+            max_tokens=None,
+            stream=False
+        )
+
+    @pytest.mark.asyncio
+    async def test_chat_with_parameters(self):
+        """测试非流式对话带参数"""
+        mock_response = Mock()
+        mock_response.choices = [Mock()]
+        mock_response.choices[0].message.content = "Response"
+
+        mock_completion = AsyncMock()
+        mock_completion.create = AsyncMock(return_value=mock_response)
+        self.provider._client.chat.completions = mock_completion
+
+        messages = [
+            Message(
+                id="1",
+                session_id="session-1",
+                role=MessageRole.USER,
+                content="Test",
+                artifact=None,
+                created_at=datetime.now()
+            )
+        ]
+
+        result = await self.provider.chat(
+            messages,
+            model="gpt-4",
+            temperature=0.3,
+            max_tokens=500
+        )
+
+        assert result == "Response"
+        mock_completion.create.assert_called_once_with(
+            model="gpt-4",
+            messages=[{"role": "user", "content": "Test"}],
+            temperature=0.3,
+            max_tokens=500,
+            stream=False
+        )
+
+    @pytest.mark.asyncio
+    async def test_chat_handles_exception(self):
+        """测试非流式对话处理异常"""
+        mock_completion = AsyncMock()
+        mock_completion.create = AsyncMock(side_effect=Exception("API Error"))
+        self.provider._client.chat.completions = mock_completion
+
+        messages = [
+            Message(
+                id="1",
+                session_id="session-1",
+                role=MessageRole.USER,
+                content="Test",
+                artifact=None,
+                created_at=datetime.now()
+            )
+        ]
+
+        with pytest.raises(Exception, match="API Error"):
+            await self.provider.chat(messages, model="gpt-4")
+
+
+class TestNewAPIProviderImageGeneration:
+    """测试图片生成"""
+
+    def setup_method(self):
+        """每个测试前创建 provider 实例"""
+        self.patcher = patch("src.infrastructure.providers.newapi_provider.AsyncOpenAI")
+        self.patcher.start()
+        self.provider = NewAPIProvider(
+            api_key="test-key",
+            base_url="https://newapi.example.com/v1"
+        )
+
+    def teardown_method(self):
+        """每个测试后清理"""
+        self.patcher.stop()
+
+    @pytest.mark.asyncio
+    async def test_generate_image_returns_url(self):
+        """测试图片生成返回URL"""
+        mock_response = Mock()
+        mock_response.data = [Mock()]
+        mock_response.data[0].url = "https://example.com/image.png"
+
+        mock_images = AsyncMock()
+        mock_images.generate = AsyncMock(return_value=mock_response)
+        self.provider._client.images = mock_images
+
+        result = await self.provider.generate_image(
+            prompt="A beautiful sunset",
+            size="1024x1024"
+        )
+
+        assert result == "https://example.com/image.png"
+        mock_images.generate.assert_called_once_with(
+            model="dall-e-3",
+            prompt="A beautiful sunset",
+            size="1024x1024"
+        )
+
+    @pytest.mark.asyncio
+    async def test_generate_image_with_custom_size(self):
+        """测试图片生成带自定义尺寸"""
+        mock_response = Mock()
+        mock_response.data = [Mock()]
+        mock_response.data[0].url = "https://example.com/image.png"
+
+        mock_images = AsyncMock()
+        mock_images.generate = AsyncMock(return_value=mock_response)
+        self.provider._client.images = mock_images
+
+        result = await self.provider.generate_image(
+            prompt="A cat",
+            size="512x512"
+        )
+
+        assert result == "https://example.com/image.png"
+        mock_images.generate.assert_called_once_with(
+            model="dall-e-3",
+            prompt="A cat",
+            size="512x512"
+        )
+
+    @pytest.mark.asyncio
+    async def test_generate_image_handles_exception(self):
+        """测试图片生成处理异常"""
+        mock_images = AsyncMock()
+        mock_images.generate = AsyncMock(side_effect=Exception("Image API Error"))
+        self.provider._client.images = mock_images
+
+        with pytest.raises(Exception, match="Image API Error"):
+            await self.provider.generate_image(prompt="Test image")
+
+
+class TestNewAPIProviderAudioGeneration:
+    """测试音频生成"""
+
+    def setup_method(self):
+        """每个测试前创建 provider 实例"""
+        self.patcher = patch("src.infrastructure.providers.newapi_provider.AsyncOpenAI")
+        self.patcher.start()
+        self.provider = NewAPIProvider(
+            api_key="test-key",
+            base_url="https://newapi.example.com/v1"
+        )
+
+    def teardown_method(self):
+        """每个测试后清理"""
+        self.patcher.stop()
+
+    @pytest.mark.asyncio
+    async def test_generate_audio_returns_base64(self):
+        """测试音频生成返回base64编码"""
+        # 模拟音频内容
+        audio_bytes = b"fake audio content"
+
+        mock_response = Mock()
+        mock_response.content = audio_bytes
+
+        mock_audio = AsyncMock()
+        mock_audio.speech = Mock()
+        mock_audio.speech.create = AsyncMock(return_value=mock_response)
+        self.provider._client.audio = mock_audio
+
+        result = await self.provider.generate_audio(
+            text="Hello, world!",
+            voice="alloy"
+        )
+
+        assert result.startswith("data:audio/mp3;base64,")
+        # 验证base64编码正确
+        import base64
+        expected_prefix = "data:audio/mp3;base64,"
+        assert result.startswith(expected_prefix)
+        base64_part = result[len(expected_prefix):]
+        decoded = base64.b64decode(base64_part)
+        assert decoded == audio_bytes
+
+        mock_audio.speech.create.assert_called_once_with(
+            model="tts-1",
+            voice="alloy",
+            input="Hello, world!"
+        )
+
+    @pytest.mark.asyncio
+    async def test_generate_audio_with_custom_voice(self):
+        """测试音频生成带自定义音色"""
+        audio_bytes = b"audio data"
+
+        mock_response = Mock()
+        mock_response.content = audio_bytes
+
+        mock_audio = AsyncMock()
+        mock_audio.speech = Mock()
+        mock_audio.speech.create = AsyncMock(return_value=mock_response)
+        self.provider._client.audio = mock_audio
+
+        result = await self.provider.generate_audio(
+            text="Test",
+            voice="echo"
+        )
+
+        assert result.startswith("data:audio/mp3;base64,")
+        mock_audio.speech.create.assert_called_once_with(
+            model="tts-1",
+            voice="echo",
+            input="Test"
+        )
+
+    @pytest.mark.asyncio
+    async def test_generate_audio_handles_exception(self):
+        """测试音频生成处理异常"""
+        mock_audio = AsyncMock()
+        mock_audio.speech = Mock()
+        mock_audio.speech.create = AsyncMock(side_effect=Exception("Audio API Error"))
+        self.provider._client.audio = mock_audio
+
+        with pytest.raises(Exception, match="Audio API Error"):
+            await self.provider.generate_audio(text="Test")
+
+
+class TestNewAPIProviderRoleConversion:
+    """测试角色转换边缘情况"""
+
+    def setup_method(self):
+        """每个测试前创建 provider 实例"""
+        with patch("src.infrastructure.providers.newapi_provider.AsyncOpenAI"):
+            self.provider = NewAPIProvider(
+                api_key="test-key",
+                base_url="https://newapi.example.com/v1"
+            )
+
+    def test_convert_role_unknown_fallback_to_user(self):
+        """测试未知角色回退到user"""
+        # 创建一个非标准角色的 Mock
+        class UnknownRole:
+            def is_system_message(self):
+                return False
+            def is_user_message(self):
+                return False
+            def is_assistant_message(self):
+                return False
+
+        unknown_role = UnknownRole()
+        result = self.provider._convert_role(unknown_role)
+
+        # 根据代码逻辑，未知角色应回退到 "user"
+        assert result == "user"
