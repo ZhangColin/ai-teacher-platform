@@ -215,26 +215,27 @@ async def chat_stream(
                     except Exception as e:
                         _logger.error(f"❌ 记录Token日志失败: {e}", exc_info=True)
 
-                # 扣减积分
+                # 扣减积分（不满一积分的，扣除一积分）
                 if usage_info and model_provider and model_name and ai_message_id:
                     try:
                         db = next(get_db())
                         try:
                             point_service = PointService(db)
                             points = usage_info.get('points_deducted', 0)
-                            if points > 0:
-                                consumption = point_service.deduct_points(
-                                    enterprise_id=current_user.enterprise_id,
-                                    user_id=current_user.user_id,
-                                    session_id=session_id,
-                                    message_id=ai_message_id,
-                                    model_provider=model_provider,
-                                    model_name=model_name,
-                                    prompt_tokens=usage_info.get('prompt_tokens', 0),
-                                    completion_tokens=usage_info.get('completion_tokens', 0),
-                                    points=points
-                                )
-                                _logger.info(f"✅ 积分扣减完成 - 消耗:{points}（赠送:{consumption.gratis_points_used}, 充值:{consumption.paid_points_used}）")
+                            # 确保至少扣除1积分
+                            points = max(1, points)
+                            consumption = point_service.deduct_points(
+                                enterprise_id=current_user.enterprise_id,
+                                user_id=current_user.user_id,
+                                session_id=session_id,
+                                message_id=ai_message_id,
+                                model_provider=model_provider,
+                                model_name=model_name,
+                                prompt_tokens=usage_info.get('prompt_tokens', 0),
+                                completion_tokens=usage_info.get('completion_tokens', 0),
+                                points=points
+                            )
+                            _logger.info(f"✅ 积分扣减完成 - 消耗:{points}（赠送:{consumption.gratis_points_used}, 充值:{consumption.paid_points_used}）")
                         finally:
                             db.close()
                     except Exception as e:

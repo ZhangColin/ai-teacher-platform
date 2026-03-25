@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """会话服务：管理会话和消息"""
+import logging
 import uuid
 from datetime import datetime
 from typing import List, Optional
@@ -9,6 +10,8 @@ from sqlalchemy import desc
 
 from ..models import Session as SessionDomain, Message as MessageDomain
 from ..db_models import SessionModel, MessageModel, MessageRole
+
+logger = logging.getLogger(__name__)
 
 
 class SessionService:
