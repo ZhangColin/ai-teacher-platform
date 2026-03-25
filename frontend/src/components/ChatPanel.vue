@@ -55,22 +55,6 @@ import WelcomeMessage from './WelcomeMessage.vue';
 import { useSessionStore } from '../stores/sessionStore';
 import type { Message } from '@/types';
 
-// 调试：监听 error 变化
-const sessionStore = useSessionStore();
-watch(() => props.error, (newError) => {
-  console.log('[ChatPanel] props.error 变化:', newError);
-}, { immediate: true });
-
-watch(() => sessionStore.error, (newError) => {
-  console.log('[ChatPanel] sessionStore.error 变化:', newError);
-});
-
-// 调试：计算当前显示的 error
-const displayError = computed(() => {
-  console.log('[ChatPanel] displayError computed, props.error:', props.error);
-  return props.error;
-});
-
 interface Props {
   toolId?: string;
   welcomeMessage?: string;
@@ -100,6 +84,21 @@ const emit = defineEmits<{
 const sessionStore = useSessionStore();
 const messageListRef = ref<InstanceType<typeof MessageList>>();
 const chatInputRef = ref<InstanceType<typeof ChatInput>>();
+
+// 调试：监听 error 变化
+watch(() => props.error, (newError) => {
+  console.log('[ChatPanel] props.error 变化:', newError);
+}, { immediate: true });
+
+watch(() => sessionStore.error, (newError) => {
+  console.log('[ChatPanel] sessionStore.error 变化:', newError);
+});
+
+// 调试：计算当前显示的 error
+const displayError = computed(() => {
+  console.log('[ChatPanel] displayError computed, props.error:', props.error);
+  return props.error;
+});
 
 // 初始化工具
 watch(() => props.toolId, (newToolId) => {
