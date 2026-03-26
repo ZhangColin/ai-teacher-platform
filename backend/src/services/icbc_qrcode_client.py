@@ -198,3 +198,63 @@ class IcbcQrCodeClient:
         logger.info(f"工行二维码生成响应 - 订单号:{out_trade_no}, 响应码:{result.get('return_code')}")
 
         return result
+
+    async def query_order(
+        self,
+        out_trade_no: str,
+        order_id: str = None,
+    ) -> dict:
+        """
+        查询订单状态
+
+        Args:
+            out_trade_no: 商户订单号
+            order_id: 工行订单号（可选，与out_trade_no二选一）
+
+        Returns:
+            工行响应结果
+            {
+                "return_code": "0",
+                "return_msg": "成功",
+                "payStatus": "1",  # 0=支付中, 1=支付成功, 2=支付失败
+                "order_id": "工行订单号"
+            }
+        """
+        biz_content = {
+            "merId": self.mer_id,
+            "outTradeNo": out_trade_no,
+        }
+
+        if order_id:
+            biz_content["orderId"] = order_id
+
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        params = {
+            "app_id": self.app_id,
+            "format": "json",
+            "charset": "UTF-8",
+            "sign_type": "RSA2",
+            "timestamp": timestamp,
+            "biz_content": json.dumps(biz_content, ensure_ascii=False),
+        }
+
+        # 签名
+        sign_str = self._build_sign_str(params)
+        sign = self._sign(sign_str)
+        params["sign"] = sign
+
+        logger.info(f"工行订单查询请求 - 订单号:{out_trade_no}")
+
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.post(
+                self.API_QUERY_ORDER,
+                json=params,
+                headers={"Content-Type": "application/json"}
+            )
+            response.raise_for_status()
+            result = response.json()
+
+        logger.info(f"工行订单查询响应 - 订单号:{out_trade_no}, 状态:{result.get('payStatus', 'N/A')}")
+
+        return result

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """工行二维码支付客户端测试"""
+import json
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 import httpx
@@ -153,7 +154,6 @@ async def test_generate_qrcode_builds_correct_request(icbc_client):
         assert icbc_client.API_GENERATE_QRCODE in str(call_args)
 
         # 验证请求体包含必需参数
-        import json
         request_json = call_args[1]["json"]
         assert request_json["app_id"] == "11000000000000079872"
         assert request_json["sign_type"] == "RSA2"
@@ -164,3 +164,70 @@ async def test_generate_qrcode_builds_correct_request(icbc_client):
         assert biz_content["merId"] == "020004161912"
         assert biz_content["outTradeNo"] == "TEST2026032612345678"
         assert biz_content["orderAmt"] == "1"
+
+
+@pytest.mark.asyncio
+async def test_query_order_success(icbc_client):
+    """测试查询订单成功（mock 工行接口）"""
+    mock_response_data = {
+        "return_code": "0",
+        "return_msg": "成功",
+        "payStatus": "1",  # 1=支付成功
+        "order_id": "ICBC_TEST_ORDER_123",
+    }
+
+    # 创建 mock 响应对象
+    mock_response = MagicMock()
+    mock_response.json = MagicMock(return_value=mock_response_data)
+    mock_response.raise_for_status = MagicMock()
+
+    # 创建 mock 客户端
+    mock_client = AsyncMock()
+    mock_client.post = AsyncMock(return_value=mock_response)
+
+    # 创建异步上下文管理器 mock
+    from contextlib import asynccontextmanager
+
+    @asynccontextmanager
+    async def mock_async_client():
+        yield mock_client
+
+    with patch('httpx.AsyncClient', return_value=mock_async_client()):
+        result = await icbc_client.query_order(
+            out_trade_no="TEST2026032612345678",
+        )
+
+        assert result["return_code"] == "0"
+        assert result["payStatus"] == "1"
+
+
+@pytest.mark.asyncio
+async def test_query_order_with_order_id(icbc_client):
+    """测试使用工行订单号查询"""
+    # 创建 mock 响应对象
+    mock_response = MagicMock()
+    mock_response.json = MagicMock(return_value={"return_code": "0"})
+    mock_response.raise_for_status = MagicMock()
+
+    # 创建 mock 客户端
+    mock_client = AsyncMock()
+    mock_client.post = AsyncMock(return_value=mock_response)
+
+    # 创建异步上下文管理器 mock
+    from contextlib import asynccontextmanager
+
+    @asynccontextmanager
+    async def mock_async_client():
+        yield mock_client
+
+    with patch('httpx.AsyncClient', return_value=mock_async_client()):
+        await icbc_client.query_order(
+            out_trade_no="TEST2026032612345678",
+            order_id="ICBC_ORDER_123",
+        )
+
+        # 验证请求中包含 order_id
+        call_args = mock_client.post.call_args
+        request_json = call_args[1]["json"]
+        biz_content = json.loads(request_json["biz_content"])
+        assert biz_content["orderId"] == "ICBC_ORDER_123"
