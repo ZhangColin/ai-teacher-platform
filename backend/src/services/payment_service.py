@@ -103,36 +103,34 @@ class PaymentService:
             amount=amount,
             status=PaymentOrderStatus.created,
             business_type="recharge",
-            expire_at=expire_at
+            expire_at=expire_at,
+            goods_name=self.icbc_client.goods_name,  # 新增：商品名称
+            attach=body[:127] if len(body) > 127 else body,  # 新增：附加数据
         )
         self.db.add(order)
         self.db.flush()
 
-        # 5. 准备工行接口所需的时间参数
-        now = datetime.now()
-        trade_date = now.strftime("%Y%m%d")   # yyyyMMdd
-        trade_time = now.strftime("%H%M%S")   # HHmmss
-
-        # 6. 调用工行二维码生成接口（真实调用）
+        # 5. 调用工行二维码生成接口（真实调用）
+        # 注意：新接口不再需要 trade_date 和 trade_time 参数
         try:
             icbc_response = await self.icbc_client.generate_qrcode(
                 out_trade_no=out_trade_no,
                 amount=amount,
-                trade_date=trade_date,
-                trade_time=trade_time,
                 expire_seconds=expire_time,
-                attach=body[:21] if len(body) > 21 else body,  # 最多21个汉字
+                attach=body[:127] if len(body) > 127 else body,  # 工行限制127字符
             )
 
-            # 7. 更新订单状态
+            # 6. 更新订单状态
             order.status = PaymentOrderStatus.processing
             order.submitted_at = datetime.now()
             order.icbc_response = icbc_response
+            order.msg_id = icbc_response.get("msg_id", "")  # 保存 msg_id
 
-            # 8. 解析工行响应
+            # 7. 解析工行响应
             if icbc_response.get("return_code") == "0":  # 成功
-                order.qr_code_data = icbc_response.get("qrcode")
+                order.qr_code_data = icbc_response.get("codeUrl")  # 新接口字段名：codeUrl
                 order.third_trade_no = icbc_response.get("order_id")
+                order.support_app_type = icbc_response.get("supportAppType")  # 新增字段
             else:
                 # 下单失败
                 order.status = PaymentOrderStatus.failed
@@ -184,11 +182,13 @@ class PaymentService:
                 order.icbc_response = icbc_response
 
                 # 解析支付状态
-                if icbc_response.get("return_code") == "0":
-                    pay_status = icbc_response.get("payStatus")
-                    if pay_status == "1":  # 支付成功
-                        await self._handle_payment_success(order, icbc_response)
-                    elif pay_status == "2":  # 支付失败
+                # 工行查询响应在 response_biz_content 中
+                biz_content = icbc_response.get("response_biz_content", {})
+                if biz_content.get("return_code") == "0" or icbc_response.get("return_code") == "0":
+                    pay_status = biz_content.get("pay_status")
+                    if pay_status == "0":  # 0=成功（注意：工行查询接口0表示成功）
+                        await self._handle_payment_success(order, biz_content)
+                    elif pay_status == "1":  # 1=失败
                         order.status = PaymentOrderStatus.failed
 
                 self.db.commit()
