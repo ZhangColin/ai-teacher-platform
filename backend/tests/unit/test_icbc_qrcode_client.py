@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """工行二维码支付客户端测试"""
 import pytest
+from unittest.mock import AsyncMock, patch, MagicMock
+import httpx
 from src.services.icbc_qrcode_client import IcbcQrCodeClient
 
 
@@ -76,3 +78,89 @@ def test_build_sign_str(icbc_client):
     assert "empty_value" not in sign_str
     assert "none_value" not in sign_str
     assert "sign" not in sign_str
+
+
+@pytest.mark.asyncio
+async def test_generate_qrcode_success(icbc_client):
+    """测试生成二维码成功（mock 工行接口）"""
+    mock_response_data = {
+        "return_code": "0",
+        "return_msg": "成功",
+        "qrcode": "TEST_QR_CODE_DATA_STRING",
+        "order_id": "ICBC_TEST_ORDER_123",
+    }
+
+    # 创建 mock 响应对象（httpx.Response.json() 是同步方法）
+    mock_response = MagicMock()
+    mock_response.json = MagicMock(return_value=mock_response_data)
+    mock_response.raise_for_status = MagicMock()
+
+    # 创建 mock 客户端
+    mock_client = AsyncMock()
+    mock_client.post = AsyncMock(return_value=mock_response)
+
+    # 创建异步上下文管理器 mock
+    from contextlib import asynccontextmanager
+
+    @asynccontextmanager
+    async def mock_async_client():
+        yield mock_client
+
+    with patch('httpx.AsyncClient', return_value=mock_async_client()):
+        result = await icbc_client.generate_qrcode(
+            out_trade_no="TEST2026032612345678",
+            amount=1,  # 1分钱
+            trade_date="20260326",
+            trade_time="123456",
+            expire_seconds=900,
+        )
+
+        assert result["return_code"] == "0"
+        assert result["qrcode"] == "TEST_QR_CODE_DATA_STRING"
+        assert result["order_id"] == "ICBC_TEST_ORDER_123"
+
+
+@pytest.mark.asyncio
+async def test_generate_qrcode_builds_correct_request(icbc_client):
+    """测试生成二维码时构建正确的请求"""
+    # 创建 mock 响应对象（httpx.Response.json() 是同步方法）
+    mock_response = MagicMock()
+    mock_response.json = MagicMock(return_value={"return_code": "0", "qrcode": "test"})
+    mock_response.raise_for_status = MagicMock()
+
+    # 创建 mock 客户端
+    mock_client = AsyncMock()
+    mock_client.post = AsyncMock(return_value=mock_response)
+
+    # 创建异步上下文管理器 mock
+    from contextlib import asynccontextmanager
+
+    @asynccontextmanager
+    async def mock_async_client():
+        yield mock_client
+
+    with patch('httpx.AsyncClient', return_value=mock_async_client()):
+        await icbc_client.generate_qrcode(
+            out_trade_no="TEST2026032612345678",
+            amount=1,
+            trade_date="20260326",
+            trade_time="123456",
+        )
+
+        # 验证调用了正确的端点
+        mock_client.post.assert_called_once()
+        call_args = mock_client.post.call_args
+        assert icbc_client.API_GENERATE_QRCODE in str(call_args)
+
+        # 验证请求体包含必需参数
+        import json
+        request_json = call_args[1]["json"]
+        assert request_json["app_id"] == "11000000000000079872"
+        assert request_json["sign_type"] == "RSA2"
+        assert "sign" in request_json
+
+        # 验证 biz_content
+        biz_content = json.loads(request_json["biz_content"])
+        assert biz_content["merId"] == "020004161912"
+        assert biz_content["outTradeNo"] == "TEST2026032612345678"
+        assert biz_content["orderAmt"] == "1"

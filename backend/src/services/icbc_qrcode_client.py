@@ -118,3 +118,83 @@ class IcbcQrCodeClient:
                    if v is not None and v != "" and k != "sign"}
         sorted_params = sorted(filtered.items())
         return "&".join([f"{k}={v}" for k, v in sorted_params])
+
+    async def generate_qrcode(
+        self,
+        out_trade_no: str,
+        amount: int,
+        trade_date: str,
+        trade_time: str,
+        expire_seconds: int = 900,
+        attach: str = "",
+    ) -> dict:
+        """
+        生成支付二维码
+
+        Args:
+            out_trade_no: 商户订单号
+            amount: 金额（分）
+            trade_date: 交易日期 yyyyMMdd
+            trade_time: 交易时间 HHmmss
+            expire_seconds: 二维码有效期（秒），默认900秒（15分钟），必须小于24小时
+            attach: 附加数据，原样返回
+
+        Returns:
+            工行响应结果
+            {
+                "return_code": "0",  # 0=成功
+                "return_msg": "成功",
+                "qrcode": "二维码数据字符串",
+                "order_id": "工行订单号"
+            }
+        """
+        # 构建业务参数
+        biz_content = {
+            "merId": self.mer_id,
+            "outTradeNo": out_trade_no,
+            "orderAmt": str(amount),
+            "tradeDate": trade_date,
+            "tradeTime": trade_time,
+            "payExpire": str(expire_seconds),
+            "attach": attach,
+            "tporderCreateIp": "127.0.0.1",
+            "spFlag": "0",  # 不跳转分行
+            "notifyFlag": "1" if self.notify_url else "0",  # 是否开启通知
+        }
+
+        # 如果有回调URL，添加到bizContent
+        if self.notify_url:
+            biz_content["notifyUrl"] = self.notify_url
+
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        # 构建请求参数
+        params = {
+            "app_id": self.app_id,
+            "format": "json",
+            "charset": "UTF-8",
+            "sign_type": "RSA2",
+            "timestamp": timestamp,
+            "biz_content": json.dumps(biz_content, ensure_ascii=False),
+        }
+
+        # 签名
+        sign_str = self._build_sign_str(params)
+        sign = self._sign(sign_str)
+        params["sign"] = sign
+
+        logger.info(f"工行二维码生成请求 - 订单号:{out_trade_no}, 金额:{amount}分")
+        logger.debug(f"签名原文: {sign_str}")
+
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.post(
+                self.API_GENERATE_QRCODE,
+                json=params,
+                headers={"Content-Type": "application/json"}
+            )
+            response.raise_for_status()
+            result = response.json()
+
+        logger.info(f"工行二维码生成响应 - 订单号:{out_trade_no}, 响应码:{result.get('return_code')}")
+
+        return result
