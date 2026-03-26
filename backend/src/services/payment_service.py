@@ -127,15 +127,32 @@ class PaymentService:
             order.msg_id = icbc_response.get("msg_id", "")  # 保存 msg_id
 
             # 7. 解析工行响应
-            if icbc_response.get("return_code") == "0":  # 成功
-                order.qr_code_data = icbc_response.get("codeUrl")  # 新接口字段名：codeUrl
-                order.third_trade_no = icbc_response.get("order_id")
-                order.support_app_type = icbc_response.get("supportAppType")  # 新增字段
+            # 注意：工行成功响应和错误响应格式不同
+            # 成功：{"return_code":"0", "codeUrl":"..."}
+            # 失败：{"response_biz_content":{"return_code":"21003116", "return_msg":"..."}}
+            # 但某些情况下，成功响应也可能是：{"response_biz_content":{"return_code":"0", ...}}
+            response_biz_content = icbc_response.get("response_biz_content", {})
+
+            # 检查外层 return_code
+            return_code = icbc_response.get("return_code", "")
+            # 如果外层没有 return_code，检查内层 response_biz_content
+            inner_return_code = response_biz_content.get("return_code", "") if response_biz_content else ""
+
+            # 判断是否成功：外层或内层 return_code 为 "0" 都表示成功
+            is_success = (return_code == "0") or (inner_return_code == "0")
+
+            if is_success:  # 成功
+                # 优先从外层获取数据，如果没有则从内层获取
+                order.qr_code_data = icbc_response.get("codeUrl") or response_biz_content.get("codeUrl")
+                order.third_trade_no = icbc_response.get("order_id") or response_biz_content.get("order_id")
+                order.support_app_type = icbc_response.get("supportAppType") or response_biz_content.get("supportAppType")
             else:
                 # 下单失败
                 order.status = PaymentOrderStatus.failed
-                error_msg = icbc_response.get("return_msg", "未知错误")
-                raise ValueError(f"工行下单失败: {error_msg}")
+                # 优先使用外层的错误信息
+                error_code = response_biz_content.get("return_code") if response_biz_content else return_code
+                error_msg = response_biz_content.get("return_msg") if response_biz_content else icbc_response.get("return_msg", "未知错误")
+                raise ValueError(f"工行下单失败: [{error_code}] {error_msg}")
 
             self.db.commit()
 

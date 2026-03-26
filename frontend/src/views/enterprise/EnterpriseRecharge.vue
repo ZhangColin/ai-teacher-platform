@@ -68,19 +68,10 @@
         <h4>请扫码支付</h4>
 
         <div class="qr-container">
-          <el-image
-            v-if="currentOrder.qr_code_data"
-            :src="currentOrder.qr_code_data"
-            fit="contain"
-            class="qr-image"
-          >
-            <template #error>
-              <div class="image-slot">
-                <el-icon><Picture /></el-icon>
-                <span>二维码加载失败</span>
-              </div>
-            </template>
-          </el-image>
+          <!-- 使用 canvas 显示二维码 -->
+          <div v-if="currentOrder.qr_code_data" class="qr-wrapper">
+            <canvas ref="qrCanvas" class="qr-canvas"></canvas>
+          </div>
           <el-skeleton v-else :rows="10" animated />
         </div>
 
@@ -140,14 +131,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Picture } from '@element-plus/icons-vue'
 import paymentApi, { type PaymentOrder } from '@/services/paymentApi'
 import apiClient from '@/services/apiClient'
+import QRCode from 'qrcode'
 
 const router = useRouter()
+
+// 二维码 canvas 引用
+const qrCanvas = ref<HTMLCanvasElement | null>(null)
 
 // 预设金额选项（元）
 const presetAmounts = [
@@ -232,6 +226,36 @@ async function createOrder(amount: number) {
     ElMessage.error(error.response?.data?.detail || '创建订单失败')
   }
 }
+
+/**
+ * 生成二维码
+ */
+async function generateQRCode(url: string) {
+  await nextTick()
+  const canvas = qrCanvas.value
+  if (!canvas) return
+
+  try {
+    await QRCode.toCanvas(canvas, url, {
+      width: 280,
+      margin: 2,
+      color: {
+        dark: '#000000',
+        light: '#ffffff'
+      }
+    })
+  } catch (error) {
+    console.error('生成二维码失败:', error)
+    ElMessage.error('二维码生成失败')
+  }
+}
+
+// 监听订单变化，自动生成二维码
+watch(() => currentOrder.value?.qr_code_data, (newUrl) => {
+  if (newUrl) {
+    generateQRCode(newUrl)
+  }
+})
 
 /**
  * 开始轮询订单状态
@@ -522,11 +546,18 @@ onUnmounted(() => {
   margin-bottom: 24px;
 }
 
-.qr-image {
-  width: 280px;
-  height: 280px;
+.qr-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
+  background: #ffffff;
   border: 1px solid #dcdfe6;
   border-radius: 8px;
+}
+
+.qr-canvas {
+  max-width: 100%;
 }
 
 .image-slot {

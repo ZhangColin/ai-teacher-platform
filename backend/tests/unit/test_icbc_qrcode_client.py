@@ -53,14 +53,21 @@ class TestIcbcQrCodeClient:
             "z_param": "last",
             "a_param": "first",
         }
-        sign_str = client._build_sign_str(params)
 
-        # 检查排序和过滤
-        assert "a_param=first" in sign_str
+        # 测试不带路径的签名字符串
+        sign_str = client._build_sign_str(params)
+        assert sign_str.startswith("a_param=first")
         assert "z_param=last" in sign_str
         assert "sign=" not in sign_str
         assert "empty_value=" not in sign_str
         assert "null_value=" not in sign_str
+
+        # 测试带路径的签名字符串（工行SDK格式）
+        path = "/api/cardbusiness/qrcode/consumption/V1"
+        sign_str_with_path = client._build_sign_str(params, path)
+        assert sign_str_with_path.startswith(f"{path}?")
+        assert "a_param=first" in sign_str_with_path
+        assert "z_param=last" in sign_str_with_path
 
     @pytest.mark.asyncio
     async def test_generate_qrcode_request_params(self, client):

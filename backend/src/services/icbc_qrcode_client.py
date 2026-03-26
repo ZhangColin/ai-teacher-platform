@@ -142,23 +142,31 @@ class IcbcQrCodeClient:
             logger.error(f"验签失败: {e}")
             return False
 
-    def _build_sign_str(self, params: dict) -> str:
+    def _build_sign_str(self, params: dict, path: str = "") -> str:
         """
         构建签名字符串
 
-        工行签名规则：参数按字典序排序，拼接成 key1=value1&key2=value2 格式
+        工行签名规则：{path}?{key1}={value1}&{key2}={value2}...
+        参数按字典序排序（TreeMap 自然排序）
         注意：排除 sign 字段和空值
 
         Args:
             params: 请求参数字典
+            path: URL 路径（如 /api/cardbusiness/qrcode/consumption/V1）
 
         Returns:
             签名字符串
         """
+        # 使用 TreeMap 方式排序（字典序）
         filtered = {k: v for k, v in params.items()
                    if v is not None and v != "" and k != "sign"}
         sorted_params = sorted(filtered.items())
-        return "&".join([f"{k}={v}" for k, v in sorted_params])
+
+        # 构建签名字符串：路径?参数1=值1&参数2=值2...
+        param_str = "&".join([f"{k}={v}" for k, v in sorted_params])
+        if path:
+            return f"{path}?{param_str}"
+        return param_str
 
     async def generate_qrcode(
         self,
@@ -193,7 +201,7 @@ class IcbcQrCodeClient:
         order_date = now.strftime("%Y-%m-%d %H:%M:%S")
         timestamp = order_date
 
-        # 构建 biz_content
+        # 构建 biz_content（按工行文档示例的字段顺序）
         biz_content = {
             "out_trade_no": out_trade_no,
             "mer_id": self.mer_id,
@@ -202,18 +210,22 @@ class IcbcQrCodeClient:
             "cur_type": self.cur_type,
             "amount": str(amount),
             "icbc_appid": self.app_id,
+            "mer_url": self.notify_url if self.notify_url else "",  # 工行文档中该字段存在
             "expire_time": str(expire_seconds),
             "notify_type": self.notify_type,
             "result_type": self.result_type,
             "attach": attach,
+            "order_apd_inf": "",  # 订单附件信息（可选，传空字符串）
             "order_date": order_date,
             "goods_name": self.goods_name,
             "body": self.body,
+            "pay_limit": "",  # 支付方式限定（可选）
+            "installment_times": "1",  # 分期付款期数（默认1=全额付款）
+            "credit_type": "2",  # E支付支付方式限定（默认2=All）
+            "goods_tag": "",  # 订单优惠标记（可选）
+            "wxpay_detail": "",  # 微信商品详细描述（可选）
+            "alipay_detail": "",  # 支付宝商品详细描述（可选）
         }
-
-        # 如果有回调URL，添加到biz_content
-        if self.notify_url:
-            biz_content["mer_url"] = self.notify_url
 
         # 构建请求参数
         params = {
@@ -226,19 +238,35 @@ class IcbcQrCodeClient:
             "biz_content": json.dumps(biz_content, ensure_ascii=False),
         }
 
-        # 签名
-        sign_str = self._build_sign_str(params)
+        # 签名 - 需要传入 URL 路径
+        # SDK 的 buildOrderedSignStr 方法会将路径包含在签名字符串中
+        sign_str = self._build_sign_str(params, "/api/cardbusiness/qrcode/consumption/V1")
         sign = self._sign(sign_str)
         params["sign"] = sign
 
         logger.info(f"工行二维码生成请求 - 订单号:{out_trade_no}, 金额:{amount}分, msg_id:{msg_id}")
         logger.debug(f"签名原文: {sign_str}")
 
-        # 发送请求
+        # 按照工行文档格式：所有参数放在 body 中（form-urlencoded 格式）
+        # biz_content 作为 JSON 字符串
+        body_params = {
+            "app_id": params["app_id"],
+            "msg_id": params["msg_id"],
+            "format": params["format"],
+            "charset": params["charset"],
+            "sign_type": params["sign_type"],
+            "timestamp": params["timestamp"],
+            "sign": params["sign"],
+            "biz_content": params["biz_content"],  # JSON 字符串
+        }
+
+        logger.debug(f"请求Body参数: {body_params}")
+
+        # 发送请求（使用 data 参数，httpx 会自动进行 form-urlencoded 编码）
         async with httpx.AsyncClient(timeout=30) as client:
             response = await client.post(
                 self.API_GENERATE_QRCODE,
-                data=params,  # 使用 data 而不是 json，工行要求 form-urlencoded
+                data=body_params,  # form-urlencoded 格式
                 headers={"Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"}
             )
             response.raise_for_status()
@@ -299,18 +327,33 @@ class IcbcQrCodeClient:
             "biz_content": json.dumps(biz_content, ensure_ascii=False),
         }
 
-        # 签名
-        sign_str = self._build_sign_str(params)
+        # 签名 - 需要传入 URL 路径
+        sign_str = self._build_sign_str(params, "/api/cardbusiness/aggregatepay/b2c/online/orderqry/V1")
         sign = self._sign(sign_str)
         params["sign"] = sign
 
         logger.info(f"工行订单查询请求 - 订单号:{out_trade_no}, msg_id:{msg_id}")
+        logger.debug(f"签名原文: {sign_str}")
+
+        # 按照工行文档格式：所有参数放在 body 中（form-urlencoded 格式）
+        body_params = {
+            "app_id": params["app_id"],
+            "msg_id": params["msg_id"],
+            "format": params["format"],
+            "charset": params["charset"],
+            "sign_type": params["sign_type"],
+            "timestamp": params["timestamp"],
+            "sign": params["sign"],
+            "biz_content": params["biz_content"],  # JSON 字符串
+        }
+
+        logger.debug(f"请求Body参数: {body_params}")
 
         # 发送请求
         async with httpx.AsyncClient(timeout=30) as client:
             response = await client.post(
                 self.API_QUERY_ORDER,
-                data=params,
+                data=body_params,  # form-urlencoded 格式
                 headers={"Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"}
             )
             response.raise_for_status()
