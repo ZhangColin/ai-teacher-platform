@@ -122,10 +122,15 @@ async function loadAvailableModels() {
     // 根据当前工具获取需要的能力
     const capability = getRequiredCapability(currentTool.value)
 
+    console.log('[ModelSelector] loadAvailableModels - currentTool:', currentTool.value)
+    console.log('[ModelSelector] loadAvailableModels - capability:', capability)
+    console.log('[ModelSelector] loadAvailableModels - API参数:', { providerCode: undefined, capability: capability || undefined })
+
     // 调用 API：第一个参数是 providerCode（留空表示所有供应商），第二个参数是 capability
     const models = await ApiService.getAvailableModels(undefined, capability || undefined)
     availableModels.value = models
 
+    console.log('[ModelSelector] API返回的模型列表:', models)
     const capabilityMsg = capability ? `（能力: ${capability}）` : ''
     console.log(`[ModelSelector] 已加载模型列表${capabilityMsg}:`, models.length, '个模型')
   } catch (error) {
