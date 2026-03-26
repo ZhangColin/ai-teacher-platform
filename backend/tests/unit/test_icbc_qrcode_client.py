@@ -135,3 +135,37 @@ class TestIcbcQrCodeClient:
 
         assert "order_id" in biz_content
         assert biz_content["order_id"] == order_id
+
+    def test_verify_notify(self, client):
+        """测试回调验签"""
+        # 构造测试数据
+        test_data = {
+            "from": "icbc-api",
+            "api": "/api/test",
+            "app_id": client.app_id,
+            "charset": "utf-8",
+            "format": "json",
+            "sign_type": "RSA2",
+            "timestamp": "2026-03-26 12:04:30",
+        }
+
+        # 生成签名
+        sign_str = client._build_sign_str(test_data)
+        sign = client._sign(sign_str)
+        test_data["sign"] = sign
+
+        # 验签应该成功
+        result = client.verify_notify(test_data)
+        assert result is True
+
+    def test_sign_notify_response(self, client):
+        """测试回调响应签名"""
+        msg_id = "TEST_MSG_ID_123"
+        response = client.sign_notify_response(0, msg_id)
+
+        assert "response_biz_content" in response
+        assert "sign_type" in response
+        assert "sign" in response
+        assert response["response_biz_content"]["return_code"] == 0
+        assert response["response_biz_content"]["msg_id"] == msg_id
+        assert response["sign_type"] == "RSA2"

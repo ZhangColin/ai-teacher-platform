@@ -324,3 +324,61 @@ class IcbcQrCodeClient:
             logger.warning(f"工行订单查询响应格式异常: {result}")
 
         return result
+
+    def verify_notify(self, notify_data: dict) -> bool:
+        """
+        验证工行回调签名
+
+        Args:
+            notify_data: 回调数据（包含sign字段）
+
+        Returns:
+            验签结果
+        """
+        sign = notify_data.get("sign")
+        if not sign:
+            logger.error("回调数据缺少签名")
+            return False
+
+        sign_str = self._build_sign_str(notify_data)
+        result = self._verify(sign_str, sign)
+
+        if result:
+            logger.info("回调验签成功")
+        else:
+            logger.error(f"回调验签失败 - 签名原文: {sign_str}")
+
+        return result
+
+    def sign_notify_response(self, return_code: int, msg_id: str) -> dict:
+        """
+        对回调响应进行签名
+
+        Args:
+            return_code: 返回码（0=成功）
+            msg_id: 消息通讯唯一编号
+
+        Returns:
+            包含签名的响应字典
+        """
+        response_biz_content = {
+            "return_code": return_code,
+            "return_msg": "success" if return_code == 0 else "fail",
+            "msg_id": msg_id,
+        }
+
+        # 构建签名字符串：response_biz_content + sign_type
+        # 注意：工行要求特定格式，不含空格换行
+        sign_params = {
+            "response_biz_content": json.dumps(response_biz_content, separators=(',', ':')),
+            "sign_type": "RSA2",
+        }
+
+        sign_str = self._build_sign_str(sign_params)
+        sign = self._sign(sign_str)
+
+        return {
+            "response_biz_content": response_biz_content,
+            "sign_type": "RSA2",
+            "sign": sign,
+        }
