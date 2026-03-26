@@ -247,14 +247,15 @@ class PaymentService:
         order.icbc_response = notify_data
 
         # 6. 判断支付状态
-        if notify_data.get("trade_status") == "1":  # 支付成功
+        # 工行回调：return_code=0 表示成功
+        if notify_data.get("return_code") == "0":  # 支付成功
             await self._handle_payment_success(order, notify_data)
             self.db.commit()
             return True
         else:
             order.status = PaymentOrderStatus.failed
             self.db.commit()
-            logger.warning(f"支付回调状态异常 - 订单:{out_trade_no}, 状态:{notify_data.get('trade_status')}")
+            logger.warning(f"支付回调状态异常 - 订单:{out_trade_no}, 状态:{notify_data.get('return_code')}")
             return False
 
     async def _handle_payment_success(self, order: PaymentOrderModel, icbc_response: dict) -> None:
