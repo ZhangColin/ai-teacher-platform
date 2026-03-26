@@ -258,3 +258,28 @@ class IcbcQrCodeClient:
         logger.info(f"工行订单查询响应 - 订单号:{out_trade_no}, 状态:{result.get('payStatus', 'N/A')}")
 
         return result
+
+    def verify_notify(self, notify_data: dict) -> bool:
+        """
+        验证工行回调签名
+
+        Args:
+            notify_data: 回调数据（包含sign字段）
+
+        Returns:
+            验签结果
+        """
+        sign = notify_data.get("sign")
+        if not sign:
+            logger.error("回调数据缺少签名")
+            return False
+
+        sign_str = self._build_sign_str(notify_data)
+        result = self._verify(sign_str, sign)
+
+        if result:
+            logger.info("回调验签成功")
+        else:
+            logger.error(f"回调验签失败 - 签名原文: {sign_str}")
+
+        return result

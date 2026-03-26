@@ -231,3 +231,42 @@ async def test_query_order_with_order_id(icbc_client):
         request_json = call_args[1]["json"]
         biz_content = json.loads(request_json["biz_content"])
         assert biz_content["orderId"] == "ICBC_ORDER_123"
+
+
+def test_verify_notify_success(icbc_client):
+    """测试回调验签成功"""
+    # 构造测试数据
+    test_data = {
+        "app_id": "11000000000000079872",
+        "return_code": "0",
+        "out_trade_no": "TEST123",
+    }
+
+    # 生成签名
+    sign_str = icbc_client._build_sign_str(test_data)
+    signature = icbc_client._sign(sign_str)
+    test_data["sign"] = signature
+
+    # 验签应该成功
+    assert icbc_client.verify_notify(test_data) is True
+
+
+def test_verify_notify_missing_sign(icbc_client):
+    """测试回调验签 - 缺少签名"""
+    test_data = {
+        "app_id": "11000000000000079872",
+        "return_code": "0",
+    }
+
+    assert icbc_client.verify_notify(test_data) is False
+
+
+def test_verify_notify_wrong_sign(icbc_client):
+    """测试回调验签 - 错误签名"""
+    test_data = {
+        "app_id": "11000000000000079872",
+        "return_code": "0",
+        "sign": "wrong_signature",
+    }
+
+    assert icbc_client.verify_notify(test_data) is False
