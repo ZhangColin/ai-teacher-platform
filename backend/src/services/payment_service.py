@@ -11,7 +11,7 @@ from ..db_models import (
     PaymentOrderModel, PaymentOrderStatus, UserModel, EnterpriseModel,
     SystemConfigModel, PointTransactionType, PointSourceType
 )
-from .icbc_client import IcbcClient
+from .icbc_qrcode_client import IcbcQrCodeClient
 from .point_service import PointService
 
 logger = logging.getLogger(__name__)
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 class PaymentService:
     """支付服务"""
 
-    def __init__(self, db: Session, icbc_client: IcbcClient, point_service: PointService):
+    def __init__(self, db: Session, icbc_client: IcbcQrCodeClient, point_service: PointService):
         """
         初始化支付服务
 
@@ -108,43 +108,36 @@ class PaymentService:
         self.db.add(order)
         self.db.flush()
 
-        # 5. 调用工行下单接口
+        # 5. 准备工行接口所需的时间参数
+        now = datetime.now()
+        trade_date = now.strftime("%Y%m%d")   # yyyyMMdd
+        trade_time = now.strftime("%H%M%S")   # HHmmss
+
+        # 6. 调用工行二维码生成接口（真实调用）
         try:
-            # ===== 测试模式：模拟工行返回 =====
-            # TODO: 正式环境时取消注释下面的真实调用
-            # icbc_response = await self.icbc_client.create_order(
-            #     out_trade_no=out_trade_no,
-            #     amount=amount,
-            #     expire_time=expire_time,
-            #     body=body
-            # )
+            icbc_response = await self.icbc_client.generate_qrcode(
+                out_trade_no=out_trade_no,
+                amount=amount,
+                trade_date=trade_date,
+                trade_time=trade_time,
+                expire_seconds=expire_time,
+                attach=body[:21] if len(body) > 21 else body,  # 最多21个汉字
+            )
 
-            # 模拟工行返回结果
-            icbc_response = {
-                "return_status": "S",
-                "biz_content": {
-                    "pay_url": "https://test.icbc.com.cn/pay/mock",
-                    "qr_code_data": f"https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=MOCK_PAYMENT_{out_trade_no}",
-                    "trade_no": f"ICBC{int(datetime.now().timestamp())}"
-                }
-            }
-
-            # 6. 更新订单状态
+            # 7. 更新订单状态
             order.status = PaymentOrderStatus.processing
             order.submitted_at = datetime.now()
             order.icbc_response = icbc_response
 
-            # 解析工行返回的支付 URL
-            if icbc_response.get("return_status") == "S":
-                # 成功响应，提取支付信息
-                biz_content = icbc_response.get("biz_content", {})
-                if isinstance(biz_content, str):
-                    import json
-                    biz_content = json.loads(biz_content)
-
-                order.pay_url = biz_content.get("pay_url")
-                order.qr_code_data = biz_content.get("qr_code_data")
-                order.third_trade_no = biz_content.get("trade_no")
+            # 8. 解析工行响应
+            if icbc_response.get("return_code") == "0":  # 成功
+                order.qr_code_data = icbc_response.get("qrcode")
+                order.third_trade_no = icbc_response.get("order_id")
+            else:
+                # 下单失败
+                order.status = PaymentOrderStatus.failed
+                error_msg = icbc_response.get("return_msg", "未知错误")
+                raise ValueError(f"工行下单失败: {error_msg}")
 
             self.db.commit()
 
@@ -186,31 +179,17 @@ class PaymentService:
         # 如果订单未完成，主动查询工行
         if order.status in [PaymentOrderStatus.created, PaymentOrderStatus.processing]:
             try:
-                # ===== 测试模式：模拟工行返回 =====
-                # TODO: 正式环境时取消注释下面的真实调用
-                # icbc_response = await self.icbc_client.query_order(order.out_trade_no)
-
-                # 模拟工行返回（订单仍为支付中状态）
-                icbc_response = {
-                    "return_status": "S",
-                    "biz_content": {
-                        "order_status": "0",  # 0=支付中, 1=支付成功
-                        "trade_no": order.third_trade_no
-                    }
-                }
+                icbc_response = await self.icbc_client.query_order(order.out_trade_no)
 
                 order.icbc_response = icbc_response
 
                 # 解析支付状态
-                if icbc_response.get("return_status") == "S":
-                    biz_content = icbc_response.get("biz_content", {})
-                    if isinstance(biz_content, str):
-                        import json
-                        biz_content = json.loads(biz_content)
-
-                    order_status = biz_content.get("order_status")
-                    if order_status == "1":  # 支付成功
+                if icbc_response.get("return_code") == "0":
+                    pay_status = icbc_response.get("payStatus")
+                    if pay_status == "1":  # 支付成功
                         await self._handle_payment_success(order, icbc_response)
+                    elif pay_status == "2":  # 支付失败
+                        order.status = PaymentOrderStatus.failed
 
                 self.db.commit()
 
@@ -237,11 +216,7 @@ class PaymentService:
             处理是否成功
         """
         # 1. 验签
-        sign_str = self.icbc_client._build_sign_str(notify_data)
-        sign = notify_data.get("sign")
-        sign_type = notify_data.get("sign_type", "RSA2")
-
-        if not self.icbc_client._verify(sign_str, sign, sign_type):
+        if not self.icbc_client.verify_notify(notify_data):
             logger.error(f"支付回调验签失败: {notify_data}")
             return False
 
@@ -294,12 +269,8 @@ class PaymentService:
         order.status = PaymentOrderStatus.paid
         order.paid_at = datetime.now()
 
-        # 解析工行流水号
-        biz_content = icbc_response.get("biz_content", {})
-        if isinstance(biz_content, str):
-            import json
-            biz_content = json.loads(biz_content)
-        order.third_trade_no = biz_content.get("trade_no")
+        # 新接口：工行订单号直接在响应根节点（不是 biz_content）
+        order.third_trade_no = icbc_response.get("order_id")
 
         # 2. 计算积分
         points = self._calculate_points(order.amount)
