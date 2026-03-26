@@ -4,11 +4,14 @@
 
 提供工具列表查询接口，支持获取所有工具或按导航模块过滤
 """
+import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from src.models import ToolListResponse
 from src.interfaces.dependencies import get_config_service, get_current_user, get_db
 from src.services.config_service import ConfigService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -25,6 +28,11 @@ async def get_tools(
     """
     # 加载所有工具（只返回 visible=true 的工具）
     tools = config_service.get_all_tools()
+
+    # 调试：打印工具的 required_capability
+    for tool in tools:
+        if tool.tool_id == 'image_gen':
+            logger.info(f"[DEBUG] image_gen Tool 对象的 required_capability: {tool.required_capability}")
 
     # 获取分类配置
     category_config = config_service.get_category_config()
@@ -45,7 +53,7 @@ async def get_tools(
             }
 
         # 添加工具到分类
-        categories_dict[category_name]['tools'].append({
+        tool_data = {
             'tool_id': tool.tool_id,
             'name': tool.name,
             'description': tool.description,
@@ -58,7 +66,14 @@ async def get_tools(
             'model': tool.model,
             'content_type': tool.content_type,
             'media_type': tool.media_type,
-        })
+            'required_capability': tool.required_capability or 'chat',  # 默认为 chat
+        }
+
+        # 调试日志
+        if tool.tool_id == 'image_gen':
+            logger.info(f"[DEBUG] image_gen 工具数据: {tool_data}")
+
+        categories_dict[category_name]['tools'].append(tool_data)
 
     # 转换为列表并按 order 排序
     category_groups = list(categories_dict.values())
@@ -147,6 +162,7 @@ async def get_navigation_module_tools(
             'model': tool.model,
             'content_type': tool.content_type,
             'media_type': tool.media_type,
+            'required_capability': tool.required_capability or 'chat',  # 默认为 chat
         })
 
     # 转换为列表并按 order 排序

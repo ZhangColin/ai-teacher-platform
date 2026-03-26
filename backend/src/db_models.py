@@ -433,6 +433,7 @@ class AIToolModel(Base):
     type = Column(Enum(AIToolType), nullable=False, default=AIToolType.normal)
     content_type = Column(String(20), nullable=True)
     media_type = Column(String(20), nullable=True)
+    required_capability = Column(String(50), nullable=True, comment='所需的 AI 能力（如 chat, image, audio, video, code）')
     model = Column(String(100), nullable=True)
     welcome_message = Column(Text, nullable=True)
     visible = Column(Boolean, nullable=False, default=True, index=True)

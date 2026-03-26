@@ -176,6 +176,15 @@
             <el-option label="视频" value="video" />
           </el-select>
         </el-form-item>
+        <el-form-item label="所需 AI 能力">
+          <el-select v-model="form.required_capability" placeholder="请选择所需 AI 能力">
+            <el-option label="文字对话 (chat)" value="chat" />
+            <el-option label="图像生成 (image)" value="image" />
+            <el-option label="音频生成 (audio)" value="audio" />
+            <el-option label="视频生成 (video)" value="video" />
+            <el-option label="代码生成 (code)" value="code" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="AI模型">
           <el-select
             v-model="form.model"
@@ -294,6 +303,7 @@ const form = reactive<CreateAIToolRequest & { id?: string }>({
   type: 'normal',
   content_type: 'text',
   media_type: undefined,
+  required_capability: 'chat',
   model: '',
   welcome_message: '',
   visible: true,
@@ -473,6 +483,7 @@ async function handleEdit(tool: AdminAIToolListItem) {
     type: tool.type,
     content_type: tool.content_type,
     media_type: tool.media_type,
+    required_capability: tool.required_capability || 'chat',
     model: tool.model || '',
     welcome_message: tool.welcome_message || '',
     visible: tool.visible,

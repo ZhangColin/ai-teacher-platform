@@ -1054,7 +1054,7 @@ export class ApiService {
   /**
    * 获取系统支持的模型列表（从数据库读取已启用的模型）
    * @param providerCode 供应商代码（如 deepseek, openai, kimi 等），非数据库 UUID
-   * @param capability 能力过滤（如 chat, vision, image_generation 等）
+   * @param capability 能力过滤（如 chat, image, audio, video, code 等）
    */
   static async getAvailableModels(providerCode?: string, capability?: string): Promise<ModelListItem[]> {
     const params: Record<string, string> = {}

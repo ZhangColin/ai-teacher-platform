@@ -79,15 +79,30 @@ function isDefaultModel(modelId: string): boolean {
   return !sessionStore.currentModel && modelId === defaultModel.value
 }
 
-// 根据工具类型推导需要的 AI 能力
+// 根据工具获取所需的 AI 能力
 function getRequiredCapability(tool: ToolListItem | null): string | null {
-  if (!tool) return null
+  if (!tool) {
+    console.log('[ModelSelector] 工具为空，将加载所有模型')
+    return null  // 返回 null 表示不过滤，加载所有模型
+  }
 
-  // 多模态工具需要特殊能力
+  // 优先使用工具配置的 required_capability
+  if (tool.required_capability) {
+    console.log('[ModelSelector] 使用工具配置的能力:', tool.required_capability)
+    return tool.required_capability
+  }
+
+  // 兼容旧数据：根据 content_type 和 media_type 推导能力
+  console.log('[ModelSelector] 工具未配置能力，从 content_type 推导:', {
+    tool_id: tool.tool_id,
+    content_type: tool.content_type,
+    media_type: tool.media_type
+  })
+
   if (tool.content_type === 'multimodal') {
     switch (tool.media_type) {
       case 'image':
-        return 'vision' // 或 'image_generation'，根据模型配置的能力名称
+        return 'image'
       case 'audio':
         return 'audio'
       case 'video':
@@ -96,6 +111,7 @@ function getRequiredCapability(tool: ToolListItem | null): string | null {
   }
 
   // 默认使用 chat 能力
+  console.log('[ModelSelector] 默认使用 chat 能力')
   return 'chat'
 }
 
@@ -147,27 +163,41 @@ function handleClickOutside(event: MouseEvent) {
 
 // 监听工具变化，更新默认模型和重新加载模型列表
 watch(() => sessionStore.toolId, async (newToolId) => {
+  console.log('[ModelSelector] toolId changed:', newToolId)
   if (newToolId) {
     // 从工具列表中获取工具信息
     try {
       const toolsResponse = await ApiService.getTools()
+      console.log('[ModelSelector] getTools response categories:', toolsResponse.categories.length)
+      let toolFound = false
       for (const category of toolsResponse.categories) {
         const tool = category.tools.find(t => t.tool_id === newToolId)
         if (tool) {
+          console.log('[ModelSelector] found tool:', tool)
           currentTool.value = tool
           if (tool.model) {
             defaultModel.value = tool.model
             console.log('[ModelSelector] 工具默认模型:', tool.model)
             // 不再重置手动选择的模型，保留用户的选择
           }
+          toolFound = true
           break
         }
+      }
+      if (!toolFound) {
+        console.warn('[ModelSelector] 未找到工具:', newToolId, ', 将加载所有模型')
       }
       // 重新加载模型列表（根据工具能力过滤）
       await loadAvailableModels()
     } catch (error) {
       console.error('[ModelSelector] 获取工具信息失败:', error)
+      // 即使获取工具信息失败，也尝试加载所有模型
+      await loadAvailableModels()
     }
+  } else {
+    // 当 toolId 为 null 时，也尝试加载所有模型
+    console.log('[ModelSelector] toolId 为空，加载所有模型')
+    await loadAvailableModels()
   }
 }, { immediate: true })
 

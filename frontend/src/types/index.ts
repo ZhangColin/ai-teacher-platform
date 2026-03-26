@@ -34,6 +34,9 @@ export interface ToolListItem {
   // 多模态支持字段（新增）
   content_type?: 'text' | 'multimodal' // 内容类型（默认text）
   media_type?: 'image' | 'audio' | 'video' // 媒体类型（仅multimodal时有效）
+
+  // AI 能力配置（新增）
+  required_capability?: 'chat' | 'image' | 'audio' | 'video' | 'code' // 所需的 AI 能力（默认chat）
 }
 
 /**
@@ -943,6 +946,7 @@ export interface AdminAIToolListItem {
   type: 'normal' | 'placeholder' // 工具类型
   content_type: 'text' | 'multimodal' // 内容类型
   media_type?: 'image' | 'audio' | 'video' // 媒体类型
+  required_capability?: 'chat' | 'image' | 'audio' | 'video' | 'code' // 所需的 AI 能力
   model?: string // 使用的AI模型
   welcome_message?: string // 欢迎语
   visible: boolean // 是否可见
@@ -971,6 +975,7 @@ export interface CreateAIToolRequest {
   type?: 'normal' | 'placeholder' // 工具类型（默认normal）
   content_type?: 'text' | 'multimodal' // 内容类型（默认text）
   media_type?: 'image' | 'audio' | 'video' // 媒体类型
+  required_capability?: 'chat' | 'image' | 'audio' | 'video' | 'code' // 所需的 AI 能力（默认chat）
   model?: string // 使用的AI模型
   welcome_message?: string // 欢迎语
   visible?: boolean // 是否可见（默认true）
@@ -998,6 +1003,7 @@ export interface UpdateAIToolRequest {
   type?: 'normal' | 'placeholder' // 工具类型
   content_type?: 'text' | 'multimodal' // 内容类型
   media_type?: 'image' | 'audio' | 'video' // 媒体类型
+  required_capability?: 'chat' | 'image' | 'audio' | 'video' | 'code' // 所需的 AI 能力
   model?: string // 使用的AI模型
   welcome_message?: string // 欢迎语
   visible?: boolean // 是否可见

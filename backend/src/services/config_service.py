@@ -64,8 +64,9 @@ class ConfigService:
                 navigation_module_id=str(m.navigation_module_id),
                 system_prompt_file=None,
                 model=m.model,
-                content_type=m.content_type,
-                media_type=m.media_type
+                content_type=m.content_type or 'text',  # 默认为 text
+                media_type=m.media_type,
+                required_capability=m.required_capability or 'chat'  # 默认为 chat
             )
             for m in models
         ]
@@ -91,8 +92,9 @@ class ConfigService:
                 navigation_module_id=str(m.navigation_module_id),
                 system_prompt_file=None,
                 model=m.model,
-                content_type=m.content_type,
-                media_type=m.media_type
+                content_type=m.content_type or 'text',  # 默认为 text
+                media_type=m.media_type,
+                required_capability=m.required_capability or 'chat'  # 默认为 chat
             )
             for m in models
         ]
@@ -120,8 +122,9 @@ class ConfigService:
             navigation_module_id=str(m.navigation_module_id),
             system_prompt_file=None,
             model=m.model,
-            content_type=m.content_type,
-            media_type=m.media_type
+            content_type=m.content_type or 'text',  # 默认为 text
+            media_type=m.media_type,
+            required_capability=m.required_capability or 'chat'  # 默认为 chat
         )
 
     def get_category_config(self, navigation_module_id: Optional[str] = None) -> dict:

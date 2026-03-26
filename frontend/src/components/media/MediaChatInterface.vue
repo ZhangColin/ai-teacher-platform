@@ -478,6 +478,13 @@ async function loadHistoryMessages(sessionIdParam: string) {
   }
 }
 
+// 初始化工具（确保 ModelSelector 能正确加载工具模型）
+watch(() => props.toolId, (newToolId) => {
+  if (newToolId) {
+    sessionStore.initTool(newToolId)
+  }
+}, { immediate: true })
+
 // 监听外部传入的 sessionId
 watch(() => props.sessionId, (newSessionId) => {
   if (newSessionId && newSessionId !== sessionId.value) {

@@ -61,6 +61,7 @@ def _model_to_response(model: AIToolModel, db: Session) -> AdminAIToolListItem:
         type=model.type.value,
         content_type=model.content_type,
         media_type=model.media_type,
+        required_capability=model.required_capability,
         model=model.model,
         welcome_message=model.welcome_message,
         visible=model.visible,
@@ -157,6 +158,7 @@ async def create_ai_tool(
             type=AIToolType(request.type),
             content_type=request.content_type,
             media_type=request.media_type,
+            required_capability=request.required_capability,
             model=request.model,
             welcome_message=request.welcome_message,
             visible=request.visible,
@@ -259,6 +261,9 @@ async def update_ai_tool(
 
         if request.media_type is not None:
             tool.media_type = request.media_type
+
+        if request.required_capability is not None:
+            tool.required_capability = request.required_capability
 
         if request.model is not None:
             tool.model = request.model

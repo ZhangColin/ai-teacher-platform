@@ -87,15 +87,21 @@ class Tool(BaseModel):
     navigation_module_id: str = Field("ai_tools", description="所属导航模块ID（默认ai_tools，保持向后兼容）")
     system_prompt_file: Optional[str] = Field(None, description="系统提示词文件路径（相对于工具集配置目录），如果指定则从文件加载system_prompt")
     model: Optional[str] = Field(None, description="使用的AI模型（格式：provider:model_name，如 deepseek:deepseek-coder），如果未指定则使用系统默认")
-    
+
     # 多模态支持字段（新增）
     content_type: Optional[Literal["text", "multimodal"]] = Field(
-        "text", 
+        "text",
         description="内容类型：text=文本对话，multimodal=多模态生成（图片、音频、视频）"
     )
     media_type: Optional[Literal["image", "audio", "video"]] = Field(
-        None, 
+        None,
         description="媒体类型（仅当content_type=multimodal时有效）"
+    )
+
+    # AI 能力配置（新增）
+    required_capability: Optional[Literal["chat", "image", "audio", "video", "code"]] = Field(
+        "chat",
+        description="所需的 AI 能力：chat=文字对话，image=图像生成，audio=音频生成，video=视频生成，code=代码生成"
     )
     
     def validate(self) -> bool:
@@ -1326,6 +1332,7 @@ class AdminAIToolListItem(BaseModel):
     type: Literal["normal", "media"] = Field(..., description="工具类型")
     content_type: Optional[str] = Field(None, description="内容类型")
     media_type: Optional[str] = Field(None, description="媒体类型")
+    required_capability: Optional[str] = Field(None, description="所需的 AI 能力")
     model: Optional[str] = Field(None, description="使用的模型")
     welcome_message: Optional[str] = Field(None, description="欢迎消息")
     visible: bool = Field(..., description="是否可见")
@@ -1350,6 +1357,7 @@ class CreateAIToolRequest(BaseModel):
     type: Literal["normal", "media"] = Field("normal", description="工具类型")
     content_type: Optional[Literal["text", "multimodal"]] = Field(None, description="内容类型")
     media_type: Optional[Literal["image", "audio", "video"]] = Field(None, description="媒体类型")
+    required_capability: Optional[Literal["chat", "image", "audio", "video", "code"]] = Field("chat", description="所需的 AI 能力")
     model: Optional[str] = Field(None, description="使用的模型")
     welcome_message: Optional[str] = Field(None, description="欢迎消息")
     visible: bool = Field(True, description="是否可见")
@@ -1373,6 +1381,7 @@ class UpdateAIToolRequest(BaseModel):
     type: Optional[Literal["normal", "media"]] = Field(None, description="工具类型")
     content_type: Optional[Literal["text", "multimodal"]] = Field(None, description="内容类型")
     media_type: Optional[Literal["image", "audio", "video"]] = Field(None, description="媒体类型")
+    required_capability: Optional[Literal["chat", "image", "audio", "video", "code"]] = Field(None, description="所需的 AI 能力")
     model: Optional[str] = Field(None, description="使用的模型")
     welcome_message: Optional[str] = Field(None, description="欢迎消息")
     visible: Optional[bool] = Field(None, description="是否可见")
