@@ -1039,9 +1039,6 @@ async def _handle_payment_success(self, order: PaymentOrderModel, icbc_response:
 ```
 
 - [ ] **Step 8: 运行现有测试验证**
-```
-
-- [ ] **Step 7: 运行现有测试验证**
 
 ```bash
 cd backend && python -m pytest tests/integration/test_payment_api.py -v
