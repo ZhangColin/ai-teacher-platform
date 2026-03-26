@@ -248,3 +248,79 @@ class IcbcQrCodeClient:
         logger.debug(f"完整响应: {json.dumps(result, ensure_ascii=False, indent=2)}")
 
         return result
+
+    async def query_order(
+        self,
+        out_trade_no: str,
+        order_id: str = None,
+    ) -> dict:
+        """
+        查询订单状态
+
+        Args:
+            out_trade_no: 商户订单号
+            order_id: 工行订单号（可选，与out_trade_no二选一）
+
+        Returns:
+            工行响应结果
+            {
+                "return_code": "0",
+                "return_msg": "成功",
+                "pay_status": "0",  # 0=成功, 1=失败, 2=未知
+                "order_id": "工行订单号"
+            }
+        """
+        # 生成 msg_id
+        msg_id = self._generate_msg_id()
+
+        # 当前时间戳
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        # 构建 biz_content
+        biz_content = {
+            "mer_id": self.mer_id,
+            "out_trade_no": out_trade_no,
+            "deal_flag": "0",  # 0=查询
+            "icbc_appid": self.app_id,
+            "mer_prtcl_no": self.mer_prtcl_no,
+        }
+
+        if order_id:
+            biz_content["order_id"] = order_id
+
+        # 构建请求参数
+        params = {
+            "app_id": self.app_id,
+            "msg_id": msg_id,
+            "format": "json",
+            "charset": "UTF-8",
+            "sign_type": "RSA2",
+            "timestamp": timestamp,
+            "biz_content": json.dumps(biz_content, ensure_ascii=False),
+        }
+
+        # 签名
+        sign_str = self._build_sign_str(params)
+        sign = self._sign(sign_str)
+        params["sign"] = sign
+
+        logger.info(f"工行订单查询请求 - 订单号:{out_trade_no}, msg_id:{msg_id}")
+
+        # 发送请求
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.post(
+                self.API_QUERY_ORDER,
+                data=params,
+                headers={"Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"}
+            )
+            response.raise_for_status()
+            result = response.json()
+
+        # 解析响应
+        if "response_biz_content" in result:
+            biz_content = result["response_biz_content"]
+            logger.info(f"工行订单查询响应 - 订单号:{out_trade_no}, 状态:{biz_content.get('pay_status', 'N/A')}")
+        else:
+            logger.warning(f"工行订单查询响应格式异常: {result}")
+
+        return result

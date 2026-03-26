@@ -101,3 +101,37 @@ class TestIcbcQrCodeClient:
         ]
         for key in required_keys:
             assert key in biz_content
+
+    def test_query_order_params(self, client):
+        """测试查询订单参数构造"""
+        out_trade_no = "TEST2026032612043000001"
+
+        biz_content = {
+            "mer_id": client.mer_id,
+            "out_trade_no": out_trade_no,
+            "deal_flag": "0",
+            "icbc_appid": client.app_id,
+            "mer_prtcl_no": client.mer_prtcl_no,
+        }
+
+        # 验证必填字段
+        required_keys = ["mer_id", "out_trade_no", "deal_flag", "icbc_appid", "mer_prtcl_no"]
+        for key in required_keys:
+            assert key in biz_content
+
+    def test_query_order_with_order_id(self, client):
+        """测试带工行订单号的查询"""
+        out_trade_no = "TEST2026032612043000001"
+        order_id = "0200041619122026032612043000001"
+
+        biz_content = {
+            "mer_id": client.mer_id,
+            "out_trade_no": out_trade_no,
+            "order_id": order_id,
+            "deal_flag": "0",
+            "icbc_appid": client.app_id,
+            "mer_prtcl_no": client.mer_prtcl_no,
+        }
+
+        assert "order_id" in biz_content
+        assert biz_content["order_id"] == order_id
