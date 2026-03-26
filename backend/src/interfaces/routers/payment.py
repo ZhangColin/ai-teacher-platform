@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 """支付 API 路由"""
+import json
 import logging
 from typing import Annotated
 from fastapi import APIRouter, Depends, status, HTTPException, Request
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from src.database import get_db
@@ -21,20 +23,13 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/payment", tags=["payment"])
 
 
-def get_icbc_client():
-    """获取工行二维码支付客户端实例"""
+def get_icbc_client() -> "IcbcQrCodeClient":
+    """获取工行客户端实例"""
     from src.services.icbc_qrcode_client import IcbcQrCodeClient
     from src.config.icbc_config import get_icbc_client_config
 
     config = get_icbc_client_config()
-
-    return IcbcQrCodeClient(
-        app_id=config["app_id"],
-        mer_id=config["mer_id"],
-        private_key_pem=config["private_key_pem"],
-        public_key_pem=config["public_key_pem"],
-        notify_url=config["notify_url"],
-    )
+    return IcbcQrCodeClient(**config)
 
 
 def get_payment_service(db: Session = Depends(get_db)) -> "PaymentService":
@@ -189,41 +184,52 @@ async def get_my_recharges(
 @router.post("/icbc/notify")
 async def icbc_notify(
     request: Request,
-    payment_service=Depends(get_payment_service),
+    db: Session = Depends(get_db),
+    icbc_client: "IcbcQrCodeClient" = Depends(get_icbc_client),
 ):
     """
-    处理工行支付回调
+    工行支付回调接口
 
-    Args:
-        request: FastAPI 请求对象
-        payment_service: 支付服务
-
-    Returns:
-        工行要求的标准响应
+    工行支付网关在支付完成后会调用此接口通知支付结果
     """
+    from urllib.parse import parse_qs
+    from src.services.payment_service import PaymentService
+
+    # 1. 获取回调参数（URL参数编码格式）
+    body = await request.body()
+    params = parse_qs(body.decode('utf-8'))
+
+    # 将参数列表转换为单值（parse_qs 返回的是列表）
+    notify_data = {k: v[0] if v else "" for k, v in params.items()}
+
+    logger.info(f"收到工行支付回调: {notify_data}")
+
+    # 2. 验签
+    if not icbc_client.verify_notify(notify_data):
+        logger.error("支付回调验签失败")
+        raise HTTPException(status_code=400, detail="签名验证失败")
+
+    # 3. 解析 biz_content
     try:
-        # 获取回调数据
-        if request.headers.get("content-type", "").startswith("application/json"):
-            notify_data = await request.json()
-        else:
-            from fastapi.datastructures import FormData
-            form_data: FormData = await request.form()
-            notify_data = dict(form_data)
+        biz_content_str = notify_data.get("biz_content", "{}")
+        biz_content = json.loads(biz_content_str)
+    except json.JSONDecodeError as e:
+        logger.error(f"回调 biz_content 解析失败: {e}")
+        raise HTTPException(status_code=400, detail="回调数据格式错误")
 
-        logger.info(f"收到工行支付回调: {notify_data}")
+    # 4. 处理支付结果
+    payment_service = PaymentService(db, icbc_client, None)  # point_service 暂时为None
+    success = await payment_service.handle_notify(biz_content)
 
-        # 验签并处理
-        success = await payment_service.handle_notify(notify_data)
+    if not success:
+        logger.error("支付回调处理失败")
+        raise HTTPException(status_code=500, detail="处理失败")
 
-        if success:
-            # 返回工行要求的标准响应
-            return {"return_code": "0", "return_msg": "成功"}
-        else:
-            return {"return_code": "1", "return_msg": "失败"}
+    # 5. 返回指定格式响应
+    msg_id = notify_data.get("msg_id", "")
+    response = icbc_client.sign_notify_response(0, msg_id)
 
-    except Exception as e:
-        logger.error(f"处理工行回调失败: {e}", exc_info=True)
-        return {"return_code": "1", "return_msg": "系统异常"}
+    return JSONResponse(content=response)
 
 
 @router.get("/config")
