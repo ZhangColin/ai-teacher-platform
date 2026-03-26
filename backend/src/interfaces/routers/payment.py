@@ -22,18 +22,18 @@ router = APIRouter(prefix="/api/v1/payment", tags=["payment"])
 
 
 def get_icbc_client():
-    """获取工行客户端实例"""
-    from src.services.icbc_client import IcbcClient
-    import os
+    """获取工行二维码支付客户端实例"""
+    from src.services.icbc_qrcode_client import IcbcQrCodeClient
+    from src.config.icbc_config import get_icbc_client_config
 
-    return IcbcClient(
-        app_id=os.getenv("ICBC_APP_ID", ""),
-        mer_id=os.getenv("ICBC_MER_ID", ""),
-        mer_prtcl_no=os.getenv("ICBC_MER_PRTCL_NO", ""),
-        private_key=os.getenv("ICBC_MY_PRIVATE_KEY", ""),
-        public_key=os.getenv("ICBC_APIGW_PUBLIC_KEY", ""),
-        device_info=os.getenv("ICBC_DEVICE_INFO", ""),
-        notify_url=os.getenv("ICBC_NOTIFY_URL", ""),
+    config = get_icbc_client_config()
+
+    return IcbcQrCodeClient(
+        app_id=config["app_id"],
+        mer_id=config["mer_id"],
+        private_key_pem=config["private_key_pem"],
+        public_key_pem=config["public_key_pem"],
+        notify_url=config["notify_url"],
     )
 
 
