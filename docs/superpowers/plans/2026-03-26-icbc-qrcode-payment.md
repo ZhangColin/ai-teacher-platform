@@ -32,6 +32,47 @@
 
 ---
 
+## Task 0: 配置 .gitignore 确保密钥安全
+
+**Files:**
+- Modify: `.gitignore`
+
+- [ ] **Step 1: 检查 .gitignore 中是否已有密钥目录配置**
+
+```bash
+grep -n "src/key" .gitignore
+```
+
+Expected: 如果没有找到，继续下一步
+
+- [ ] **Step 2: 添加密钥目录到 .gitignore**
+
+```bash
+# 在 .gitignore 文件末尾添加
+
+# 工行支付密钥文件（敏感信息，禁止提交）
+backend/src/key/
+```
+
+- [ ] **Step 3: 验证密钥目录已被忽略**
+
+```bash
+# 检查密钥文件是否被 git 跟踪
+git ls-files backend/src/key/
+
+# 如果有输出，说明文件已被跟踪，需要先移除
+git rm --cached backend/src/key/AI_客户用.pri backend/src/key/AI_银行用.pub backend/src/key/AI_AESKey.txt 2>/dev/null || true
+```
+
+- [ ] **Step 4: 提交**
+
+```bash
+git add .gitignore
+git commit -m "chore: 将工行密钥目录添加到 .gitignore"
+```
+
+---
+
 ## Task 1: 创建工行配置管理模块
 
 **Files:**
@@ -93,6 +134,16 @@ cd backend && python -m pytest tests/unit/test_icbc_config.py -v
 
 Expected: `ImportError: No module named 'src.config.icbc_config'`
 
+- [ ] **Step 2.5: 确保 config 目录存在且有 __init__.py**
+
+```bash
+# 检查 config 目录
+ls -la backend/src/config/ 2>/dev/null || mkdir -p backend/src/config
+
+# 确保 __init__.py 存在
+touch backend/src/config/__init__.py
+```
+
 - [ ] **Step 3: 实现配置模块**
 
 ```python
@@ -120,16 +171,27 @@ ICBC_PAYMENT_CONFIG = {
 
 def load_key_content(file_path: str) -> str:
     """
-    加载密钥文件内容
+    加载密钥文件内容（支持裸 Base64 和 PEM 格式）
+
+    工行密钥文件是裸 Base64 格式，需要转换为 PEM 格式才能被 cryptography 库解析
 
     Args:
         file_path: 密钥文件路径
 
     Returns:
-        密钥内容字符串
+        PEM 格式的密钥内容字符串
     """
     with open(file_path, "r", encoding="utf-8") as f:
-        return f.read().strip()
+        content = f.read().strip()
+
+    # 如果是裸 Base64（无 BEGIN/END 标记），转换为 PEM 格式
+    if not content.startswith("-----BEGIN"):
+        if "PRIVATE" in file_path.upper() or ".pri" in file_path.lower():
+            content = f"-----BEGIN RSA PRIVATE KEY-----\n{content}\n-----END RSA PRIVATE KEY-----"
+        else:
+            content = f"-----BEGIN PUBLIC KEY-----\n{content}\n-----END PUBLIC KEY-----"
+
+    return content
 
 
 def get_icbc_client_config() -> dict:
@@ -177,18 +239,6 @@ git commit -m "feat: 添加工行支付配置管理模块"
 # backend/tests/unit/test_icbc_qrcode_client.py
 import pytest
 from src.services.icbc_qrcode_client import IcbcQrCodeClient
-
-# 测试用的密钥对（用于测试签名验签逻辑）
-TEST_PRIVATE_KEY = """-----BEGIN RSA PRIVATE KEY-----
-MIIEpAIBAAKCAQEAuXM/5Bnqx2zq+x+x/KWiVrLE4yf8tGBbE8pFqZsZK1FZb2Z4
-Q8k3t3qF8n5m5K5W8fG8hE8m5k5n5p5r5s5t5u5v5w5x5y5z5+5/5A5B5C5D5E5F5G
-（省略测试密钥内容，实际测试使用真实密钥）
------END RSA PRIVATE KEY-----"""
-
-TEST_PUBLIC_KEY = """-----BEGIN PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuXM/5Bnqx2zq+x+x/KW
-（省略测试密钥内容，实际测试使用真实密钥）
------END PUBLIC KEY-----"""
 
 @pytest.fixture
 def icbc_client():
@@ -963,6 +1013,32 @@ def __init__(self, db: Session, icbc_client: IcbcQrCodeClient, point_service: Po
             return False
 
         # ... 其余逻辑保持不变 ...
+
+- [ ] **Step 7: 修改 _handle_payment_success 方法适配新接口响应**
+
+```python
+# 在 backend/src/services/payment_service.py 的 _handle_payment_success 方法中，
+# 修改工行订单号的获取方式（新接口直接在根节点，不在 biz_content 中）：
+
+async def _handle_payment_success(self, order: PaymentOrderModel, icbc_response: dict) -> None:
+    """
+    处理支付成功
+
+    Args:
+        order: 订单对象
+        icbc_response: 工行响应
+    """
+    # 1. 更新订单状态
+    order.status = PaymentOrderStatus.paid
+    order.paid_at = datetime.now()
+
+    # 新接口：工行订单号直接在响应根节点（不是 biz_content）
+    order.third_trade_no = icbc_response.get("order_id")
+
+    # ... 其余代码保持不变 ...
+```
+
+- [ ] **Step 8: 运行现有测试验证**
 ```
 
 - [ ] **Step 7: 运行现有测试验证**
@@ -973,7 +1049,7 @@ cd backend && python -m pytest tests/integration/test_payment_api.py -v
 
 注意：由于需要真实调用工行接口，此测试可能需要调整或使用 mock。
 
-- [ ] **Step 8: 提交**
+- [ ] **Step 9: 提交**
 
 ```bash
 git add backend/src/services/payment_service.py
@@ -1071,6 +1147,8 @@ git commit -m "refactor: 删除旧的 icbc_client.py，已被 icbc_qrcode_client
 ICBC_APP_ID=11000000000000079872
 ICBC_MER_ID=020004161912
 ICBC_NOTIFY_URL=https://your-domain.com/api/v1/payment/icbc/notify
+ICBC_PRIVATE_KEY_PATH=backend/src/key/AI_客户用.pri
+ICBC_PUBLIC_KEY_PATH=backend/src/key/AI_银行用.pub
 ```
 
 - [ ] **Step 2: 提交**
