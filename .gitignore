@@ -133,3 +133,6 @@ Thumbs.db:encryptable
 # 异常目录模式（测试错误创建的）
 ov=*/*.pyc
 __pycache__/
+
+# 工行支付密钥文件（敏感信息，禁止提交）
+backend/src/key/
