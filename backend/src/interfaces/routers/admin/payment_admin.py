@@ -25,17 +25,16 @@ def get_payment_service(db: Session = Depends(get_db)) -> "PaymentService":
     """获取支付服务实例"""
     from src.services.payment_service import PaymentService
     from src.services.point_service import PointService
-    from src.services.icbc_client import IcbcClient
-    import os
+    from src.services.icbc_qrcode_client import IcbcQRCodeClient
+    from src.config.icbc_config import get_icbc_client_config
 
-    icbc_client = IcbcClient(
-        app_id=os.getenv("ICBC_APP_ID", ""),
-        mer_id=os.getenv("ICBC_MER_ID", ""),
-        mer_prtcl_no=os.getenv("ICBC_MER_PRTCL_NO", ""),
-        private_key=os.getenv("ICBC_MY_PRIVATE_KEY", ""),
-        public_key=os.getenv("ICBC_APIGW_PUBLIC_KEY", ""),
-        device_info=os.getenv("ICBC_DEVICE_INFO", ""),
-        notify_url=os.getenv("ICBC_NOTIFY_URL", ""),
+    config = get_icbc_client_config()
+    icbc_client = IcbcQRCodeClient(
+        app_id=config["app_id"],
+        mer_id=config["mer_id"],
+        private_key_pem=config["private_key_pem"],
+        public_key_pem=config["public_key_pem"],
+        notify_url=config["notify_url"],
     )
     point_service = PointService(db)
     return PaymentService(db, icbc_client, point_service)
