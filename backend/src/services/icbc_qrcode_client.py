@@ -159,3 +159,92 @@ class IcbcQrCodeClient:
                    if v is not None and v != "" and k != "sign"}
         sorted_params = sorted(filtered.items())
         return "&".join([f"{k}={v}" for k, v in sorted_params])
+
+    async def generate_qrcode(
+        self,
+        out_trade_no: str,
+        amount: int,
+        expire_seconds: int = 900,
+        attach: str = "",
+    ) -> dict:
+        """
+        生成支付二维码
+
+        Args:
+            out_trade_no: 商户订单号
+            amount: 金额（分）
+            expire_seconds: 二维码有效期（秒），默认900秒（15分钟）
+            attach: 附加数据，原样返回
+
+        Returns:
+            工行响应结果
+            {
+                "return_code": "0",  # 0=成功
+                "return_msg": "成功",
+                "codeUrl": "二维码数据字符串",
+                "supportAppType": "1010"  # 支持的支付方式位图
+            }
+        """
+        # 生成 msg_id
+        msg_id = self._generate_msg_id()
+
+        # 准备时间参数
+        now = datetime.now()
+        order_date = now.strftime("%Y-%m-%d %H:%M:%S")
+        timestamp = order_date
+
+        # 构建 biz_content
+        biz_content = {
+            "out_trade_no": out_trade_no,
+            "mer_id": self.mer_id,
+            "mer_prtcl_no": self.mer_prtcl_no,
+            "access_type": self.access_type,
+            "cur_type": self.cur_type,
+            "amount": str(amount),
+            "icbc_appid": self.app_id,
+            "expire_time": str(expire_seconds),
+            "notify_type": self.notify_type,
+            "result_type": self.result_type,
+            "attach": attach,
+            "order_date": order_date,
+            "goods_name": self.goods_name,
+            "body": self.body,
+        }
+
+        # 如果有回调URL，添加到biz_content
+        if self.notify_url:
+            biz_content["mer_url"] = self.notify_url
+
+        # 构建请求参数
+        params = {
+            "app_id": self.app_id,
+            "msg_id": msg_id,
+            "format": "json",
+            "charset": "UTF-8",
+            "sign_type": "RSA2",
+            "timestamp": timestamp,
+            "biz_content": json.dumps(biz_content, ensure_ascii=False),
+        }
+
+        # 签名
+        sign_str = self._build_sign_str(params)
+        sign = self._sign(sign_str)
+        params["sign"] = sign
+
+        logger.info(f"工行二维码生成请求 - 订单号:{out_trade_no}, 金额:{amount}分, msg_id:{msg_id}")
+        logger.debug(f"签名原文: {sign_str}")
+
+        # 发送请求
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.post(
+                self.API_GENERATE_QRCODE,
+                data=params,  # 使用 data 而不是 json，工行要求 form-urlencoded
+                headers={"Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"}
+            )
+            response.raise_for_status()
+            result = response.json()
+
+        logger.info(f"工行二维码生成响应 - 订单号:{out_trade_no}, 响应码:{result.get('return_code')}")
+        logger.debug(f"完整响应: {json.dumps(result, ensure_ascii=False, indent=2)}")
+
+        return result
