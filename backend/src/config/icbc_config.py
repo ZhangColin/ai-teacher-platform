@@ -31,15 +31,31 @@ def load_key_content(file_path: str) -> str:
     Returns:
         PEM 格式的密钥内容字符串
     """
+    import textwrap
+
     with open(file_path, "r", encoding="utf-8") as f:
         content = f.read().strip()
 
     # 如果是裸 Base64（无 BEGIN/END 标记），转换为 PEM 格式
     if not content.startswith("-----BEGIN"):
+        # 将 Base64 内容按 64 字符换行
+        wrapped_content = textwrap.wrap(content, width=64)
+        base64_body = "\n".join(wrapped_content)
+
         if "PRIVATE" in file_path.upper() or ".pri" in file_path.lower():
-            content = f"-----BEGIN RSA PRIVATE KEY-----\n{content}\n-----END RSA PRIVATE KEY-----"
+            # 工行密钥是 PKCS#8 格式，使用 BEGIN PRIVATE KEY
+            content = f"-----BEGIN PRIVATE KEY-----\n{base64_body}\n-----END PRIVATE KEY-----"
         else:
-            content = f"-----BEGIN PUBLIC KEY-----\n{content}\n-----END PUBLIC KEY-----"
+            content = f"-----BEGIN PUBLIC KEY-----\n{base64_body}\n-----END PUBLIC KEY-----"
+    else:
+        # 如果已经是 PEM 格式，检查是否需要重新换行（兼容单行格式）
+        lines = content.split("\n")
+        if len(lines) == 3:  # HEADER + BODY + FOOTER (单行 body)
+            body = lines[1]
+            wrapped_body = "\n".join(textwrap.wrap(body, width=64))
+            header = lines[0]
+            footer = lines[2]
+            content = f"{header}\n{wrapped_body}\n{footer}"
 
     return content
 
