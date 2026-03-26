@@ -568,6 +568,12 @@ class PaymentOrderModel(Base):
     qr_code_data = Column(String(512), nullable=True, comment='二维码数据')
     icbc_response = Column(JSON, nullable=True, comment='工行完整响应')
 
+    # 工行业务参数
+    goods_name = Column(String(40), nullable=True, comment='商品名称')
+    attach = Column(String(127), nullable=True, comment='附加数据，原样返回')
+    support_app_type = Column(String(10), nullable=True, comment='支持的支付方式位图')
+    msg_id = Column(String(40), nullable=True, comment='消息通讯唯一编号')
+
     # 时间记录
     submitted_at = Column(DateTime, nullable=True, comment='发起时间')
     paid_at = Column(DateTime, nullable=True, comment='支付时间')
