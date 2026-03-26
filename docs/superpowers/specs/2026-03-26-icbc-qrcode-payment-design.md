@@ -28,7 +28,7 @@
 | 参数 | 值 | 说明 |
 |------|-----|------|
 | `app_id` | `11000000000000079872` | 应用编号 |
-| `mer_id` | `020004161912` | 商户编号 |
+| `mer_id` | `020004161912` | 商户编号（12位） |
 | `private_key_path` | `backend/src/key/AI_客户用.pri` | 客户私钥 |
 | `public_key_path` | `backend/src/key/AI_银行用.pub` | 银行公钥 |
 | `notify_url` | 环境变量 | 支付结果回调地址（可选） |
