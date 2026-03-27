@@ -132,6 +132,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('../views/admin/PaymentTestView.vue'),
         meta: { requiresAdmin: true },
       },
+      {
+        path: 'payment/refunds',
+        name: 'AdminRefunds',
+        component: () => import('../views/admin/RefundManagement.vue'),
+        meta: { requiresAuth: true, requiresAdmin: true, title: '退款管理' },
+      },
     ],
   },
   {
