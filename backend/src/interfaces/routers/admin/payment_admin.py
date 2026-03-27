@@ -26,11 +26,11 @@ def get_payment_service(db: Session = Depends(get_db)) -> "PaymentService":
     """获取支付服务实例"""
     from src.services.payment_service import PaymentService
     from src.services.point_service import PointService
-    from src.services.icbc_qrcode_client import IcbcQRCodeClient
+    from src.services.icbc_qrcode_client import IcbcQrCodeClient
     from src.config.icbc_config import get_icbc_client_config
 
     config = get_icbc_client_config()
-    icbc_client = IcbcQRCodeClient(
+    icbc_client = IcbcQrCodeClient(
         app_id=config["app_id"],
         mer_id=config["mer_id"],
         private_key_pem=config["private_key_pem"],
@@ -44,11 +44,11 @@ def get_payment_service(db: Session = Depends(get_db)) -> "PaymentService":
 def get_refund_service(db: Session = Depends(get_db)) -> "RefundService":
     """获取退款服务实例"""
     from src.services.refund_service import RefundService
-    from src.services.icbc_qrcode_client import IcbcQRCodeClient
+    from src.services.icbc_qrcode_client import IcbcQrCodeClient
     from src.config.icbc_config import get_icbc_client_config
 
     config = get_icbc_client_config()
-    icbc_client = IcbcQRCodeClient(
+    icbc_client = IcbcQrCodeClient(
         app_id=config["app_id"],
         mer_id=config["mer_id"],
         private_key_pem=config["private_key_pem"],
@@ -292,11 +292,11 @@ async def list_refunds(
         退款订单列表响应
     """
     from src.services.refund_service import RefundService
-    from src.services.icbc_qrcode_client import IcbcQRCodeClient
+    from src.services.icbc_qrcode_client import IcbcQrCodeClient
     from src.config.icbc_config import get_icbc_client_config
 
     config = get_icbc_client_config()
-    icbc_client = IcbcQRCodeClient(
+    icbc_client = IcbcQrCodeClient(
         app_id=config["app_id"],
         mer_id=config["mer_id"],
         private_key_pem=config["private_key_pem"],
