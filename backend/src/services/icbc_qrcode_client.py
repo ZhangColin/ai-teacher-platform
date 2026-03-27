@@ -20,6 +20,9 @@ class IcbcQrCodeClient:
     # API 端点
     API_GENERATE_QRCODE = "https://gw.open.icbc.com.cn/api/cardbusiness/qrcode/consumption/V1"
     API_QUERY_ORDER = "https://gw.open.icbc.com.cn/api/cardbusiness/aggregatepay/b2c/online/orderqry/V1"
+    # 新增API端点
+    API_REFUND_ORDER = "https://gw.open.icbc.com.cn/api/cardbusiness/aggregatepay/b2c/online/merrefund/V1"
+    API_QUERY_REFUND = "https://gw.open.icbc.com.cn/api/cardbusiness/aggregatepay/b2c/online/refundqry/V1"
 
     def __init__(
         self,
@@ -365,6 +368,190 @@ class IcbcQrCodeClient:
             logger.info(f"工行订单查询响应 - 订单号:{out_trade_no}, 状态:{biz_content.get('pay_status', 'N/A')}")
         else:
             logger.warning(f"工行订单查询响应格式异常: {result}")
+
+        return result
+
+    async def refund_order(
+        self,
+        out_trade_no: str,
+        out_refund_no: str,
+        refund_amount: int,
+        order_id: str = None,
+    ) -> dict:
+        """
+        发起退款
+
+        Args:
+            out_trade_no: 商户订单号
+            out_refund_no: 商户退款流水号
+            refund_amount: 退款金额（分）
+            order_id: 工行订单号（可选，与out_trade_no二选一）
+
+        Returns:
+            工行响应结果
+            {
+                "return_code": "0",  # 0=成功
+                "return_msg": "success",
+                "outtrx_serial_no": "商户退款流水号",
+                "intrx_serial_no": "工行退款流水号",
+                "reject_amt": "退款金额（分）",
+                "real_reject_amt": "实际退款金额（分）"
+            }
+        """
+        # 生成 msg_id
+        msg_id = self._generate_msg_id()
+
+        # 当前时间戳
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        # 构建 biz_content
+        biz_content = {
+            "mer_id": self.mer_id,
+            "out_trade_no": out_trade_no,
+            "outtrx_serial_no": out_refund_no,
+            "ret_total_amt": str(refund_amount),
+            "trnsc_ccy": "001",  # 人民币
+            "icbc_appid": self.app_id,
+            "mer_prtcl_no": self.mer_prtcl_no,
+            "order_apd_inf": "",  # 订单附加信息
+        }
+
+        # 如果有工行订单号，添加到biz_content
+        if order_id:
+            biz_content["order_id"] = order_id
+
+        # 构建请求参数
+        params = {
+            "app_id": self.app_id,
+            "msg_id": msg_id,
+            "format": "json",
+            "charset": "UTF-8",
+            "sign_type": "RSA2",
+            "timestamp": timestamp,
+            "biz_content": json.dumps(biz_content, ensure_ascii=False),
+        }
+
+        # 签名 - 需要传入 URL 路径
+        sign_str = self._build_sign_str(params, "/api/cardbusiness/aggregatepay/b2c/online/merrefund/V1")
+        sign = self._sign(sign_str)
+        params["sign"] = sign
+
+        logger.info(f"工行退款请求 - 订单号:{out_trade_no}, 退款金额:{refund_amount}分, msg_id:{msg_id}")
+        logger.debug(f"签名原文: {sign_str}")
+
+        # 按照工行文档格式：所有参数放在 body 中（form-urlencoded 格式）
+        body_params = {
+            "app_id": params["app_id"],
+            "msg_id": params["msg_id"],
+            "format": params["format"],
+            "charset": params["charset"],
+            "sign_type": params["sign_type"],
+            "timestamp": params["timestamp"],
+            "sign": params["sign"],
+            "biz_content": params["biz_content"],  # JSON 字符串
+        }
+
+        logger.debug(f"请求Body参数: {body_params}")
+
+        # 发送请求
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.post(
+                self.API_REFUND_ORDER,
+                data=body_params,  # form-urlencoded 格式
+                headers={"Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"}
+            )
+            response.raise_for_status()
+            result = response.json()
+
+        logger.info(f"工行退款响应 - 订单号:{out_trade_no}, 响应码:{result.get('return_code')}")
+        logger.debug(f"完整响应: {json.dumps(result, ensure_ascii=False, indent=2)}")
+
+        return result
+
+    async def query_refund(
+        self,
+        out_trade_no: str,
+        out_refund_no: str,
+        order_id: str = None,
+    ) -> dict:
+        """
+        查询退款状态
+
+        Args:
+            out_trade_no: 商户订单号
+            out_refund_no: 商户退款流水号
+            order_id: 工行订单号（可选）
+
+        Returns:
+            工行响应结果
+            {
+                "return_code": "0",
+                "return_msg": "success",
+                "pay_status": "0",  # 0=成功, 1=失败, 2=未知
+                "outtrx_serial_no": "商户退款流水号",
+                "intrx_serial_no": "工行退款流水号",
+                "reject_amt": "退款总金额（分）",
+                "real_reject_amt": "实际退款金额（分）"
+            }
+        """
+        # 生成 msg_id
+        msg_id = self._generate_msg_id()
+
+        # 当前时间戳
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        # 构建 biz_content
+        biz_content = {
+            "mer_id": self.mer_id,
+            "out_trade_no": out_trade_no,
+            "outtrx_serial_no": out_refund_no,
+            "mer_prtcl_no": self.mer_prtcl_no,
+        }
+
+        if order_id:
+            biz_content["order_id"] = order_id
+
+        # 构建请求参数
+        params = {
+            "app_id": self.app_id,
+            "msg_id": msg_id,
+            "format": "json",
+            "charset": "UTF-8",
+            "sign_type": "RSA2",
+            "timestamp": timestamp,
+            "biz_content": json.dumps(biz_content, ensure_ascii=False),
+        }
+
+        # 签名
+        sign_str = self._build_sign_str(params, "/api/cardbusiness/aggregatepay/b2c/online/refundqry/V1")
+        sign = self._sign(sign_str)
+        params["sign"] = sign
+
+        logger.info(f"工行退款查询请求 - 退款流水号:{out_refund_no}, msg_id:{msg_id}")
+
+        # 按照工行文档格式：所有参数放在 body 中（form-urlencoded 格式）
+        body_params = {
+            "app_id": params["app_id"],
+            "msg_id": params["msg_id"],
+            "format": params["format"],
+            "charset": params["charset"],
+            "sign_type": params["sign_type"],
+            "timestamp": params["timestamp"],
+            "sign": params["sign"],
+            "biz_content": params["biz_content"],  # JSON 字符串
+        }
+
+        # 发送请求
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.post(
+                self.API_QUERY_REFUND,
+                data=body_params,
+                headers={"Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"}
+            )
+            response.raise_for_status()
+            result = response.json()
+
+        logger.info(f"工行退款查询响应 - 退款流水号:{out_refund_no}, pay_status:{result.get('pay_status', 'N/A')}")
 
         return result
 
