@@ -1714,6 +1714,9 @@ class PaymentOrderResponse(BaseModel):
     qr_code_data: Optional[str] = None
     expire_at: Optional[datetime] = None
     created_at: datetime
+    # 退款统计
+    refunded_amount: int = Field(0, description="已退款金额（分）")
+    refund_count: int = Field(0, description="退款次数")
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -1759,4 +1762,62 @@ class SystemConfigResponse(BaseModel):
 class UpdateSystemConfigRequest(BaseModel):
     """更新系统配置请求"""
     points_per_yuan: int = Field(..., ge=1, le=10000, description="1元对应的积分数量")
+
+
+# ==================== 退款模块 ====================
+
+class CreateRefundRequest(BaseModel):
+    """创建退款请求"""
+    payment_order_id: str = Field(..., description="支付订单ID")
+    refund_amount: int = Field(..., ge=1, description="退款金额（分），最小1分")
+    refund_reason: str = Field("", max_length=200, description="退款原因")
+
+
+class RefundListItem(BaseModel):
+    """退款订单列表项"""
+    id: str
+    out_refund_no: str
+    payment_order_id: str
+    payment_order_out_trade_no: Optional[str] = None  # 关联的支付订单号
+    refund_amount: int
+    real_refund_amount: Optional[int] = None
+    status: str
+    third_refund_no: Optional[str] = None
+    operator_id: str
+    operator_name: Optional[str] = None
+    refund_reason: Optional[str] = None
+    submitted_at: Optional[str] = None
+    success_at: Optional[str] = None
+    failed_at: Optional[str] = None
+    created_at: str
+
+
+class RefundListResponse(BaseModel):
+    """退款订单列表响应"""
+    items: List[RefundListItem]
+    total: int
+    page: int
+    page_size: int
+
+
+class RefundDetailResponse(BaseModel):
+    """退款订单详情响应"""
+    id: str
+    out_refund_no: str
+    payment_order_id: str
+    payment_order_out_trade_no: Optional[str] = None
+    payment_order_amount: Optional[int] = None
+    refund_amount: int
+    real_refund_amount: Optional[int] = None
+    status: str
+    third_refund_no: Optional[str] = None
+    icbc_refund_response: Optional[dict] = None
+    operator_id: str
+    operator_name: Optional[str] = None
+    refund_reason: Optional[str] = None
+    submitted_at: Optional[str] = None
+    success_at: Optional[str] = None
+    failed_at: Optional[str] = None
+    created_at: str
+    updated_at: str
 
