@@ -13,8 +13,9 @@ from src.models import (
     SystemConfigResponse,
     UpdateSystemConfigRequest,
     TestNotifyRequest,
+    CreateRefundRequest,
 )
-from src.db_models import PaymentOrderModel, SystemConfigModel, PointTransactionModel
+from src.db_models import PaymentOrderModel, SystemConfigModel, PointTransactionModel, PaymentRefundModel, RefundStatus
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,23 @@ def get_payment_service(db: Session = Depends(get_db)) -> "PaymentService":
     )
     point_service = PointService(db)
     return PaymentService(db, icbc_client, point_service)
+
+
+def get_refund_service(db: Session = Depends(get_db)) -> "RefundService":
+    """获取退款服务实例"""
+    from src.services.refund_service import RefundService
+    from src.services.icbc_qrcode_client import IcbcQRCodeClient
+    from src.config.icbc_config import get_icbc_client_config
+
+    config = get_icbc_client_config()
+    icbc_client = IcbcQRCodeClient(
+        app_id=config["app_id"],
+        mer_id=config["mer_id"],
+        private_key_pem=config["private_key_pem"],
+        public_key_pem=config["public_key_pem"],
+        notify_url=config["notify_url"],
+    )
+    return RefundService(db, icbc_client)
 
 
 @router.get("/orders")
@@ -244,3 +262,248 @@ async def test_notify(
             "message": "测试回调处理失败",
             "order_id": order.id
         }
+
+
+# ==================== 退款管理接口 ====================
+
+@router.get("/refunds")
+async def list_refunds(
+    current_user: Annotated[UserInfo, Depends(require_admin)],
+    db: Session = Depends(get_db),
+    page: int = 1,
+    page_size: int = 20,
+    status: str = None,
+    out_trade_no: str = None,
+    out_refund_no: str = None,
+):
+    """
+    获取退款订单列表（管理员）
+
+    Args:
+        current_user: 当前管理员用户
+        db: 数据库会话
+        page: 页码
+        page_size: 每页数量
+        status: 状态筛选
+        out_trade_no: 商户订单号筛选
+        out_refund_no: 退款流水号筛选
+
+    Returns:
+        退款订单列表响应
+    """
+    from src.services.refund_service import RefundService
+    from src.services.icbc_qrcode_client import IcbcQRCodeClient
+    from src.config.icbc_config import get_icbc_client_config
+
+    config = get_icbc_client_config()
+    icbc_client = IcbcQRCodeClient(
+        app_id=config["app_id"],
+        mer_id=config["mer_id"],
+        private_key_pem=config["private_key_pem"],
+        public_key_pem=config["public_key_pem"],
+        notify_url=config["notify_url"],
+    )
+    refund_service = RefundService(db, icbc_client)
+
+    refunds, total = refund_service.list_refunds(
+        page=page,
+        page_size=page_size,
+        status=status,
+        out_trade_no=out_trade_no,
+        out_refund_no=out_refund_no,
+    )
+
+    # 构建响应列表
+    items = []
+    for refund in refunds:
+        # 获取关联的支付订单号
+        payment_order = db.query(PaymentOrderModel).filter(
+            PaymentOrderModel.id == refund.payment_order_id
+        ).first()
+
+        item = {
+            "id": refund.id,
+            "out_refund_no": refund.out_refund_no,
+            "payment_order_id": refund.payment_order_id,
+            "payment_order_out_trade_no": payment_order.out_trade_no if payment_order else None,
+            "refund_amount": refund.refund_amount,
+            "real_refund_amount": refund.real_refund_amount,
+            "status": refund.status.value if isinstance(refund.status, RefundStatus) else refund.status,
+            "third_refund_no": refund.third_refund_no,
+            "operator_id": refund.operator_id,
+            "operator_name": refund.operator_name,
+            "refund_reason": refund.refund_reason,
+            "submitted_at": refund.submitted_at.isoformat() if refund.submitted_at else None,
+            "success_at": refund.success_at.isoformat() if refund.success_at else None,
+            "failed_at": refund.failed_at.isoformat() if refund.failed_at else None,
+            "created_at": refund.created_at.isoformat(),
+        }
+        items.append(item)
+
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+    }
+
+
+@router.get("/refunds/{refund_id}")
+async def get_refund_detail(
+    refund_id: str,
+    current_user: Annotated[UserInfo, Depends(require_admin)],
+    refund_service=Depends(get_refund_service),
+):
+    """
+    获取退款订单详情（管理员）
+
+    Args:
+        refund_id: 退款订单ID
+        current_user: 当前管理员用户
+        refund_service: 退款服务
+
+    Returns:
+        退款订单详情
+    """
+    from sqlalchemy.orm import Session
+
+    refund = refund_service.get_refund_by_id(refund_id)
+    if not refund:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"退款订单不存在: {refund_id}"
+        )
+
+    # 获取关联的支付订单
+    db: Session = refund_service.db
+    payment_order = db.query(PaymentOrderModel).filter(
+        PaymentOrderModel.id == refund.payment_order_id
+    ).first()
+
+    return {
+        "id": refund.id,
+        "out_refund_no": refund.out_refund_no,
+        "payment_order_id": refund.payment_order_id,
+        "payment_order_out_trade_no": payment_order.out_trade_no if payment_order else None,
+        "payment_order_amount": payment_order.amount if payment_order else None,
+        "refund_amount": refund.refund_amount,
+        "real_refund_amount": refund.real_refund_amount,
+        "status": refund.status.value if isinstance(refund.status, RefundStatus) else refund.status,
+        "third_refund_no": refund.third_refund_no,
+        "icbc_refund_response": refund.icbc_refund_response,
+        "operator_id": refund.operator_id,
+        "operator_name": refund.operator_name,
+        "refund_reason": refund.refund_reason,
+        "submitted_at": refund.submitted_at.isoformat() if refund.submitted_at else None,
+        "success_at": refund.success_at.isoformat() if refund.success_at else None,
+        "failed_at": refund.failed_at.isoformat() if refund.failed_at else None,
+        "created_at": refund.created_at.isoformat(),
+        "updated_at": refund.updated_at.isoformat(),
+    }
+
+
+@router.post("/refunds/create")
+async def create_refund(
+    request_data: CreateRefundRequest,
+    current_user: Annotated[UserInfo, Depends(require_admin)],
+    refund_service=Depends(get_refund_service),
+):
+    """
+    发起退款（管理员）
+
+    Args:
+        request_data: 创建退款请求
+        current_user: 当前管理员用户
+        refund_service: 退款服务
+
+    Returns:
+        创建的退款订单
+    """
+    logger.info(f"管理员 {current_user.username} 发起退款: 订单={request_data.payment_order_id}, 金额={request_data.refund_amount}")
+
+    refund = await refund_service.create_refund(
+        payment_order_id=request_data.payment_order_id,
+        refund_amount=request_data.refund_amount,
+        operator_id=current_user.user_id,
+        operator_name=current_user.nickname or current_user.username,
+        refund_reason=request_data.refund_reason,
+    )
+
+    return {
+        "id": refund.id,
+        "out_refund_no": refund.out_refund_no,
+        "payment_order_id": refund.payment_order_id,
+        "refund_amount": refund.refund_amount,
+        "status": refund.status.value if isinstance(refund.status, RefundStatus) else refund.status,
+        "created_at": refund.created_at.isoformat(),
+    }
+
+
+@router.post("/refunds/{refund_id}/query")
+async def query_refund_status(
+    refund_id: str,
+    current_user: Annotated[UserInfo, Depends(require_admin)],
+    refund_service=Depends(get_refund_service),
+):
+    """
+    查询退款状态（管理员）
+
+    Args:
+        refund_id: 退款订单ID
+        current_user: 当前管理员用户
+        refund_service: 退款服务
+
+    Returns:
+        更新后的退款订单
+    """
+    logger.info(f"管理员 {current_user.username} 查询退款状态: {refund_id}")
+
+    refund = await refund_service.query_refund_status(refund_id)
+
+    return {
+        "id": refund.id,
+        "out_refund_no": refund.out_refund_no,
+        "status": refund.status.value if isinstance(refund.status, RefundStatus) else refund.status,
+        "real_refund_amount": refund.real_refund_amount,
+        "third_refund_no": refund.third_refund_no,
+        "success_at": refund.success_at.isoformat() if refund.success_at else None,
+        "failed_at": refund.failed_at.isoformat() if refund.failed_at else None,
+    }
+
+
+@router.get("/orders/{order_id}/refunds")
+async def get_payment_order_refunds(
+    order_id: str,
+    current_user: Annotated[UserInfo, Depends(require_admin)],
+    db: Session = Depends(get_db),
+):
+    """
+    获取支付订单的退款记录（管理员）
+
+    Args:
+        order_id: 支付订单ID
+        current_user: 当前管理员用户
+        db: 数据库会话
+
+    Returns:
+        退款记录列表
+    """
+    refunds = db.query(PaymentRefundModel).filter(
+        PaymentRefundModel.payment_order_id == order_id
+    ).order_by(PaymentRefundModel.created_at.desc()).all()
+
+    items = []
+    for refund in refunds:
+        items.append({
+            "id": refund.id,
+            "out_refund_no": refund.out_refund_no,
+            "refund_amount": refund.refund_amount,
+            "real_refund_amount": refund.real_refund_amount,
+            "status": refund.status.value if isinstance(refund.status, RefundStatus) else refund.status,
+            "operator_name": refund.operator_name,
+            "refund_reason": refund.refund_reason,
+            "created_at": refund.created_at.isoformat(),
+            "success_at": refund.success_at.isoformat() if refund.success_at else None,
+        })
+
+    return {"items": items}
