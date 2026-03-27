@@ -33,9 +33,16 @@ def get_payment_service(db: Session = Depends(get_db)) -> "PaymentService":
     icbc_client = IcbcQrCodeClient(
         app_id=config["app_id"],
         mer_id=config["mer_id"],
+        mer_prtcl_no=config["mer_prtcl_no"],
+        access_type=config["access_type"],
+        cur_type=config["cur_type"],
+        goods_name=config["goods_name"],
+        body=config["body"],
+        notify_type=config["notify_type"],
+        result_type=config["result_type"],
+        notify_url=config["notify_url"],
         private_key_pem=config["private_key_pem"],
         public_key_pem=config["public_key_pem"],
-        notify_url=config["notify_url"],
     )
     point_service = PointService(db)
     return PaymentService(db, icbc_client, point_service)
@@ -51,9 +58,16 @@ def get_refund_service(db: Session = Depends(get_db)) -> "RefundService":
     icbc_client = IcbcQrCodeClient(
         app_id=config["app_id"],
         mer_id=config["mer_id"],
+        mer_prtcl_no=config["mer_prtcl_no"],
+        access_type=config["access_type"],
+        cur_type=config["cur_type"],
+        goods_name=config["goods_name"],
+        body=config["body"],
+        notify_type=config["notify_type"],
+        result_type=config["result_type"],
+        notify_url=config["notify_url"],
         private_key_pem=config["private_key_pem"],
         public_key_pem=config["public_key_pem"],
-        notify_url=config["notify_url"],
     )
     return RefundService(db, icbc_client)
 
@@ -299,9 +313,16 @@ async def list_refunds(
     icbc_client = IcbcQrCodeClient(
         app_id=config["app_id"],
         mer_id=config["mer_id"],
+        mer_prtcl_no=config["mer_prtcl_no"],
+        access_type=config["access_type"],
+        cur_type=config["cur_type"],
+        goods_name=config["goods_name"],
+        body=config["body"],
+        notify_type=config["notify_type"],
+        result_type=config["result_type"],
+        notify_url=config["notify_url"],
         private_key_pem=config["private_key_pem"],
         public_key_pem=config["public_key_pem"],
-        notify_url=config["notify_url"],
     )
     refund_service = RefundService(db, icbc_client)
 
