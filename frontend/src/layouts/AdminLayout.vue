@@ -81,6 +81,7 @@
             <el-menu-item index="/admin/payment/orders">支付订单</el-menu-item>
             <el-menu-item index="/admin/payment/config">支付配置</el-menu-item>
             <el-menu-item index="/admin/payment/test">回调测试</el-menu-item>
+            <el-menu-item index="/admin/payment/refunds">退款管理</el-menu-item>
           </el-sub-menu>
         </el-menu>
       </el-aside>
