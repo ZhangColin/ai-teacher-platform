@@ -1401,3 +1401,130 @@ export interface BatchUpdateRateRequest {
 export interface BatchUpdateRateResponse {
   updated: number // 更新的数量
 }
+
+// ==================== 退款模块 ====================
+
+/**
+ * 退款状态枚举
+ */
+export type RefundStatus = 'refund_created' | 'refund_processing' | 'refund_success' | 'refund_failed' | 'refund_cancelled'
+
+/**
+ * 退款状态显示文本映射
+ */
+export const RefundStatusText: Record<RefundStatus, string> = {
+  refund_created: '已创建',
+  refund_processing: '处理中',
+  refund_success: '退款成功',
+  refund_failed: '退款失败',
+  refund_cancelled: '已取消'
+}
+
+/**
+ * 退款状态标签类型映射
+ */
+export const RefundStatusType: Record<RefundStatus, 'success' | 'warning' | 'danger' | 'info'> = {
+  refund_created: 'info',
+  refund_processing: 'warning',
+  refund_success: 'success',
+  refund_failed: 'danger',
+  refund_cancelled: 'info'
+}
+
+/**
+ * 退款订单列表项
+ */
+export interface RefundListItem {
+  id: string
+  out_refund_no: string // 退款流水号
+  payment_order_id: string // 支付订单ID
+  payment_order_out_trade_no?: string // 商户订单号
+  refund_amount: number // 退款金额（分）
+  real_refund_amount?: number // 实际退款金额（分）
+  status: RefundStatus // 退款状态
+  third_refund_no?: string // 工行退款流水号
+  operator_id: string // 操作人ID
+  operator_name?: string // 操作人姓名
+  refund_reason?: string // 退款原因
+  submitted_at?: string // 发起时间
+  success_at?: string // 成功时间
+  failed_at?: string // 失败时间
+  created_at: string // 创建时间
+}
+
+/**
+ * 退款订单列表响应
+ */
+export interface RefundListResponse {
+  items: RefundListItem[]
+  total: number
+  page: number
+  page_size: number
+}
+
+/**
+ * 退款订单详情
+ */
+export interface RefundDetail {
+  id: string
+  out_refund_no: string
+  payment_order_id: string
+  payment_order_out_trade_no?: string
+  payment_order_amount?: number
+  refund_amount: number
+  real_refund_amount?: number
+  status: RefundStatus
+  third_refund_no?: string
+  icbc_refund_response?: Record<string, any>
+  operator_id: string
+  operator_name?: string
+  refund_reason?: string
+  submitted_at?: string
+  success_at?: string
+  failed_at?: string
+  created_at: string
+  updated_at: string
+}
+
+/**
+ * 创建退款请求
+ */
+export interface CreateRefundRequest {
+  payment_order_id: string // 支付订单ID
+  refund_amount: number // 退款金额（分）
+  refund_reason?: string // 退款原因
+}
+
+/**
+ * 创建退款响应
+ */
+export interface CreateRefundResponse {
+  id: string
+  out_refund_no: string
+  payment_order_id: string
+  refund_amount: number
+  status: RefundStatus
+  created_at: string
+}
+
+/**
+ * 支付订单的退款记录
+ */
+export interface OrderRefundRecord {
+  id: string
+  out_refund_no: string
+  refund_amount: number
+  real_refund_amount?: number
+  status: RefundStatus
+  operator_name?: string
+  refund_reason?: string
+  created_at: string
+  success_at?: string
+}
+
+/**
+ * 订单退款记录响应
+ */
+export interface OrderRefundsResponse {
+  items: OrderRefundRecord[]
+}
