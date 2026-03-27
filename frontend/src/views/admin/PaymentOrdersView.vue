@@ -84,10 +84,32 @@
             {{ formatDateTime(row.paid_at) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="120" fixed="right">
+        <el-table-column prop="refunded_amount" label="已退款金额（元）" width="120">
+          <template #default="{ row }">
+            ¥{{ (row.refunded_amount / 100).toFixed(2) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="refund_count" label="退款次数" width="100" />
+        <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link @click="handleViewDetail(row)">
-              查看详情
+              详情
+            </el-button>
+            <el-button
+              v-if="row.status === 'paid' && row.refunded_amount < row.amount"
+              type="warning"
+              link
+              @click="handleCreateRefund(row)"
+            >
+              退款
+            </el-button>
+            <el-button
+              v-if="row.refund_count > 0"
+              type="info"
+              link
+              @click="handleViewRefunds(row)"
+            >
+              查看退款({{ row.refund_count }})
             </el-button>
           </template>
         </el-table-column>
@@ -179,13 +201,108 @@
         <el-button @click="detailDialogVisible = false">关闭</el-button>
       </template>
     </el-dialog>
+
+    <!-- 退款记录对话框 -->
+    <el-dialog
+      v-model="refundListDialogVisible"
+      title="退款记录"
+      width="800px"
+    >
+      <el-table
+        :data="orderRefunds"
+        v-loading="refundListLoading"
+        style="width: 100%"
+      >
+        <el-table-column prop="out_refund_no" label="退款流水号" width="200" />
+        <el-table-column prop="refund_amount" label="退款金额（元）" width="100">
+          <template #default="{ row }">
+            ¥{{ (row.refund_amount / 100).toFixed(2) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="status" label="状态" width="100">
+          <template #default="{ row }">
+            <el-tag :type="getRefundStatusType(row.status)">
+              {{ getRefundStatusText(row.status) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="operator_name" label="操作人" width="120" />
+        <el-table-column prop="refund_reason" label="退款原因" />
+        <el-table-column prop="created_at" label="创建时间" width="160">
+          <template #default="{ row }">
+            {{ formatDateTime(row.created_at) }}
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <template #footer>
+        <el-button @click="refundListDialogVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 发起退款对话框 -->
+    <el-dialog
+      v-model="createRefundDialogVisible"
+      title="发起退款"
+      width="500px"
+    >
+      <div v-if="selectedOrderForRefund">
+        <el-descriptions :column="2" border style="margin-bottom: 16px">
+          <el-descriptions-item label="商户订单号" :span="2">
+            {{ selectedOrderForRefund.out_trade_no }}
+          </el-descriptions-item>
+          <el-descriptions-item label="订单金额">
+            ¥{{ (selectedOrderForRefund.amount / 100).toFixed(2) }}
+          </el-descriptions-item>
+          <el-descriptions-item label="已退款金额">
+            ¥{{ (selectedOrderForRefund.refunded_amount / 100).toFixed(2) }}
+          </el-descriptions-item>
+          <el-descriptions-item label="可退金额" :span="2">
+            ¥{{ ((selectedOrderForRefund.amount - selectedOrderForRefund.refunded_amount) / 100).toFixed(2) }}
+          </el-descriptions-item>
+        </el-descriptions>
+
+        <el-form :model="refundForm" label-width="120px">
+          <el-form-item label="退款金额（元）">
+            <el-input-number
+              v-model="refundAmountYuan"
+              :min="0.01"
+              :max="maxRefundAmountYuan"
+              :precision="2"
+              style="width: 200px"
+            />
+            <span style="margin-left: 8px; color: #909399;">
+              最大可退: ¥{{ maxRefundAmountYuan.toFixed(2) }}
+            </span>
+          </el-form-item>
+          <el-form-item label="退款原因">
+            <el-input
+              v-model="refundForm.refund_reason"
+              type="textarea"
+              :rows="3"
+              placeholder="请输入退款原因（可选）"
+              maxlength="200"
+              show-word-limit
+            />
+          </el-form-item>
+        </el-form>
+      </div>
+
+      <template #footer>
+        <el-button @click="createRefundDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleConfirmRefund" :loading="refunding">
+          确认退款
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import apiClient from '@/services/apiClient'
+import type { RefundStatus } from '@/types'
 
 // 订单数据
 const orders = ref<any[]>([])
@@ -202,6 +319,31 @@ const filterThirdTradeNo = ref<string | undefined>(undefined)
 // 订单详情对话框
 const detailDialogVisible = ref(false)
 const selectedOrder = ref<any>(null)
+
+// 退款相关
+const refundListDialogVisible = ref(false)
+const refundListLoading = ref(false)
+const orderRefunds = ref<any[]>([])
+
+const createRefundDialogVisible = ref(false)
+const selectedOrderForRefund = ref<any>(null)
+const refunding = ref(false)
+const refundForm = ref({
+  refund_amount: 0,
+  refund_reason: ''
+})
+
+const refundAmountYuan = computed({
+  get: () => refundForm.value.refund_amount / 100,
+  set: (val: number) => {
+    refundForm.value.refund_amount = Math.round(val * 100)
+  }
+})
+
+const maxRefundAmountYuan = computed(() => {
+  if (!selectedOrderForRefund.value) return 0
+  return (selectedOrderForRefund.value.amount - selectedOrderForRefund.value.refunded_amount) / 100
+})
 
 /**
  * 获取状态标签类型
@@ -322,6 +464,89 @@ function handleSizeChange() {
 function handleViewDetail(row: any) {
   selectedOrder.value = row
   detailDialogVisible.value = true
+}
+
+/**
+ * 获取退款状态标签类型
+ */
+function getRefundStatusType(status: string): string {
+  const typeMap: Record<string, string> = {
+    refund_created: 'info',
+    refund_processing: 'warning',
+    refund_success: 'success',
+    refund_failed: 'danger',
+    refund_cancelled: 'info'
+  }
+  return typeMap[status] || 'info'
+}
+
+/**
+ * 获取退款状态文本
+ */
+function getRefundStatusText(status: string): string {
+  const textMap: Record<string, string> = {
+    refund_created: '已创建',
+    refund_processing: '处理中',
+    refund_success: '退款成功',
+    refund_failed: '退款失败',
+    refund_cancelled: '已取消'
+  }
+  return textMap[status] || status
+}
+
+/**
+ * 发起退款
+ */
+function handleCreateRefund(row: any) {
+  selectedOrderForRefund.value = row
+  refundForm.value = {
+    refund_amount: row.amount - row.refunded_amount,  // 默认全额退款剩余部分
+    refund_reason: ''
+  }
+  createRefundDialogVisible.value = true
+}
+
+/**
+ * 确认退款
+ */
+async function handleConfirmRefund() {
+  if (!selectedOrderForRefund.value) return
+  if (refundForm.value.refund_amount <= 0) {
+    ElMessage.warning('请输入退款金额')
+    return
+  }
+
+  refunding.value = true
+  try {
+    await apiClient.post('/admin/payment/refunds/create', {
+      payment_order_id: selectedOrderForRefund.value.id,
+      refund_amount: refundForm.value.refund_amount,
+      refund_reason: refundForm.value.refund_reason
+    })
+    ElMessage.success('退款发起成功')
+    createRefundDialogVisible.value = false
+    loadOrders()  // 刷新订单列表
+  } catch (error: any) {
+    ElMessage.error(error.response?.data?.detail || '发起退款失败')
+  } finally {
+    refunding.value = false
+  }
+}
+
+/**
+ * 查看退款记录
+ */
+async function handleViewRefunds(row: any) {
+  refundListLoading.value = true
+  refundListDialogVisible.value = true
+  try {
+    const response = await apiClient.get(`/admin/payment/orders/${row.id}/refunds`)
+    orderRefunds.value = response.data.items || []
+  } catch (error: any) {
+    ElMessage.error(error.response?.data?.detail || '获取退款记录失败')
+  } finally {
+    refundListLoading.value = false
+  }
 }
 
 onMounted(() => {
