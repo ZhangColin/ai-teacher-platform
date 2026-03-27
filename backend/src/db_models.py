@@ -43,6 +43,15 @@ class PaymentOrderStatus(enum.Enum):
     timeout = "timeout"
 
 
+class RefundStatus(str, enum.Enum):
+    """退款状态枚举"""
+    refund_created = "refund_created"      # 退款已创建
+    refund_processing = "refund_processing" # 退款处理中
+    refund_success = "refund_success"       # 退款成功
+    refund_failed = "refund_failed"         # 退款失败
+    refund_cancelled = "refund_cancelled"   # 退款取消
+
+
 class EnterpriseModel(Base):
     """企业数据库模型"""
     __tablename__ = "enterprises"
@@ -580,6 +589,10 @@ class PaymentOrderModel(Base):
     expire_at = Column(DateTime, nullable=True, comment='超时时间')
     notified_at = Column(DateTime, nullable=True, comment='回调到达时间')
 
+    # 退款统计
+    refunded_amount = Column(Integer, nullable=False, default=0, comment='已退款金额（分）')
+    refund_count = Column(Integer, nullable=False, default=0, comment='退款次数')
+
     # 回调相关
     notify_data = Column(JSON, nullable=True, comment='回调原始数据')
     notify_verify_result = Column(Boolean, nullable=True, comment='回调验签结果')
@@ -591,6 +604,47 @@ class PaymentOrderModel(Base):
     __table_args__ = (
         Index("idx_payment_user_status", "user_id", "status"),
         Index("idx_payment_created", "created_at"),
+    )
+
+
+class PaymentRefundModel(Base):
+    """退款订单数据库模型"""
+    __tablename__ = "payment_refunds"
+
+    # 基础字段
+    id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    out_refund_no = Column(String(64), unique=True, nullable=False, index=True, comment='商户退款流水号')
+    payment_order_id = Column(CHAR(36), ForeignKey("payment_orders.id"), nullable=False, index=True, comment='关联支付订单ID')
+
+    # 金额
+    refund_amount = Column(Integer, nullable=False, comment='退款金额（分）')
+    real_refund_amount = Column(Integer, nullable=True, comment='实际退款金额（分）')
+
+    # 状态
+    status = Column(Enum(RefundStatus), nullable=False, default=RefundStatus.refund_created, index=True)
+
+    # 工行返回数据
+    third_refund_no = Column(String(64), nullable=True, comment='工行退款流水号')
+    icbc_refund_response = Column(JSON, nullable=True, comment='工行退款完整响应')
+
+    # 操作信息
+    operator_id = Column(CHAR(36), nullable=False, comment='操作人ID')
+    operator_name = Column(String(50), nullable=True, comment='操作人姓名')
+    refund_reason = Column(String(200), nullable=True, comment='退款原因')
+
+    # 时间记录
+    submitted_at = Column(DateTime, nullable=True, comment='发起退款时间')
+    success_at = Column(DateTime, nullable=True, comment='退款成功时间')
+    failed_at = Column(DateTime, nullable=True, comment='退款失败时间')
+
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
+    updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
+
+    # 联合索引
+    __table_args__ = (
+        Index("idx_refund_payment", "payment_order_id"),
+        Index("idx_refund_status", "status"),
+        Index("idx_refund_created", "created_at"),
     )
 
 
