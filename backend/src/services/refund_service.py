@@ -269,33 +269,30 @@ class RefundService:
                 order_id=payment_order.third_trade_no,
             )
 
-            # 保存工行响应
-            refund.icbc_refund_response = icbc_response
+            # 保存查询响应（修复：保存到 icbc_query_response）
+            refund.icbc_query_response = icbc_response
 
-            # 解析响应状态
-            # 注意：工行查询响应可能在 response_biz_content 中
-            biz_content = icbc_response.get("response_biz_content", icbc_response)
-            pay_status = biz_content.get("pay_status")
+            # 解析状态（使用统一的解析方法）
+            status, timestamp_field = self._parse_query_status(icbc_response)
 
-            if pay_status == "0":
-                # 退款成功
-                refund.status = RefundStatus.refund_success
-                refund.success_at = datetime.now()
-                if not refund.real_refund_amount:
+            # 更新状态
+            old_status = refund.status
+            refund.status = status
+
+            # 更新时间戳
+            if timestamp_field:
+                setattr(refund, timestamp_field, datetime.now())
+
+            # 更新实际退款金额（成功时）
+            if status == RefundStatus.refund_success and not refund.real_refund_amount:
+                biz_content = icbc_response.get("response_biz_content", {})
+                if "real_reject_amt" in biz_content:
                     try:
-                        refund.real_refund_amount = int(biz_content.get("real_reject_amt", refund.refund_amount))
+                        refund.real_refund_amount = int(biz_content["real_reject_amt"])
                     except (ValueError, TypeError):
-                        refund.real_refund_amount = refund.refund_amount
-                logger.info(f"退款成功: {refund_id}")
-            elif pay_status == "1":
-                # 退款失败
-                refund.status = RefundStatus.refund_failed
-                refund.failed_at = datetime.now()
-                logger.info(f"退款失败: {refund_id}")
-            else:
-                # 状态未知，继续处理中
-                refund.status = RefundStatus.refund_processing
-                logger.info(f"退款状态未知: {refund_id}")
+                        pass
+
+            logger.info(f"退款状态查询: {refund_id}, {old_status.value} -> {status.value}")
 
             self.db.commit()
             self.db.refresh(refund)
