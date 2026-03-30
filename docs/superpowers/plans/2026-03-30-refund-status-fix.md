@@ -709,42 +709,64 @@ git commit -m "refactor: 修改 query_refund_status 使用统一的解析方法�
 
 ---
 
-## Task 5: 验证现有查询接口返回 icbc_query_response
+## Task 5: 修改现有查询接口返回工行响应数据
 
 **Files:**
-- Verify: `backend/src/interfaces/routers/admin/payment_admin.py`
+- Modify: `backend/src/interfaces/routers/admin/payment_admin.py:463-492`
 
-**注意**: 手动查询接口 `POST /api/v1/admin/payment/refunds/{refund_id}/query` 已经存在于 `payment_admin.py` 第 463-492 行。本任务只需验证其返回值包含 `icbc_query_response` 字段。
+**注意**: 手动查询接口 `POST /api/v1/admin/payment/refunds/{refund_id}/query` 已经存在于 `payment_admin.py` 第 463-492 行。本任务需要修改其返回值，添加 `icbc_refund_response` 和 `icbc_query_response` 字段。
 
 - [ ] **Step 1: 查看现有查询接口**
 
 ```bash
-grep -A 30 "def.*query.*refund" backend/src/interfaces/routers/admin/payment_admin.py
+sed -n '463,492p' backend/src/interfaces/routers/admin/payment_admin.py
 ```
 
-确认接口已经存在并查看当前实现
+确认接口当前位置和实现
 
-- [ ] **Step 2: 验证返回值包含新字段**
+- [ ] **Step 2: 修改返回值，添加工行响应字段**
 
-查看 `query_refund_status_api` 函数的返回值，确认 `icbc_query_response` 字段会被返回。由于 `RefundService.query_refund_status` 方法会保存 `icbc_query_response`，接口会自动返回这个字段。
-
-如果需要显式返回，确保返回字典中包含：
+找到 `query_refund_status_api` 函数的返回语句，修改为：
 
 ```python
 return {
     "success": True,
+    "message": "查询成功",
     "data": {
         "id": refund.id,
         "out_refund_no": refund.out_refund_no,
+        "payment_order_id": refund.payment_order_id,
+        "refund_amount": refund.refund_amount,
+        "real_refund_amount": refund.real_refund_amount,
         "status": refund.status.value,
+        "operator_id": refund.operator_id,
+        "operator_name": refund.operator_name,
+        "refund_reason": refund.refund_reason,
+        "submitted_at": refund.submitted_at.isoformat() if refund.submitted_at else None,
+        "success_at": refund.success_at.isoformat() if refund.success_at else None,
+        "failed_at": refund.failed_at.isoformat() if refund.failed_at else None,
+        "third_refund_no": refund.third_refund_no,
+        # 关键修改：添加工行响应数据
         "icbc_refund_response": refund.icbc_refund_response,
-        "icbc_query_response": refund.icbc_query_response,  # 确保包含此字段
-        # ... 其他字段
+        "icbc_query_response": refund.icbc_query_response,
+        "created_at": refund.created_at.isoformat() if refund.created_at else None,
+        "updated_at": refund.updated_at.isoformat() if refund.updated_at else None,
     }
 }
 ```
 
-- [ ] **Step 3: 运行后端测试**
+- [ ] **Step 3: 验证修改**
+
+```bash
+cd backend
+python3 -c "
+from src.interfaces.routers.admin.payment_admin import *
+# 检查代码语法是否正确
+print('Code check passed')
+"
+```
+
+- [ ] **Step 4: 运行后端测试**
 
 ```bash
 cd backend
@@ -753,11 +775,11 @@ pytest tests/unit/test_refund_service.py tests/integration/test_refund_flow.py -
 
 预期：所有测试通过
 
-- [ ] **Step 4: 提交（如果有修改）**
+- [ ] **Step 5: 提交**
 
 ```bash
 git add backend/src/interfaces/routers/admin/payment_admin.py
-git commit -m "fix: 确保查询接口返回 icbc_query_response 字段"
+git commit -m "feat: 查询接口返回工行响应数据 icbc_refund_response 和 icbc_query_response"
 ```
 
 ---
