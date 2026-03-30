@@ -412,6 +412,7 @@ async def get_refund_detail(
         "status": refund.status.value if isinstance(refund.status, RefundStatus) else refund.status,
         "third_refund_no": refund.third_refund_no,
         "icbc_refund_response": refund.icbc_refund_response,
+        "icbc_query_response": refund.icbc_query_response,
         "operator_id": refund.operator_id,
         "operator_name": refund.operator_name,
         "refund_reason": refund.refund_reason,

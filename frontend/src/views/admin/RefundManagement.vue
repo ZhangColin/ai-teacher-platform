@@ -4,9 +4,6 @@
       <template #header>
         <div class="card-header">
           <h3>退款管理</h3>
-          <el-button type="primary" @click="showCreateDialog = true">
-            发起退款
-          </el-button>
         </div>
       </template>
 
@@ -52,36 +49,51 @@
         v-loading="loading"
         style="width: 100%; margin-top: 16px"
       >
-        <el-table-column prop="out_refund_no" label="退款流水号" width="200" />
-        <el-table-column prop="payment_order_out_trade_no" label="商户订单号" width="200">
+        <el-table-column prop="out_refund_no" label="退款流水号" min-width="180" />
+        <el-table-column prop="payment_order_out_trade_no" label="商户订单号" min-width="180">
           <template #default="{ row }">
             {{ row.payment_order_out_trade_no || '-' }}
           </template>
         </el-table-column>
-        <el-table-column prop="refund_amount" label="退款金额（元）" width="120">
+        <el-table-column prop="refund_amount" label="退款金额（元）" width="110">
           <template #default="{ row }">
             ¥{{ (row.refund_amount / 100).toFixed(2) }}
           </template>
         </el-table-column>
-        <el-table-column prop="real_refund_amount" label="实际退款（元）" width="120">
+        <el-table-column prop="real_refund_amount" label="实际退款（元）" width="110">
           <template #default="{ row }">
             {{ row.real_refund_amount ? '¥' + (row.real_refund_amount / 100).toFixed(2) : '-' }}
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="100">
+        <el-table-column prop="status" label="状态" width="90">
           <template #default="{ row }">
             <el-tag :type="getStatusType(row.status)">
               {{ getStatusText(row.status) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="operator_name" label="操作人" width="120" />
-        <el-table-column prop="created_at" label="创建时间" width="160">
+        <el-table-column prop="operator_name" label="操作人" width="100" />
+        <el-table-column prop="submitted_at" label="发起时间" width="145">
+          <template #default="{ row }">
+            {{ formatDateTime(row.submitted_at) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="success_at" label="成功时间" width="145">
+          <template #default="{ row }">
+            {{ formatDateTime(row.success_at) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="failed_at" label="失败时间" width="145">
+          <template #default="{ row }">
+            {{ formatDateTime(row.failed_at) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="created_at" label="创建时间" width="145">
           <template #default="{ row }">
             {{ formatDateTime(row.created_at) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="180" fixed="right">
+        <el-table-column label="操作" width="120" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link @click="handleViewDetail(row)">
               详情
@@ -117,47 +129,6 @@
         style="margin-top: 16px; justify-content: flex-end"
       />
     </el-card>
-
-    <!-- 发起退款对话框 -->
-    <el-dialog
-      v-model="showCreateDialog"
-      title="发起退款"
-      width="500px"
-    >
-      <el-form :model="createForm" label-width="120px">
-        <el-form-item label="支付订单ID">
-          <el-input
-            v-model="createForm.payment_order_id"
-            placeholder="请输入支付订单ID"
-          />
-        </el-form-item>
-        <el-form-item label="退款金额（元）">
-          <el-input-number
-            v-model="refundAmountYuan"
-            :min="0.01"
-            :precision="2"
-            style="width: 200px"
-          />
-        </el-form-item>
-        <el-form-item label="退款原因">
-          <el-input
-            v-model="createForm.refund_reason"
-            type="textarea"
-            :rows="3"
-            placeholder="请输入退款原因（可选）"
-            maxlength="200"
-            show-word-limit
-          />
-        </el-form-item>
-      </el-form>
-
-      <template #footer>
-        <el-button @click="showCreateDialog = false">取消</el-button>
-        <el-button type="primary" @click="handleCreateRefund" :loading="creating">
-          确认退款
-        </el-button>
-      </template>
-    </el-dialog>
 
     <!-- 退款详情对话框 -->
     <el-dialog
@@ -202,7 +173,10 @@
           <el-descriptions-item label="成功时间">
             {{ formatDateTime(selectedRefund.success_at) }}
           </el-descriptions-item>
-          <el-descriptions-item label="创建时间" :span="2">
+          <el-descriptions-item label="失败时间">
+            {{ formatDateTime(selectedRefund.failed_at) }}
+          </el-descriptions-item>
+          <el-descriptions-item label="创建时间">
             {{ formatDateTime(selectedRefund.created_at) }}
           </el-descriptions-item>
         </el-descriptions>
@@ -248,7 +222,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import apiClient from '@/services/apiClient'
 import type { RefundListItem, RefundDetail, RefundStatus } from '@/types'
@@ -265,21 +239,6 @@ const pageSize = ref(20)
 const filterStatus = ref<string | undefined>(undefined)
 const filterOutTradeNo = ref<string | undefined>(undefined)
 const filterOutRefundNo = ref<string | undefined>(undefined)
-
-// 创建退款表单
-const showCreateDialog = ref(false)
-const creating = ref(false)
-const createForm = ref({
-  payment_order_id: '',
-  refund_amount: 0,
-  refund_reason: ''
-})
-const refundAmountYuan = computed({
-  get: () => createForm.value.refund_amount / 100,
-  set: (val: number) => {
-    createForm.value.refund_amount = Math.round(val * 100)
-  }
-})
 
 // 详情对话框
 const detailDialogVisible = ref(false)
@@ -390,41 +349,6 @@ async function handleViewDetail(row: RefundListItem) {
     detailDialogVisible.value = true
   } catch (error: any) {
     ElMessage.error(error.response?.data?.detail || '获取退款详情失败')
-  }
-}
-
-/**
- * 发起退款
- */
-async function handleCreateRefund() {
-  if (!createForm.value.payment_order_id) {
-    ElMessage.warning('请输入支付订单ID')
-    return
-  }
-  if (createForm.value.refund_amount <= 0) {
-    ElMessage.warning('请输入退款金额')
-    return
-  }
-
-  creating.value = true
-  try {
-    await apiClient.post('/admin/payment/refunds/create', {
-      payment_order_id: createForm.value.payment_order_id,
-      refund_amount: createForm.value.refund_amount,
-      refund_reason: createForm.value.refund_reason
-    })
-    ElMessage.success('退款发起成功')
-    showCreateDialog.value = false
-    createForm.value = {
-      payment_order_id: '',
-      refund_amount: 0,
-      refund_reason: ''
-    }
-    loadRefunds()
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.detail || '发起退款失败')
-  } finally {
-    creating.value = false
   }
 }
 
