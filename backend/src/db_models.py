@@ -626,6 +626,7 @@ class PaymentRefundModel(Base):
     # 工行返回数据
     third_refund_no = Column(String(64), nullable=True, comment='工行退款流水号')
     icbc_refund_response = Column(JSON, nullable=True, comment='工行退款完整响应')
+    icbc_query_response = Column(JSON, nullable=True, comment='工行退款查询接口响应')
 
     # 操作信息
     operator_id = Column(CHAR(36), nullable=False, comment='操作人ID')
