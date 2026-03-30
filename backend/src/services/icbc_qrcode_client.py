@@ -466,6 +466,14 @@ class IcbcQrCodeClient:
         logger.info(f"工行退款响应 - 订单号:{out_trade_no}, 响应码:{result.get('return_code')}")
         logger.debug(f"完整响应: {json.dumps(result, ensure_ascii=False, indent=2)}")
 
+        # 工行退款接口返回的数据包在 response_biz_content 里
+        # 为了方便上层使用，将 response_biz_content 的字段提升到根级别
+        if "response_biz_content" in result:
+            biz_content = result["response_biz_content"]
+            # 将 biz_content 的字段合并到 result 中
+            result.update(biz_content)
+            logger.debug(f"解析后的响应: return_code={result.get('return_code')}, return_msg={result.get('return_msg')}")
+
         return result
 
     async def query_refund(
@@ -551,8 +559,10 @@ class IcbcQrCodeClient:
             response.raise_for_status()
             result = response.json()
 
-        logger.info(f"工行退款查询响应 - 退款流水号:{out_refund_no}, pay_status:{result.get('pay_status', 'N/A')}")
+        logger.info(f"工行退款查询响应 - 退款流水号:{out_refund_no}, pay_status:{result.get('response_biz_content', {}).get('pay_status', 'N/A')}")
 
+        # 工行退款查询接口返回的数据包在 response_biz_content 里
+        # 保持原始结构返回，让上层按需解析
         return result
 
     def verify_notify(self, notify_data: dict) -> bool:

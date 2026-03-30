@@ -207,10 +207,28 @@
           </el-descriptions-item>
         </el-descriptions>
 
-        <!-- 工行响应数据 -->
+        <!-- 工行退款接口响应数据 -->
         <div v-if="selectedRefund.icbc_refund_response" class="response-section">
-          <h4>工行响应数据</h4>
+          <h4>工行退款接口响应（发起退款）</h4>
           <pre class="json-data">{{ JSON.stringify(selectedRefund.icbc_refund_response, null, 2) }}</pre>
+        </div>
+
+        <!-- 工行查询接口响应数据 -->
+        <div v-if="selectedRefund.icbc_query_response" class="response-section">
+          <h4>工行查询接口响应（查询状态）</h4>
+          <pre class="json-data">{{ JSON.stringify(selectedRefund.icbc_query_response, null, 2) }}</pre>
+        </div>
+
+        <!-- 无查询响应时的提示 -->
+        <div v-else-if="selectedRefund.status === 'refund_processing'" class="response-section">
+          <el-alert type="info" :closable="false">
+            <template #title>
+              查询接口暂无响应数据
+            </template>
+            <p style="margin: 8px 0 0 0; font-size: 12px; color: #666;">
+              退款发起后等待2秒自动查询，请点击"查询状态"按钮刷新
+            </p>
+          </el-alert>
         </div>
       </div>
 
