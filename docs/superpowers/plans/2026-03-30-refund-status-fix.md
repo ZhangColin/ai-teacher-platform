@@ -23,7 +23,7 @@
 | `backend/src/db_models.py` | 修改 | PaymentRefundModel 新增 icbc_query_response 字段 |
 | `backend/alembic/versions/xxx_add_icbc_query_response.py` | 创建 | 数据库迁移文件 |
 | `backend/src/services/refund_service.py` | 修改 | 修改 create_refund 和 query_refund_status 方法 |
-| `backend/src/interfaces/routers/enterprise/points.py` | 修改 | 新增手动查询接口 |
+| `backend/src/interfaces/routers/admin/payment_admin.py` | 验证 | 确认现有查询接口使用新字段 |
 | `backend/tests/unit/test_refund_service.py` | 修改 | 更新单元测试 |
 | `backend/tests/integration/test_refund_flow.py` | 修改 | 更新集成测试 |
 
@@ -648,66 +648,101 @@ pytest tests/unit/test_refund_service.py -v
 
 预期：所有测试通过
 
-- [ ] **Step 3: 提交**
+- [ ] **Step 3: 添加字段保存位置验证测试**
+
+在 `backend/tests/unit/test_refund_service.py` 中添加：
+
+```python
+@pytest.mark.asyncio
+async def test_query_refund_saves_to_correct_field(self, service, payment_order, db_session):
+    """测试查询响应保存到 icbc_query_response 而不是 icbc_refund_response"""
+    from src.db_models import PaymentRefundModel
+
+    # 创建一个退款记录
+    refund = PaymentRefundModel(
+        id="test-refund-id",
+        out_refund_no="TEST20260330001",
+        payment_order_id=payment_order.id,
+        refund_amount=100,
+        status=RefundStatus.refund_processing,
+        operator_id="test-operator",
+        submitted_at=datetime.now()
+    )
+    db_session.add(refund)
+    db_session.commit()
+
+    # 模拟查询接口返回
+    service.icbc_client.query_refund = AsyncMock(return_value={
+        "response_biz_content": {
+            "return_code": "0",
+            "pay_status": "0"
+        }
+    })
+
+    # 执行查询
+    result = await service.query_refund_status(refund.id)
+
+    # 验证：查询响应应该保存到 icbc_query_response
+    assert result.icbc_query_response is not None
+    assert result.icbc_query_response.get("response_biz_content", {}).get("pay_status") == "0"
+
+    # 刷新数据库确保数据已持久化
+    db_session.refresh(result)
+    assert result.icbc_query_response is not None
+```
+
+- [ ] **Step 4: 运行测试确认通过**
 
 ```bash
-git add backend/src/services/refund_service.py
-git commit -m "refactor: 修改 query_refund_status 使用统一的解析方法"
+cd backend
+pytest tests/unit/test_refund_service.py -v
+```
+
+预期：所有测试通过
+
+- [ ] **Step 5: 提交**
+
+```bash
+git add backend/src/services/refund_service.py backend/tests/unit/test_refund_service.py
+git commit -m "refactor: 修改 query_refund_status 使用统一的解析方法并修复字段保存"
 ```
 
 ---
 
-## Task 5: 新增手动查询 API 接口
+## Task 5: 验证现有查询接口返回 icbc_query_response
 
 **Files:**
-- Modify: `backend/src/interfaces/routers/enterprise/points.py`
+- Verify: `backend/src/interfaces/routers/admin/payment_admin.py`
 
-- [ ] **Step 1: 查看现有路由文件结构**
+**注意**: 手动查询接口 `POST /api/v1/admin/payment/refunds/{refund_id}/query` 已经存在于 `payment_admin.py` 第 463-492 行。本任务只需验证其返回值包含 `icbc_query_response` 字段。
+
+- [ ] **Step 1: 查看现有查询接口**
 
 ```bash
-grep -n "def.*refund" backend/src/interfaces/routers/enterprise/points.py | head -20
+grep -A 30 "def.*query.*refund" backend/src/interfaces/routers/admin/payment_admin.py
 ```
 
-了解现有退款相关接口的位置
+确认接口已经存在并查看当前实现
 
-- [ ] **Step 2: 添加手动查询接口**
+- [ ] **Step 2: 验证返回值包含新字段**
 
-在 `backend/src/interfaces/routers/enterprise/points.py` 中适当位置添加（参考现有退款接口的位置）：
+查看 `query_refund_status_api` 函数的返回值，确认 `icbc_query_response` 字段会被返回。由于 `RefundService.query_refund_status` 方法会保存 `icbc_query_response`，接口会自动返回这个字段。
+
+如果需要显式返回，确保返回字典中包含：
 
 ```python
-@router.post("/refunds/{refund_id}/query")
-async def query_refund_status(
-    refund_id: str,
-    current_user: UserModel = Depends(get_current_admin_user),  # 需要管理员权限
-    db: Session = Depends(get_db),
-):
-    """
-    手动查询退款状态
-
-    用于刷新"处理中"状态的退款记录
-    """
-    refund_service = RefundService(db, icbc_client=get_icbc_client())
-
-    try:
-        refund = await refund_service.query_refund_status(refund_id)
-        return {
-            "success": True,
-            "data": {
-                "id": refund.id,
-                "out_refund_no": refund.out_refund_no,
-                "status": refund.status.value,
-                "icbc_query_response": refund.icbc_query_response,
-                "updated_at": refund.updated_at.isoformat() if refund.updated_at else None,
-            }
-        }
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        logger.error(f"查询退款状态失败: {e}")
-        raise HTTPException(status_code=500, detail="查询退款状态失败")
+return {
+    "success": True,
+    "data": {
+        "id": refund.id,
+        "out_refund_no": refund.out_refund_no,
+        "status": refund.status.value,
+        "icbc_refund_response": refund.icbc_refund_response,
+        "icbc_query_response": refund.icbc_query_response,  # 确保包含此字段
+        # ... 其他字段
+    }
+}
 ```
-
-注意：根据实际文件中的导入和函数签名调整 `get_current_admin_user` 和 `get_icbc_client()` 的调用方式
 
 - [ ] **Step 3: 运行后端测试**
 
@@ -718,11 +753,11 @@ pytest tests/unit/test_refund_service.py tests/integration/test_refund_flow.py -
 
 预期：所有测试通过
 
-- [ ] **Step 4: 提交**
+- [ ] **Step 4: 提交（如果有修改）**
 
 ```bash
-git add backend/src/interfaces/routers/enterprise/points.py
-git commit -m "feat: 新增 POST /refunds/{id}/query 手动查询接口"
+git add backend/src/interfaces/routers/admin/payment_admin.py
+git commit -m "fix: 确保查询接口返回 icbc_query_response 字段"
 ```
 
 ---
@@ -778,7 +813,8 @@ const refreshingId = ref<string | null>(null)
 const handleRefreshStatus = async (row: any) => {
   refreshingId.value = row.id
   try {
-    const response = await apiClient.post(`/api/v1/admin/refunds/${row.id}/query`)
+    // 注意：API 路径是 /api/v1/admin/payment/refunds/{id}/query
+    const response = await apiClient.post(`/api/v1/admin/payment/refunds/${row.id}/query`)
     if (response.data.success) {
       ElMessage.success('状态已更新')
       // 刷新列表数据
