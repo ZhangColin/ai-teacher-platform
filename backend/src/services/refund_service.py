@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """退款服务"""
+import asyncio
 import logging
 import uuid
 from datetime import datetime
@@ -163,25 +164,53 @@ class RefundService:
 
             # 解析响应
             return_code = icbc_response.get("return_code")
-            if return_code == "0":
-                # 退款成功（工行退款接口同步返回结果，返回成功即退款成功）
-                refund.status = RefundStatus.refund_success
-                refund.success_at = datetime.now()
-                refund.third_refund_no = icbc_response.get("intrx_serial_no")
-
-                # 尝试获取实际退款金额
-                if "real_reject_amt" in icbc_response:
-                    try:
-                        refund.real_refund_amount = int(icbc_response["real_reject_amt"])
-                    except (ValueError, TypeError):
-                        pass
-
-                logger.info(f"退款提交成功: {refund.id}")
-            else:
-                # 退款提交失败
+            if return_code != "0":
+                # 发起失败
                 refund.status = RefundStatus.refund_failed
                 refund.failed_at = datetime.now()
-                logger.warning(f"退款提交失败: {refund.id}, 错误码: {return_code}")
+                logger.warning(f"退款发起失败: {refund.id}, 错误码: {return_code}")
+            else:
+                # 发起成功，保存工行退款流水号
+                refund.third_refund_no = icbc_response.get("intrx_serial_no")
+
+                # 等待2秒后查询状态
+                logger.info(f"退款发起成功，等待2秒后查询: {refund.id}")
+                await asyncio.sleep(2)
+
+                try:
+                    # 调用工行查询接口
+                    query_response = await self.icbc_client.query_refund(
+                        out_trade_no=payment_order.out_trade_no,
+                        out_refund_no=out_refund_no,
+                        order_id=payment_order.third_trade_no,
+                    )
+
+                    # 保存查询响应
+                    refund.icbc_query_response = query_response
+
+                    # 解析查询结果
+                    status, timestamp_field = self._parse_query_status(query_response)
+                    refund.status = status
+
+                    # 更新时间戳
+                    if timestamp_field:
+                        setattr(refund, timestamp_field, datetime.now())
+
+                    # 更新实际退款金额
+                    if status == RefundStatus.refund_success:
+                        biz_content = query_response.get("response_biz_content", {})
+                        if "real_reject_amt" in biz_content:
+                            try:
+                                refund.real_refund_amount = int(biz_content["real_reject_amt"])
+                            except (ValueError, TypeError):
+                                pass
+
+                    logger.info(f"退款查询完成: {refund.id}, 状态: {status.value}")
+
+                except Exception as e:
+                    # 查询失败，保持处理中状态
+                    logger.error(f"退款查询失败: {refund.id}, 错误: {e}")
+                    refund.status = RefundStatus.refund_processing
 
             # 更新支付订单的退款统计
             payment_order.refunded_amount += refund_amount
