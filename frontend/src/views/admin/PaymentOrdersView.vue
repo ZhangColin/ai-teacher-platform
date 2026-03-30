@@ -302,7 +302,6 @@
 import { ref, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import apiClient from '@/services/apiClient'
-import type { RefundStatus } from '@/types'
 
 // 订单数据
 const orders = ref<any[]>([])

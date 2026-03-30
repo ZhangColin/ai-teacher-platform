@@ -56,6 +56,7 @@ __all__ = [
     "get_current_user",
     "require_admin",  # 新增
     "require_enterprise_admin",  # 新增
+    "require_enterprise_member",  # 新增
     "get_config_service",  # 新增
     "get_model_provider_service",  # 新增
 ]
@@ -102,6 +103,30 @@ async def require_enterprise_admin(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="需要企业管理员权限"
+        )
+
+    return current_user
+
+
+async def require_enterprise_member(
+    current_user: Annotated[UserInfo, Depends(get_current_user)]
+) -> UserInfo:
+    """
+    企业成员权限验证（允许所有企业成员访问，不限于管理员）
+
+    Args:
+        current_user: 当前登录用户
+
+    Returns:
+        UserInfo: 当前用户信息
+
+    Raises:
+        HTTPException: 用户不属于任何企业
+    """
+    if not current_user.enterprise_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="需要属于企业才能访问"
         )
 
     return current_user

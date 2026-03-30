@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from src.models import UserInfo, PointBalanceResponse, TransactionListResponse, TransactionItem
 from src.database import get_db
-from src.interfaces.dependencies import require_enterprise_admin
+from src.interfaces.dependencies import require_enterprise_admin, require_enterprise_member
 from src.services.point_service import PointService
 
 logger = logging.getLogger(__name__)
@@ -17,10 +17,10 @@ router = APIRouter(prefix="/points", tags=["企业-积分"])
 
 @router.get("/balance", response_model=PointBalanceResponse)
 async def get_balance(
-    current_user: Annotated[UserInfo, Depends(require_enterprise_admin)] = None,
+    current_user: Annotated[UserInfo, Depends(require_enterprise_member)] = None,
     db: Session = Depends(get_db)
 ):
-    """获取企业积分余额"""
+    """获取企业积分余额（所有企业成员都可访问）"""
     point_service = PointService(db)
     balance = point_service.get_enterprise_balance(current_user.enterprise_id)
 
