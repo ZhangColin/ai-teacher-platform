@@ -1475,7 +1475,8 @@ export interface RefundDetail {
   real_refund_amount?: number
   status: RefundStatus
   third_refund_no?: string
-  icbc_refund_response?: Record<string, any>
+  icbc_refund_response?: Record<string, any>  // 工行退款接口响应
+  icbc_query_response?: Record<string, any>   // 工行查询接口响应
   operator_id: string
   operator_name?: string
   refund_reason?: string
