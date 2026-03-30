@@ -489,6 +489,9 @@ async def query_refund_status(
         "third_refund_no": refund.third_refund_no,
         "success_at": refund.success_at.isoformat() if refund.success_at else None,
         "failed_at": refund.failed_at.isoformat() if refund.failed_at else None,
+        # 添加工行响应数据
+        "icbc_refund_response": refund.icbc_refund_response,
+        "icbc_query_response": refund.icbc_query_response,
     }
 
 
