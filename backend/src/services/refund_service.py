@@ -40,6 +40,33 @@ class RefundService:
         random_str = uuid.uuid4().hex[:8].upper()
         return f"REF{timestamp}{random_str}"
 
+    def _parse_query_status(self, query_response: dict) -> tuple[RefundStatus, str | None]:
+        """
+        解析工行查询接口响应，确定退款状态
+
+        Args:
+            query_response: 工行查询接口响应
+
+        Returns:
+            (退款状态, 需要更新时间戳的字段名)
+        """
+        # 获取 response_biz_content
+        if "response_biz_content" in query_response:
+            biz_content = query_response["response_biz_content"]
+        else:
+            # 没有业务内容，保持处理中状态
+            return RefundStatus.refund_processing, None
+
+        pay_status = biz_content.get("pay_status")
+
+        if pay_status == "0":
+            return RefundStatus.refund_success, "success_at"
+        elif pay_status == "1":
+            return RefundStatus.refund_failed, "failed_at"
+        else:
+            # pay_status == "2" 或其他未知值，保持处理中
+            return RefundStatus.refund_processing, None
+
     def _can_refund(self, payment_order: PaymentOrderModel, refund_amount: int) -> bool:
         """
         检查是否可以退款
@@ -137,8 +164,9 @@ class RefundService:
             # 解析响应
             return_code = icbc_response.get("return_code")
             if return_code == "0":
-                # 退款提交成功
-                refund.status = RefundStatus.refund_processing
+                # 退款成功（工行退款接口同步返回结果，返回成功即退款成功）
+                refund.status = RefundStatus.refund_success
+                refund.success_at = datetime.now()
                 refund.third_refund_no = icbc_response.get("intrx_serial_no")
 
                 # 尝试获取实际退款金额

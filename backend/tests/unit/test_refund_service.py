@@ -81,3 +81,69 @@ class TestRefundService:
 
         result = refund_service._can_refund(payment_order, 0)
         assert result is True
+
+
+class TestRefundStatusParsing:
+    """测试退款状态解析逻辑"""
+
+    @pytest.fixture
+    def service(self):
+        """退款服务实例"""
+        db = Mock()
+        mock_client = Mock()
+        return RefundService(db, mock_client)
+
+    def test_parse_query_response_success(self, service):
+        """测试解析查询响应 - 成功"""
+        query_response = {
+            "response_biz_content": {
+                "return_code": "0",
+                "pay_status": "0",
+                "real_reject_amt": "100"
+            }
+        }
+        status, timestamp_field = service._parse_query_status(query_response)
+        assert status == RefundStatus.refund_success
+        assert timestamp_field == "success_at"
+
+    def test_parse_query_response_failed(self, service):
+        """测试解析查询响应 - 失败"""
+        query_response = {
+            "response_biz_content": {
+                "return_code": "0",
+                "pay_status": "1"
+            }
+        }
+        status, timestamp_field = service._parse_query_status(query_response)
+        assert status == RefundStatus.refund_failed
+        assert timestamp_field == "failed_at"
+
+    def test_parse_query_response_processing(self, service):
+        """测试解析查询响应 - 处理中"""
+        query_response = {
+            "response_biz_content": {
+                "return_code": "0",
+                "pay_status": "2"
+            }
+        }
+        status, timestamp_field = service._parse_query_status(query_response)
+        assert status == RefundStatus.refund_processing
+        assert timestamp_field is None
+
+    def test_parse_query_response_missing_biz_content(self, service):
+        """测试解析查询响应 - 缺少 response_biz_content"""
+        query_response = {"return_code": "0"}
+        status, timestamp_field = service._parse_query_status(query_response)
+        assert status == RefundStatus.refund_processing  # 默认为处理中
+        assert timestamp_field is None
+
+    def test_parse_query_response_missing_pay_status(self, service):
+        """测试解析查询响应 - 缺少 pay_status"""
+        query_response = {
+            "response_biz_content": {
+                "return_code": "0"
+            }
+        }
+        status, timestamp_field = service._parse_query_status(query_response)
+        assert status == RefundStatus.refund_processing
+        assert timestamp_field is None
