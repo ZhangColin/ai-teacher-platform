@@ -81,7 +81,7 @@
             {{ formatDateTime(row.created_at) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="150" fixed="right">
+        <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link @click="handleViewDetail(row)">
               详情
@@ -90,10 +90,17 @@
               v-if="row.status === 'refund_processing'"
               type="warning"
               link
+              :loading="refreshingId === row.id"
               @click="handleQueryStatus(row)"
             >
-              查询状态
+              {{ refreshingId === row.id ? '查询中...' : '查询状态' }}
             </el-button>
+            <span v-if="row.status === 'refund_success'" class="text-success">
+              已完成
+            </span>
+            <span v-if="row.status === 'refund_failed'" class="text-failed">
+              失败
+            </span>
           </template>
         </el-table-column>
       </el-table>
@@ -212,9 +219,10 @@
         <el-button
           v-if="selectedRefund?.status === 'refund_processing'"
           type="warning"
+          :loading="refreshingId === selectedRefund.id"
           @click="handleQueryStatusFromDetail"
         >
-          查询状态
+          {{ refreshingId === selectedRefund.id ? '查询中...' : '查询状态' }}
         </el-button>
       </template>
     </el-dialog>
@@ -223,7 +231,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import apiClient from '@/services/apiClient'
 import type { RefundListItem, RefundDetail, RefundStatus } from '@/types'
 import { RefundStatusText, RefundStatusType } from '@/types'
@@ -258,6 +266,7 @@ const refundAmountYuan = computed({
 // 详情对话框
 const detailDialogVisible = ref(false)
 const selectedRefund = ref<RefundDetail | null>(null)
+const refreshingId = ref<string | null>(null)
 
 /**
  * 获取状态标签类型
@@ -405,12 +414,15 @@ async function handleCreateRefund() {
  * 查询退款状态
  */
 async function handleQueryStatus(row: RefundListItem) {
+  refreshingId.value = row.id
   try {
     await apiClient.post(`/admin/payment/refunds/${row.id}/query`)
-    ElMessage.success('状态查询成功')
+    ElMessage.success('状态已更新')
     loadRefunds()
   } catch (error: any) {
-    ElMessage.error(error.response?.data?.detail || '查询退款状态失败')
+    ElMessage.error(error.response?.data?.detail || '查询失败')
+  } finally {
+    refreshingId.value = null
   }
 }
 
@@ -474,5 +486,15 @@ onMounted(() => {
   overflow: auto;
   white-space: pre-wrap;
   word-break: break-all;
+}
+
+.text-success {
+  color: #67c23a;
+  font-size: 12px;
+}
+
+.text-failed {
+  color: #f56c6c;
+  font-size: 12px;
 }
 </style>
