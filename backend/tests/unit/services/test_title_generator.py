@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """TitleGenerator 单元测试"""
 import pytest
-from unittest.mock import patch, MagicMock, Mock
+from unittest.mock import patch, MagicMock, Mock, AsyncMock
 from sqlalchemy.orm import Session
 from src.services.title_generator import TitleGenerator
 
@@ -39,7 +39,7 @@ class TestTitleGenerator:
         mock_model_provider_service.return_value.get_provider_by_code.return_value = mock_provider
         mock_model_provider_service.return_value.get_provider_api_key.return_value = "sk-test123"
 
-        with patch("src.services.title_generator.OpenAI") as mock_openai:
+        with patch("src.services.title_generator.AsyncOpenAI") as mock_openai:
             generator = TitleGenerator(mock_db)
             client = generator._get_ai_client("test_provider", "test_model")
 
@@ -115,8 +115,8 @@ class TestTitleGenerator:
         mock_model_provider_service.return_value.get_provider_by_code.return_value = mock_provider
         mock_model_provider_service.return_value.get_provider_api_key.return_value = "sk-test123"
 
-        # 模拟 OpenAI 客户端响应
-        with patch("src.services.title_generator.OpenAI") as mock_openai:
+        # 模拟 AsyncOpenAI 客户端响应
+        with patch("src.services.title_generator.AsyncOpenAI") as mock_openai:
             mock_client = MagicMock()
             mock_response = MagicMock()
             mock_choice = MagicMock()
@@ -124,7 +124,8 @@ class TestTitleGenerator:
             mock_message.content.strip.return_value = "生成的标题"
             mock_choice.message = mock_message
             mock_response.choices = [mock_choice]
-            mock_client.chat.completions.create.return_value = mock_response
+            # 使用 AsyncMock 模拟异步方法
+            mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
             mock_openai.return_value = mock_client
 
             generator = TitleGenerator(mock_db)
@@ -154,8 +155,8 @@ class TestTitleGenerator:
         mock_model_provider_service.return_value.get_provider_by_code.return_value = mock_provider
         mock_model_provider_service.return_value.get_provider_api_key.return_value = "sk-test123"
 
-        # 模拟 OpenAI 客户端响应
-        with patch("src.services.title_generator.OpenAI") as mock_openai:
+        # 模拟 AsyncOpenAI 客户端响应
+        with patch("src.services.title_generator.AsyncOpenAI") as mock_openai:
             mock_client = MagicMock()
             mock_response = MagicMock()
             mock_choice = MagicMock()
@@ -163,7 +164,8 @@ class TestTitleGenerator:
             mock_message.content.strip.return_value = "长消息标题"
             mock_choice.message = mock_message
             mock_response.choices = [mock_choice]
-            mock_client.chat.completions.create.return_value = mock_response
+            # 使用 AsyncMock 模拟异步方法
+            mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
             mock_openai.return_value = mock_client
 
             generator = TitleGenerator(mock_db)
@@ -193,10 +195,11 @@ class TestTitleGenerator:
         mock_model_provider_service.return_value.get_provider_by_code.return_value = mock_provider
         mock_model_provider_service.return_value.get_provider_api_key.return_value = "sk-test123"
 
-        # 模拟 OpenAI 客户端抛出异常
-        with patch("src.services.title_generator.OpenAI") as mock_openai:
+        # 模拟 AsyncOpenAI 客户端抛出异常
+        with patch("src.services.title_generator.AsyncOpenAI") as mock_openai:
             mock_client = MagicMock()
-            mock_client.chat.completions.create.side_effect = Exception("AI错误")
+            # 使用 AsyncMock 模拟异步方法抛出异常
+            mock_client.chat.completions.create = AsyncMock(side_effect=Exception("AI错误"))
             mock_openai.return_value = mock_client
 
             generator = TitleGenerator(mock_db)
@@ -221,8 +224,8 @@ class TestTitleGenerator:
         mock_model_provider_service.return_value.get_provider_by_code.return_value = mock_provider
         mock_model_provider_service.return_value.get_provider_api_key.return_value = "sk-test123"
 
-        # 模拟 OpenAI 客户端返回空内容
-        with patch("src.services.title_generator.OpenAI") as mock_openai:
+        # 模拟 AsyncOpenAI 客户端返回空内容
+        with patch("src.services.title_generator.AsyncOpenAI") as mock_openai:
             mock_client = MagicMock()
             mock_response = MagicMock()
             mock_choice = MagicMock()
@@ -230,7 +233,8 @@ class TestTitleGenerator:
             mock_message.content.strip.return_value = ""
             mock_choice.message = mock_message
             mock_response.choices = [mock_choice]
-            mock_client.chat.completions.create.return_value = mock_response
+            # 使用 AsyncMock 模拟异步方法
+            mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
             mock_openai.return_value = mock_client
 
             generator = TitleGenerator(mock_db)
@@ -254,8 +258,8 @@ class TestTitleGenerator:
         mock_model_provider_service.return_value.get_provider_by_code.return_value = mock_provider
         mock_model_provider_service.return_value.get_provider_api_key.return_value = "sk-test123"
 
-        # 模拟 OpenAI 客户端返回超长标题
-        with patch("src.services.title_generator.OpenAI") as mock_openai:
+        # 模拟 AsyncOpenAI 客户端返回超长标题
+        with patch("src.services.title_generator.AsyncOpenAI") as mock_openai:
             mock_client = MagicMock()
             mock_response = MagicMock()
             mock_choice = MagicMock()
@@ -265,7 +269,8 @@ class TestTitleGenerator:
             mock_message.content.strip.return_value = long_title
             mock_choice.message = mock_message
             mock_response.choices = [mock_choice]
-            mock_client.chat.completions.create.return_value = mock_response
+            # 使用 AsyncMock 模拟异步方法
+            mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
             mock_openai.return_value = mock_client
 
             generator = TitleGenerator(mock_db)
@@ -291,8 +296,8 @@ class TestTitleGenerator:
         mock_model_provider_service.return_value.get_provider_by_code.return_value = mock_provider
         mock_model_provider_service.return_value.get_provider_api_key.return_value = "sk-test123"
 
-        # 模拟 OpenAI 客户端响应
-        with patch("src.services.title_generator.OpenAI") as mock_openai:
+        # 模拟 AsyncOpenAI 客户端响应
+        with patch("src.services.title_generator.AsyncOpenAI") as mock_openai:
             mock_client = MagicMock()
             mock_response = MagicMock()
             mock_choice = MagicMock()
@@ -300,7 +305,8 @@ class TestTitleGenerator:
             mock_message.content.strip.return_value = "测试标题"
             mock_choice.message = mock_message
             mock_response.choices = [mock_choice]
-            mock_client.chat.completions.create.return_value = mock_response
+            # 使用 AsyncMock 模拟异步方法
+            mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
             mock_openai.return_value = mock_client
 
             generator = TitleGenerator(mock_db)

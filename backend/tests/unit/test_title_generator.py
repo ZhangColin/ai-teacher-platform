@@ -8,7 +8,7 @@ Bug: 新开会话后，标题生成逻辑不正确
 3. 只有生成标题失败时，才截取用户输入作为兜底
 """
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, AsyncMock
 from src.services.title_generator import TitleGenerator
 
 
@@ -43,7 +43,7 @@ class TestTitleGenerator:
             mock_response = Mock()
             mock_response.choices = [Mock()]
             mock_response.choices[0].message.content = "Photoshop调色教学课件"
-            mock_client.chat.completions.create.return_value = mock_response
+            mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
             mock_get_client.return_value = mock_client
 
             # Act
@@ -81,7 +81,7 @@ class TestTitleGenerator:
             mock_response = Mock()
             mock_response.choices = [Mock()]
             mock_response.choices[0].message.content = "AI助手介绍"
-            mock_client.chat.completions.create.return_value = mock_response
+            mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
             mock_get_client.return_value = mock_client
 
             # Act
@@ -115,7 +115,7 @@ class TestTitleGenerator:
         with patch.object(title_generator, '_get_ai_client') as mock_get_client:
             # Mock AI客户端抛出异常
             mock_client = Mock()
-            mock_client.chat.completions.create.side_effect = Exception("AI服务不可用")
+            mock_client.chat.completions.create = AsyncMock(side_effect=Exception("AI服务不可用"))
             mock_get_client.return_value = mock_client
 
             # Act
@@ -141,7 +141,7 @@ class TestTitleGenerator:
         with patch.object(title_generator, '_get_ai_client') as mock_get_client:
             # Mock AI客户端抛出异常
             mock_client = Mock()
-            mock_client.chat.completions.create.side_effect = Exception("AI服务不可用")
+            mock_client.chat.completions.create = AsyncMock(side_effect=Exception("AI服务不可用"))
             mock_get_client.return_value = mock_client
 
             # Act
@@ -186,7 +186,7 @@ class TestTitleGenerator:
             mock_response = Mock()
             mock_response.choices = [Mock()]
             mock_response.choices[0].message.content = "这是一个非常非常非常非常非常非常非常非常非常非常长的标题"
-            mock_client.chat.completions.create.return_value = mock_response
+            mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
             mock_get_client.return_value = mock_client
 
             # Act
@@ -215,7 +215,7 @@ class TestTitleGenerator:
             mock_response = Mock()
             mock_response.choices = [Mock()]
             mock_response.choices[0].message.content = '"这是标题"，包含标点！'
-            mock_client.chat.completions.create.return_value = mock_response
+            mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
             mock_get_client.return_value = mock_client
 
             # Act

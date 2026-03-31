@@ -1,7 +1,7 @@
 """会话标题生成服务"""
 import logging
 from typing import Optional, Tuple
-from openai import OpenAI
+from openai import AsyncOpenAI
 from sqlalchemy.orm import Session
 
 from src.services.model_provider_service import ModelProviderService
@@ -22,7 +22,7 @@ class TitleGenerator:
         self.db = db
         self.model_provider_service = ModelProviderService(db)
 
-    def _get_ai_client(self, provider_code: str, model_name: str) -> Optional[OpenAI]:
+    def _get_ai_client(self, provider_code: str, model_name: str) -> Optional[AsyncOpenAI]:
         """
         根据供应商代码和模型名称获取 AI 客户端
 
@@ -31,7 +31,7 @@ class TitleGenerator:
             model_name: 模型名称
 
         Returns:
-            OpenAI 客户端，如果获取失败返回 None
+            AsyncOpenAI 客户端，如果获取失败返回 None
         """
         try:
             # 从数据库获取供应商配置
@@ -48,8 +48,8 @@ class TitleGenerator:
             api_key = self.model_provider_service.get_provider_api_key(provider.id)
             base_url = provider.base_url
 
-            # 创建客户端
-            client = OpenAI(
+            # 创建异步客户端
+            client = AsyncOpenAI(
                 api_key=api_key,
                 base_url=base_url,
                 timeout=30.0,
@@ -117,7 +117,7 @@ AI回复：{ai_preview}
         try:
             logger.info(f"开始生成会话标题 - 使用模型: {model_provider}:{model_name}")
 
-            response = client.chat.completions.create(
+            response = await client.chat.completions.create(
                 model=model_name,
                 messages=[
                     {"role": "user", "content": prompt}
@@ -200,7 +200,7 @@ AI回复：{ai_preview}
 
         try:
             logger.info(f"开始生成会话标题 - 使用模型: {model_provider}:{model_name}")
-            response = client.chat.completions.create(
+            response = await client.chat.completions.create(
                 model=model_name,
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=30,
