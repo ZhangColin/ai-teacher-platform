@@ -257,7 +257,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { ApiService } from '../../services/apiClient'
 import type {
@@ -446,6 +446,7 @@ function handleCreate() {
     type: 'normal',
     content_type: 'text',
     media_type: undefined,
+    required_capability: 'chat',
     model: '',
     welcome_message: '',
     visible: true,
@@ -597,18 +598,25 @@ async function handleDelete(tool: AdminAIToolListItem) {
 onMounted(() => {
   loadNavigationModules()
   loadTools()
-  loadAvailableModels()
+  // 默认加载 chat 能力的模型
+  loadAvailableModels(form.required_capability)
 })
 
 // 加载可用模型列表
-const loadAvailableModels = async () => {
+const loadAvailableModels = async (capability?: string) => {
   try {
-    const response = await ApiService.getAvailableModelsFromDB()
+    const response = await ApiService.getAvailableModelsFromDB(undefined, capability)
     availableModels.value = response.models
   } catch (error) {
     console.error('加载可用模型失败:', error)
   }
 }
+
+// 监听 AI 能力变化，过滤模型列表
+watch(() => form.required_capability, (newCapability) => {
+  console.log('[AdminAITools] required_capability 变化:', newCapability)
+  loadAvailableModels(newCapability || undefined)
+})
 </script>
 
 <style scoped>

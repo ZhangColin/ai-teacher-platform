@@ -162,17 +162,10 @@ class AIService:
         """创建 LLM 适配器（用于非 OpenAI 兼容的供应商）"""
         from src.services.llm import create_adapter
 
-        extra_config = {}
-        # Bedrock 需要特殊处理
-        if provider_code == 'bedrock':
-            # base_url 是区域，不是完整的 URL
-            extra_config = {'region': base_url}
-
         return create_adapter(
             provider_code=provider_code,
             api_key=api_key,
             base_url=base_url,
-            **extra_config
         )
 
     def _get_ai_client_from_env(self, model_config: Optional[str] = None) -> Tuple[Optional[OpenAI], str]:
@@ -967,6 +960,7 @@ class AIService:
             except Exception as e:
                 logger.error(f"适配器调用失败: {e}", exc_info=True)
                 yield f"⚠️ AI 服务调用失败: {str(e)}"
+                return  # 确保不再执行后续代码
             return
 
         # 使用 OpenAI 客户端（原有逻辑）
@@ -1088,25 +1082,36 @@ class AIService:
                             return
 
                         accumulated_content = ""
-                        async for line in response.content:
-                            if line:
-                                line_text = line.decode('utf-8').strip()
-                                if line_text.startswith('data: '):
-                                    line_text = line_text[6:]  # 去掉 'data: '
-                                elif line_text.startswith('data:'):
-                                    line_text = line_text[5:]  # 去掉 'data:'
-                                if line_text == '[DONE]':
-                                    break
-                                try:
-                                    chunk_data = json_module.loads(line_text)
-                                    if 'choices' in chunk_data and chunk_data['choices']:
-                                        delta = chunk_data['choices'][0].get('delta', {})
-                                        content = delta.get('content', '')
-                                        if content:
-                                            accumulated_content += content
-                                            yield content
-                                except json_module.JSONDecodeError:
-                                    pass
+                        # 使用 readline() 按行读取 SSE 流
+                        while True:
+                            line = await response.content.readline()
+                            if not line:
+                                break
+                            line_text = line.decode('utf-8').strip()
+                            print(f"[NewAPI Debug Stream] 原始行: {line_text[:200]}")  # 调试：打印原始行
+                            if not line_text:
+                                continue  # 跳过空行
+                            if line_text.startswith('data: '):
+                                line_text = line_text[6:]  # 去掉 'data: '
+                            elif line_text.startswith('data:'):
+                                line_text = line_text[5:]  # 去掉 'data:'
+                            if line_text == '[DONE]':
+                                print(f"[NewAPI Debug Stream] 收到 [DONE]")
+                                break
+                            try:
+                                chunk_data = json_module.loads(line_text)
+                                print(f"[NewAPI Debug Stream] 解析成功: {list(chunk_data.keys()) if isinstance(chunk_data, dict) else type(chunk_data)}")
+                                if 'choices' in chunk_data and chunk_data['choices']:
+                                    delta = chunk_data['choices'][0].get('delta', {})
+                                    content = delta.get('content', '')
+                                    if content:
+                                        accumulated_content += content
+                                        print(f"[NewAPI Debug Stream] 内容: {content[:50]}...")
+                                        yield content
+                            except json_module.JSONDecodeError as e:
+                                print(f"[NewAPI Debug Stream] JSON 解析失败: {e}, 行内容: {line_text[:100]}")
+
+                        print(f"[NewAPI Debug Stream] 流结束，累积内容长度: {len(accumulated_content)}")
 
                         # 返回 usage
                         yield {

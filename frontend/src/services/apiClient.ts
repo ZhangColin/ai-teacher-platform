@@ -1062,13 +1062,15 @@ export class ApiService {
     if (capability) params.capability = capability
 
     const response = await apiClient.get<AvailableModelResponse>('/models/available', { params })
-    // 将 ModelConfigListItem 转换为 ModelListItem 格式
-    return response.data.models.map(m => ({
-      id: `${m.provider_code}:${m.model_code}`,
-      name: m.model_name,
-      provider: m.provider_name,
-      description: m.capabilities.join(', ')
-    }))
+    // 将 ModelConfigListItem 转换为 ModelListItem 格式，并按模型名称排序
+    return response.data.models
+      .map(m => ({
+        id: `${m.provider_code}:${m.model_code}`,
+        name: m.model_name,
+        provider: m.provider_name,
+        description: m.capabilities.join(', ')
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
   }
 
   // ==================== 导航模块管理 ====================
@@ -1362,12 +1364,17 @@ export class ApiService {
 
   /**
    * 获取可用的模型列表（从数据库，公开接口）
+   * @param providerCode 供应商代码（可选）
+   * @param capability AI 能力过滤（可选）：chat, image, audio, video, code
    */
-  static async getAvailableModelsFromDB(providerCode?: string): Promise<AvailableModelResponse> {
+  static async getAvailableModelsFromDB(providerCode?: string, capability?: string): Promise<AvailableModelResponse> {
     const params: Record<string, string> = {}
     if (providerCode) params.provider_code = providerCode
+    if (capability) params.capability = capability
 
     const response = await apiClient.get<AvailableModelResponse>('/models/available', { params })
+    // 按模型名称排序
+    response.data.models.sort((a, b) => a.model_name.localeCompare(b.model_name, 'zh-CN'))
     return response.data
   }
 

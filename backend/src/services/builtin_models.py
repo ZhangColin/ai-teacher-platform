@@ -523,7 +523,7 @@ ALL_CAPABILITIES = list(CAPABILITY_TYPES.keys())
 
 def get_builtin_providers():
     """获取内置供应商列表"""
-    return [
+    return sorted([
         {
             "code": code,
             "name": config["name"],
@@ -531,14 +531,14 @@ def get_builtin_providers():
             "description": config.get("description", "")
         }
         for code, config in BUILTIN_PROVIDERS.items()
-    ]
+    ], key=lambda x: x["name"])
 
 
 def get_builtin_models(provider_code: str = None):
     """获取内置模型列表"""
     if provider_code:
         models = BUILTIN_MODELS.get(provider_code, {})
-        return [
+        return sorted([
             {
                 "code": model_code,
                 "name": config["name"],
@@ -546,7 +546,7 @@ def get_builtin_models(provider_code: str = None):
                 "description": config.get("description", "")
             }
             for model_code, config in models.items()
-        ]
+        ], key=lambda x: x["name"])
 
     # 返回所有模型
     result = []
@@ -559,7 +559,7 @@ def get_builtin_models(provider_code: str = None):
                 "capabilities": config["capabilities"],
                 "description": config.get("description", "")
             })
-    return result
+    return sorted(result, key=lambda x: x["name"])
 
 
 def validate_provider_code(provider_code: str) -> bool:

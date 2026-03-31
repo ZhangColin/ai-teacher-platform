@@ -71,7 +71,7 @@ class ModelService:
 
     def get_available_models(self) -> List[ModelInfo]:
         """获取所有可用的模型列表"""
-        return self.models
+        return sorted(self.models, key=lambda m: m.name)
 
     def get_model_by_id(self, model_id: str) -> Optional[ModelInfo]:
         """

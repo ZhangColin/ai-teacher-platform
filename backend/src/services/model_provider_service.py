@@ -372,7 +372,7 @@ class ModelProviderService:
                 )
             )
 
-        models = query.order_by(ModelProviderModel.order, ModelConfigModel.id).all()
+        models = query.order_by(ModelProviderModel.order, ModelConfigModel.model_name).all()
 
         return [
             ModelConfigListItem(
