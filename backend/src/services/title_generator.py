@@ -48,11 +48,11 @@ class TitleGenerator:
             api_key = self.model_provider_service.get_provider_api_key(provider.id)
             base_url = provider.base_url
 
-            # 创建异步客户端
+            # 创建异步客户端（标题生成只需少量 token，10 秒超时足够）
             client = AsyncOpenAI(
                 api_key=api_key,
                 base_url=base_url,
-                timeout=30.0,
+                timeout=10.0,
                 max_retries=1
             )
 

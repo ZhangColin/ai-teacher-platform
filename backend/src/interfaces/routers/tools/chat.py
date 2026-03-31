@@ -200,6 +200,9 @@ async def chat_stream(
                 )
                 _logger.info(f"✅ AI 消息已保存（含token信息）")
 
+                # 记录消息数量（用户消息 + AI消息 = 2），用于后续判断是否第一轮对话
+                messages_count_after_ai = 2
+
                 # 记录Token使用日志
                 ai_message_id = None  # 保存消息ID供后续使用
                 if usage_info and model_provider and model_name:
@@ -268,10 +271,9 @@ async def chat_stream(
                     _logger.info(f"✅ 会话模型已更新为 {model_provider}:{model_name}")
 
                 # 检查是否是第一轮对话，如果是则生成标题
-                messages = session_service.get_messages_by_session(session_id, user_id=current_user.user_id)
-                _logger.info(f"📊 会话消息数量检查 - 会话ID: {session_id}, 消息数: {len(messages)}")
+                _logger.info(f"📊 会话消息数量检查 - 会话ID: {session_id}, 消息数: {messages_count_after_ai}")
 
-                if len(messages) == 2:  # 第一轮对话：1条用户消息 + 1条AI回复
+                if messages_count_after_ai == 2:  # 第一轮对话：1条用户消息 + 1条AI回复
                     try:
                         _logger.info(f"🎯 检测到第一轮对话，开始生成会话标题 - 用户消息: {request.message[:50]}")
                         # 生成标题（带 token 信息）
@@ -331,7 +333,7 @@ async def chat_stream(
                         except Exception as e2:
                             _logger.error(f"❌ 降级方案也失败了: {e2}", exc_info=True)
                 else:
-                    _logger.info(f"⏭️ 非第一轮对话，跳过标题生成（消息数: {len(messages)}）")
+                    _logger.info(f"⏭️ 非第一轮对话，跳过标题生成（消息数: {messages_count_after_ai}）")
 
             except Exception as e:
                 _logger.error(f"Chat stream error: {e}")
@@ -478,6 +480,9 @@ async def chat_non_stream(
         )
         logger.info(f"✅ AI 消息已保存（含token信息）")
 
+        # 记录消息数量（用户消息 + AI消息 = 2），用于后续判断是否第一轮对话
+        messages_count_after_ai = 2
+
         # 记录Token使用日志
         if usage_info and model_provider and model_name:
             try:
@@ -520,10 +525,9 @@ async def chat_non_stream(
         artifacts = artifact_parser.parse_from_markdown(response_content)
 
         # 检查是否是第一轮对话，如果是则生成标题
-        messages = session_service.get_messages_by_session(session_id, user_id=current_user.user_id)
-        logger.info(f"会话消息数量检查 - 会话ID: {session_id}, 消息数: {len(messages)}")
+        logger.info(f"会话消息数量检查 - 会话ID: {session_id}, 消息数: {messages_count_after_ai}")
 
-        if len(messages) == 2:  # 第一轮对话：1条用户消息 + 1条AI回复
+        if messages_count_after_ai == 2:  # 第一轮对话：1条用户消息 + 1条AI回复
             try:
                 logger.info(f"检测到第一轮对话，开始生成会话标题 - 用户消息: {request.message[:50]}")
                 # 生成标题（带 token 信息）
