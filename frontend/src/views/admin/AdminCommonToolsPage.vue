@@ -297,7 +297,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
+import { ElMessage, ElMessageBox, type FormInstance, type FormRules, type UploadFile } from 'element-plus'
 import { ApiService } from '../../services/apiClient'
 import type {
   AdminCommonToolListItem,
@@ -645,8 +645,8 @@ async function handleEditSubmit() {
       formData.append('visible', String(editForm.visible))
 
       // 如果选择了新文件，添加到 FormData
-      if (editFileList.value.length > 0 && editFileList.value[0].raw) {
-        formData.append('html_file', editFileList.value[0].raw)
+      if (editFileList.value.length > 0 && editFileList.value[0]?.raw) {
+        formData.append('html_file', editFileList.value[0]!.raw!)
       }
 
       await ApiService.updateTool(id!, formData)

@@ -56,6 +56,7 @@ import type {
   CreateCourseCategoryRequest,
   UpdateCourseCategoryRequest,
   AdminCourseDocumentListResponse,
+  AdminCourseDocumentListItem,
   UpdateCourseDocumentRequest,
   ModelListItem,
   // 导航模块管理

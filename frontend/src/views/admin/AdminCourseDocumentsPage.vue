@@ -199,7 +199,6 @@ import { ApiService } from '../../services/apiClient'
 import type {
   AdminCourseDocumentListItem,
   AdminCourseCategoryListItem,
-  UpdateCourseDocumentRequest,
 } from '../../types'
 
 // 文档列表
@@ -435,8 +434,8 @@ async function handleSubmit() {
       if (form.order !== undefined) formData.append('order', String(form.order))
 
       // 如果选择了新文件，添加到 FormData
-      if (editFileList.value.length > 0 && editFileList.value[0].raw) {
-        formData.append('markdown_file', editFileList.value[0].raw)
+      if (editFileList.value.length > 0 && editFileList.value[0]?.raw) {
+        formData.append('markdown_file', editFileList.value[0]!.raw!)
       }
 
       await ApiService.updateCourseDocument(form.id, formData)

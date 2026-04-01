@@ -498,8 +498,8 @@ async function handleEditSubmit() {
       formData.append('visible', String(editForm.visible))
 
       // 如果选择了新文件，添加到 FormData
-      if (editFileList.value.length > 0 && editFileList.value[0].raw) {
-        formData.append('html_file', editFileList.value[0].raw)
+      if (editFileList.value.length > 0 && editFileList.value[0]?.raw) {
+        formData.append('html_file', editFileList.value[0]!.raw!)
       }
 
       await ApiService.updateWork(id!, formData)
