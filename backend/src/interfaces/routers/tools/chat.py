@@ -180,10 +180,15 @@ async def chat_stream(
                 # 发送结束标记
                 yield "data: [DONE]\n\n"
 
-                # 解析模型信息（用于记录）
+                # 解析模型信息（优先从 usage_info 获取，其次从 model_config 解析）
+                # usage_info 中的模型信息是 AI 服务实际使用的模型，更可靠
                 model_provider = None
                 model_name = None
-                if model_config and ":" in model_config:
+                if usage_info:
+                    model_provider = usage_info.get('model_provider')
+                    model_name = usage_info.get('model_name')
+                # 如果 usage_info 中没有模型信息，从 model_config 解析
+                if not model_provider and not model_name and model_config and ":" in model_config:
                     model_provider, model_name = model_config.split(":", 1)
 
                 # 保存AI消息（带token信息）
@@ -460,10 +465,15 @@ async def chat_non_stream(
             model_config=model_config
         )
 
-        # 解析模型信息（用于记录）
+        # 解析模型信息（优先从 usage_info 获取，其次从 model_config 解析）
+        # usage_info 中的模型信息是 AI 服务实际使用的模型，更可靠
         model_provider = None
         model_name = None
-        if model_config and ":" in model_config:
+        if usage_info:
+            model_provider = usage_info.get('model_provider')
+            model_name = usage_info.get('model_name')
+        # 如果 usage_info 中没有模型信息，从 model_config 解析
+        if not model_provider and not model_name and model_config and ":" in model_config:
             model_provider, model_name = model_config.split(":", 1)
 
         # 保存AI消息（带token信息）
@@ -510,6 +520,38 @@ async def chat_non_stream(
                             db.close()
             except Exception as e:
                 logger.error(f"❌ 记录Token日志失败: {e}", exc_info=True)
+
+        # 扣减积分（主消息响应的积分）
+        if usage_info and model_provider and model_name:
+            try:
+                # 获取当前消息的ID（刚刚保存的AI消息）
+                messages = session_service.get_messages_by_session(session_id, user_id=current_user.user_id)
+                if messages and len(messages) > 0:
+                    ai_message = messages[-1]  # 最后一条消息就是刚保存的AI消息
+                    ai_message_id = ai_message.message_id
+                    if ai_message.message_id:
+                        db = next(get_db())
+                        try:
+                            point_service = PointService(db)
+                            points = usage_info.get('points_deducted', 0)
+                            # 确保至少扣除1积分
+                            points = max(1, points)
+                            consumption = point_service.deduct_points(
+                                enterprise_id=current_user.enterprise_id,
+                                user_id=current_user.user_id,
+                                session_id=session_id,
+                                message_id=ai_message_id,
+                                model_provider=model_provider,
+                                model_name=model_name,
+                                prompt_tokens=usage_info.get('prompt_tokens', 0),
+                                completion_tokens=usage_info.get('completion_tokens', 0),
+                                points=points
+                            )
+                            logger.info(f"✅ 积分扣减完成 - 消耗:{points}（赠送:{consumption.gratis_points_used}, 充值:{consumption.paid_points_used}）")
+                        finally:
+                            db.close()
+            except Exception as e:
+                logger.error(f"❌ 积分扣减失败: {e}", exc_info=True)
 
         # 更新会话的模型选择（如果用户手动选择了模型）
         if request.model and model_provider and model_name:
