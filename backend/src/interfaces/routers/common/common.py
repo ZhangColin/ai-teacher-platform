@@ -21,6 +21,7 @@ from src.models import (
     MultiModalContent,
     Message,
     CommonToolCategoryResponse,
+    CommonToolDetail,
 )
 
 from src.interfaces.auth import get_current_user
@@ -65,6 +66,44 @@ async def get_common_tool_categories():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取工具分类失败，请稍后重试"
+        )
+
+
+@router.get("/common-tools/tools/{tool_id}")
+async def get_common_tool_detail(
+    tool_id: str,
+    current_user: Annotated[UserInfo, Depends(get_current_user)] = None,
+):
+    """
+    获取指定工具的详细信息
+
+    Args:
+        tool_id: 工具ID
+
+    Returns:
+        CommonToolDetail: 工具详情（包括分类信息、HTML访问URL等）
+
+    Raises:
+        HTTPException: 工具不存在或不可见时返回404
+    """
+    try:
+        common_tool_service = get_common_tool_service()
+        result = common_tool_service.get_tool_detail(tool_id)
+
+        if result is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="工具不存在或已下线"
+            )
+
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"获取工具详情失败: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="获取工具详情失败"
         )
 
 

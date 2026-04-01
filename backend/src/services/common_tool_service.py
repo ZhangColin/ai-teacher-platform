@@ -135,7 +135,46 @@ class CommonToolService:
             
         finally:
             db.close()
-    
+
+    def get_tool_by_id_admin(self, tool_id: str) -> Optional[AdminCommonToolListItem]:
+        """
+        根据 ID 获取工具（管理后台使用，不限制可见性）
+
+        Args:
+            tool_id: 工具ID
+
+        Returns:
+            AdminCommonToolListItem: 工具信息，如果不存在则返回None
+        """
+        db = self._get_db()
+        try:
+            tool = db.query(CommonToolModel).filter(CommonToolModel.id == tool_id).first()
+
+            if not tool:
+                return None
+
+            # 获取分类名称
+            category = db.query(ToolCategoryModel).filter(
+                ToolCategoryModel.id == tool.category_id
+            ).first()
+
+            return AdminCommonToolListItem(
+                id=tool.id,
+                name=tool.name,
+                description=tool.description,
+                category_id=tool.category_id,
+                category_name=category.name if category else "未分类",
+                type=tool.type.value,
+                icon=tool.icon,
+                html_path=tool.html_path,
+                order=tool.order,
+                visible=tool.visible,
+                created_at=tool.created_at,
+                updated_at=tool.updated_at
+            )
+        finally:
+            db.close()
+
     # ==================== 后台管理方法 ====================
     
     def get_all_tools_admin(
@@ -353,14 +392,14 @@ class CommonToolService:
     def update_tool(self, tool_id: str, request: UpdateToolRequest) -> AdminCommonToolListItem:
         """
         更新工具信息
-        
+
         Args:
             tool_id: 工具ID
             request: 更新工具请求
-            
+
         Returns:
             AdminCommonToolListItem: 更新后的工具信息
-            
+
         Raises:
             ValueError: 工具不存在或分类不存在
         """
@@ -370,7 +409,7 @@ class CommonToolService:
             tool = db.query(CommonToolModel).filter(CommonToolModel.id == tool_id).first()
             if not tool:
                 raise ValueError(f"工具不存在: {tool_id}")
-            
+
             # 如果更新分类，验证分类是否存在
             if request.category_id and request.category_id != tool.category_id:
                 category = db.query(ToolCategoryModel).filter(
@@ -379,7 +418,7 @@ class CommonToolService:
                 if not category:
                     raise ValueError(f"分类不存在: {request.category_id}")
                 tool.category_id = request.category_id
-            
+
             # 更新字段
             if request.name is not None:
                 tool.name = request.name
@@ -391,9 +430,11 @@ class CommonToolService:
                 tool.order = request.order
             if request.visible is not None:
                 tool.visible = request.visible
-            
+            if request.html_path is not None:
+                tool.html_path = request.html_path
+
             tool.updated_at = datetime.now()
-            
+
             db.commit()
             db.refresh(tool)
             

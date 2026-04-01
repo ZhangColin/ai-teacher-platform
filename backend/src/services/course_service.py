@@ -668,17 +668,18 @@ class CourseService:
         finally:
             db.close()
     
-    def update_document(self, doc_id: str, request: UpdateCourseDocumentRequest) -> Optional[AdminCourseDocumentListItem]:
+    def update_document(self, doc_id: str, request: UpdateCourseDocumentRequest, markdown_content: str = None) -> Optional[AdminCourseDocumentListItem]:
         """
-        更新文档信息（不包括文档内容）
-        
+        更新文档信息
+
         Args:
             doc_id: 文档ID
             request: 更新文档请求
-            
+            markdown_content: Markdown 内容（如果提供，会更新文件）
+
         Returns:
             更新后的文档信息，如果文档不存在则返回None
-            
+
         Raises:
             ValueError: 目录不存在
         """
@@ -688,33 +689,53 @@ class CourseService:
             document = db.query(CourseDocumentModel).filter(
                 CourseDocumentModel.id == doc_id
             ).first()
-            
+
             if not document:
                 return None
-            
+
+            # 如果提供了新内容，更新文件
+            if markdown_content is not None:
+                # 删除旧文件
+                old_full_path = self.storage_root / document.file_path
+                if old_full_path.exists():
+                    old_full_path.unlink(missing_ok=True)
+                    # 如果目录为空，删除目录
+                    old_file_dir = old_full_path.parent
+                    if old_file_dir.exists() and not list(old_file_dir.iterdir()):
+                        old_file_dir.rmdir()
+
+                # 保存新文件
+                new_full_path = self.storage_root / document.id / "content.md"
+                new_full_path.parent.mkdir(parents=True, exist_ok=True)
+                new_full_path.write_text(markdown_content, encoding='utf-8')
+
+                # 更新文件路径（保持相对路径格式）
+                # file_path 格式：course_docs/{doc_id}/content.md
+                # 文档 ID 不变，所以路径也不变
+
             # 更新字段
             if request.title is not None:
                 document.title = request.title
-            
+
             if request.summary is not None:
                 document.summary = request.summary
-            
+
             if request.category_id is not None:
                 # 验证目录存在
                 category = db.query(CourseCategoryModel).filter(
                     CourseCategoryModel.id == request.category_id
                 ).first()
-                
+
                 if not category:
                     raise ValueError(f"目录不存在: {request.category_id}")
-                
+
                 document.category_id = request.category_id
-            
+
             if request.order is not None:
                 document.order = request.order
-            
+
             document.updated_at = datetime.now()
-            
+
             db.commit()
             db.refresh(document)
             

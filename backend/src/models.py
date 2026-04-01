@@ -771,6 +771,7 @@ class UpdateToolRequest(BaseModel):
     icon: Optional[str] = Field(None, description="图标标识（heroicons名称）")
     order: Optional[int] = Field(None, description="排序顺序")
     visible: Optional[bool] = Field(None, description="是否可见")
+    html_path: Optional[str] = Field(None, description="HTML文件路径（重新上传时使用）")
 
 
 class CreateToolResponse(BaseModel):
@@ -876,6 +877,7 @@ class UpdateWorkRequest(BaseModel):
     icon: Optional[str] = Field(None, description="图标标识（heroicons名称）")
     order: Optional[int] = Field(None, description="排序顺序")
     visible: Optional[bool] = Field(None, description="是否可见")
+    html_path: Optional[str] = Field(None, description="HTML文件路径（重新上传时使用）")
 
 
 class CreateWorkResponse(BaseModel):

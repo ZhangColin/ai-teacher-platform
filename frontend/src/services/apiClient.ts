@@ -658,8 +658,10 @@ export class ApiService {
    * @param toolId 工具ID
    * @param request 更新工具请求
    */
-  static async updateTool(toolId: string, request: UpdateToolRequest): Promise<ToolMutationResponse> {
-    const response = await apiClient.put<ToolMutationResponse>(`/admin/common-tools/${toolId}`, request)
+  static async updateTool(toolId: string, request: UpdateToolRequest | FormData): Promise<ToolMutationResponse> {
+    const response = await apiClient.put<ToolMutationResponse>(`/admin/common-tools/${toolId}`, request, {
+      headers: request instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : undefined
+    })
     return response.data
   }
 
@@ -805,8 +807,10 @@ export class ApiService {
   /**
    * 更新作品信息
    */
-  static async updateWork(workId: string, request: UpdateWorkRequest): Promise<WorkMutationResponse> {
-    const response = await apiClient.put<WorkMutationResponse>(`/admin/works/${workId}`, request)
+  static async updateWork(workId: string, request: UpdateWorkRequest | FormData): Promise<WorkMutationResponse> {
+    const response = await apiClient.put<WorkMutationResponse>(`/admin/works/${workId}`, request, {
+      headers: request instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : undefined
+    })
     return response.data
   }
 
@@ -1021,9 +1025,15 @@ export class ApiService {
    */
   static async updateCourseDocument(
     docId: string,
-    request: UpdateCourseDocumentRequest
-  ): Promise<{ message: string }> {
-    const response = await apiClient.put<{ message: string }>(`/admin/course-documents/${docId}`, request)
+    request: UpdateCourseDocumentRequest | FormData
+  ): Promise<{ message: string; document: AdminCourseDocumentListItem }> {
+    const response = await apiClient.put<{ message: string; document: AdminCourseDocumentListItem }>(
+      `/admin/course-documents/${docId}`,
+      request,
+      {
+        headers: request instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : undefined
+      }
+    )
     return response.data
   }
 

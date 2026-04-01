@@ -57,7 +57,14 @@ cp alembic.ini "$BACKEND_DIST/"
 
 # 复制配置文件（与 backend 同级，代码期望的位置）
 cp -r "$PROJECT_ROOT/configs"/* "$DIST_DIR/configs/"
-cp -r "$PROJECT_ROOT/backend/static"/* "$BACKEND_DIST/static/" 2>/dev/null || true
+
+# ⚠️  重要：不要复制 static 目录，避免用本地测试数据覆盖生产环境的用户上传文件
+# static 目录应该在服务器上独立管理，不通过部署脚本更新
+# 只创建空目录结构
+mkdir -p "$BACKEND_DIST/static/works/html"
+mkdir -p "$BACKEND_DIST/static/common_tools/html"
+mkdir -p "$BACKEND_DIST/static/course_docs"
+mkdir -p "$BACKEND_DIST/static/media"
 
 # 复制必要文件
 cp requirements.txt "$BACKEND_DIST/"

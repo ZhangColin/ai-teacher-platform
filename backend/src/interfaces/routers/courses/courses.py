@@ -342,16 +342,56 @@ async def create_course_document(
         )
 
 
-@router.patch("/admin/course-documents/{doc_id}")
+@router.put("/admin/course-documents/{doc_id}")
 async def update_course_document(
     doc_id: str,
-    request: UpdateCourseDocumentRequest,
+    title: str = Form(None),
+    summary: str = Form(None),
+    category_id: str = Form(None),
+    order: int = Form(None),
+    markdown_file: UploadFile = File(None),
     current_user: Annotated[UserInfo, Depends(require_admin)] = None,
 ):
-    """更新课程文档（管理后台）"""
+    """
+    更新课程文档（管理后台）
+
+    支持更新文本字段和重新上传 Markdown 文件。
+    如果提供了 markdown_file，会删除旧文件并保存新文件。
+    """
     try:
         course_service = get_course_service()
-        document = course_service.update_document(doc_id, request)
+
+        # 处理文件上传
+        markdown_content = None
+        if markdown_file and markdown_file.filename:
+            # 验证文件类型
+            if not markdown_file.filename.endswith(('.md', '.markdown')):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="只支持.md或.markdown文件"
+                )
+
+            # 验证文件大小（5MB）
+            content = await markdown_file.read()
+            if len(content) > 5 * 1024 * 1024:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="文件大小超过5MB限制"
+                )
+
+            # 解码Markdown内容
+            markdown_content = content.decode('utf-8')
+
+        # 构建更新请求对象
+        update_request = UpdateCourseDocumentRequest(
+            title=title,
+            summary=summary,
+            category_id=category_id,
+            order=order
+        )
+
+        # 更新文档
+        document = course_service.update_document(doc_id, update_request, markdown_content)
         if document is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -366,7 +406,7 @@ async def update_course_document(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"更新课程文档失败: {e}")
+        logger.error(f"更新课程文档失败: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)

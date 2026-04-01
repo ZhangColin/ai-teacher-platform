@@ -182,16 +182,84 @@ async def create_html_tool(
         )
 
 
-@router.patch("/common-tools/{tool_id}", response_model=UpdateToolResponse)
+@router.put("/common-tools/{tool_id}", response_model=UpdateToolResponse)
 async def update_tool(
     tool_id: str,
-    request: UpdateToolRequest,
+    name: str = Form(None),
+    description: str = Form(None),
+    category_id: str = Form(None),
+    icon: str = Form(None),
+    order: int = Form(None),
+    visible: bool = Form(None),
+    html_file: UploadFile = File(None),
     current_user: Annotated[UserInfo, Depends(require_admin)] = None,
 ):
-    """更新工具信息（管理后台）"""
+    """
+    更新工具信息（管理后台）
+
+    支持更新文本字段和重新上传 HTML 文件。
+    如果提供了 html_file，会删除旧文件并保存新文件。
+    """
     try:
         common_tool_service = get_common_tool_service()
-        tool = common_tool_service.update_tool(tool_id, request)
+
+        # 构建更新请求对象
+        update_request = UpdateToolRequest(
+            name=name,
+            description=description,
+            category_id=category_id,
+            icon=icon,
+            order=order,
+            visible=visible
+        )
+
+        # 如果提供了新文件，处理文件上传
+        if html_file and html_file.filename:
+            # 验证文件类型
+            if not html_file.filename.endswith('.html'):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="只支持.html文件"
+                )
+
+            # 验证文件大小（10MB）
+            content = await html_file.read()
+            if len(content) > 10 * 1024 * 1024:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="文件大小超过10MB限制"
+                )
+
+            # 获取旧文件路径（用于删除）
+            old_tool = common_tool_service.get_tool_by_id_admin(tool_id)
+            old_html_path = old_tool.html_path if old_tool else None
+
+            # 保存新文件
+            tool_dir = Path(__file__).parent.parent.parent.parent.parent / "static" / "common_tools" / "html" / tool_id
+            tool_dir.mkdir(parents=True, exist_ok=True)
+
+            file_path = tool_dir / "index.html"
+            with open(file_path, "wb") as f:
+                f.write(content)
+
+            # 数据库存储相对路径
+            html_path = f"common_tools/html/{tool_id}/index.html"
+
+            # 更新请求中包含新文件路径
+            update_request.html_path = html_path
+
+            # 删除旧文件
+            if old_html_path:
+                old_file_path = Path(__file__).parent.parent.parent.parent.parent / "static" / old_html_path
+                if old_file_path.exists() and old_file_path != file_path:
+                    old_file_dir = old_file_path.parent
+                    old_file_path.unlink(missing_ok=True)
+                    # 如果目录为空，删除目录
+                    if old_file_dir.exists() and not list(old_file_dir.iterdir()):
+                        old_file_dir.rmdir()
+
+        # 更新数据库记录
+        tool = common_tool_service.update_tool(tool_id, update_request)
         return UpdateToolResponse(tool=tool)
     except ValueError as e:
         if "不存在" in str(e):
@@ -201,6 +269,13 @@ async def update_tool(
             )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f"更新工具失败: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
         )
 

@@ -166,8 +166,7 @@ app.include_router(new_courses_router.router)
 #   - GET /tasks/{task_id} -> 查询任务状态
 #   - POST /convert/markdown-to-word -> Markdown转Word
 #   - GET /common-tools/categories -> 工具分类（✅ 已恢复 2026-03-03）
-# 删除端点（未使用）：
-#   - GET /common-tools/tools/{tool_id} -> 工具详情
+#   - GET /common-tools/tools/{tool_id} -> 工具详情（✅ 已恢复 2026-04-01）
 app.include_router(new_common_router.router)
 # app.include_router(common_router)  # 旧路由已迁移
 

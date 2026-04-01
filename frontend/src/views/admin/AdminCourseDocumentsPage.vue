@@ -156,6 +156,24 @@
             style="width: 100%"
           />
         </el-form-item>
+        <el-form-item label="排序" prop="order">
+          <el-input-number v-model="form.order" :min="0" />
+        </el-form-item>
+        <el-form-item label="Markdown文件">
+          <el-upload
+            :auto-upload="false"
+            :limit="1"
+            :on-change="handleEditFileChange"
+            :on-exceed="handleExceed"
+            accept=".md,.markdown"
+            :file-list="editFileList"
+          >
+            <el-button>选择文件</el-button>
+            <template #tip>
+              <div class="el-upload__tip">留空则不更新文件，只支持.md或.markdown文件，大小不超过5MB</div>
+            </template>
+          </el-upload>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
@@ -203,6 +221,7 @@ const isEdit = ref(false)
 const submitting = ref(false)
 const selectedFile = ref<File | null>(null)
 const fileList = ref<UploadFile[]>([])
+const editFileList = ref<UploadFile[]>([])
 
 const form = reactive<{
   id?: string
@@ -337,6 +356,30 @@ function handleExceed() {
 }
 
 /**
+ * 编辑时的文件选择变化
+ */
+function handleEditFileChange(file: UploadFile) {
+  if (!file.raw) return
+
+  // 验证文件类型
+  const fileName = file.name
+  if (!fileName.endsWith('.md') && !fileName.endsWith('.markdown')) {
+    ElMessage.error('只支持.md或.markdown文件')
+    editFileList.value = []
+    return
+  }
+
+  // 验证文件大小（5MB）
+  if (file.size && file.size > 5 * 1024 * 1024) {
+    ElMessage.error('文件大小不能超过5MB')
+    editFileList.value = []
+    return
+  }
+
+  editFileList.value = [file]
+}
+
+/**
  * 创建文档
  */
 function handleCreate() {
@@ -363,7 +406,9 @@ function handleEdit(doc: AdminCourseDocumentListItem) {
     title: doc.title,
     summary: doc.summary,
     category_id: doc.category_id,
+    order: doc.order,
   })
+  editFileList.value = []
   isEdit.value = true
   formRef.value?.clearValidate()
   dialogVisible.value = true
@@ -382,14 +427,19 @@ async function handleSubmit() {
   submitting.value = true
   try {
     if (isEdit.value && form.id) {
-      // 更新文档
-      const request: UpdateCourseDocumentRequest = {}
-      if (form.title) request.title = form.title
-      if (form.summary) request.summary = form.summary
-      if (form.category_id) request.category_id = form.category_id
-      if (form.order !== undefined) request.order = form.order
+      // 更新文档 - 使用 FormData 以支持文件上传
+      const formData = new FormData()
+      if (form.title) formData.append('title', form.title)
+      if (form.summary) formData.append('summary', form.summary)
+      if (form.category_id) formData.append('category_id', form.category_id)
+      if (form.order !== undefined) formData.append('order', String(form.order))
 
-      await ApiService.updateCourseDocument(form.id, request)
+      // 如果选择了新文件，添加到 FormData
+      if (editFileList.value.length > 0 && editFileList.value[0].raw) {
+        formData.append('markdown_file', editFileList.value[0].raw)
+      }
+
+      await ApiService.updateCourseDocument(form.id, formData)
       ElMessage.success('文档更新成功')
     } else {
       // 创建文档

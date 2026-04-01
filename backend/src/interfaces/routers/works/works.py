@@ -168,7 +168,9 @@ async def create_work(
         work_id = str(uuid.uuid4())[:8]
 
         # 创建存储目录
-        work_dir = Path(__file__).parent.parent.parent / "static" / "works" / "html" / work_id
+        # Path(__file__) = backend/src/interfaces/routers/works/works.py
+        # parent×5 = backend/
+        work_dir = Path(__file__).parent.parent.parent.parent.parent / "static" / "works" / "html" / work_id
         work_dir.mkdir(parents=True, exist_ok=True)
 
         # 保存文件
@@ -205,16 +207,84 @@ async def create_work(
         )
 
 
-@router.patch("/admin/works/{work_id}", response_model=UpdateWorkResponse)
+@router.put("/admin/works/{work_id}", response_model=UpdateWorkResponse)
 async def update_work(
     work_id: str,
-    request: UpdateWorkRequest,
+    name: str = Form(None),
+    description: str = Form(None),
+    category_id: str = Form(None),
+    icon: str = Form(None),
+    order: int = Form(None),
+    visible: bool = Form(None),
+    html_file: UploadFile = File(None),
     current_user: Annotated[UserInfo, Depends(require_admin)] = None,
 ):
-    """更新作品信息（管理后台）"""
+    """
+    更新作品信息（管理后台）
+
+    支持更新文本字段和重新上传 HTML 文件。
+    如果提供了 html_file，会删除旧文件并保存新文件。
+    """
     try:
         work_service = get_work_service()
-        work = work_service.update_work(work_id, request)
+
+        # 构建更新请求对象
+        update_request = UpdateWorkRequest(
+            name=name,
+            description=description,
+            category_id=category_id,
+            icon=icon,
+            order=order,
+            visible=visible
+        )
+
+        # 如果提供了新文件，处理文件上传
+        if html_file and html_file.filename:
+            # 验证文件类型
+            if not html_file.filename.endswith('.html'):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="只支持.html文件"
+                )
+
+            # 验证文件大小（10MB）
+            content = await html_file.read()
+            if len(content) > 10 * 1024 * 1024:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="文件大小超过10MB限制"
+                )
+
+            # 获取旧文件路径（用于删除）
+            old_work = work_service.get_work_by_id(work_id)
+            old_html_path = old_work.html_path if old_work else None
+
+            # 保存新文件
+            work_dir = Path(__file__).parent.parent.parent.parent.parent / "static" / "works" / "html" / work_id
+            work_dir.mkdir(parents=True, exist_ok=True)
+
+            file_path = work_dir / "index.html"
+            with open(file_path, "wb") as f:
+                f.write(content)
+
+            # 数据库存储相对路径
+            html_path = f"works/html/{work_id}/index.html"
+
+            # 更新请求中包含新文件路径
+            update_request.html_path = html_path
+
+            # 删除旧文件
+            if old_html_path:
+                old_file_path = Path(__file__).parent.parent.parent.parent.parent / "static" / old_html_path
+                if old_file_path.exists() and old_file_path != file_path:
+                    old_file_dir = old_file_path.parent
+                    old_file_path.unlink(missing_ok=True)
+                    # 如果目录为空，删除目录
+                    if old_file_dir.exists() and not list(old_file_dir.iterdir()):
+                        old_file_dir.rmdir()
+
+        # 更新数据库记录
+        work = work_service.update_work(work_id, update_request)
         return UpdateWorkResponse(work=work)
     except ValueError as e:
         if "不存在" in str(e):
@@ -224,6 +294,12 @@ async def update_work(
             )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.error(f"更新作品失败: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
         )
 
@@ -240,7 +316,9 @@ async def delete_work(
 
         # 删除文件
         if html_path:
-            file_path = Path(__file__).parent.parent.parent / "static" / html_path
+            # Path(__file__) = backend/src/interfaces/routers/works/works.py
+            # parent×5 = backend/
+            file_path = Path(__file__).parent.parent.parent.parent.parent / "static" / html_path
             if file_path.exists():
                 work_dir = file_path.parent
                 shutil.rmtree(work_dir, ignore_errors=True)

@@ -270,6 +270,20 @@
         <el-form-item label="可见">
           <el-checkbox v-model="editForm.visible">设置为可见</el-checkbox>
         </el-form-item>
+        <el-form-item label="HTML文件">
+          <el-upload
+            :auto-upload="false"
+            :limit="1"
+            accept=".html"
+            :on-change="handleEditFileChange"
+            :file-list="editFileList"
+          >
+            <el-button type="primary">选择文件</el-button>
+            <template #tip>
+              <div class="el-upload__tip">留空则不更新文件，只支持.html文件，大小不超过10MB</div>
+            </template>
+          </el-upload>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="editDialogVisible = false">取消</el-button>
@@ -347,7 +361,7 @@ const editForm = reactive<UpdateToolRequest & { id?: string }>({
   order: 0,
   visible: true,
 })
-
+const editFileList = ref<UploadFile[]>([])
 
 // 提交状态
 const submitting = ref(false)
@@ -586,6 +600,29 @@ function handleEdit(tool: AdminCommonToolListItem) {
 }
 
 /**
+ * 编辑时的文件选择变化
+ */
+function handleEditFileChange(file: UploadFile) {
+  if (!file.raw) return
+
+  // 文件大小验证（10MB）
+  if (file.raw.size > 10 * 1024 * 1024) {
+    ElMessage.error('文件大小不能超过10MB')
+    editFileList.value = []
+    return
+  }
+
+  // 文件类型验证
+  if (!file.name.endsWith('.html')) {
+    ElMessage.error('只支持.html文件')
+    editFileList.value = []
+    return
+  }
+
+  editFileList.value = [file]
+}
+
+/**
  * 提交编辑工具
  */
 async function handleEditSubmit() {
@@ -596,8 +633,23 @@ async function handleEditSubmit() {
 
     submitting.value = true
     try {
-      const { id, ...requestData } = editForm
-      await ApiService.updateTool(id!, requestData)
+      const { id } = editForm
+
+      // 使用 FormData 以支持文件上传
+      const formData = new FormData()
+      if (editForm.name) formData.append('name', editForm.name)
+      if (editForm.description) formData.append('description', editForm.description)
+      if (editForm.category_id) formData.append('category_id', editForm.category_id)
+      if (editForm.icon) formData.append('icon', editForm.icon)
+      formData.append('order', String(editForm.order))
+      formData.append('visible', String(editForm.visible))
+
+      // 如果选择了新文件，添加到 FormData
+      if (editFileList.value.length > 0 && editFileList.value[0].raw) {
+        formData.append('html_file', editFileList.value[0].raw)
+      }
+
+      await ApiService.updateTool(id!, formData)
       ElMessage.success('更新工具成功')
       editDialogVisible.value = false
       loadTools()

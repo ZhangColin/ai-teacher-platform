@@ -129,10 +129,48 @@ class WorkService:
                 html_url=html_url,
                 created_at=work.created_at
             )
-            
+
         finally:
             db.close()
-    
+
+    def get_work_by_id(self, work_id: str) -> Optional[AdminWorkListItem]:
+        """
+        根据 ID 获取作品（管理后台使用，不限制可见性）
+
+        Args:
+            work_id: 作品ID
+
+        Returns:
+            AdminWorkListItem: 作品信息，如果不存在则返回None
+        """
+        db = self._get_db()
+        try:
+            work = db.query(WorkModel).filter(WorkModel.id == work_id).first()
+
+            if not work:
+                return None
+
+            # 获取分类名称
+            category = db.query(WorkCategoryModel).filter(
+                WorkCategoryModel.id == work.category_id
+            ).first()
+
+            return AdminWorkListItem(
+                id=work.id,
+                name=work.name,
+                description=work.description,
+                category_id=work.category_id,
+                category_name=category.name if category else "未分类",
+                icon=work.icon,
+                html_path=work.html_path,
+                order=work.order,
+                visible=work.visible,
+                created_at=work.created_at,
+                updated_at=work.updated_at
+            )
+        finally:
+            db.close()
+
     # ==================== 后台管理方法 ====================
     
     def get_all_works_admin(
@@ -266,7 +304,9 @@ class WorkService:
                 work.order = request.order
             if request.visible is not None:
                 work.visible = request.visible
-            
+            if request.html_path is not None:
+                work.html_path = request.html_path
+
             work.updated_at = datetime.now()
             db.commit()
             db.refresh(work)
