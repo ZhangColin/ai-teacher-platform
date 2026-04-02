@@ -202,11 +202,11 @@ class TestWorkManagement:
         # 从响应中的html_path提取实际路径
         html_path = result["work"]["html_path"]
 
-        # 文件保存在: backend/src/interfaces/static/{html_path}
+        # 文件保存在: backend/static/{html_path}
         # 测试文件在 backend/tests/integration/routers/ 下
         # 需要向上4层才能到 backend 目录
         backend_root = Path(__file__).resolve().parent.parent.parent.parent
-        file_path = backend_root / "src" / "interfaces" / "static" / html_path
+        file_path = backend_root / "static" / html_path
         assert file_path.exists(), f"文件不存在: {file_path}"
         assert file_path.name == "index.html"
 
@@ -290,9 +290,9 @@ class TestWorkManagement:
         category_id = create_test_category(db_session)
         work_id = create_test_work(db_session, category_id, "原标题")
 
-        response = await admin_client.patch(
+        response = await admin_client.put(
             f"/api/v1/admin/works/{work_id}",
-            json={"name": "新标题", "description": "新摘要"}
+            data={"name": "新标题", "description": "新摘要"}
         )
 
         assert response.status_code == 200
@@ -340,9 +340,9 @@ class TestWorkManagement:
     @pytest.mark.asyncio
     async def test_update_work_not_found(self, admin_client):
         """测试更新不存在的作品"""
-        response = await admin_client.patch(
+        response = await admin_client.put(
             "/api/v1/admin/works/nonexistent",
-            json={"name": "新标题"}
+            data={"name": "新标题"}
         )
         assert response.status_code == 404
 

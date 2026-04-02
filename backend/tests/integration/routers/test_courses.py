@@ -640,9 +640,9 @@ class TestAdminCourseDocuments:
         category_id = create_test_category(db_session, "测试目录")
         doc_id = create_test_document(db_session, category_id, "原始标题")
 
-        response = await admin_client.patch(
+        response = await admin_client.put(
             f"/api/v1/admin/course-documents/{doc_id}",
-            json={
+            data={
                 "title": "更新后的标题",
                 "summary": "更新后的摘要"
             }
@@ -654,9 +654,9 @@ class TestAdminCourseDocuments:
     @pytest.mark.asyncio
     async def test_update_document_not_found(self, admin_client):
         """测试更新不存在的文档"""
-        response = await admin_client.patch(
+        response = await admin_client.put(
             "/api/v1/admin/course-documents/nonexistent-id",
-            json={"title": "新标题"}
+            data={"title": "新标题"}
         )
         assert response.status_code == 404
 
@@ -667,7 +667,7 @@ class TestAdminCourseDocuments:
 
         def mock_get_service():
             class MockService:
-                def update_document(self, doc_id, request):
+                def update_document(self, doc_id, request, markdown_content=None):
                     raise Exception("数据库连接失败")
 
             return MockService()
@@ -677,9 +677,9 @@ class TestAdminCourseDocuments:
         category_id = create_test_category(db_session, "测试目录")
         doc_id = create_test_document(db_session, category_id, "测试文档")
 
-        response = await admin_client.patch(
+        response = await admin_client.put(
             f"/api/v1/admin/course-documents/{doc_id}",
-            json={"title": "新标题"}
+            data={"title": "新标题"}
         )
         assert response.status_code == 500
         assert "数据库连接失败" in response.json()["detail"]

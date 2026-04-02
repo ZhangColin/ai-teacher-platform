@@ -471,6 +471,7 @@ function handleEdit(work: AdminWorkListItem) {
     order: work.order,
     visible: work.visible,
   })
+  editFileList.value = []
   editFormRef.value?.clearValidate()
   editDialogVisible.value = true
 }

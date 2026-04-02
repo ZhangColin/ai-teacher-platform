@@ -363,6 +363,9 @@ const editForm = reactive<UpdateToolRequest & { id?: string }>({
 })
 const editFileList = ref<UploadFile[]>([])
 
+// 上传组件 ref
+const uploadRef = ref<any>()
+
 // 提交状态
 const submitting = ref(false)
 
@@ -525,6 +528,7 @@ function handleUploadHtmlTool() {
     html_file: null,
   })
   uploadHtmlFormRef.value?.clearValidate()
+  uploadRef.value?.clearFiles()
   uploadHtmlDialogVisible.value = true
 }
 
@@ -595,6 +599,7 @@ function handleEdit(tool: AdminCommonToolListItem) {
     order: tool.order,
     visible: tool.visible,
   })
+  editFileList.value = []
   editFormRef.value?.clearValidate()
   editDialogVisible.value = true
 }

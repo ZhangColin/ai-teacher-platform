@@ -394,7 +394,7 @@ async def test_create_html_tool_category_not_found(admin_client, db_session):
 @pytest.mark.asyncio
 async def test_update_tool_non_admin(logged_in_client):
     """测试非管理员更新工具"""
-    response = await logged_in_client.patch(
+    response = await logged_in_client.put(
         "/api/v1/admin/common-tools/test-tool-id",
         json={"name": "更新后的名称"}
     )
@@ -430,9 +430,9 @@ async def test_update_tool_success(admin_client, db_session):
     db_session.commit()
     db_session.refresh(tool)
 
-    response = await admin_client.patch(
+    response = await admin_client.put(
         f"/api/v1/admin/common-tools/{tool.id}",
-        json={
+        data={
             "name": "更新后的工具名",
             "description": "更新后的描述"
         }
@@ -448,9 +448,9 @@ async def test_update_tool_success(admin_client, db_session):
 @pytest.mark.asyncio
 async def test_update_tool_not_found(admin_client):
     """测试更新不存在的工具"""
-    response = await admin_client.patch(
+    response = await admin_client.put(
         "/api/v1/admin/common-tools/non-existent-tool-id",
-        json={"name": "更新后的名称"}
+        data={"name": "更新后的名称"}
     )
 
     assert response.status_code == 404
