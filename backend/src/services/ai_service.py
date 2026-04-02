@@ -1082,6 +1082,8 @@ class AIService:
                             return
 
                         accumulated_content = ""
+                        usage_info = None  # 存储usage信息
+
                         # 使用 readline() 按行读取 SSE 流
                         while True:
                             line = await response.content.readline()
@@ -1101,6 +1103,19 @@ class AIService:
                             try:
                                 chunk_data = json_module.loads(line_text)
                                 print(f"[NewAPI Debug Stream] 解析成功: {list(chunk_data.keys()) if isinstance(chunk_data, dict) else type(chunk_data)}")
+
+                                # 提取 usage 信息（在最后一个chunk中）
+                                if 'usage' in chunk_data and chunk_data['usage']:
+                                    api_usage = chunk_data['usage']
+                                    usage_info = {
+                                        'prompt_tokens': api_usage.get('prompt_tokens', 0),
+                                        'completion_tokens': api_usage.get('completion_tokens', 0),
+                                        'total_tokens': api_usage.get('total_tokens', 0),
+                                        'model_provider': provider_code,
+                                        'model_name': model_name
+                                    }
+                                    print(f"[NewAPI Debug Stream] 提取到usage信息: {usage_info}")
+
                                 if 'choices' in chunk_data and chunk_data['choices']:
                                     delta = chunk_data['choices'][0].get('delta', {})
                                     content = delta.get('content', '')
@@ -1113,15 +1128,41 @@ class AIService:
 
                         print(f"[NewAPI Debug Stream] 流结束，累积内容长度: {len(accumulated_content)}")
 
-                        # 返回 usage
-                        yield {
-                            'type': 'usage',
-                            'prompt_tokens': 0,
-                            'completion_tokens': len(accumulated_content),
-                            'total_tokens': len(accumulated_content),
-                            'model_provider': provider_code,
-                            'model_name': model_name
-                        }
+                        # 返回 usage（优先使用API返回的真实usage）
+                        if usage_info:
+                            # 计算积分
+                            try:
+                                from .point_service import PointService
+                                point_service = PointService(self.db)
+                                points = point_service.calculate_points_from_tokens(
+                                    provider_code=usage_info.get('model_provider', ''),
+                                    model_code=usage_info.get('model_name', ''),
+                                    prompt_tokens=usage_info.get('prompt_tokens', 0),
+                                    completion_tokens=usage_info.get('completion_tokens', 0)
+                                )
+                                usage_info['points_deducted'] = points
+                                print(f"[NewAPI Debug Stream] AI调用完成 - Tokens:{usage_info['total_tokens']}, 积分:{points}")
+                            except Exception as e:
+                                print(f"[NewAPI Debug Stream] 积分计算失败: {e}")
+                                usage_info['points_deducted'] = 0
+
+                            yield {
+                                'type': 'usage',
+                                **usage_info
+                            }
+                        else:
+                            # 降级方案：使用估算的token数（根据字符长度）
+                            estimated_tokens = len(accumulated_content)
+                            print(f"[NewAPI Debug Stream] ⚠️ 未找到usage信息，使用估算值: {estimated_tokens} tokens")
+                            yield {
+                                'type': 'usage',
+                                'prompt_tokens': 0,
+                                'completion_tokens': estimated_tokens,
+                                'total_tokens': estimated_tokens,
+                                'model_provider': provider_code,
+                                'model_name': model_name,
+                                'points_deducted': max(1, estimated_tokens // 10)  # 粗略估算：10字符=1token≈1积分
+                            }
                 return
 
             # 使用流式输出（同步调用，需要在异步函数中处理）

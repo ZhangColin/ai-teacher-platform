@@ -204,10 +204,20 @@ async def test_chat_stream_creates_session(
     from src.services.ai_service import AIService
     from src.main import app
 
-    # Mock AI流式响应
+    # Mock AI流式响应（包含usage信息）
     async def mock_stream(*args, **kwargs):
         yield "AI"
         yield "回复"
+        # 返回usage信息
+        yield {
+            'type': 'usage',
+            'prompt_tokens': 5,
+            'completion_tokens': 10,
+            'total_tokens': 15,
+            'model_provider': 'deepseek',
+            'model_name': 'deepseek-chat',
+            'points_deducted': 1
+        }
 
     mock_ai_service = AsyncMock(spec=AIService)
     mock_ai_service.chat_stream = mock_stream
