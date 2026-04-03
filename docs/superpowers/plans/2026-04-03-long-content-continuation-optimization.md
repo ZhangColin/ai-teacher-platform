@@ -178,7 +178,26 @@ cd backend
 tail -50 src/services/model_provider_service.py
 ```
 
-- [ ] **Step 2: 在文件末尾添加新方法**
+- [ ] **Step 2: 检查文件顶部的导入**
+
+```bash
+cd backend
+head -30 src/services/model_provider_service.py | grep -E "^from|^import"
+```
+
+Expected: 应该看到类似的导入：
+```python
+from typing import Optional
+from src.db_models import ModelProviderModel, ModelConfigModel
+```
+
+如果没有这些导入，需要先添加：
+```python
+from typing import Optional
+from src.db_models import ModelConfigModel
+```
+
+- [ ] **Step 3: 在文件末尾添加新方法**
 
 ```python
 def get_model_config(self, provider_code: str, model_code: str) -> Optional[ModelConfigModel]:
@@ -202,9 +221,16 @@ def get_model_config(self, provider_code: str, model_code: str) -> Optional[Mode
     ).first()
 ```
 
-注意：确保文件顶部已导入 ModelConfigModel 和 Optional
+- [ ] **Step 4: 验证方法语法正确**
 
-- [ ] **Step 3: 提交**
+```bash
+cd backend
+python3 -m py_compile src/services/model_provider_service.py
+```
+
+Expected: 无语法错误
+
+- [ ] **Step 5: 提交**
 
 ```bash
 cd backend
@@ -235,14 +261,27 @@ grep -n "new_history = history" src/services/ai_service.py
 
 Expected: 找到 line 1260-1264
 
-- [ ] **Step 2: 查看上下文，确认修改位置**
+- [ ] **Step 2: 查看续写逻辑的具体位置和上下文**
+
+**重要**: ai_service.py 中有两处使用 `new_history = history + [`：
+- Line 762 附近：第一次生成（不需要修改）
+- Line 1260 附近：续写逻辑（**这是我们需要的**）
 
 ```bash
 cd backend
 sed -n '1255,1270p' src/services/ai_service.py
 ```
 
-- [ ] **Step 3: 替换续写逻辑**
+确认你能看到类似这样的代码：
+```python
+# 将已生成的内容添加到历史消息中
+new_history = history + [
+    {"role": "user", "content": user_message},
+    {"role": "assistant", "content": accumulated_content}
+]
+```
+
+- [ ] **Step 3: 替换续写逻辑（line 1260-1264）**
 
 原代码（line 1260-1264）：
 ```python
