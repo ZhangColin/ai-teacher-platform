@@ -1241,31 +1241,38 @@ class AIService:
             # 如果因为达到最大token限制而截断，判断是否需要自动继续
             # 只有在以下情况才自动继续：
             # 1. finish_reason == 'length'（确实因为token限制截断）
-            # 2. 内容长度超过一定阈值（比如1000字符，说明是长内容）
-            # 3. 内容包含代码块标记（```），说明是代码生成任务
-            # 4. 内容不以问号、感叹号结尾，且不包含明显的追问词（避免干扰多轮对话）
+            # 2. 估算的token数达到max_output_tokens的80%（使用配置的max_output_tokens）
+            # 3. 内容不以问号、感叹号结尾，且不包含明显的追问词（避免干扰多轮对话）
+
+            # 使用配置的 max_output_tokens 判断
+            # 注意：model_config_obj 变量在后面获取，这里先获取用于判断
+            from src.services.model_provider_service import ModelProviderService
+            model_provider_service = ModelProviderService(self.db)
+            model_config_obj = model_provider_service.get_model_config(
+                provider_code=provider_code,
+                model_code=model_name
+            )
+
+            max_output_tokens = 4000  # 默认值
+            if model_config_obj and model_config_obj.max_output_tokens:
+                max_output_tokens = model_config_obj.max_output_tokens
+
+            # 估算已生成的 token 数（粗略：1 token ≈ 2 字符）
+            estimated_tokens = len(accumulated_content) // 2
+
             should_auto_continue = (
-                finish_reason == 'length' and 
+                finish_reason == 'length' and
                 max_continue > 0 and
-                len(accumulated_content) > 1000 and  # 内容足够长
-                ('```' in accumulated_content or '<' in accumulated_content) and  # 包含代码或HTML标记
-                not accumulated_content.rstrip().endswith(('?', '？', '!', '！')) and  # 不以问号/感叹号结尾
+                estimated_tokens >= max_output_tokens * 0.8 and  # 达到输出的 80%
+                not accumulated_content.rstrip().endswith(('?', '？', '!', '！')) and
                 not any(word in accumulated_content[-200:] for word in ['请', '需要', '能否', '可以', '希望', '想要'])  # 最后200字符不包含追问词
             )
             
             if should_auto_continue:
                 logger.info(f"检测到长内容因token限制被截断，自动继续生成（剩余次数: {max_continue}，内容长度: {len(accumulated_content)}）...")
                 logger.debug(f"已生成内容预览（最后500字符）: {accumulated_content[-500:]}")
-                
-                # 获取模型配置（用于续写窗口大小）
-                # 注意：provider_code 和 model_name 变量在函数前面已经定义（约 line 875-907）
-                from src.services.model_provider_service import ModelProviderService
 
-                model_provider_service = ModelProviderService(self.db)
-                model_config_obj = model_provider_service.get_model_config(
-                    provider_code=provider_code,
-                    model_code=model_name
-                )
+                # 注意：model_config_obj 已经在前面获取，无需重复获取
 
                 # 获取续写窗口大小（默认 2000 字符）
                 continue_window_size = 2000
