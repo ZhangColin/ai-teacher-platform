@@ -80,15 +80,15 @@ else:
 
 ## 三、数据库修改
 
-### 3.1 修改 `builtin_models` 表结构
+### 3.1 修改 `model_configs` 表结构
 
-在现有的 `builtin_models` 表中新增字段：
+在现有的 `model_configs` 表中新增字段：
 
 ```sql
 -- 新增字段
-ALTER TABLE builtin_models ADD COLUMN context_window INT DEFAULT 8000 COMMENT '模型上下文窗口大小（tokens）';
-ALTER TABLE builtin_models ADD COLUMN max_output_tokens INT DEFAULT 4000 COMMENT '单次最大输出 tokens';
-ALTER TABLE builtin_models ADD COLUMN continue_window_size INT DEFAULT 2000 COMMENT '续写时保留的上下文大小（字符数）';
+ALTER TABLE model_configs ADD COLUMN context_window INT DEFAULT 8000 COMMENT '模型上下文窗口大小（tokens）';
+ALTER TABLE model_configs ADD COLUMN max_output_tokens INT DEFAULT 4000 COMMENT '单次最大输出 tokens';
+ALTER TABLE model_configs ADD COLUMN continue_window_size INT DEFAULT 2000 COMMENT '续写时保留的上下文大小（字符数）';
 ```
 
 ### 3.2 字段说明
@@ -104,30 +104,30 @@ ALTER TABLE builtin_models ADD COLUMN continue_window_size INT DEFAULT 2000 COMM
 创建 Alembic 迁移文件：
 
 ```python
-# File: backend/alembic/versions/xxxx_add_continue_config_to_builtin_models.py
+# File: backend/alembic/versions/xxxx_add_continue_config_to_model_configs.py
 
 from alembic import op
 import sqlalchemy as sa
 
 def upgrade():
-    op.add_column('builtin_models', sa.Column('context_window', sa.Integer(), nullable=True))
-    op.add_column('builtin_models', sa.Column('max_output_tokens', sa.Integer(), nullable=True))
-    op.add_column('builtin_models', sa.Column('continue_window_size', sa.Integer(), nullable=True))
+    op.add_column('model_configs', sa.Column('context_window', sa.Integer(), nullable=True))
+    op.add_column('model_configs', sa.Column('max_output_tokens', sa.Integer(), nullable=True))
+    op.add_column('model_configs', sa.Column('continue_window_size', sa.Integer(), nullable=True))
 
     # 设置默认值
-    op.execute("UPDATE builtin_models SET context_window = 8000 WHERE context_window IS NULL")
-    op.execute("UPDATE builtin_models SET max_output_tokens = 4000 WHERE max_output_tokens IS NULL")
-    op.execute("UPDATE builtin_models SET continue_window_size = 2000 WHERE continue_window_size IS NULL")
+    op.execute("UPDATE model_configs SET context_window = 8000 WHERE context_window IS NULL")
+    op.execute("UPDATE model_configs SET max_output_tokens = 4000 WHERE max_output_tokens IS NULL")
+    op.execute("UPDATE model_configs SET continue_window_size = 2000 WHERE continue_window_size IS NULL")
 
     # 修改为 NOT NULL
-    op.alter_column('builtin_models', 'context_window', nullable=False)
-    op.alter_column('builtin_models', 'max_output_tokens', nullable=False)
-    op.alter_column('builtin_models', 'continue_window_size', nullable=False)
+    op.alter_column('model_configs', 'context_window', nullable=False)
+    op.alter_column('model_configs', 'max_output_tokens', nullable=False)
+    op.alter_column('model_configs', 'continue_window_size', nullable=False)
 
 def downgrade():
-    op.drop_column('builtin_models', 'continue_window_size')
-    op.drop_column('builtin_models', 'max_output_tokens')
-    op.drop_column('builtin_models', 'context_window')
+    op.drop_column('model_configs', 'continue_window_size')
+    op.drop_column('model_configs', 'max_output_tokens')
+    op.drop_column('model_configs', 'context_window')
 ```
 
 ### 3.4 数据初始化
@@ -136,42 +136,42 @@ def downgrade():
 
 ```sql
 -- DeepSeek
-UPDATE builtin_models SET
+UPDATE model_configs SET
     context_window = 16000,
     max_output_tokens = 4000,
     continue_window_size = 2000
 WHERE model_code LIKE 'deepseek%';
 
 -- Kimi (支持长上下文)
-UPDATE builtin_models SET
+UPDATE model_configs SET
     context_window = 32000,
     max_output_tokens = 4000,
     continue_window_size = 3000
 WHERE model_code LIKE 'moonshot%';
 
 -- kimi-k2-0905-preview（测试用）
-UPDATE builtin_models SET
+UPDATE model_configs SET
     context_window = 32000,
     max_output_tokens = 4000,
     continue_window_size = 3000
 WHERE model_code = 'kimi-k2-0905-preview';
 
 -- OpenAI GPT-4
-UPDATE builtin_models SET
+UPDATE model_configs SET
     context_window = 8192,
     max_output_tokens = 4096,
     continue_window_size = 2000
 WHERE model_code LIKE 'gpt-4%';
 
 -- Claude (支持超长上下文)
-UPDATE builtin_models SET
+UPDATE model_configs SET
     context_window = 200000,
     max_output_tokens = 4000,
     continue_window_size = 5000
 WHERE model_code LIKE 'claude%';
 
 -- GLM
-UPDATE builtin_models SET
+UPDATE model_configs SET
     context_window = 128000,
     max_output_tokens = 4000,
     continue_window_size = 3000
@@ -205,7 +205,7 @@ new_history = history + [
 from src.services.model_provider_service import ModelProviderService
 
 model_provider_service = ModelProviderService(self.db)
-builtin_model = model_provider_service.get_builtin_model(
+builtin_model = model_provider_service.get_model_config(
     provider_code=provider_code,
     model_code=model_name
 )
@@ -234,7 +234,7 @@ new_history = history + [
 **文件**：`backend/src/services/model_provider_service.py`
 
 ```python
-def get_builtin_model(self, provider_code: str, model_code: str) -> Optional[BuiltinModel]:
+def get_model_config(self, provider_code: str, model_code: str) -> Optional[ModelConfigModel]:
     """
     获取内置模型配置
 
@@ -243,17 +243,17 @@ def get_builtin_model(self, provider_code: str, model_code: str) -> Optional[Bui
         model_code: 模型代码（如 'deepseek-chat', 'gpt-4'）
 
     Returns:
-        BuiltinModel 或 None
+        ModelConfigModel 或 None
     """
-    from src.db_models import BuiltinModel, ModelProviderModel
+    from src.db_models import ModelConfigModel, ModelProviderModel
 
-    return self.db.query(BuiltinModel).join(
+    return self.db.query(ModelConfigModel).join(
         ModelProviderModel,
-        BuiltinModel.provider_id == ModelProviderModel.id
+        ModelConfigModel.provider_id == ModelProviderModel.id
     ).filter(
         ModelProviderModel.provider_code == provider_code,
-        BuiltinModel.model_code == model_code,
-        BuiltinModel.is_enabled == True
+        ModelConfigModel.model_code == model_code,
+        ModelConfigModel.is_enabled == True
     ).first()
 ```
 
@@ -623,7 +623,7 @@ test.describe('长内容生成测试', () => {
 1. 创建 Alembic 迁移文件
    ```bash
    cd backend
-   alembic revision -m "add_continue_config_to_builtin_models"
+   alembic revision -m "add_continue_config_to_model_configs"
    ```
 
 2. 编辑迁移文件，添加字段和默认值
@@ -635,7 +635,7 @@ test.describe('长内容生成测试', () => {
 
 4. 初始化 kimi-k2-0905-preview 模型配置
    ```sql
-   UPDATE builtin_models
+   UPDATE model_configs
    SET context_window = 32000,
        max_output_tokens = 4000,
        continue_window_size = 3000
@@ -645,7 +645,7 @@ test.describe('长内容生成测试', () => {
 **阶段 2：后端代码修改（2小时）**
 
 1. 修改 `ai_service.py` 的续写逻辑
-2. 在 `model_provider_service.py` 添加 `get_builtin_model` 方法
+2. 在 `model_provider_service.py` 添加 `get_model_config` 方法
 3. 更新相关的类型定义
 4. 运行单元测试验证
 
@@ -858,7 +858,7 @@ async def test_kimi_k2_long_content_generation():
 
 ### 9.1 核心改动
 
-1. **数据库**：在 `builtin_models` 表新增 3 个字段（context_window、max_output_tokens、continue_window_size）
+1. **数据库**：在 `model_configs` 表新增 3 个字段（context_window、max_output_tokens、continue_window_size）
 
 2. **后端**：修改续写逻辑，使用滑动窗口只保留最后 N 个字符
 
