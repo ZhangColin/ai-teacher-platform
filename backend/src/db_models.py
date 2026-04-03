@@ -520,6 +520,9 @@ class ModelConfigModel(Base):
     is_enabled = Column(Boolean, nullable=False, default=True, comment='是否启用')
     created_at = Column(DateTime, nullable=False, default=datetime.now)
     updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
+    context_window = Column(Integer, nullable=False, default=8000, comment='模型上下文窗口大小（tokens）')
+    max_output_tokens = Column(Integer, nullable=False, default=4000, comment='单次最大输出 tokens')
+    continue_window_size = Column(Integer, nullable=False, default=2000, comment='续写时保留的上下文大小（字符数）')
 
     # 关系
     provider = relationship("ModelProviderModel", back_populates="models")
