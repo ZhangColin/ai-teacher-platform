@@ -86,7 +86,9 @@ export interface Message {
   artifacts?: Artifact[] // 消息中包含的成果物列表（可选）
   error?: string // 错误信息（可选，用于显示发送失败）
   pending?: boolean // 是否正在发送（可选，用于显示加载状态）
-  
+  partial?: boolean // 是否为部分完成（可选）
+  partialMessage?: string // 部分完成的提示信息（可选）
+
   // 多模态支持字段
   media_content?: string // 多模态内容JSON字符串（图片、音频、视频等）
 }
