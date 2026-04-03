@@ -1257,10 +1257,32 @@ class AIService:
                 logger.info(f"检测到长内容因token限制被截断，自动继续生成（剩余次数: {max_continue}，内容长度: {len(accumulated_content)}）...")
                 logger.debug(f"已生成内容预览（最后500字符）: {accumulated_content[-500:]}")
                 
-                # 将已生成的内容添加到历史消息中
+                # 获取模型配置（用于续写窗口大小）
+                # 注意：provider_code 和 model_name 变量在函数前面已经定义（约 line 875-907）
+                from src.services.model_provider_service import ModelProviderService
+
+                model_provider_service = ModelProviderService(self.db)
+                model_config_obj = model_provider_service.get_model_config(
+                    provider_code=provider_code,
+                    model_code=model_name
+                )
+
+                # 获取续写窗口大小（默认 2000 字符）
+                continue_window_size = 2000
+                if model_config_obj and model_config_obj.continue_window_size:
+                    continue_window_size = model_config_obj.continue_window_size
+
+                # 只保留最后 N 个字符（滑动窗口）
+                if len(accumulated_content) > continue_window_size:
+                    truncated_content = accumulated_content[-continue_window_size:]
+                    logger.info(f"内容过长（{len(accumulated_content)} 字符），截断到最后 {continue_window_size} 字符用于续写")
+                else:
+                    truncated_content = accumulated_content
+
+                # 将截断后的内容添加到历史消息中
                 new_history = history + [
                     {"role": "user", "content": user_message},
-                    {"role": "assistant", "content": accumulated_content}
+                    {"role": "assistant", "content": truncated_content}
                 ]
                 
                 # 更明确的续写提示：要求AI不要输出代码块标记
