@@ -283,6 +283,12 @@ new_history = history + [
 
 - [ ] **Step 3: 替换续写逻辑（line 1260-1264）**
 
+**重要上下文说明**：
+- 这里的 `provider_code` 和 `model_name` 变量已经在函数的前面定义好了（约 line 984）
+- `provider_code` 是从 `model_config` 参数解析出来的
+- `model_name` 是从 `_get_ai_client(model_config)` 返回的
+- 所以这些变量在续写逻辑处是可用的，不需要重新定义
+
 原代码（line 1260-1264）：
 ```python
 # 将已生成的内容添加到历史消息中
@@ -295,18 +301,19 @@ new_history = history + [
 替换为：
 ```python
 # 获取模型配置（用于续写窗口大小）
+# 注意：provider_code 和 model_name 变量在函数前面已经定义（约 line 984）
 from src.services.model_provider_service import ModelProviderService
 
 model_provider_service = ModelProviderService(self.db)
-builtin_model = model_provider_service.get_model_config(
+model_config_obj = model_provider_service.get_model_config(
     provider_code=provider_code,
     model_code=model_name
 )
 
 # 获取续写窗口大小（默认 2000 字符）
 continue_window_size = 2000
-if builtin_model and builtin_model.continue_window_size:
-    continue_window_size = builtin_model.continue_window_size
+if model_config_obj and model_config_obj.continue_window_size:
+    continue_window_size = model_config_obj.continue_window_size
 
 # 只保留最后 N 个字符（滑动窗口）
 if len(accumulated_content) > continue_window_size:
@@ -382,9 +389,10 @@ should_auto_continue = (
 替换为：
 ```python
 # 使用配置的 max_output_tokens 判断
+# 注意：model_config_obj 变量在 Task 4 中已经获取
 max_output_tokens = 4000  # 默认值
-if builtin_model and builtin_model.max_output_tokens:
-    max_output_tokens = builtin_model.max_output_tokens
+if model_config_obj and model_config_obj.max_output_tokens:
+    max_output_tokens = model_config_obj.max_output_tokens
 
 # 估算已生成的 token 数（粗略：1 token ≈ 2 字符）
 estimated_tokens = len(accumulated_content) // 2
@@ -398,7 +406,7 @@ should_auto_continue = (
 )
 ```
 
-注意：这段代码应该在获取 builtin_model 之后（Task 4 的代码之后）
+注意：这段代码应该在获取 model_config_obj 之后（Task 4 的代码之后），应该插入到 `should_auto_continue = (` 之前（line 1247-1254）
 
 - [ ] **Step 3: 运行测试验证**
 
