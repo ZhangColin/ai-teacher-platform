@@ -158,9 +158,17 @@ export const useSessionStore = defineStore('session', () => {
               titleGeneratedSessionId.value = data.session_id
             }
           } else if (data.type === 'error') {
-            // 错误处理
+            // 错误处理 - 不影响已生成的内容
             console.error('[sessionStore] 收到错误类型消息:', data)
-            throw new Error(data.error || '发送消息失败')
+
+            // 标记消息为错误状态，但保留已生成的内容
+            if (messages.value[aiMsgIndex]) {
+              messages.value[aiMsgIndex].error = data.error || '发送消息失败'
+              messages.value[aiMsgIndex].pending = false
+            }
+
+            // 不再抛出异常，让流程正常结束
+            // throw new Error(data.error || '发送消息失败')  // ❌ 注释掉
           }
         }
       )
