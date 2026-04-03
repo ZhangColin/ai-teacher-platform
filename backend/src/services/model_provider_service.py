@@ -555,3 +555,23 @@ class ModelProviderService:
         self.db.commit()
 
         logger.info(f"删除模型配置: {model_code}")
+
+    def get_model_config(self, provider_code: str, model_code: str) -> Optional[ModelConfigModel]:
+        """
+        获取模型配置
+
+        Args:
+            provider_code: 供应商代码（如 'deepseek', 'openai', 'kimi'）
+            model_code: 模型代码（如 'deepseek-chat', 'gpt-4', 'kimi-k2.5'）
+
+        Returns:
+            ModelConfigModel 或 None
+        """
+        return self.db.query(ModelConfigModel).join(
+            ModelProviderModel,
+            ModelConfigModel.provider_id == ModelProviderModel.id
+        ).filter(
+            ModelProviderModel.provider_code == provider_code,
+            ModelConfigModel.model_code == model_code,
+            ModelConfigModel.is_enabled == True
+        ).first()
