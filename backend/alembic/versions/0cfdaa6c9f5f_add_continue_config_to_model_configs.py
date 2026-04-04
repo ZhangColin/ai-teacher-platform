@@ -44,18 +44,32 @@ def upgrade() -> None:
     # Gemini
     op.execute("UPDATE model_configs SET context_window = 1000000, max_output_tokens = 4000, continue_window_size = 3000 WHERE model_code LIKE 'gemini%'")
 
-    # 修改为 NOT NULL
-    op.alter_column('model_configs', 'context_window', nullable=False)
-    op.alter_column('model_configs', 'max_output_tokens', nullable=False)
-    op.alter_column('model_configs', 'continue_window_size', nullable=False)
+    # 修改为 NOT NULL（MySQL 需要指定完整类型）
+    op.alter_column('model_configs', 'context_window',
+                   existing_type=sa.Integer(),
+                   nullable=False)
+    op.alter_column('model_configs', 'max_output_tokens',
+                   existing_type=sa.Integer(),
+                   nullable=False)
+    op.alter_column('model_configs', 'continue_window_size',
+                   existing_type=sa.Integer(),
+                   nullable=False)
 
 
 def downgrade() -> None:
     """Downgrade schema."""
-    op.alter_column('model_configs', 'continue_window_size', nullable=True)
-    op.alter_column('model_configs', 'max_output_tokens', nullable=True)
-    op.alter_column('model_configs', 'context_window', nullable=True)
+    # 先修改为 nullable
+    op.alter_column('model_configs', 'continue_window_size',
+                   existing_type=sa.Integer(),
+                   nullable=True)
+    op.alter_column('model_configs', 'max_output_tokens',
+                   existing_type=sa.Integer(),
+                   nullable=True)
+    op.alter_column('model_configs', 'context_window',
+                   existing_type=sa.Integer(),
+                   nullable=True)
 
+    # 删除列
     op.drop_column('model_configs', 'continue_window_size')
     op.drop_column('model_configs', 'max_output_tokens')
     op.drop_column('model_configs', 'context_window')
