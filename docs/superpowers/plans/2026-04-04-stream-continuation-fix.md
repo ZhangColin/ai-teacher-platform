@@ -232,11 +232,13 @@ Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 
 - [ ] **Step 1: 备份当前 chat_stream 方法**
 
-先备份当前实现，以便对比：
+先备份当前实现，以便对比和回滚：
 
 ```bash
 cp backend/src/services/ai_service.py backend/src/services/ai_service.py.backup
 ```
+
+**注意**: 备份文件将在验证无误后删除（见 Task 16, Step 4）
 
 - [ ] **Step 2: 找到 chat_stream 方法并阅读**
 
@@ -377,7 +379,7 @@ Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
                 accumulated += content
                 # 统一使用 dict 格式
                 yield {'type': 'content', 'content': content}
-                await asyncio.sleep(0.001)  # 让出控制权
+                await asyncio.sleep(0.001)  # 让出控制权，允许其他协程运行（协作式多任务）
 
             # 持续更新 finish_reason
             if choice.finish_reason:
@@ -546,9 +548,11 @@ async def test_stream_short_content():
 
 @pytest.mark.asyncio
 async def test_stream_with_continuation():
-    """测试长内容自动续写（模拟）"""
-    # 注意：这个测试需要实际调用 API，可能较慢
-    # 可以考虑 mock API 响应
+    """测试长内容自动续写（使用真实 API）
+
+    注意：此测试调用真实 API，速度较慢且有成本。
+    如需快速测试，请使用 mock。
+    """
     db = SessionLocal()
     service = AIService(db)
 
@@ -866,10 +870,14 @@ EOF
 
 ```bash
 cd backend
+# 先记录当前测试数量作为基线
+pytest tests/unit/ tests/integration/ --co -q | grep "test session starts" | grep -oE '\d+ tests'
+
+# 运行完整测试套件
 pytest tests/unit/ tests/integration/ -v
 ```
 
-预期：至少 150 个测试通过
+预期：基线约 154 个测试，全部通过
 
 - [ ] **Step 2: 运行前端测试**
 
@@ -887,6 +895,8 @@ npm run test
 2. 定位问题
 3. 修复代码或测试
 4. 重新运行直到通过
+
+**重要**: 任何测试失败都必须修复后才能继续。如果无法修复，记录问题并询问。
 
 - [ ] **Step 4: 提交测试修复**
 
@@ -1012,8 +1022,8 @@ git diff HEAD~10
 - [ ] 所有函数都有文档字符串
 - [ ] 错误处理完整
 - [ ] 日志记录充分
-- [ ] 类型注解正确
-- [ ] 遵循项目代码风格
+- [ ] 类型注解正确（使用 mypy 检查：`cd backend && mypy src/services/ai_service.py`）
+- [ ] 遵循项目代码风格（使用 black 检查：`cd backend && black --check src/services/ai_service.py`）
 
 - [ ] **Step 3: 安全检查**
 
@@ -1051,6 +1061,10 @@ git commit -m "feat: 完成流式续写改造
 - 后端：将递归续写改为内部循环续写
 - 前端：删除所有去重逻辑，简化为直接追加
 - 接口：统一使用 {'type': 'content', 'content': ...} 格式
+
+## 回滚方案
+如遇问题，可回滚到 commit: dc8c45c（改造前）
+回滚命令：git revert HEAD~10..HEAD
 
 ## 后端改造
 - 添加 PLATFORM_CAPS 配置表
