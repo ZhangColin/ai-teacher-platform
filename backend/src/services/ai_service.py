@@ -150,6 +150,19 @@ class AIService:
         # 创建客户端
         logger.info(f"创建 OpenAI 客户端 - provider: {provider_code}, base_url: {base_url}, model: {model_code}")
 
+        # 创建自定义 httpx 客户端，解决 macOS OpenSSL 3.0 兼容性问题
+        import httpx
+
+        # 针对 Kimi 和其他可能有 SSL 问题的供应商，禁用 HTTP/2
+        if provider_code in ["kimi", "newapi"]:
+            http_client = httpx.Client(
+                verify=True,
+                timeout=timeout_seconds,
+                http2=False  # 禁用 HTTP/2，使用 HTTP/1.1
+            )
+        else:
+            http_client = None  # 使用默认配置
+
         # newapi 供应商需要特殊处理（httpx 与 NewAPI 不兼容）
         if provider_code == "newapi":
             # 标记为使用自定义客户端，在后续调用中特殊处理
@@ -157,7 +170,8 @@ class AIService:
                 api_key=api_key,
                 base_url=base_url,
                 timeout=timeout_seconds,
-                max_retries=0  # 禁用重试
+                max_retries=0,
+                http_client=http_client
             )
             client._use_custom_http = True  # 标记
         else:
@@ -165,7 +179,8 @@ class AIService:
                 api_key=api_key,
                 base_url=base_url,
                 timeout=timeout_seconds,
-                max_retries=2
+                max_retries=2,
+                http_client=http_client
             )
 
         logger.info(f"AI 客户端初始化成功 - provider: {provider_code}, base_url: {base_url}, model: {model_code}")
