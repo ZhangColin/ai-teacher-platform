@@ -117,17 +117,35 @@ export const useSessionStore = defineStore('session', () => {
                 // 检查新内容是否以代码块标记开头（```html、```python 等）
                 const codeBlockPattern = /^```(\w+)?\s*\n/
                 const match = newContent.match(codeBlockPattern)
-                
+
                 if (match) {
                   // 统计当前内容中的代码块标记数量（```）
                   const fenceMatches = currentContent.match(/```/g) || []
                   const openFences = fenceMatches.length
-                  
+
                   // 如果是奇数个```，说明当前还在代码块中，新内容的```是重复的
                   if (openFences % 2 === 1) {
                     // 去除重复的代码块开始标记
                     newContent = newContent.replace(codeBlockPattern, '')
                     console.warn('🔧 检测到流式拼接中的重复代码块标记，已清理:', match[0].trim())
+                  }
+                }
+
+                // === 新增：检查续写时的重复内容 ===
+                const overlapLength = 100
+                if (newContent.length >= overlapLength) {
+                  const newStart = newContent.slice(0, overlapLength).toLowerCase().trim()
+                  const currentEnd = currentContent.slice(-overlapLength).toLowerCase().trim()
+
+                  const similarity = calculateSimilarity(newStart, currentEnd)
+                  if (similarity > 0.8) {
+                    console.warn(`🔧 检测到续写内容重复（相似度${(similarity * 100).toFixed(1)}%），尝试去除重复部分`)
+
+                    const splitPos = findSplitPosition(currentContent, newContent)
+                    if (splitPos > 0) {
+                      newContent = newContent.slice(splitPos)
+                      console.warn(`🔧 已去除前${splitPos}个字符的重复内容`)
+                    }
                   }
                 }
               }
@@ -299,6 +317,41 @@ export const useSessionStore = defineStore('session', () => {
   function setCurrentModel(model: string | null) {
     currentModel.value = model
     console.log('[sessionStore] 模型已切换为:', model)
+  }
+
+  /**
+   * 计算两个字符串的相似度（简化版）
+   */
+  function calculateSimilarity(str1: string, str2: string): number {
+    const len = Math.min(str1.length, str2.length)
+    if (len === 0) return 0
+
+    let sameChars = 0
+    for (let i = 0; i < len; i++) {
+      if (str1[i] === str2[i]) sameChars++
+    }
+
+    return sameChars / len
+  }
+
+  /**
+   * 找到两个字符串的最佳分割点
+   * 返回应该从 newContent 的第几个字符开始
+   */
+  function findSplitPosition(current: string, newContent: string): number {
+    // 从后往前匹配，找到最长的公共后缀
+    const maxCheck = Math.min(200, current.length, newContent.length)
+
+    for (let i = maxCheck; i >= 10; i--) {
+      const currentEnd = current.slice(-i).toLowerCase()
+      const newStart = newContent.slice(0, i).toLowerCase()
+
+      if (currentEnd === newStart) {
+        return i
+      }
+    }
+
+    return 0
   }
 
   /**
