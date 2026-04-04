@@ -473,19 +473,75 @@ class AIService:
             'html_end_pos': html_end_pos if is_html else -1
         }
     
+    def build_continuation_messages(
+        self,
+        base_messages: List[Dict[str, str]],
+        accumulated_content: str,
+        provider_code: str,
+        continue_window_size: int = 2000
+    ) -> List[Dict[str, str]]:
+        """
+        构建续写请求的 messages 列表（显式续写策略）
+
+        Args:
+            base_messages: 基础消息列表（system + history + user）
+            accumulated_content: 已累积的内容
+            provider_code: 模型供应商代码（用于判断续写策略）
+            continue_window_size: 续写窗口大小（字符数）
+
+        Returns:
+            续写请求的 messages 列表
+        """
+        # 检查平台能力（是否支持 assistant prefill）
+        provider_caps = PLATFORM_CAPS.get(provider_code, {"prefill": False})
+        supports_prefill = provider_caps.get("prefill", False)
+
+        if supports_prefill:
+            # 隐式续写：使用 assistant prefill
+            # 只保留最后 N 个字符作为上下文
+            if len(accumulated_content) > continue_window_size:
+                truncated_content = accumulated_content[-continue_window_size:]
+                logger.info(f"使用隐式续写（assistant prefill），截断到最后 {continue_window_size} 字符")
+            else:
+                truncated_content = accumulated_content
+
+            # 构建续写 messages（在 assistant role 中预填充内容）
+            continuation_messages = base_messages + [
+                {"role": "assistant", "content": truncated_content}
+            ]
+        else:
+            # 显式续写：使用 user message 明确指示续写
+            # 只保留最后 N 个字符作为上下文
+            if len(accumulated_content) > continue_window_size:
+                truncated_content = accumulated_content[-continue_window_size:]
+                logger.info(f"使用显式续写，截断到最后 {continue_window_size} 字符")
+            else:
+                truncated_content = accumulated_content
+
+            # 构建续写 messages（添加 user message 指示续写）
+            continuation_messages = base_messages + [
+                {"role": "assistant", "content": truncated_content},
+                {
+                    "role": "user",
+                    "content": "请继续完成上面的内容。重要：直接输出内容，不要包含```标记，不要重复已生成的部分，从上一次截断的地方继续。"
+                }
+            ]
+
+        return continuation_messages
+
     def _clean_continue_result(self, continue_result: str, is_html: bool = False) -> str:
         """
         清理自动继续返回的内容，提取纯代码内容
-        
+
         处理情况：
         1. 如果包含Markdown代码块标记（```html、```等），提取代码块内的内容
         2. 清理对话文本、注释等非代码内容
         3. 处理可能的重复标记
-        
+
         Args:
             continue_result: AI继续返回的原始内容
             is_html: 是否是HTML内容
-            
+
         Returns:
             清理后的纯代码内容
         """
@@ -1030,9 +1086,26 @@ class AIService:
                     for msg in history:
                         base_messages.append({"role": msg["role"], "content": msg["content"]})
                     base_messages.append({"role": "user", "content": user_message})
+                    messages = base_messages
+                else:
+                    # 续写轮：使用 build_continuation_messages() 构建 messages
+                    from src.services.model_provider_service import ModelProviderService
+                    model_provider_service = ModelProviderService(self.db)
+                    model_config_obj = model_provider_service.get_model_config(
+                        provider_code=provider_code,
+                        model_code=model_name
+                    )
 
-                # 使用 messages（第一轮用 base_messages，续写轮稍后实现）
-                messages = base_messages
+                    continue_window_size = 2000  # 默认值
+                    if model_config_obj and model_config_obj.continue_window_size:
+                        continue_window_size = model_config_obj.continue_window_size
+
+                    messages = self.build_continuation_messages(
+                        base_messages=base_messages,
+                        accumulated_content=accumulated,
+                        provider_code=provider_code,
+                        continue_window_size=continue_window_size
+                    )
 
                 # 记录系统提示词（用于调试）
                 logger.info(f"流式对话请求 - 系统提示词长度: {len(system_prompt)} 字符, 历史消息数: {len(history)}, 用户消息: {user_message[:50]}..., 使用模型: {model_name}")
@@ -1199,7 +1272,7 @@ class AIService:
                 # 逐块返回内容（在异步上下文中处理同步流）
                 accumulated_content = ""
                 finish_reason = None
-                usage_info = None  # 用于存储最终的usage信息
+                usage_info = None  # 用于存储本轮的 usage 信息
 
                 for chunk in stream:
                     if chunk.choices and len(chunk.choices) > 0:
@@ -1216,7 +1289,7 @@ class AIService:
                             finish_reason = choice.finish_reason
                             logger.info(f"流式输出完成，finish_reason: {finish_reason}, 已生成内容长度: {len(accumulated_content)}")
 
-                    # 捕获usage信息（通常在最后一个chunk中）
+                    # 捕获 usage 信息（通常在最后一个 chunk 中）
                     if hasattr(chunk, 'usage') and chunk.usage:
                         usage_info = {
                             'prompt_tokens': chunk.usage.prompt_tokens,
@@ -1225,170 +1298,90 @@ class AIService:
                             'model_provider': provider,
                             'model_name': model_name
                         }
-                        logger.info(f"捕获到token使用信息: {usage_info}")
+                        logger.info(f"捕获到 token 使用信息: {usage_info}")
 
-                # 在流结束时yield usage信息
+                # 累加到 accumulated 和 total_usage
+                accumulated += accumulated_content
                 if usage_info:
-                    # 计算积分（供接口层使用）
-                    try:
-                        from .point_service import PointService
-                        point_service = PointService(self.db)
-                        points = point_service.calculate_points_from_tokens(
-                            provider_code=usage_info.get('model_provider', ''),
-                            model_code=usage_info.get('model_name', ''),
-                            prompt_tokens=usage_info.get('prompt_tokens', 0),
-                            completion_tokens=usage_info.get('completion_tokens', 0)
-                        )
-                        usage_info['points_deducted'] = points
-                        logger.info(f"AI调用完成 - 模型:{provider}:{model_name}, Tokens:{usage_info['total_tokens']}, 积分:{points}")
-                    except Exception as e:
-                        logger.error(f"积分计算失败: {e}")
-                        usage_info['points_deducted'] = 0
+                    # 安全累加（避免 Mock 对象导致的 TypeError）
+                    prompt_tokens = usage_info.get('prompt_tokens', 0)
+                    completion_tokens = usage_info.get('completion_tokens', 0)
+                    total_tokens = usage_info.get('total_tokens', 0)
 
-                    yield {
-                        'type': 'usage',
-                        **usage_info
-                    }
-                else:
-                    logger.warning("流式响应中未找到usage信息")
-                    yield {
-                        'type': 'usage',
-                        'prompt_tokens': 0,
-                        'completion_tokens': 0,
-                        'total_tokens': 0,
-                        'model_provider': provider,
-                        'model_name': model_name
-                    }
-            
-                # 如果因为达到最大token限制而截断，判断是否需要自动继续
-                # 只有在以下情况才自动继续：
-                # 1. finish_reason == 'length'（确实因为token限制截断）
-                # 2. 估算的token数达到max_output_tokens的80%（使用配置的max_output_tokens）
-                # 3. 内容不以问号、感叹号结尾，且不包含明显的追问词（避免干扰多轮对话）
+                    # 确保是数字类型（避免 Mock 对象）
+                    if isinstance(prompt_tokens, (int, float)):
+                        total_usage['prompt_tokens'] += prompt_tokens
+                    if isinstance(completion_tokens, (int, float)):
+                        total_usage['completion_tokens'] += completion_tokens
+                    if isinstance(total_tokens, (int, float)):
+                        total_usage['total_tokens'] += total_tokens
 
-                # 使用配置的 max_output_tokens 判断
-                # 注意：model_config_obj 变量在后面获取，这里先获取用于判断
-                from src.services.model_provider_service import ModelProviderService
-                model_provider_service = ModelProviderService(self.db)
-                model_config_obj = model_provider_service.get_model_config(
-                    provider_code=provider_code,
-                    model_code=model_name
-                )
 
-                max_output_tokens = 4000  # 默认值
-                if model_config_obj and model_config_obj.max_output_tokens:
-                    max_output_tokens = model_config_obj.max_output_tokens
+                # 判断是否需要继续续写
+                # 只有在以下情况才继续：
+                # 1. finish_reason == 'length'（确实因 token 限制截断）
+                # 2. 内容不完整（使用 code_validator 检查）
+                # 3. 还有剩余续写次数
 
-                # 估算已生成的 token 数（粗略：1 token ≈ 2 字符）
-                estimated_tokens = len(accumulated_content) // 2
-
-                # === 新增：验证当前内容的完整性 ===
-                validation = self.code_validator.validate_content(accumulated_content)
+                # 验证当前内容的完整性
+                validation = self.code_validator.validate_content(accumulated)
                 if not validation.valid:
                     logger.warning(f"内容不完整，触发续写: {validation.issues}")
                 else:
                     logger.info("内容已完整，无需续写")
 
-                should_auto_continue = (
+                should_continue = (
                     finish_reason == 'length' and
                     not validation.valid and  # 只有验证失败时才续写
-                    max_continue > 0 and
-                    estimated_tokens >= max_output_tokens * 0.8 and  # 达到输出的 80%
-                    not accumulated_content.rstrip().endswith(('?', '？', '!', '！')) and
-                    not any(word in accumulated_content[-200:] for word in ['请', '需要', '能否', '可以', '希望', '想要'])  # 最后200字符不包含追问词
+                    continue_count < max_continue  # 还有剩余续写次数
                 )
-            
-                if should_auto_continue:
-                    logger.info(f"检测到长内容因token限制被截断，自动继续生成（剩余次数: {max_continue}，内容长度: {len(accumulated_content)}）...")
-                    logger.debug(f"已生成内容预览（最后500字符）: {accumulated_content[-500:]}")
 
-                    # 注意：model_config_obj 已经在前面获取，无需重复获取
+                if should_continue:
+                    logger.info(f"检测到内容被截断，准备第 {continue_count + 2} 轮续写")
+                    # 继续循环，进入下一轮
+                    continue
+                else:
+                    # 不需要续写，返回最终的 usage
+                    logger.info(f"流式输出完成，finish_reason: {finish_reason}")
+                    if usage_info:
+                        # 计算积分（使用累积的 total_usage）
+                        try:
+                            from .point_service import PointService
+                            point_service = PointService(self.db)
+                            points = point_service.calculate_points_from_tokens(
+                                provider_code=provider_code,
+                                model_code=model_name,
+                                prompt_tokens=total_usage['prompt_tokens'],
+                                completion_tokens=total_usage['completion_tokens']
+                            )
+                            total_usage['points_deducted'] = points
+                            logger.info(f"AI 调用完成 - 模型:{provider_code}:{model_name}, Tokens:{total_usage['total_tokens']}, 积分:{points}")
+                        except Exception as e:
+                            logger.error(f"积分计算失败: {e}")
+                            total_usage['points_deducted'] = 0
 
-                    # 获取续写窗口大小（默认 2000 字符）
-                    continue_window_size = 2000
-                    if model_config_obj and model_config_obj.continue_window_size:
-                        continue_window_size = model_config_obj.continue_window_size
-
-                    # 只保留最后 N 个字符（滑动窗口）
-                    if len(accumulated_content) > continue_window_size:
-                        truncated_content = accumulated_content[-continue_window_size:]
-                        logger.info(f"内容过长（{len(accumulated_content)} 字符），截断到最后 {continue_window_size} 字符用于续写")
+                        yield {
+                            'type': 'usage',
+                            'prompt_tokens': total_usage['prompt_tokens'],
+                            'completion_tokens': total_usage['completion_tokens'],
+                            'total_tokens': total_usage['total_tokens'],
+                            'model_provider': provider_code,
+                            'model_name': model_name,
+                            'points_deducted': total_usage.get('points_deducted', 0)
+                        }
                     else:
-                        truncated_content = accumulated_content
+                        logger.warning("流式响应中未找到 usage 信息")
+                        yield {
+                            'type': 'usage',
+                            'prompt_tokens': 0,
+                            'completion_tokens': 0,
+                            'total_tokens': 0,
+                            'model_provider': provider_code,
+                            'model_name': model_name
+                        }
+                    # 退出循环
+                    break
 
-                    # 将截断后的内容添加到历史消息中
-                    new_history = history + [
-                        {"role": "user", "content": user_message},
-                        {"role": "assistant", "content": truncated_content}
-                    ]
-                
-                    # 更明确的续写提示：要求AI不要输出代码块标记
-                    continue_message = "请继续完成上面的内容。重要：直接输出代码内容，不要包含```标记，不要重复已生成的部分，从上一次截断的地方继续。"
-                
-                    # 用于检测和清理续写内容开头的代码块标记
-                    continue_buffer = ""
-                    first_chunk_processed = False
-                    continue_count = 0
-                
-                    async for chunk in self.chat_stream(system_prompt, new_history, continue_message, max_continue - 1, model_config):
-                        # 跳过usage信息的chunk（字典类型）
-                        if isinstance(chunk, dict):
-                            logger.debug(f"续写逻辑：收到字典类型chunk: {chunk}")
-                            if chunk.get('type') == 'usage':
-                                # 继续传递usage信息给前端
-                                yield chunk
-                            continue
-
-                        if not first_chunk_processed:
-                            # 累积前几个chunk，用于检测开头是否有代码块标记
-                            continue_buffer += chunk
-                        
-                            # 当累积了足够的字符时（至少20个字符），进行检测
-                            if len(continue_buffer) >= 20:
-                                import re
-                                # 检测开头是否有 ```语言\n 格式的代码块标记
-                                fence_match = re.match(r'^```\w*\s*\n', continue_buffer)
-                                if fence_match:
-                                    # 去除开头的代码块标记
-                                    continue_buffer = continue_buffer[fence_match.end():]
-                                    logger.info(f"检测到续写内容开头有代码块标记（{fence_match.group()}），已自动去除")
-                            
-                                # 输出缓冲区内容
-                                if continue_buffer:
-                                    continue_count += len(continue_buffer)
-                                    yield continue_buffer
-                            
-                                # 标记已处理完第一个chunk
-                                first_chunk_processed = True
-                                continue_buffer = ""
-                        else:
-                            # 后续chunk直接输出（已经确保chunk是字符串）
-                            continue_count += len(chunk)
-                            yield chunk
-                
-                    # 如果还有剩余的缓冲区内容（累积的字符不足20个），输出
-                    if continue_buffer:
-                        # 对剩余内容也检查一次
-                        import re
-                        fence_match = re.match(r'^```\w*\s*\n', continue_buffer)
-                        if fence_match:
-                            continue_buffer = continue_buffer[fence_match.end():]
-                            logger.info(f"检测到续写内容开头有代码块标记（短内容），已自动去除")
-                    
-                        if continue_buffer:
-                            continue_count += len(continue_buffer)
-                            yield continue_buffer
-                
-                    logger.info(f"自动继续生成完成，继续部分长度: {continue_count} 字符")
-                elif finish_reason == 'length':
-                    logger.info(f"检测到内容因token限制被截断，但判断为AI追问或短内容，不自动继续（内容长度: {len(accumulated_content)}）")
-                    logger.debug(f"内容预览（最后200字符）: {accumulated_content[-200:]}")
-
-                # ===== 新增：第一轮完成后退出循环（续写逻辑稍后实现）=====
-                if continue_count == 0:
-                    logger.info("第一轮完成，退出循环（续写逻辑稍后实现）")
-                    break  # 第一轮完成后退出（续写逻辑稍后实现）
-                    
             except Exception as e:
                 error_type = type(e).__name__
                 logger.error(f"AI 服务调用异常（流式对话）- 错误类型: {error_type}: {e}", exc_info=True)
@@ -1406,18 +1399,19 @@ class AIService:
                     error_msg = str(e)[:100] if str(e) else f"{error_type}(无详细错误信息)"
                     yield f"⚠️ AI服务调用失败: {error_msg}\n请稍后重试或联系管理员。"
 
-                # 即使出错也yield一个空的usage，保持协议一致
+                # 即使出错也 yield 一个空的 usage，保持协议一致
                 yield {
                     'type': 'usage',
                     'prompt_tokens': 0,
                     'completion_tokens': 0,
                     'total_tokens': 0,
-                    'model_provider': provider if 'provider' in locals() else 'unknown',
+                    'model_provider': provider_code if 'provider_code' in locals() else 'unknown',
                     'model_name': model_name if 'model_name' in locals() else 'unknown'
                 }
 
-                # ===== 新增：异常处理后也退出循环 =====
-                break  # 发生异常后退出循环（第一轮只执行一次）
+                # 异常后退出循环
+                break
+
     
         # ==================== 多模态生成功能 ====================
     
