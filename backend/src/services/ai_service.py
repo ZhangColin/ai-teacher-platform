@@ -27,6 +27,16 @@ MODEL_SPECIFIC_CONFIG = {
     'kimi-k2.5': {'temperature': 1},
 }
 
+# 平台能力配置表（用于续写策略）
+PLATFORM_CAPS = {
+    "anthropic": {"prefill": True},   # 支持 assistant prefill（隐式续写）
+    "openai":    {"prefill": False},  # 不支持，需降级到显式提示
+    "deepseek":  {"prefill": False},
+    "kimi":      {"prefill": False},
+    "glm":       {"prefill": False},
+    "newapi":    {"prefill": False},
+}
+
 
 class AIService:
     """AI 服务客户端"""
@@ -856,7 +866,7 @@ class AIService:
                 return "⚠️ 无法连接到AI服务，请检查网络或API配置。", None
             else:
                 return f"⚠️ AI服务调用失败: {str(e)[:100]}", None
-    
+
     async def chat_stream(self, system_prompt: str, history: List[Dict[str, str]], user_message: str, max_continue: int = 3, model_config: Optional[str] = None) -> AsyncGenerator[str | dict, None]:
         """
         进行对话（流式输出）
