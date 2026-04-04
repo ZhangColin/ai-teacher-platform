@@ -1311,6 +1311,14 @@ class AIService:
                 continue_count = 0
                 
                 async for chunk in self.chat_stream(system_prompt, new_history, continue_message, max_continue - 1, model_config):
+                    # 跳过usage信息的chunk（字典类型）
+                    if isinstance(chunk, dict):
+                        logger.debug(f"续写逻辑：收到字典类型chunk: {chunk}")
+                        if chunk.get('type') == 'usage':
+                            # 继续传递usage信息给前端
+                            yield chunk
+                        continue
+
                     if not first_chunk_processed:
                         # 累积前几个chunk，用于检测开头是否有代码块标记
                         continue_buffer += chunk
@@ -1334,7 +1342,7 @@ class AIService:
                             first_chunk_processed = True
                             continue_buffer = ""
                     else:
-                        # 后续chunk直接输出
+                        # 后续chunk直接输出（已经确保chunk是字符串）
                         continue_count += len(chunk)
                         yield chunk
                 
@@ -1359,14 +1367,19 @@ class AIService:
         except Exception as e:
             error_type = type(e).__name__
             logger.error(f"AI 服务调用异常（流式对话）- 错误类型: {error_type}: {e}", exc_info=True)
+            logger.error(f"异常详细信息: {repr(e)}")  # 添加更详细的日志
 
             # 根据不同错误类型给出更友好的提示
             if "timeout" in str(e).lower() or "timed out" in str(e).lower():
                 yield "⚠️ AI服务响应超时，可能是网络问题。建议：\n1. 检查网络连接\n2. 如果使用代理，请确认代理设置正确\n3. 稍后重试"
             elif "connection" in str(e).lower() or "connect" in str(e).lower():
                 yield "⚠️ 无法连接到AI服务，请检查：\n1. 网络是否正常\n2. API密钥是否正确\n3. 服务提供商是否可用"
+            elif "concatenate" in str(e).lower() and "dict" in str(e).lower():
+                # 特殊处理：TypeError about dict concatenation
+                yield "⚠️ AI服务调用失败: 续写逻辑处理错误（已记录）\n请稍后重试或联系管理员。"
             else:
-                yield f"⚠️ AI服务调用失败: {str(e)[:100]}\n请稍后重试或联系管理员。"
+                error_msg = str(e)[:100] if str(e) else f"{error_type}(无详细错误信息)"
+                yield f"⚠️ AI服务调用失败: {error_msg}\n请稍后重试或联系管理员。"
 
             # 即使出错也yield一个空的usage，保持协议一致
             yield {
