@@ -106,55 +106,12 @@ export const useSessionStore = defineStore('session', () => {
               sessionId.value = data.session_id
             }
           } else if (data.type === 'content') {
-            // 通过索引直接修改数组中的消息
+            // 处理流式数据块 - 直接追加，无去重逻辑
             if (messages.value[aiMsgIndex]) {
-              let newContent = data.content || ''
-              const currentContent = messages.value[aiMsgIndex].content
-              
-              // 【兜底方案】检测流式拼接时是否出现重复的代码块标记
-              // 场景：当前内容在代码块中，新内容以 ```language 开头（说明AI重新开始了代码块）
-              if (currentContent && newContent) {
-                // 检查新内容是否以代码块标记开头（```html、```python 等）
-                const codeBlockPattern = /^```(\w+)?\s*\n/
-                const match = newContent.match(codeBlockPattern)
-
-                if (match) {
-                  // 统计当前内容中的代码块标记数量（```）
-                  const fenceMatches = currentContent.match(/```/g) || []
-                  const openFences = fenceMatches.length
-
-                  // 如果是奇数个```，说明当前还在代码块中，新内容的```是重复的
-                  if (openFences % 2 === 1) {
-                    // 去除重复的代码块开始标记
-                    newContent = newContent.replace(codeBlockPattern, '')
-                    console.warn('🔧 检测到流式拼接中的重复代码块标记，已清理:', match[0].trim())
-                  }
-                }
-
-                // === 新增：检查续写时的重复内容 ===
-                const overlapLength = 100
-                if (newContent.length >= overlapLength) {
-                  const newStart = newContent.slice(0, overlapLength).toLowerCase().trim()
-                  const currentEnd = currentContent.slice(-overlapLength).toLowerCase().trim()
-
-                  const similarity = calculateSimilarity(newStart, currentEnd)
-                  if (similarity > 0.8) {
-                    console.warn(`🔧 检测到续写内容重复（相似度${(similarity * 100).toFixed(1)}%），尝试去除重复部分`)
-
-                    const splitPos = findSplitPosition(currentContent, newContent)
-                    if (splitPos > 0) {
-                      newContent = newContent.slice(splitPos)
-                      console.warn(`🔧 已去除前${splitPos}个字符的重复内容`)
-                    }
-                  }
-                }
-              }
-              
-              // 触发响应式更新 - 创建新对象并更新 content
               const currentMsg = messages.value[aiMsgIndex]
               messages.value[aiMsgIndex] = {
                 ...currentMsg,
-                content: currentMsg.content + newContent
+                content: currentMsg.content + (data.content || '')
               }
             }
             // 收到第一个内容块时，关闭 loading 状态
