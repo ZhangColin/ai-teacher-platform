@@ -11,6 +11,7 @@ from typing import Optional, Tuple, List, Dict, AsyncGenerator
 from dotenv import load_dotenv
 from openai import OpenAI
 from sqlalchemy.orm import Session
+from src.services.code_validator import CodeValidator
 
 # 加载环境变量
 load_dotenv()
@@ -39,6 +40,7 @@ class AIService:
         """
         self.db = db
         self.default_client, self.default_model_name = self._get_ai_client()
+        self.code_validator = CodeValidator()  # 代码完整性验证器
     
     def _get_ai_client(self, model_config: Optional[str] = None) -> Tuple[Optional[OpenAI], str]:
         """
@@ -1260,8 +1262,16 @@ class AIService:
             # 估算已生成的 token 数（粗略：1 token ≈ 2 字符）
             estimated_tokens = len(accumulated_content) // 2
 
+            # === 新增：验证当前内容的完整性 ===
+            validation = self.code_validator.validate_content(accumulated_content)
+            if not validation.valid:
+                logger.warning(f"内容不完整，触发续写: {validation.issues}")
+            else:
+                logger.info("内容已完整，无需续写")
+
             should_auto_continue = (
                 finish_reason == 'length' and
+                not validation.valid and  # 只有验证失败时才续写
                 max_continue > 0 and
                 estimated_tokens >= max_output_tokens * 0.8 and  # 达到输出的 80%
                 not accumulated_content.rstrip().endswith(('?', '？', '!', '！')) and
