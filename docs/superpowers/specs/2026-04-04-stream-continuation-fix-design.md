@@ -103,7 +103,8 @@ async def chat_stream(...):
             if delta_content:
                 accumulated += delta_content
                 current_chunk += delta_content
-                yield delta_content  # 实时推送给前端
+                # 统一使用 dict 格式，前端按 type 区分
+                yield {'type': 'content', 'content': delta_content}
 
             # 持续更新 finish_reason
             if chunk.choices[0].finish_reason:
@@ -133,7 +134,10 @@ async def chat_stream(...):
 
 #### 2. 续写 messages 构建（隐式续写优先）
 
+**位置**: `ai_service.py` 顶部，模块级常量
+
 ```python
+# 平台能力配置表
 PLATFORM_CAPS = {
     "anthropic": {"prefill": True},   # 支持 assistant prefill
     "openai":    {"prefill": False},  # 不支持
@@ -311,9 +315,10 @@ for continue_count in range(max_continue + 1):
 **文件**: `frontend/src/stores/sessionStore.ts`
 
 **改动内容**:
-1. 删除第 114-151 行的去重逻辑（约 38 行）
+1. **完全删除**去重逻辑（第 114-151 行，约 38 行）
 2. 简化为直接追加（约 5 行）
-3. 删除相关的辅助函数（`calculateSimilarity`, `findSplitPosition`）
+3. **删除**相关的辅助函数（`calculateSimilarity`, `findSplitPosition`, `calculateOverlapScore`）
+4. **删除**测试文件 `frontend/tests/unit/codeblockDedup.spec.ts`
 
 **预估行数**: -38 行, +5 行（净减 33 行）
 
@@ -358,7 +363,8 @@ for continue_count in range(max_continue + 1):
 
 1. **边界情况**
    - 空内容不续写
-   - 网络错误时优雅降级
+   - 网络错误时中断续写，返回已生成内容（标记 `truncated: True`）
+   - API 异常时抛出，由上层处理
    - 达到 `max_continue` 时停止
 
 2. **日志完整**
@@ -398,8 +404,18 @@ for continue_count in range(max_continue + 1):
 **风险**: 删除去重逻辑后，某些边界情况下出现重复
 
 **应对**:
-- 保留少量防御性逻辑（如代码块标记检测）
-- 充分测试各种场景
+- 前端不保留任何去重逻辑
+- 代码块标记的完整性由 `build_fallback_prompt()` 在后端处理
+- 前端只负责追加内容，所有重复预防在后端完成
+
+### 风险 5：异常处理不明确
+
+**风险**: 续写过程中发生网络错误或 API 异常，处理行为不明确
+
+**应对**:
+- **单轮错误**：中断续写，把已生成的 `accumulated` 通过 `{'type': 'done', 'truncated': True}` 返回
+- **致命错误**：抛出异常，由上层 FastAPI 路由处理，返回 500 错误
+- **前端显示**：收到 `truncated: True` 时显示"内容被截断，请重新生成"
 
 ---
 
@@ -447,3 +463,4 @@ for continue_count in range(max_continue + 1):
 
 **变更历史**:
 - 2026-04-04: 初始版本
+- 2026-04-04: 修正 yield 类型不一致问题；明确 PLATFORM_CAPS 位置；澄清前端去重逻辑删除范围；补充异常处理流程
