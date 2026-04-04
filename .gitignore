@@ -136,3 +136,6 @@ __pycache__/
 
 # 工行支付密钥文件（敏感信息，禁止提交）
 backend/src/key/
+
+# 临时重构脚本（开发调试用）
+backend/refactor_*.py
