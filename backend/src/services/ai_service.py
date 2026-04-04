@@ -49,7 +49,8 @@ class AIService:
             db: 可选的数据库会话，如果提供则从数据库读取模型配置
         """
         self.db = db
-        self.default_client, self.default_model_name = self._get_ai_client()
+        self._default_client = None  # 惰性缓存
+        self._default_model_name = None  # 惰性缓存
         self.code_validator = CodeValidator()  # 代码完整性验证器
     
     def _get_ai_client(self, model_config: Optional[str] = None) -> Tuple[Optional[OpenAI], str]:
@@ -169,6 +170,23 @@ class AIService:
 
         logger.info(f"AI 客户端初始化成功 - provider: {provider_code}, base_url: {base_url}, model: {model_code}")
         return client, model_code
+
+    def _init_default_client(self) -> None:
+        """惰性初始化默认客户端（仅在实际需要时调用）"""
+        if self._default_client is None:
+            self._default_client, self._default_model_name = self._get_ai_client()
+
+    @property
+    def default_client(self) -> OpenAI:
+        """获取默认 AI 客户端（惰性初始化）"""
+        self._init_default_client()
+        return self._default_client
+
+    @property
+    def default_model_name(self) -> str:
+        """获取默认模型名称（惰性初始化）"""
+        self._init_default_client()
+        return self._default_model_name
 
     def _create_adapter(self, provider_code: str, api_key: str, base_url: str):
         """创建 LLM 适配器（用于非 OpenAI 兼容的供应商）"""
