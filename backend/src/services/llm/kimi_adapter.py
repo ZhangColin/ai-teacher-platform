@@ -24,6 +24,10 @@ class KimiAdapter(BaseLLMAdapter):
         'kimi-k2.5',
         'kimi-k2.5-thinking',
         'kimi-k2.5-vision',
+        'kimi-k2-0905-preview',
+        'kimi-k2-turbo-preview',
+        'kimi-k2-thinking',
+        'kimi-k2-thinking-turbo',
     }
 
     def __init__(self, **kwargs):
