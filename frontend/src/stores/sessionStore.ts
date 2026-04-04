@@ -277,41 +277,6 @@ export const useSessionStore = defineStore('session', () => {
   }
 
   /**
-   * 计算两个字符串的相似度（简化版）
-   */
-  function calculateSimilarity(str1: string, str2: string): number {
-    const len = Math.min(str1.length, str2.length)
-    if (len === 0) return 0
-
-    let sameChars = 0
-    for (let i = 0; i < len; i++) {
-      if (str1[i] === str2[i]) sameChars++
-    }
-
-    return sameChars / len
-  }
-
-  /**
-   * 找到两个字符串的最佳分割点
-   * 返回应该从 newContent 的第几个字符开始
-   */
-  function findSplitPosition(current: string, newContent: string): number {
-    // 从后往前匹配，找到最长的公共后缀
-    const maxCheck = Math.min(200, current.length, newContent.length)
-
-    for (let i = maxCheck; i >= 10; i--) {
-      const currentEnd = current.slice(-i).toLowerCase()
-      const newStart = newContent.slice(0, i).toLowerCase()
-
-      if (currentEnd === newStart) {
-        return i
-      }
-    }
-
-    return 0
-  }
-
-  /**
    * 完全重置状态（包括清空toolId，用于登出等场景）
    */
   function reset() {
