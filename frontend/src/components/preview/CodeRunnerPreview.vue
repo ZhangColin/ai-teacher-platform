@@ -196,7 +196,7 @@ const handleMessage = (event: MessageEvent<SandboxMessage>) => {
     return;
   }
 
-  const { type, status, output } = event.data;
+  const { type, output } = event.data;
   console.log('[CodeRunnerPreview] 收到消息:', event.data);
 
   switch (type) {
