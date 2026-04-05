@@ -40,6 +40,12 @@
         :filename="(artifact as any).filename || 'artifact.svg'"
       />
 
+      <CodeRunnerPreview
+        v-else-if="artifact && isRunnableCodeArtifact(artifact)"
+        :content="artifact.content"
+        :language="normalizeRunnableLanguage(artifact)"
+      />
+
       <div v-else class="preview-empty" data-testid="preview-empty">
         暂无预览内容
       </div>
@@ -52,6 +58,7 @@ import { ref } from 'vue';
 import MarkdownPreview from './preview/MarkdownPreview.vue';
 import HtmlPreview from './preview/HtmlPreview.vue';
 import SvgPreview from './preview/SvgPreview.vue';
+import CodeRunnerPreview from './preview/CodeRunnerPreview.vue';
 import PreviewToolbar from './preview/PreviewToolbar.vue';
 import { useFileDownload } from '@/composables/useFileDownload';
 import { downloadWord } from '@/utils/documentDownloader';
@@ -78,6 +85,18 @@ const { downloadBlob } = useFileDownload();
 const isSvgArtifact = (artifact: Artifact | null): boolean => {
   return artifact?.type === 'svg' || artifact?.type === 'image/svg+xml';
 };
+
+function isRunnableCodeArtifact(a: Artifact | null): boolean {
+  if (!a) return false;
+  const t = (a.type || '').toLowerCase();
+  return t === 'python' || t === 'javascript' || t === 'js';
+}
+
+function normalizeRunnableLanguage(a: Artifact): 'python' | 'javascript' {
+  const t = (a.type || '').toLowerCase();
+  if (t === 'python') return 'python';
+  return 'javascript'; // js、javascript、ts 等首版统一走 JS 沙箱（TS 不编译，文档可说明）
+}
 
 const toggleFullscreen = () => {
   isFullscreen.value = !isFullscreen.value;
