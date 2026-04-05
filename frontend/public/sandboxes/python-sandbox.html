@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Python 代码沙箱</title>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: monospace;
+            background: #f5f5f5;
+        }
+        #output {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            min-height: 100px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <h3>Python 代码沙箱 (Pyodide)</h3>
+    <div id="output">加载中...</div>
+
+    <script>
+        (function() {
+            'use strict';
+
+            // 定义预期的来源（安全限制）
+            const EXPECTED_ORIGIN = window.location.origin;
+
+            // 向父窗口发送消息
+            function sendMessage(type, data) {
+                if (window.parent !== window) {
+                    window.parent.postMessage({
+                        type: type,
+                        ...data
+                    }, EXPECTED_ORIGIN);
+                }
+            }
+
+            // 更新输出显示
+            function updateOutput(text) {
+                document.getElementById('output').textContent = text;
+            }
+
+            // 检测代码是否需要 matplotlib
+            function needsMatplotlib(code) {
+                return code.includes('matplotlib') || code.includes('plt.');
+            }
+
+            // 初始化 Pyodide
+            let pyodide = null;
+            let matplotlibLoaded = false;
+
+            async function initPyodide() {
+                try {
+                    pyodide = await loadPyodide();
+
+                    // 设置微Python 的标准输出重定向
+                    pyodide.setStdout({
+                        batched: (text) => {
+                            sendMessage('stdout', { content: text });
+                        }
+                    });
+
+                    pyodide.setStderr({
+                        batched: (text) => {
+                            sendMessage('stderr', { content: text });
+                        }
+                    });
+
+                    updateOutput('沙箱已就绪');
+                    sendMessage('status', { status: 'ready' });
+
+                } catch (error) {
+                    updateOutput('加载失败: ' + error.message);
+                    sendMessage('stderr', { content: 'Pyodide 加载失败: ' + error.message });
+                    sendMessage('status', { status: 'error' });
+                }
+            }
+
+            // 执行 Python 代码
+            async function executeCode(code) {
+                if (!pyodide) {
+                    sendMessage('stderr', { content: '错误：Pyodide 尚未加载完成' });
+                    sendMessage('status', { status: 'error' });
+                    return;
+                }
+
+                sendMessage('status', { status: 'running' });
+
+                try {
+                    // 检测是否需要 matplotlib
+                    if (needsMatplotlib(code) && !matplotlibLoaded) {
+                        updateOutput('加载 matplotlib...');
+                        try {
+                            await pyodide.loadPackage('matplotlib');
+                            matplotlibLoaded = true;
+
+                            // 配置非交互 backend
+                            await pyodide.runPythonAsync(`
+                                import matplotlib
+                                matplotlib.use('Agg')
+                                import matplotlib.pyplot as plt
+                            `);
+                        } catch (loadError) {
+                            sendMessage('stderr', {
+                                content: '警告：matplotlib 加载失败，将不显示图形: ' + loadError.message
+                            });
+                        }
+                    }
+
+                    // 执行代码
+                    await pyodide.runPythonAsync(code);
+
+                    // 检查是否有 matplotlib 图形
+                    if (matplotlibLoaded) {
+                        try {
+                            // 检查是否有活动的图形
+                            const hasFigures = await pyodide.runPythonAsync(`
+                                import matplotlib.pyplot as plt
+                                fig = plt.gcf()
+                                len(fig.axes) > 0
+                            `);
+
+                            if (hasFigures) {
+                                // 将图形转换为 base64
+                                const imageData = await pyodide.runPythonAsync(`
+                                    import io
+                                    import base64
+                                    buf = io.BytesIO()
+                                    plt.savefig(buf, format='png', bbox_inches='tight')
+                                    buf.seek(0)
+                                    img_base64 = base64.b64encode(buf.read()).decode('utf-8')
+                                    plt.close()  # 关闭图形释放内存
+                                    img_base64
+                                `);
+
+                                sendMessage('image', {
+                                    data: imageData,
+                                    mimeType: 'image/png'
+                                });
+                            }
+                        } catch (figError) {
+                            // 图形处理失败，但不影响代码执行结果
+                            console.warn('图形处理失败:', figError);
+                        }
+                    }
+
+                    sendMessage('status', { status: 'done' });
+
+                } catch (error) {
+                    // 格式化 Python 错误信息
+                    let errorMsg = error.message || error.toString();
+
+                    // 提取有用的错误信息
+                    if (errorMsg.includes('PythonError:')) {
+                        errorMsg = errorMsg.replace('PythonError: ', '');
+                    }
+
+                    sendMessage('stderr', { content: errorMsg });
+                    sendMessage('status', { status: 'error' });
+                }
+            }
+
+            // 处理来自父窗口的消息
+            window.addEventListener('message', function(event) {
+                // 安全检查：验证消息来源
+                if (event.origin !== EXPECTED_ORIGIN) {
+                    return; // 忽略来自非预期来源的消息
+                }
+
+                // 只处理 'execute' 类型的消息
+                if (event.data?.type !== 'execute') {
+                    return;
+                }
+
+                const code = event.data.code;
+                if (typeof code !== 'string') {
+                    sendMessage('status', { status: 'error' });
+                    sendMessage('stderr', { content: '错误：代码必须是字符串' });
+                    return;
+                }
+
+                // 执行代码
+                executeCode(code);
+            });
+
+            // 页面加载完成后初始化 Pyodide
+            window.addEventListener('load', function() {
+                updateOutput('正在加载 Pyodide...');
+                initPyodide();
+            });
+        })();
+    </script>
+</body>
+</html>
