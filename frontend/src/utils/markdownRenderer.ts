@@ -3,6 +3,18 @@ import MarkdownIt from 'markdown-it'
 import katex from '@traptitech/markdown-it-katex'
 import type { Artifact } from '../types'
 
+// 可运行代码的语言集合
+const RUNNABLE_LANGUAGES = new Set(['python', 'javascript', 'js'])
+
+/**
+ * 规范化 artifact 类型，确保与代码沙箱兼容
+ * 将 'js' 转换为 'javascript'，保证 PreviewPanel 收到正确的类型
+ */
+function normalizeArtifactTypeForRunner(lang: string): string {
+  if (lang === 'js') return 'javascript'
+  return lang
+}
+
 // 创建 markdown-it 实例，配置安全选项和数学公式支持
 const md = new MarkdownIt({
   html: false, // 禁用 HTML 标签，防止 XSS
@@ -88,23 +100,27 @@ export function renderMarkdown(content: string, artifacts: Artifact[] = []): str
   html = html.replace(codeBlockRegex, (_match, language, codeContent) => {
     // 获取语言标识（去除可能的空格）
     let lang = (language || '').trim().toLowerCase()
-    
+
     // 从 codeContent 中提取原始内容（去除 HTML 转义）
     const rawContent = unescapeHtml(codeContent.trim())
-    
+
     // 如果没有语言标识，尝试智能识别
     if (!lang) {
       lang = detectLanguageByContent(rawContent)
     }
-    
+
+    // 判断是否为可运行语言
+    const isRunnable = RUNNABLE_LANGUAGES.has(lang)
+
     // 所有代码块都使用相同的类型标识
-    let artifactType = lang || 'text'
-    
+    // 如果是可运行语言，规范化类型（例如 js → javascript）
+    let artifactType = isRunnable ? normalizeArtifactTypeForRunner(lang) : (lang || 'text')
+
     // 尝试从 artifacts 中查找匹配的 artifact
     let artifact: Artifact | null = null
     if (artifacts && artifacts.length > 0) {
-      artifact = artifacts.find(a => 
-        a.language === lang && 
+      artifact = artifacts.find(a =>
+        a.language === lang &&
         a.content.trim() === rawContent
       ) || null
     }
@@ -120,11 +136,22 @@ export function renderMarkdown(content: string, artifacts: Artifact[] = []): str
     }
 
     // 创建 artifact JSON（转义后用于 data 属性）
-          const artifactJson = escapeHtml(JSON.stringify(artifact))
+    const artifactJson = escapeHtml(JSON.stringify(artifact))
     // 代码内容（用于复制）
     const codeContentForCopy = escapeHtml(rawContent)
-    
-    // 返回带预览和复制按钮的代码块
+
+    // 按钮配置：根据语言类型显示不同的图标和文案
+    const buttonTitle = isRunnable ? `运行 ${lang} 代码` : `预览 ${artifactType.toUpperCase()} 内容`
+    const buttonIcon = isRunnable
+      ? `<svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/>
+        </svg>`
+      : `<svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+          <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
+          <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
+        </svg>`
+
+    // 返回带预览/运行和复制按钮的代码块
     return `<div class="code-block-wrapper">
       <div class="code-block-header">
         <span class="code-language">${escapeHtml(lang)}</span>
@@ -133,12 +160,9 @@ export function renderMarkdown(content: string, artifacts: Artifact[] = []): str
             class="preview-button"
             data-artifact-type="${artifactType}"
             data-artifact-content="${artifactJson}"
-            title="预览 ${artifactType.toUpperCase()} 内容"
+            title="${buttonTitle}"
           >
-            <svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
-              <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
-              <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
-            </svg>
+            ${buttonIcon}
           </button>
           <button
             class="copy-code-button"
@@ -180,47 +204,47 @@ function unescapeHtml(text: string): string {
  */
 function detectLanguageByContent(content: string): string {
   const contentLower = content.toLowerCase().trim()
-  
+
   // HTML 特征检测
-  const htmlTags = ['<html', '<div', '<script', '<style', '<body', '<head', 
+  const htmlTags = ['<html', '<div', '<script', '<style', '<body', '<head',
                     '<title', '<meta', '<link', '<button', '<input', '<form']
   if (htmlTags.some(tag => contentLower.includes(tag))) {
     return 'html'
   }
-  
+
   // SVG 特征检测
   const svgTags = ['<svg', '<path', '<circle', '<rect', '<line', '<polygon',
                    '<polyline', '<ellipse', '<text', '<g ', '<defs', '<use']
   if (svgTags.some(tag => contentLower.includes(tag))) {
     return 'svg'
   }
-  
+
   // Markdown 特征检测
   // 1. 标题：以 # 开头
   if (/^#+\s+/m.test(content)) {
     return 'markdown'
   }
-  
+
   // 2. 列表：以 - 或 * 开头
   if (/^[\s]*[-*+]\s+/m.test(content)) {
     return 'markdown'
   }
-  
+
   // 3. 粗体/斜体：包含 ** 或 * 或 __ 或 _
   if (/\*\*.*?\*\*|__.*?__|\*.*?\*|_.*?_/.test(content)) {
     return 'markdown'
   }
-  
+
   // 4. 链接：包含 [text](url) 格式
   if (/\[.*?\]\(.*?\)/.test(content)) {
     return 'markdown'
   }
-  
+
   // 5. 代码块：包含 `代码` 或 ```代码块```
   if (/`[^`]+`|```/.test(content)) {
     return 'markdown'
   }
-  
+
   // 默认返回 text
   return 'text'
 }
@@ -248,4 +272,3 @@ function escapeHtml(text: string): string {
   }
   return text.replace(/[&<>"']/g, (m) => map[m] || m)
 }
-
