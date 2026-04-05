@@ -206,6 +206,14 @@ const handleMessage = (event: MessageEvent<SandboxMessage>) => {
       isLoading.value = false;
       isRunning.value = false;
       console.log('[CodeRunnerPreview] iframe 已就绪');
+
+      // 如果有代码内容，自动执行（提升用户体验）
+      if (props.content && !isRunning.value) {
+        console.log('[CodeRunnerPreview] 自动执行代码');
+        setTimeout(() => {
+          executeCode();
+        }, 100);
+      }
       break;
 
     case 'output':
