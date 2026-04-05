@@ -165,12 +165,16 @@ async def chat_stream(
                     user_message=request.message,
                     model_config=model_config
                 ):
-                    # 检查是否是usage信息（字典类型）
+                    # 检查是否是结构化信息（字典类型）
                     if isinstance(chunk, dict):
-                        if chunk.get('type') == 'usage':
+                        chunk_type = chunk.get('type')
+                        if chunk_type == 'usage':
                             usage_info = chunk
                             _logger.info(f"📊 收到Token使用信息: {usage_info}")
-                            continue  # 不发送usage信息给前端
+                        elif chunk_type == 'error':
+                            # 将错误事件转发给前端，不混入内容流
+                            yield f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n"
+                        # 其他未知 dict 类型静默忽略
                     else:
                         # 普通内容chunk
                         full_response += chunk

@@ -22,6 +22,10 @@ class GeminiAdapter(BaseLLMAdapter):
         super().__init__(**kwargs)
         self.client = genai.Client(api_key=self.api_key)
 
+    @property
+    def provider_code(self) -> str:
+        return 'google'
+
     async def chat(
         self,
         messages: List[Dict[str, str]],
@@ -45,7 +49,10 @@ class GeminiAdapter(BaseLLMAdapter):
         )
 
         content = self._extract_content(response)
+        finish_reason = self._extract_finish_reason(response)
         usage = self._extract_usage(response, model)
+        usage['finish_reason'] = finish_reason
+        usage['type'] = 'usage'
         return content, usage
 
     async def chat_stream(
@@ -71,15 +78,21 @@ class GeminiAdapter(BaseLLMAdapter):
         )
 
         usage_info = None
+        finish_reason = 'stop'
 
         async for chunk in response:
             content = self._extract_content(chunk)
             if content:
                 yield content
-            # 提取 usage 信息
             usage_info = self._extract_usage(chunk, model)
+            chunk_finish = self._extract_finish_reason(chunk)
+            if chunk_finish != 'stop':
+                finish_reason = chunk_finish
 
-        yield usage_info or self._extract_usage(None, model)
+        final_usage = usage_info or self._extract_usage(None, model)
+        final_usage['finish_reason'] = finish_reason
+        final_usage['type'] = 'usage'
+        yield final_usage
 
     def _to_gemini_format(self, messages: List[Dict[str, str]],
                           system_prompt: Optional[str]) -> List[genai.types.Content]:
@@ -123,3 +136,15 @@ class GeminiAdapter(BaseLLMAdapter):
                 'model_name': model
             }
         return super()._extract_usage(response, model, 'google')
+
+    def _extract_finish_reason(self, response) -> str:
+        """从 Gemini 响应提取 finish_reason"""
+        if response and hasattr(response, 'candidates') and response.candidates:
+            reason = getattr(response.candidates[0], 'finish_reason', None)
+            if reason:
+                reason_str = str(reason).lower()
+                if 'max_tokens' in reason_str or 'length' in reason_str:
+                    return 'length'
+                if 'safety' in reason_str:
+                    return 'content_filter'
+        return 'stop'

@@ -50,6 +50,10 @@ class BedrockAdapter(BaseLLMAdapter):
         # 请求超时时间（秒）
         self.timeout = kwargs.get("timeout", 120)
 
+    @property
+    def provider_code(self) -> str:
+        return 'bedrock'
+
     def _get_endpoint(self, model: str, stream: bool = False) -> str:
         """构建请求端点
 
@@ -176,7 +180,12 @@ class BedrockAdapter(BaseLLMAdapter):
                     # 提取响应内容
                     # Bedrock 响应格式: {"output": {"message": {"content": [{"text": "..."}]}}}
                     content = result["output"]["message"]["content"][0]["text"]
+                    finish_reason = result.get("stopReason", "stop")
+                    if finish_reason == "max_tokens":
+                        finish_reason = "length"
                     usage = self._extract_usage(result, model)
+                    usage['finish_reason'] = finish_reason
+                    usage['type'] = 'usage'
 
                     logger.info(f"[Bedrock] 响应成功，内容长度: {len(content)}, tokens: {usage['total_tokens']}")
                     return content, usage
@@ -408,17 +417,12 @@ class BedrockAdapter(BaseLLMAdapter):
 
                     # 最后 yield usage 信息
                     if usage_info:
+                        usage_info['type'] = 'usage'
+                        usage_info['finish_reason'] = usage_info.get('finish_reason', 'stop')
                         logger.info(f"[Bedrock] 流式完成，tokens: {usage_info['total_tokens']}")
                         yield usage_info
                     else:
-                        # 如果没有获取到 usage，返回默认值
-                        yield {
-                            'prompt_tokens': 0,
-                            'completion_tokens': 0,
-                            'total_tokens': 0,
-                            'model_provider': 'bedrock',
-                            'model_name': model
-                        }
+                        yield self._build_usage(model, finish_reason='stop')
 
         except aiohttp.ClientError as e:
             logger.error(f"[Bedrock] 流式网络错误: {e}")

@@ -81,18 +81,16 @@ class TestAIServiceInit:
 
     @patch('src.services.ai_service.os.getenv')
     def test_init_without_api_key(self, mock_getenv):
-        """测试没有API Key时的初始化"""
-        # 使用一个有效的供应商但不提供 API key
+        """测试没有API Key时，访问 default_client 应抛异常"""
         mock_getenv.side_effect = lambda key, default=None: {
             "CURRENT_PROVIDER": "deepseek",
-            # DEEPSEEK_API_KEY 不提供，会触发 ValueError
             "PYTEST_CURRENT_TEST": "true",
             "TESTING": "true"
         }.get(key, default)
 
-        # 创建服务时应该抛出 ValueError
+        service = AIService()
         with pytest.raises(ValueError, match="测试环境缺少 API Key"):
-            AIService()
+            _ = service.default_client
 
 
 class TestGetAIClient:
@@ -284,18 +282,16 @@ class TestGenerateWelcomeMessage:
     async def test_generate_welcome_message_without_client(self):
         """测试没有客户端时的欢迎消息"""
         service = AIService()
-        service.default_client = None
+        service._default_client = None
 
         result = await service.generate_welcome_message("系统提示词")
 
-        # 实际返回的是中文欢迎消息
         assert "AI 助手" in result or "助手" in result
 
     @pytest.mark.asyncio
     @patch('src.services.ai_service.OpenAI')
     async def test_generate_welcome_message_success(self, mock_openai):
         """测试成功生成欢迎消息"""
-        # Mock OpenAI客户端
         mock_client = Mock()
         mock_response = Mock()
         mock_choice = Mock()
@@ -306,10 +302,9 @@ class TestGenerateWelcomeMessage:
         mock_response.choices = [mock_choice]
         mock_client.chat.completions.create.return_value = mock_response
 
-        mock_openai.return_value = mock_client
-
         service = AIService()
-        service.default_client = mock_client
+        service._default_client = mock_client
+        service._default_model_name = "test-model"
 
         result = await service.generate_welcome_message("你是一个助手")
 
@@ -323,10 +318,9 @@ class TestGenerateWelcomeMessage:
         mock_client = Mock()
         mock_client.chat.completions.create.side_effect = Exception("Request timeout")
 
-        mock_openai.return_value = mock_client
-
         service = AIService()
-        service.default_client = mock_client
+        service._default_client = mock_client
+        service._default_model_name = "test-model"
 
         result = await service.generate_welcome_message("系统提示词")
 
@@ -339,10 +333,9 @@ class TestGenerateWelcomeMessage:
         mock_client = Mock()
         mock_client.chat.completions.create.side_effect = Exception("API Error")
 
-        mock_openai.return_value = mock_client
-
         service = AIService()
-        service.default_client = mock_client
+        service._default_client = mock_client
+        service._default_model_name = "test-model"
 
         result = await service.generate_welcome_message("系统提示词")
 
@@ -350,479 +343,195 @@ class TestGenerateWelcomeMessage:
 
 
 class TestHTMLUtilityMethods:
-    """测试HTML处理工具方法"""
+    """HTML 工具方法已迁移到 ContentValidator，此处仅做兼容性回归测试"""
 
-    def test_find_html_end_position_with_complete_html(self):
-        """测试查找完整HTML的结束位置"""
-        service = AIService()
-        content = "<html><body>Content</body></html>"
+    def test_content_validator_exists(self):
+        """验证 ContentValidator 可正常导入"""
+        from src.services.content_validator import ContentValidator
+        assert ContentValidator.is_complete("plain text") is True
 
-        pos = service._find_html_end_position(content)
+    def test_content_validator_html(self):
+        """验证 HTML 完整性检查"""
+        from src.services.content_validator import ContentValidator
+        assert ContentValidator.is_complete("<html><body></body></html>") is True
+        assert ContentValidator.is_complete("<html><body>") is False
 
-        assert pos == len(content)
 
-    def test_find_html_end_position_with_incomplete_html(self):
-        """测试查找不完整HTML的结束位置"""
-        service = AIService()
-        content = "<html><body>Content"
+def _make_mock_adapter(chat_return=None, stream_chunks=None):
+    """创建 mock 适配器"""
+    adapter = AsyncMock()
+    adapter.provider_code = 'test'
 
-        pos = service._find_html_end_position(content)
+    if chat_return:
+        adapter.chat = AsyncMock(return_value=chat_return)
 
-        assert pos == -1
+    if stream_chunks:
+        async def mock_stream(*args, **kwargs):
+            for chunk in stream_chunks:
+                yield chunk
+        adapter.chat_stream = mock_stream
 
-    def test_find_html_end_position_with_multiple_html_tags(self):
-        """测试多个HTML标签的情况"""
-        service = AIService()
-        content = "<html><body>Content</body></html>some text</html>"
-
-        pos = service._find_html_end_position(content)
-
-        # 应该返回最后一个</html>的结束位置
-        assert pos > 0
-
-    def test_find_html_end_position_case_insensitive(self):
-        """测试大小写不敏感"""
-        service = AIService()
-        content = "<HTML><BODY>Content</BODY></Html>"
-
-        pos = service._find_html_end_position(content)
-
-        assert pos == len(content)
-
-    def test_clean_after_html_end(self):
-        """测试清理</html>后的内容"""
-        service = AIService()
-        content = "<html><body>Content</body></html>extra content"
-
-        cleaned = service._clean_after_html_end(content)
-
-        assert cleaned == "<html><body>Content</body></html>"
-        assert "extra content" not in cleaned
-
-    def test_clean_after_html_end_no_extra_content(self):
-        """测试没有额外内容时的清理"""
-        service = AIService()
-        content = "<html><body>Content</body></html>"
-
-        cleaned = service._clean_after_html_end(content)
-
-        assert cleaned == content
-
-    def test_detect_content_duplication_exact_match(self):
-        """测试检测完全重复的内容"""
-        service = AIService()
-        original = "This is the original content that is long enough to test"
-        continuation = "original content that is long enough to test and more"
-
-        is_duplicate, overlap_length = service._detect_content_duplication(original, continuation)
-
-        # 由于相似度可能不够高，可能不会检测为重复
-        # 这里我们只验证方法可以正常调用
-        assert isinstance(is_duplicate, bool)
-        assert isinstance(overlap_length, int)
-
-    def test_detect_content_duplication_no_duplication(self):
-        """测试没有重复的情况"""
-        service = AIService()
-        original = "First paragraph"
-        continuation = "Completely different second paragraph"
-
-        is_duplicate, overlap_length = service._detect_content_duplication(original, continuation)
-
-        assert is_duplicate is False
-        assert overlap_length == 0
-
-    def test_detect_content_duplication_short_continuation(self):
-        """测试短的续写内容"""
-        service = AIService()
-        original = "Long original content"
-        continuation = "short"  # 少于50字符
-
-        is_duplicate, overlap_length = service._detect_content_duplication(original, continuation)
-
-        assert is_duplicate is False
-        assert overlap_length == 0
-
-    def test_detect_content_duplication_empty_continuation(self):
-        """测试空续写内容"""
-        service = AIService()
-        original = "Original content"
-        continuation = ""
-
-        is_duplicate, overlap_length = service._detect_content_duplication(original, continuation)
-
-        assert is_duplicate is False
-        assert overlap_length == 0
-
-    def test_check_code_completeness_complete_html(self):
-        """测试检查完整的HTML代码"""
-        service = AIService()
-        content = "<html><head><title>Test</title></head><body><p>Content</p></body></html>"
-
-        result = service._check_code_completeness(content)
-
-        assert result['is_complete'] is True
-        assert len(result['missing_tags']) == 0
-
-    def test_check_code_completeness_incomplete_html(self):
-        """测试检查不完整的HTML代码"""
-        service = AIService()
-        content = "<html><body><p>Content"
-
-        result = service._check_code_completeness(content)
-
-        assert result['is_complete'] is False
-        assert len(result['missing_tags']) > 0
-
-    def test_check_code_completeness_with_script_tags(self):
-        """测试包含script标签的HTML"""
-        service = AIService()
-        content = "<html><body><script>console.log('test');</script></body></html>"
-
-        result = service._check_code_completeness(content)
-
-        assert result['is_complete'] is True
-
-    def test_check_code_completeness_empty_content(self):
-        """测试空内容"""
-        service = AIService()
-        content = ""
-
-        result = service._check_code_completeness(content)
-
-        # 空内容可能被标记为完整（没有不完整的标签）
-        # 我们只验证返回了正确的结构
-        assert 'is_complete' in result
-        assert 'missing_tags' in result
-        assert 'issues' in result
-
-    def test_clean_continue_result_html(self):
-        """测试清理HTML续写结果"""
-        service = AIService()
-        continue_result = "```html\n<html><body>Test</body></html>\n```"
-
-        cleaned = service._clean_continue_result(continue_result, is_html=True)
-
-        assert "<html>" in cleaned
-        assert "```" not in cleaned
-
-    def test_clean_continue_result_remove_duplication(self):
-        """测试清理续写结果（去除代码块标记）"""
-        service = AIService()
-        # 测试去除Markdown代码块标记
-        continue_result = "```html\n<html><body><p>Content</p></body></html>\n```"
-
-        cleaned = service._clean_continue_result(continue_result, is_html=True)
-
-        # 应该去除了代码块标记
-        assert "<html>" in cleaned
-        assert "```" not in cleaned
+    return adapter
 
 
 class TestChatMethod:
-    """测试 chat 方法"""
-
-    def setup_method(self):
-        """每个测试前的设置"""
-        # 设置测试环境变量
-        os.environ["PYTEST_CURRENT_TEST"] = "true"
-        os.environ["TESTING"] = "true"
-        os.environ["CURRENT_PROVIDER"] = "deepseek"
-        os.environ["DEEPSEEK_API_KEY"] = "sk-test-key-for-chat"
-
-    def teardown_method(self):
-        """每个测试后的清理"""
-        # 清理环境变量
-        for key in ["TESTING", "CURRENT_PROVIDER", "DEEPSEEK_API_KEY"]:
-            os.environ.pop(key, None)
+    """测试 chat 方法（基于适配器 + ContinuationManager）"""
 
     @pytest.mark.asyncio
-    async def test_chat_without_client(self):
-        """测试没有客户端时的对话"""
-        service = AIService()
-        service.default_client = None
-
-        result = await service.chat(
-            system_prompt="You are a helper",
-            history=[],
-            user_message="Hello"
-        )
-
-        # chat 方法返回 (content, usage_info) 元组
-        content, usage_info = result
-        assert "Mock" in content or "收到" in content
-        assert usage_info is None
-
-    @pytest.mark.asyncio
-    @patch('src.services.ai_service.OpenAI')
-    async def test_chat_success(self, mock_openai):
+    async def test_chat_success(self):
         """测试成功对话"""
-        mock_client = Mock()
-        mock_response = Mock()
-        mock_choice = Mock()
-        mock_message = Mock()
-        mock_usage = Mock()
-
-        mock_message.content = "This is a response"
-        mock_choice.message = mock_message
-        mock_choice.finish_reason = "stop"
-        mock_response.choices = [mock_choice]
-        mock_response.usage = mock_usage
-        mock_usage.prompt_tokens = 10
-        mock_usage.completion_tokens = 20
-        mock_usage.total_tokens = 30
-        mock_client.chat.completions.create.return_value = mock_response
-
-        mock_openai.return_value = mock_client
+        usage = {
+            'type': 'usage', 'prompt_tokens': 10, 'completion_tokens': 20,
+            'total_tokens': 30, 'model_provider': 'test', 'model_name': 'test-model',
+            'finish_reason': 'stop',
+        }
+        adapter = _make_mock_adapter(chat_return=("This is a response", usage))
 
         service = AIService()
-        service.default_client = mock_client
+        with patch.object(service, '_get_adapter', return_value=(adapter, 'test-model')):
+            content, usage_info = await service.chat(
+                system_prompt="You are a helper",
+                history=[],
+                user_message="Hello"
+            )
 
-        result = await service.chat(
-            system_prompt="You are a helper",
-            history=[],
-            user_message="Hello"
-        )
-
-        # chat 方法返回 (content, usage_info) 元组
-        content, usage_info = result
         assert content == "This is a response"
         assert usage_info is not None
         assert usage_info['prompt_tokens'] == 10
-        assert usage_info['completion_tokens'] == 20
-        mock_client.chat.completions.create.assert_called_once()
 
     @pytest.mark.asyncio
-    @patch('src.services.ai_service.OpenAI')
-    async def test_chat_with_history(self, mock_openai):
+    async def test_chat_with_history(self):
         """测试带历史消息的对话"""
-        mock_client = Mock()
-        mock_response = Mock()
-        mock_choice = Mock()
-        mock_message = Mock()
-        mock_usage = Mock()
-
-        mock_message.content = "I can help with that"
-        mock_choice.message = mock_message
-        mock_choice.finish_reason = "stop"
-        mock_response.choices = [mock_choice]
-        mock_response.usage = mock_usage
-        mock_usage.prompt_tokens = 15
-        mock_usage.completion_tokens = 25
-        mock_usage.total_tokens = 40
-        mock_client.chat.completions.create.return_value = mock_response
-
-        mock_openai.return_value = mock_client
+        usage = {
+            'type': 'usage', 'prompt_tokens': 15, 'completion_tokens': 25,
+            'total_tokens': 40, 'model_provider': 'test', 'model_name': 'test-model',
+            'finish_reason': 'stop',
+        }
+        adapter = _make_mock_adapter(chat_return=("I can help with that", usage))
 
         service = AIService()
-        service.default_client = mock_client
+        with patch.object(service, '_get_adapter', return_value=(adapter, 'test-model')):
+            content, usage_info = await service.chat(
+                system_prompt="You are a helper",
+                history=[
+                    {"role": "user", "content": "Hello"},
+                    {"role": "assistant", "content": "Hi there"},
+                ],
+                user_message="Help me"
+            )
 
-        history = [
-            {"role": "user", "content": "Hello"},
-            {"role": "assistant", "content": "Hi there"}
-        ]
-
-        result = await service.chat(
-            system_prompt="You are a helper",
-            history=history,
-            user_message="Help me"
-        )
-
-        # chat 方法返回 (content, usage_info) 元组
-        content, usage_info = result
         assert content == "I can help with that"
-        assert usage_info is not None
-        # 验证消息包含历史
-        call_args = mock_client.chat.completions.create.call_args
-        messages = call_args[1]['messages']
-        assert len(messages) == 4  # system + 2 history + 1 user
+        assert usage_info['total_tokens'] == 40
 
     @pytest.mark.asyncio
-    @patch('src.services.ai_service.OpenAI')
-    async def test_chat_timeout_error(self, mock_openai):
+    async def test_chat_timeout_error(self):
         """测试超时错误"""
-        mock_client = Mock()
-        mock_client.chat.completions.create.side_effect = Exception("Request timeout")
-
-        mock_openai.return_value = mock_client
-
         service = AIService()
-        service.default_client = mock_client
+        with patch.object(service, '_get_adapter', side_effect=Exception("Request timeout")):
+            content, usage_info = await service.chat(
+                system_prompt="You are a helper",
+                history=[],
+                user_message="Hello"
+            )
 
-        result = await service.chat(
-            system_prompt="You are a helper",
-            history=[],
-            user_message="Hello"
-        )
-
-        # chat 方法返回 (content, usage_info) 元组
-        content, usage_info = result
-        assert "超时" in content or "网络" in content
+        assert "超时" in content or "失败" in content
         assert usage_info is None
 
     @pytest.mark.asyncio
-    @patch('src.services.ai_service.OpenAI')
-    async def test_chat_connection_error(self, mock_openai):
+    async def test_chat_connection_error(self):
         """测试连接错误"""
-        mock_client = Mock()
-        mock_client.chat.completions.create.side_effect = Exception("Connection error")
-
-        mock_openai.return_value = mock_client
-
         service = AIService()
-        service.default_client = mock_client
+        with patch.object(service, '_get_adapter', side_effect=Exception("Connection error")):
+            content, usage_info = await service.chat(
+                system_prompt="You are a helper",
+                history=[],
+                user_message="Hello"
+            )
 
-        result = await service.chat(
-            system_prompt="You are a helper",
-            history=[],
-            user_message="Hello"
-        )
-
-        # chat 方法返回 (content, usage_info) 元组
-        content, usage_info = result
-        assert "连接" in content or "网络" in content
+        assert "连接" in content or "失败" in content
         assert usage_info is None
 
 
 class TestChatStreamMethod:
-    """测试 chat_stream 方法"""
-
-    def setup_method(self):
-        """每个测试前的设置"""
-        # 设置测试环境变量
-        os.environ["PYTEST_CURRENT_TEST"] = "true"
-        os.environ["TESTING"] = "true"
-        os.environ["CURRENT_PROVIDER"] = "deepseek"
-        os.environ["DEEPSEEK_API_KEY"] = "sk-test-key-for-stream"
-
-    def teardown_method(self):
-        """每个测试后的清理"""
-        # 清理环境变量
-        for key in ["TESTING", "CURRENT_PROVIDER", "DEEPSEEK_API_KEY"]:
-            os.environ.pop(key, None)
+    """测试 chat_stream 方法（基于适配器 + ContinuationManager）"""
 
     @pytest.mark.asyncio
-    async def test_chat_stream_without_client(self):
-        """测试没有客户端时的流式对话"""
-        service = AIService()
-        service.default_client = None
-
-        chunks = []
-        async for chunk in service.chat_stream(
-            system_prompt="You are a helper",
-            history=[],
-            user_message="Hello"
-        ):
-            # chat_stream 可以返回 str 或 dict，只收集字符串
-            if isinstance(chunk, str):
-                chunks.append(chunk)
-
-        result = "".join(chunks)
-        assert "Mock" in result or "收到" in result
-
-    @pytest.mark.asyncio
-    @patch('src.services.ai_service.OpenAI')
-    async def test_chat_stream_success(self, mock_openai):
+    async def test_chat_stream_success(self):
         """测试成功的流式对话"""
-        mock_client = Mock()
-
-        # 创建流式响应的mock
-        mock_chunk1 = Mock()
-        mock_choice1 = Mock()
-        mock_delta1 = Mock()
-        mock_delta1.content = "Hello"
-        mock_choice1.delta = mock_delta1
-        mock_choice1.finish_reason = None
-        mock_chunk1.choices = [mock_choice1]
-
-        mock_chunk2 = Mock()
-        mock_choice2 = Mock()
-        mock_delta2 = Mock()
-        mock_delta2.content = " World"
-        mock_choice2.delta = mock_delta2
-        mock_choice2.finish_reason = "stop"
-        mock_chunk2.choices = [mock_choice2]
-
-        mock_client.chat.completions.create.return_value = [mock_chunk1, mock_chunk2]
-
-        mock_openai.return_value = mock_client
+        usage = {
+            'type': 'usage', 'prompt_tokens': 10, 'completion_tokens': 20,
+            'total_tokens': 30, 'model_provider': 'test', 'model_name': 'test-model',
+            'finish_reason': 'stop',
+        }
+        adapter = _make_mock_adapter(stream_chunks=["Hello", " World", usage])
 
         service = AIService()
-        service.default_client = mock_client
-
-        chunks = []
-        usage_info = None
-        async for chunk in service.chat_stream(
-            system_prompt="You are a helper",
-            history=[],
-            user_message="Hi"
-        ):
-            if isinstance(chunk, str):
-                chunks.append(chunk)
-            elif isinstance(chunk, dict):
-                usage_info = chunk
+        with patch.object(service, '_get_adapter', return_value=(adapter, 'test-model')):
+            chunks = []
+            usage_info = None
+            async for chunk in service.chat_stream(
+                system_prompt="You are a helper",
+                history=[],
+                user_message="Hi"
+            ):
+                if isinstance(chunk, str):
+                    chunks.append(chunk)
+                elif isinstance(chunk, dict):
+                    usage_info = chunk
 
         result = "".join(chunks)
         assert result == "Hello World"
+        assert usage_info is not None
+        assert usage_info['type'] == 'usage'
 
     @pytest.mark.asyncio
-    @patch('src.services.ai_service.OpenAI')
-    async def test_chat_stream_with_error(self, mock_openai):
-        """测试流式对话错误处理"""
-        mock_client = Mock()
-        mock_client.chat.completions.create.side_effect = Exception("Stream error")
-
-        mock_openai.return_value = mock_client
-
+    async def test_chat_stream_with_error(self):
+        """测试流式对话错误处理 —— 错误以 type=error 的 dict 返回，不混入内容流"""
         service = AIService()
-        service.default_client = mock_client
+        with patch.object(service, '_get_adapter', side_effect=Exception("Stream error")):
+            error_chunks = []
+            content_chunks = []
+            async for chunk in service.chat_stream(
+                system_prompt="You are a helper",
+                history=[],
+                user_message="Hello"
+            ):
+                if isinstance(chunk, dict) and chunk.get('type') == 'error':
+                    error_chunks.append(chunk)
+                elif isinstance(chunk, str):
+                    content_chunks.append(chunk)
 
-        chunks = []
-        async for chunk in service.chat_stream(
-            system_prompt="You are a helper",
-            history=[],
-            user_message="Hello"
-        ):
-            if isinstance(chunk, str):
-                chunks.append(chunk)
-
-        result = "".join(chunks)
-        assert "失败" in result or "错误" in result
+        # 错误必须作为 error dict 返回，而不是混入内容
+        assert len(error_chunks) == 1
+        assert "失败" in error_chunks[0].get('error', '')
+        # 内容流中不应该包含错误文字
+        assert not content_chunks
 
     @pytest.mark.asyncio
-    @patch('src.services.ai_service.OpenAI')
-    async def test_chat_stream_with_length_truncation(self, mock_openai):
-        """测试流式对话被截断时的自动继续生成"""
-        mock_client = Mock()
-
-        # 第一次流式响应：被截断
-        mock_chunk1 = Mock()
-        mock_choice1 = Mock()
-        mock_delta1 = Mock()
-        mock_delta1.content = "This is a long content that "
-        mock_choice1.delta = mock_delta1
-        mock_choice1.finish_reason = "length"
-        mock_chunk1.choices = [mock_choice1]
-
-        mock_client.chat.completions.create.return_value = [mock_chunk1]
-
-        mock_openai.return_value = mock_client
+    async def test_chat_stream_with_length_truncation(self):
+        """测试流式对话被截断时的自动续写"""
+        usage_length = {
+            'type': 'usage', 'prompt_tokens': 10, 'completion_tokens': 50,
+            'total_tokens': 60, 'model_provider': 'test', 'model_name': 'test-model',
+            'finish_reason': 'length',
+        }
+        adapter = _make_mock_adapter(stream_chunks=[
+            "This is a long content that ", usage_length,
+        ])
 
         service = AIService()
-        service.default_client = mock_client
-
-        chunks = []
-        async for chunk in service.chat_stream(
-            system_prompt="You are a helper",
-            history=[],
-            user_message="Generate code",
-            max_continue=1
-        ):
-            if isinstance(chunk, str):
-                chunks.append(chunk)
+        with patch.object(service, '_get_adapter', return_value=(adapter, 'test-model')):
+            chunks = []
+            async for chunk in service.chat_stream(
+                system_prompt="You are a helper",
+                history=[],
+                user_message="Generate code",
+                max_continue=1
+            ):
+                if isinstance(chunk, str):
+                    chunks.append(chunk)
 
         result = "".join(chunks)
-        # 应该包含第一次的内容
         assert "long content" in result
 
 

@@ -21,21 +21,8 @@ logger = logging.getLogger(__name__)
 # 需要使用适配器的供应商（非 OpenAI 兼容）
 ADAPTER_PROVIDERS = {'bedrock', 'claude', 'anthropic'}
 
-# 模型特定配置（某些模型有特殊的参数限制）
-MODEL_SPECIFIC_CONFIG = {
-    # kimi-k2.5 只支持 temperature=1
-    'kimi-k2.5': {'temperature': 1},
-}
 
-# 平台能力配置表（用于续写策略）
-PLATFORM_CAPS = {
-    "anthropic": {"prefill": True},   # 支持 assistant prefill（隐式续写）
-    "openai":    {"prefill": False},  # 不支持，需降级到显式提示
-    "deepseek":  {"prefill": False},
-    "kimi":      {"prefill": False},
-    "glm":       {"prefill": False},
-    "newapi":    {"prefill": False},
-}
+
 
 
 class AIService:
@@ -213,6 +200,129 @@ class AIService:
             base_url=base_url,
         )
 
+    def _get_adapter(self, model_config: Optional[str] = None):
+        """统一获取 LLM 适配器（新接口，所有供应商走适配器层）
+
+        Args:
+            model_config: 格式 "provider:model_name"，如 "deepseek:deepseek-chat"
+
+        Returns:
+            (adapter, model_name) 元组
+        """
+        from src.services.llm import create_adapter
+
+        testing = os.getenv("PYTEST_CURRENT_TEST") or os.getenv("TESTING")
+
+        if not self.db and not testing:
+            raise ValueError("数据库会话未提供，无法读取模型配置")
+
+        if not self.db and testing:
+            return self._get_adapter_from_env(model_config)
+
+        from src.services.model_provider_service import ModelProviderService
+        from src.services.encryption_service import EncryptionService
+        from src.db_models import ModelProviderModel
+
+        provider_service = ModelProviderService(self.db)
+        encryption = EncryptionService()
+
+        provider_code = None
+        model_code = None
+
+        if model_config and ":" in model_config:
+            provider_code, model_code = model_config.split(":", 1)
+            provider_code = provider_code.lower()
+        else:
+            provider_info = provider_service.get_default_provider()
+            if not provider_info:
+                raise ValueError("未配置默认模型供应商，请先在管理后台配置")
+            if not provider_info.is_enabled:
+                raise ValueError(f"默认供应商 [{provider_info.provider_name}] 未启用")
+            provider_code = provider_info.provider_code
+
+            models = provider_service.get_all_models(
+                provider_id=provider_info.id, include_disabled=False
+            )
+            if not models:
+                raise ValueError(f"默认供应商 [{provider_info.provider_name}] 没有启用的模型")
+            model_code = models[0].model_code
+
+        provider_info = provider_service.get_provider_by_code(provider_code)
+        if not provider_info:
+            raise ValueError(f"供应商 [{provider_code}] 未在数据库中配置")
+        if not provider_info.is_enabled:
+            raise ValueError(f"供应商 [{provider_info.provider_name}] 未启用")
+
+        provider_model = self.db.query(ModelProviderModel).filter(
+            ModelProviderModel.id == provider_info.id
+        ).first()
+        if not provider_model:
+            raise ValueError(f"供应商 [{provider_code}] 的配置数据不完整")
+
+        try:
+            api_key = encryption.decrypt(provider_model.api_key_encrypted)
+        except Exception as e:
+            if provider_model.api_key_encrypted == "placeholder":
+                raise ValueError(f"供应商 [{provider_info.provider_name}] 的 API 密钥未配置")
+            raise ValueError(f"解密供应商 [{provider_code}] 的 API 密钥失败: {e}")
+
+        if not api_key or api_key == "placeholder":
+            raise ValueError(f"供应商 [{provider_code}] 的 API 密钥未配置")
+
+        base_url = provider_info.base_url
+        if not base_url:
+            raise ValueError(f"供应商 [{provider_code}] 的 API 地址未配置")
+
+        logger.info(f"创建适配器 - provider: {provider_code}, model: {model_code}")
+
+        adapter = create_adapter(
+            provider_code=provider_code,
+            api_key=api_key,
+            base_url=base_url,
+            provider=provider_code,
+        )
+        return adapter, model_code
+
+    def _get_adapter_from_env(self, model_config: Optional[str] = None):
+        """从环境变量获取适配器（仅测试环境）"""
+        from src.services.llm import create_adapter
+
+        provider_code = None
+        model_code = None
+
+        if model_config and ":" in model_config:
+            provider_code, model_code = model_config.split(":", 1)
+            provider_code = provider_code.lower()
+        else:
+            provider_code = os.getenv("CURRENT_PROVIDER", "deepseek")
+
+        env_configs = {
+            "deepseek": ("DEEPSEEK_API_KEY", "DEEPSEEK_BASE_URL", "https://api.deepseek.com", "deepseek-chat"),
+            "openai": ("OPENAI_API_KEY", "OPENAI_BASE_URL", "https://api.openai.com/v1", "gpt-4o"),
+            "kimi": ("KIMI_API_KEY", "KIMI_BASE_URL", "https://api.moonshot.cn/v1", "moonshot-v1-8k"),
+            "glm": ("GLM_API_KEY", "GLM_BASE_URL", "https://open.bigmodel.cn/api/paas/v4", "glm-4"),
+        }
+
+        config = env_configs.get(provider_code)
+        if not config:
+            raise ValueError(f"测试环境不支持的供应商: {provider_code}")
+
+        key_env, url_env, default_url, default_model = config
+        api_key = os.getenv(key_env)
+        if not api_key:
+            raise ValueError(f"测试环境缺少 API Key: {key_env}")
+
+        base_url = os.getenv(url_env, default_url)
+        model_code = model_code or os.getenv(f"{provider_code.upper()}_MODEL", default_model)
+
+        adapter = create_adapter(
+            provider_code=provider_code,
+            api_key=api_key,
+            base_url=base_url,
+            provider=provider_code,
+        )
+        return adapter, model_code
+
     def _get_ai_client_from_env(self, model_config: Optional[str] = None) -> Tuple[Optional[OpenAI], str]:
         """
         从环境变量获取 AI 客户端（仅用于测试）
@@ -321,634 +431,29 @@ class AIService:
             else:
                 return "欢迎使用 AI 助手！抱歉，当前服务暂时不可用，请稍后重试。"
     
-    def _find_html_end_position(self, content: str) -> int:
-        """
-        找到 HTML 文档的结束位置（</html> 标签的位置）
-        
-        Returns:
-            如果找到 </html>，返回其结束位置（包含 </html> 标签）
-            如果没找到，返回 -1
-        """
-        import re
-        # 查找最后一个 </html> 标签（不区分大小写）
-        pattern = re.compile(r'</html>', re.IGNORECASE)
-        matches = list(pattern.finditer(content))
-        if matches:
-            # 返回最后一个 </html> 标签的结束位置
-            last_match = matches[-1]
-            return last_match.end()
-        return -1
-    
-    def _detect_content_duplication(self, original: str, continuation: str, threshold: float = 0.7) -> tuple[bool, int]:
-        """
-        检测继续内容是否与原始内容重复
-        
-        Args:
-            original: 原始内容
-            continuation: 继续生成的内容
-            threshold: 相似度阈值（0-1）
-        
-        Returns:
-            (is_duplicate, overlap_length)
-            is_duplicate: 是否重复
-            overlap_length: 重复的长度（如果重复）
-        """
-        if not continuation or len(continuation) < 50:
-            return False, 0
-        
-        # 方法1：检查继续内容是否在原始内容中出现过（完全匹配）
-        # 如果继续内容的前100个字符在原始内容中出现，可能是重复
-        continuation_start = continuation[:200].strip()
-        if continuation_start in original:
-            overlap_pos = original.find(continuation_start)
-            if overlap_pos >= 0:
-                # 计算重复的长度
-                overlap_length = min(len(continuation_start), len(original) - overlap_pos)
-                logger.warning(f"检测到继续内容在原始内容中完全匹配，位置: {overlap_pos}, 重复长度: {overlap_length}")
-                return True, overlap_length
-        
-        # 方法2：检查继续内容是否与原始内容的结尾高度相似
-        # 比较原始内容的最后 N 个字符与继续内容的前 N 个字符
-        compare_length = min(300, len(original), len(continuation))
-        if compare_length < 50:
-            return False, 0
-        
-        original_end = original[-compare_length:].lower().strip()
-        continuation_start = continuation[:compare_length].lower().strip()
-        
-        # 计算相似度
-        same_chars = sum(1 for a, b in zip(original_end, continuation_start) if a == b)
-        similarity = same_chars / compare_length if compare_length > 0 else 0
-        
-        if similarity >= threshold:
-            # 找到最佳分割点
-            split_pos = 0
-            for i in range(min(len(original_end), len(continuation_start)) - 1, -1, -1):
-                if original_end[i] != continuation_start[i]:
-                    split_pos = i + 1
-                    break
-            if split_pos > 0:
-                logger.warning(f"检测到高相似度重复（{similarity:.2%}），建议去除前 {split_pos} 字符")
-                return True, split_pos
-        
-        return False, 0
-    
-    def _clean_after_html_end(self, content: str) -> str:
-        """
-        清理 </html> 标签之后的内容
-        
-        如果检测到 </html> 标签，只保留到 </html> 标签结束的内容
-        """
-        html_end_pos = self._find_html_end_position(content)
-        if html_end_pos > 0:
-            # 检查 </html> 之后是否有内容
-            after_html = content[html_end_pos:].strip()
-            if after_html:
-                logger.warning(f"检测到 </html> 标签之后还有内容（{len(after_html)} 字符），将清理掉")
-                logger.debug(f"</html> 之后的内容预览（前200字符）:\n{after_html[:200]}")
-                # 只保留到 </html> 标签结束
-                return content[:html_end_pos].rstrip()
-        return content
-    
-    def _check_code_completeness(self, content: str) -> dict:
-        """
-        检测代码完整性（HTML/JavaScript）
-        
-        Returns:
-            {
-                'is_complete': bool,
-                'missing_tags': list,  # 缺失的闭合标签
-                'issues': list  # 其他问题
-            }
-        """
-        import re
-        issues = []
-        missing_tags = []
-        
-        content_lower = content.lower()
-        is_html = '<html' in content_lower or '<!doctype' in content_lower
-        
-        if is_html:
-            # 检查 HTML 标签匹配
-            html_open = content_lower.count('<html')
-            html_close = content_lower.count('</html>')
-            if html_open > html_close:
-                missing_tags.append('</html>')
-                issues.append(f'HTML标签不匹配: <html>={html_open}, </html>={html_close}')
-            
-            body_open = content_lower.count('<body')
-            body_close = content_lower.count('</body>')
-            if body_open > body_close:
-                missing_tags.append('</body>')
-                issues.append(f'Body标签不匹配: <body>={body_open}, </body>={body_close}')
-            
-            head_open = content_lower.count('<head')
-            head_close = content_lower.count('</head>')
-            if head_open > head_close:
-                missing_tags.append('</head>')
-                issues.append(f'Head标签不匹配: <head>={head_open}, </head>={head_close}')
-            
-            # 检查未闭合的标签（简单检测）
-            # 查找所有开始标签，检查是否有对应的结束标签
-            tag_pattern = re.compile(r'<(\w+)[^>]*>', re.IGNORECASE)
-            open_tags = tag_pattern.findall(content)
-            close_tag_pattern = re.compile(r'</(\w+)>', re.IGNORECASE)
-            close_tags = close_tag_pattern.findall(content)
-            
-            # 统计标签（忽略自闭合标签）
-            self_closing_tags = {'br', 'hr', 'img', 'input', 'meta', 'link', 'area', 'base', 'col', 'embed', 'source', 'track', 'wbr'}
-            tag_counts = {}
-            for tag in open_tags:
-                if tag.lower() not in self_closing_tags:
-                    tag_counts[tag.lower()] = tag_counts.get(tag.lower(), 0) + 1
-            for tag in close_tags:
-                if tag.lower() in tag_counts:
-                    tag_counts[tag.lower()] -= 1
-            
-            # 找出未闭合的标签
-            for tag, count in tag_counts.items():
-                if count > 0:
-                    issues.append(f'未闭合的标签: <{tag}> (缺少 {count} 个闭合标签)')
-        
-        # 检查 JavaScript 括号匹配（简单检测）
-        if '<script' in content_lower:
-            open_braces = content.count('{')
-            close_braces = content.count('}')
-            if open_braces > close_braces:
-                issues.append(f'JavaScript大括号不匹配: {{={open_braces}, }}={close_braces}')
-            
-            open_parens = content.count('(')
-            close_parens = content.count(')')
-            if open_parens > close_parens:
-                issues.append(f'JavaScript圆括号不匹配: (={open_parens}, )={close_parens}')
-        
-        # 检查 HTML 是否已经完整闭合（有 </html> 标签）
-        html_end_pos = self._find_html_end_position(content)
-        if is_html and html_end_pos > 0:
-            # 检查 </html> 之后是否有有效内容
-            after_html = content[html_end_pos:].strip()
-            # 如果 </html> 之后只有空白或很少的内容，认为 HTML 已经完整
-            if len(after_html) < 50 or not any(c.isalnum() for c in after_html):
-                # HTML 已经完整闭合
-                is_complete = True
-                logger.info("HTML 已经完整闭合（检测到 </html> 标签且之后无有效内容）")
-            else:
-                # </html> 之后还有内容，可能是重复或错误
-                issues.append(f'</html> 标签之后还有内容（{len(after_html)} 字符），可能是重复内容')
-                is_complete = False
-        else:
-            is_complete = len(issues) == 0
-        
-        return {
-            'is_complete': is_complete,
-            'missing_tags': missing_tags,
-            'issues': issues,
-            'html_end_pos': html_end_pos if is_html else -1
-        }
-    
-    def build_continuation_messages(
-        self,
-        base_messages: List[Dict[str, str]],
-        accumulated_content: str,
-        provider_code: str,
-        continue_window_size: int = 2000
-    ) -> List[Dict[str, str]]:
-        """
-        构建续写请求的 messages 列表（显式续写策略）
-
-        Args:
-            base_messages: 基础消息列表（system + history + user）
-            accumulated_content: 已累积的内容
-            provider_code: 模型供应商代码（用于判断续写策略）
-            continue_window_size: 续写窗口大小（字符数）
-
-        Returns:
-            续写请求的 messages 列表
-        """
-        # 检查平台能力（是否支持 assistant prefill）
-        provider_caps = PLATFORM_CAPS.get(provider_code, {"prefill": False})
-        supports_prefill = provider_caps.get("prefill", False)
-
-        if supports_prefill:
-            # 隐式续写：使用 assistant prefill
-            # 只保留最后 N 个字符作为上下文
-            if len(accumulated_content) > continue_window_size:
-                truncated_content = accumulated_content[-continue_window_size:]
-                logger.info(f"使用隐式续写（assistant prefill），截断到最后 {continue_window_size} 字符")
-            else:
-                truncated_content = accumulated_content
-
-            # 构建续写 messages（在 assistant role 中预填充内容）
-            continuation_messages = base_messages + [
-                {"role": "assistant", "content": truncated_content}
-            ]
-        else:
-            # 显式续写：使用 user message 明确指示续写
-            # 只保留最后 N 个字符作为上下文
-            if len(accumulated_content) > continue_window_size:
-                truncated_content = accumulated_content[-continue_window_size:]
-                logger.info(f"使用显式续写，截断到最后 {continue_window_size} 字符")
-            else:
-                truncated_content = accumulated_content
-
-            # 构建续写 messages（添加 user message 指示续写）
-            continuation_messages = base_messages + [
-                {"role": "assistant", "content": truncated_content},
-                {
-                    "role": "user",
-                    "content": "请继续完成上面的内容。重要：直接输出内容，不要包含```标记，不要重复已生成的部分，从上一次截断的地方继续。"
-                }
-            ]
-
-        return continuation_messages
-
-    def _clean_continue_result(self, continue_result: str, is_html: bool = False) -> str:
-        """
-        清理自动继续返回的内容，提取纯代码内容
-
-        处理情况：
-        1. 如果包含Markdown代码块标记（```html、```等），提取代码块内的内容
-        2. 清理对话文本、注释等非代码内容
-        3. 处理可能的重复标记
-
-        Args:
-            continue_result: AI继续返回的原始内容
-            is_html: 是否是HTML内容
-
-        Returns:
-            清理后的纯代码内容
-        """
-        import re
-        
-        result = continue_result.strip()
-        
-        # 1. 尝试提取Markdown代码块内的内容
-        # 匹配 ```语言标记\n内容\n``` 格式
-        code_block_pattern = re.compile(r'```(?:\w+)?\s*\n(.*?)```', re.DOTALL)
-        matches = code_block_pattern.findall(result)
-        if matches:
-            # 如果找到代码块，使用最后一个代码块的内容（AI可能输出多个代码块）
-            extracted_content = matches[-1].strip()
-            logger.info(f"从Markdown代码块中提取内容，原始长度: {len(result)}, 提取后长度: {len(extracted_content)}")
-            result = extracted_content
-        
-        # 2. 清理常见的对话文本和注释
-        # 移除类似 "当然,这里是完成的HTML代码:" 这样的对话文本
-        # 移除类似 "// ... 省略已生成部分 ..." 这样的注释
-        lines = result.split('\n')
-        cleaned_lines = []
-        skip_patterns = [
-            r'^当然[,，].*',
-            r'^这里是.*',
-            r'^以下是.*',
-            r'^//\s*\.\.\.\s*.*',
-            r'^//\s*省略.*',
-            r'^#\s*\.\.\.\s*.*',
-            r'^#\s*省略.*',
-        ]
-        
-        for line in lines:
-            # 跳过匹配对话文本模式的行
-            should_skip = False
-            for pattern in skip_patterns:
-                if re.match(pattern, line.strip(), re.IGNORECASE):
-                    should_skip = True
-                    logger.debug(f"跳过对话文本行: {line[:100]}")
-                    break
-            if not should_skip:
-                cleaned_lines.append(line)
-        
-        result = '\n'.join(cleaned_lines).strip()
-        
-        # 3. 如果是HTML，确保没有残留的Markdown标记
-        if is_html:
-            # 移除可能的残留标记
-            result = re.sub(r'^```\s*\w*\s*\n', '', result, flags=re.MULTILINE)
-            result = re.sub(r'\n```\s*$', '', result, flags=re.MULTILINE)
-            result = result.strip()
-        
-        logger.info(f"清理完成，最终内容长度: {len(result)} 字符")
-        if len(result) != len(continue_result):
-            logger.info(f"清理前后对比预览（清理后前200字符）:\n{result[:200]}")
-        
-        return result
-    
     async def chat(self, system_prompt: str, history: List[Dict[str, str]], user_message: str, max_continue: int = 3, model_config: Optional[str] = None) -> tuple[str, Optional[dict]]:
-        """
-        进行对话（非流式）
-
-        Args:
-            system_prompt: Agent 的系统提示词
-            history: 历史消息列表（格式：[{"role": "user/assistant", "content": "..."}, ...]）
-            user_message: 用户当前消息
-            max_continue: 最大继续生成次数（防止无限递归）
-            model_config: 模型配置（格式：provider:model_name），如果为 None 使用默认配置
-
-        Returns:
-            (AI生成的回复内容, token使用信息字典)
-            token使用信息格式：{
-                'prompt_tokens': int,
-                'completion_tokens': int,
-                'total_tokens': int,
-                'model_provider': str,
-                'model_name': str
-            }
-            如果获取失败，第二个元素为None
-        """
-        # 获取客户端和模型
-        client, model_name = self._get_ai_client(model_config) if model_config else (self.default_client, self.default_model_name)
-
-        # 解析 provider_code（用于返回 usage 信息和 newapi 特殊处理）
-        if model_config and ":" in model_config:
-            provider_code = model_config.split(":", 1)[0].lower()
-        else:
-            # 测试环境支持：使用默认供应商
-            testing = os.getenv("PYTEST_CURRENT_TEST") or os.getenv("TESTING")
-            if testing:
-                provider_code = os.getenv("CURRENT_PROVIDER", "deepseek")
-            else:
-                # 从默认配置获取 provider_code
-                from src.services.model_provider_service import ModelProviderService
-                provider_service = ModelProviderService(self.db)
-                provider_info = provider_service.get_default_provider()
-                provider_code = provider_info.provider_code if provider_info else "unknown"
-
-        # 无客户端时的模拟返回
-        if not client:
-            return f"Mock 回复：收到你的消息「{user_message}」", None
+        """进行对话（非流式），委托给适配器 + ContinuationManager"""
+        from src.services.continuation_manager import ContinuationManager
 
         try:
-            # 构建消息链：System Prompt + History + Current Input
-            messages = [{"role": "system", "content": system_prompt}]
-            
-            # 添加历史消息
-            for msg in history:
-                messages.append({"role": msg["role"], "content": msg["content"]})
-            
-            # 添加当前用户消息
+            adapter, model_name = self._get_adapter(model_config)
+            messages = [{"role": msg["role"], "content": msg["content"]} for msg in history]
             messages.append({"role": "user", "content": user_message})
-            
-            # 记录系统提示词（用于调试）
-            logger.info(f"对话请求 - 系统提示词长度: {len(system_prompt)} 字符, 历史消息数: {len(history)}, 用户消息: {user_message[:50]}..., 使用模型: {model_name}")
 
-            # newapi 供应商使用 aiohttp（httpx 与 NewAPI 不兼容）
-            if provider_code == "newapi":
-                import aiohttp
+            logger.info(f"对话请求 - 历史消息数: {len(history)}, 用户消息: {user_message[:50]}..., 使用模型: {model_name}")
 
-                # 重新获取 API 密钥和 base_url
-                provider_service = ModelProviderService(self.db)
-                encryption = EncryptionService()
-                provider_info = provider_service.get_provider_by_code(provider_code)
-                provider_model = self.db.query(ModelProviderModel).filter(
-                    ModelProviderModel.id == provider_info.id
-                ).first()
-                newapi_key = encryption.decrypt(provider_model.api_key_encrypted)
-                newapi_url = provider_info.base_url
-
-                # 获取模型特定配置（如 temperature 限制）
-                model_config = MODEL_SPECIFIC_CONFIG.get(model_name, {})
-                temperature = model_config.get('temperature', 0.7)
-
-                headers = {
-                    'Authorization': f'Bearer {newapi_key}',
-                    'Content-Type': 'application/json'
-                }
-                payload = {
-                    'model': model_name,
-                    'messages': messages,
-                    'stream': False,
-                    'temperature': temperature
-                }
-
-                # 记录请求详情（用于调试）
-                print(f"[NewAPI Debug] URL: {newapi_url}/chat/completions")
-                print(f"[NewAPI Debug] Model: {model_name}")
-                print(f"[NewAPI Debug] Payload: {json.dumps(payload, ensure_ascii=False)[:500]}")
-                print(f"[NewAPI Debug] Headers: Authorization=Bearer {newapi_key[:10]}...")
-
-                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=120.0)) as session:
-                    async with session.post(
-                        f'{newapi_url}/chat/completions',
-                        headers=headers,
-                        json=payload
-                    ) as response:
-                        if response.status != 200:
-                            error_text = await response.text()
-                            print(f"[NewAPI Debug] Error response: {error_text}")
-                            try:
-                                error_json = await response.json()
-                                print(f"[NewAPI Debug] Error JSON: {error_json}")
-                            except:
-                                pass
-                            return f"⚠️ AI服务调用失败: HTTP {response.status}\n请稍后重试或联系管理员。", None
-
-                        response_data = await response.json()
-                        result = response_data['choices'][0]['message']['content']
-                        usage_info = {
-                            'prompt_tokens': response_data.get('usage', {}).get('prompt_tokens', 0),
-                            'completion_tokens': response_data.get('usage', {}).get('completion_tokens', 0),
-                            'total_tokens': response_data.get('usage', {}).get('total_tokens', 0),
-                            'model_provider': provider_code,
-                            'model_name': model_name
-                        }
-
-            else:
-                response = client.chat.completions.create(
-                model=model_name,
+            manager = ContinuationManager(max_continue=max_continue)
+            content, usage = await manager.chat_with_continuation(
+                adapter=adapter,
                 messages=messages,
-                temperature=0.7
+                model=model_name,
+                system_prompt=system_prompt,
+                temperature=0.7,
             )
-
-            result = response.choices[0].message.content
-            finish_reason = response.choices[0].finish_reason
-
-            # 提取token使用信息
-            usage_info = None
-            if hasattr(response, 'usage') and response.usage:
-                usage_info = {
-                    'prompt_tokens': response.usage.prompt_tokens,
-                    'completion_tokens': response.usage.completion_tokens,
-                    'total_tokens': response.usage.total_tokens,
-                    'model_provider': provider_code,
-                    'model_name': model_name
-                }
-                logger.info(f"Token使用: {usage_info}")
-            else:
-                logger.warning("API响应未包含usage信息")
-
-            logger.info(f"AI 返回的回复长度: {len(result)} 字符, finish_reason: {finish_reason}")
-            
-            # 如果内容包含HTML，记录详细信息用于排查
-            if '<html' in result.lower() or '<!doctype' in result.lower():
-                logger.info("=" * 80)
-                logger.info("检测到HTML内容，记录详细信息用于排查:")
-                logger.info(f"HTML内容长度: {len(result)} 字符")
-                logger.info(f"包含 <html> 标签: {'<html' in result.lower()}")
-                logger.info(f"包含 </html> 标签: {'</html>' in result.lower()}")
-                logger.info(f"包含 <!doctype> 标签: {'<!doctype' in result.lower()}")
-                logger.info(f"HTML内容预览（前1000字符）:\n{result[:1000]}")
-                logger.info(f"HTML内容预览（后1000字符）:\n{result[-1000:]}")
-                # 检查HTML标签是否完整
-                html_open_count = result.lower().count('<html')
-                html_close_count = result.lower().count('</html>')
-                body_open_count = result.lower().count('<body')
-                body_close_count = result.lower().count('</body>')
-                logger.info(f"HTML标签统计: <html>={html_open_count}, </html>={html_close_count}, <body>={body_open_count}, </body>={body_close_count}")
-                if html_open_count != html_close_count:
-                    logger.warning(f"⚠️ HTML标签不匹配！<html>标签数: {html_open_count}, </html>标签数: {html_close_count}")
-                logger.info("=" * 80)
-            
-            # 如果因为达到最大token限制而截断，自动继续生成直到完整
-            if finish_reason == 'length' and max_continue > 0:
-                logger.info(f"检测到内容因token限制被截断，开始自动继续生成（剩余次数: {max_continue}，内容长度: {len(result)}）...")
-                
-                # 循环继续生成，直到代码完整或达到最大次数
-                accumulated_result = result
-                continue_count = 0
-                is_html = '<html' in result.lower() or '<!doctype' in result.lower()
-                
-                while max_continue > 0:
-                    continue_count += 1
-                    logger.info(f"第 {continue_count} 次继续生成（剩余次数: {max_continue}）...")
-                    logger.info(f"当前内容长度: {len(accumulated_result)} 字符")
-                    logger.info(f"截断位置预览（最后500字符）:\n{accumulated_result[-500:]}")
-                    
-                    # 清理 </html> 之后的内容（如果存在）
-                    if is_html:
-                        accumulated_result = self._clean_after_html_end(accumulated_result)
-                    
-                    # 检查代码完整性
-                    completeness_check = self._check_code_completeness(accumulated_result)
-                    if completeness_check['is_complete']:
-                        logger.info("✅ 代码完整性检查通过，停止继续生成")
-                        break
-                    else:
-                        logger.warning(f"⚠️ 代码不完整，问题: {completeness_check['issues']}")
-                        if completeness_check['missing_tags']:
-                            logger.warning(f"缺失的标签: {completeness_check['missing_tags']}")
-                        
-                        # 如果 HTML 已经有 </html> 标签，但检测到不完整，可能是检测逻辑问题
-                        # 这种情况下，如果 </html> 之后没有内容，应该认为完整
-                        if is_html and completeness_check['html_end_pos'] > 0:
-                            after_html = accumulated_result[completeness_check['html_end_pos']:].strip()
-                            if len(after_html) < 50:
-                                logger.info("HTML 已完整闭合，停止继续生成")
-                                break
-                    
-                    # 生成继续提示词（更严格的提示）
-                    if is_html:
-                        # 检查是否已经有 </html> 标签
-                        if completeness_check['html_end_pos'] > 0:
-                            # 已经有 </html>，不应该继续生成
-                            logger.warning("检测到 HTML 已有 </html> 标签，但完整性检查未通过，可能是检测逻辑问题")
-                            # 检查 </html> 之后的内容
-                            after_html = accumulated_result[completeness_check['html_end_pos']:].strip()
-                            if len(after_html) < 50:
-                                # </html> 之后没有有效内容，认为完整
-                                break
-                            else:
-                                # </html> 之后有内容，可能是重复，清理掉后停止
-                                accumulated_result = accumulated_result[:completeness_check['html_end_pos']].rstrip()
-                                break
-                        
-                        if completeness_check['missing_tags']:
-                            missing_tags_str = '、'.join(completeness_check['missing_tags'])
-                            continue_message = f"上面的HTML代码被截断了，请继续完成剩余的HTML代码。需要确保包含以下缺失的标签: {missing_tags_str}。重要：只输出HTML代码内容，不要包含Markdown代码块标记（```html或```），不要包含任何解释文字或注释，不要重复已生成的部分，直接继续输出HTML代码。"
-                        else:
-                            continue_message = "上面的HTML代码被截断了，请继续完成剩余的内容。重要：只输出HTML代码内容，不要包含Markdown代码块标记（```html或```），不要包含任何解释文字或注释，不要重复已生成的部分，直接继续输出HTML代码。如果HTML已经完整（已有</html>标签），请停止输出。"
-                    else:
-                        continue_message = "请继续完成上面的内容，不要重复已生成的部分。如果内容是代码，请只输出代码内容，不要包含Markdown代码块标记或解释文字。"
-                    
-                    # 将已生成的内容添加到历史消息中
-                    new_history = history + [
-                        {"role": "user", "content": user_message},
-                        {"role": "assistant", "content": accumulated_result}
-                    ]
-                    
-                    # 继续生成（传递 model_config）
-                    continue_result = await self.chat(system_prompt, new_history, continue_message, max_continue - 1, model_config)
-                    
-                    # 清理继续返回的内容
-                    cleaned_continue_result = self._clean_continue_result(continue_result, is_html)
-                    
-                    if not cleaned_continue_result or len(cleaned_continue_result.strip()) == 0:
-                        logger.warning("继续生成的内容为空，停止继续")
-                        break
-                    
-                    # 检测内容重复（更严格的检测）
-                    is_duplicate, overlap_length = self._detect_content_duplication(
-                        accumulated_result, 
-                        cleaned_continue_result,
-                        threshold=0.6  # 降低阈值，更严格检测重复
-                    )
-                    
-                    if is_duplicate:
-                        if overlap_length > 0:
-                            # 去除重复部分
-                            cleaned_continue_result = cleaned_continue_result[overlap_length:]
-                            logger.warning(f"检测到内容重复，去除前 {overlap_length} 字符")
-                        
-                        # 如果去除重复后内容很少或为空，可能是完全重复
-                        if len(cleaned_continue_result.strip()) < 100:
-                            logger.warning("继续生成的内容与原始内容高度重复，停止继续生成")
-                            break
-                    
-                    # 如果 HTML 已经有 </html> 标签，检查继续内容是否应该被忽略
-                    if is_html and completeness_check['html_end_pos'] > 0:
-                        # HTML 已经完整，继续生成的内容可能是重复的
-                        # 检查继续内容是否包含 </html> 或重复的代码结构
-                        if '</html>' in cleaned_continue_result.lower():
-                            logger.warning("继续生成的内容包含 </html> 标签，但原始内容已有 </html>，可能是重复，忽略继续内容")
-                            break
-                        
-                        # 检查继续内容是否与原始内容的某部分重复
-                        # 如果继续内容的前200字符在原始内容中出现过，可能是重复
-                        continue_preview = cleaned_continue_result[:200].strip()
-                        if continue_preview in accumulated_result:
-                            logger.warning("继续生成的内容与原始内容重复，忽略继续内容")
-                            break
-                    
-                    # 拼接结果
-                    accumulated_result = accumulated_result + cleaned_continue_result
-                    
-                    # 再次清理 </html> 之后的内容（防止拼接后出现问题）
-                    if is_html:
-                        accumulated_result = self._clean_after_html_end(accumulated_result)
-                    
-                    max_continue -= 1
-                    
-                    logger.info(f"第 {continue_count} 次继续完成，当前总长度: {len(accumulated_result)} 字符（本次新增: {len(cleaned_continue_result)} 字符）")
-                
-                # 最终清理和验证
-                if is_html:
-                    accumulated_result = self._clean_after_html_end(accumulated_result)
-                
-                # 最终完整性检查
-                final_check = self._check_code_completeness(accumulated_result)
-                if not final_check['is_complete']:
-                    logger.warning(f"⚠️ 经过 {continue_count} 次继续生成后，代码仍然不完整:")
-                    for issue in final_check['issues']:
-                        logger.warning(f"  - {issue}")
-                else:
-                    logger.info(f"✅ 经过 {continue_count} 次继续生成，代码已完整")
-                
-                # 记录最终结果
-                if is_html:
-                    logger.info("=" * 80)
-                    logger.info("最终HTML内容检查:")
-                    logger.info(f"最终内容长度: {len(accumulated_result)} 字符")
-                    logger.info(f"包含 <html> 标签: {'<html' in accumulated_result.lower()}")
-                    logger.info(f"包含 </html> 标签: {'</html>' in accumulated_result.lower()}")
-                    logger.info("=" * 80)
-                
-                return accumulated_result, usage_info
-
-            return result, usage_info
+            return content, usage
         except Exception as e:
             error_type = type(e).__name__
-            logger.error(f"AI 服务调用异常（对话）- 错误类型: {error_type}: {e}", exc_info=True)
-            
-            # 根据错误类型返回友好提示
+            logger.error(f"AI 服务调用异常（对话）- {error_type}: {e}", exc_info=True)
             if "timeout" in str(e).lower() or "timed out" in str(e).lower():
                 return "⚠️ AI服务响应超时，可能是网络问题，请稍后重试。", None
             elif "connection" in str(e).lower():
@@ -957,497 +462,97 @@ class AIService:
                 return f"⚠️ AI服务调用失败: {str(e)[:100]}", None
 
     async def chat_stream(self, system_prompt: str, history: List[Dict[str, str]], user_message: str, max_continue: int = 3, model_config: Optional[str] = None) -> AsyncGenerator[str | dict, None]:
-        """
-        进行对话（流式输出）
+        """进行对话（流式输出），委托给适配器 + ContinuationManager"""
+        from src.services.continuation_manager import ContinuationManager
 
-        Args:
-            system_prompt: Agent 的系统提示词
-            history: 历史消息列表（格式：[{"role": "user/assistant", "content": "..."}, ...]）
-            user_message: 用户当前消息
-            max_continue: 最大继续生成次数（防止无限递归）
-            model_config: 模型配置（格式：provider:model_name），如果为 None 使用默认配置
+        provider_code = 'unknown'
+        model_name = 'unknown'
 
-        Yields:
-            str | dict: AI生成的回复片段（逐块返回），或包含token使用信息的字典
-            Token信息格式：{'type': 'usage', 'prompt_tokens': int, 'completion_tokens': int, 'total_tokens': int, 'model_provider': str, 'model_name': str}
-        """
-        # 解析 provider 和 model
-        # ===== 新增：续写循环框架 =====
-        base_messages = None  # 稍后构建基础消息列表
-        accumulated = ""  # 累积所有生成的内容
-        total_usage = {'prompt_tokens': 0, 'completion_tokens': 0, 'total_tokens': 0}
+        try:
+            adapter, model_name = self._get_adapter(model_config)
+            provider_code = adapter.provider_code
 
-        # 主循环：最多续写 max_continue 次
-        for continue_count in range(max_continue + 1):
-            logger.info(f"流式对话请求（第 {continue_count + 1} 轮）")
+            messages = [{"role": msg["role"], "content": msg["content"]} for msg in history]
+            messages.append({"role": "user", "content": user_message})
 
-            # ===== 原有代码保留在这里 =====
-            if model_config and ":" in model_config:
-                provider_code, model_name = model_config.split(":", 1)
-                provider_code = provider_code.lower()
-            else:
-                # 测试环境支持：使用默认供应商
-                testing = os.getenv("PYTEST_CURRENT_TEST") or os.getenv("TESTING")
-                if testing:
-                    provider_code = os.getenv("CURRENT_PROVIDER", "deepseek")
-                    model_name = os.getenv(f"{provider_code.upper()}_MODEL", "deepseek-chat")
+            logger.info(f"流式对话请求 - 历史消息数: {len(history)}, 用户消息: {user_message[:50]}..., 使用模型: {model_name}")
+
+            manager = ContinuationManager(max_continue=max_continue)
+            usage_info = None
+
+            async for chunk in manager.chat_stream_with_continuation(
+                adapter=adapter,
+                messages=messages,
+                model=model_name,
+                system_prompt=system_prompt,
+                temperature=0.7,
+            ):
+                if isinstance(chunk, dict):
+                    usage_info = chunk
                 else:
-                    # 从默认配置获取 provider
-                    from src.services.model_provider_service import ModelProviderService
-                    provider_service = ModelProviderService(self.db)
-                    provider_info = provider_service.get_default_provider()
-                    if not provider_info:
-                        raise ValueError("未配置默认模型供应商")
-                    provider_code = provider_info.provider_code
-                    models = provider_service.get_all_models(
-                        provider_id=provider_info.id,
-                        include_disabled=False
-                    )
-                    if not models:
-                        raise ValueError(f"默认供应商 [{provider_info.provider_name}] 没有启用的模型")
-                    model_name = models[0].model_code
+                    yield chunk
+                    await asyncio.sleep(0.001)
 
-            # 检查是否需要使用适配器
-            use_adapter = provider_code in ADAPTER_PROVIDERS
-
-            if use_adapter:
-                # 测试环境不支持适配器
-                testing = os.getenv("PYTEST_CURRENT_TEST") or os.getenv("TESTING")
-                if testing:
-                    # 测试环境：跳过适配器，使用模拟流式响应
-                    yield "Mock 流式响应"
-                    return
-
-                # 使用适配器
-                from src.services.model_provider_service import ModelProviderService
-                from src.services.encryption_service import EncryptionService
-                from src.db_models import ModelProviderModel
-
-                provider_service = ModelProviderService(self.db)
-                encryption = EncryptionService()
-
-                provider_info = provider_service.get_provider_by_code(provider_code)
-                provider_model = self.db.query(ModelProviderModel).filter(
-                    ModelProviderModel.id == provider_info.id
-                ).first()
-
-                api_key = encryption.decrypt(provider_model.api_key_encrypted)
-                base_url = provider_info.base_url
-
-                adapter = self._create_adapter(provider_code, api_key, base_url)
-
-                # 构建消息
-                messages = []
-                for msg in history:
-                    messages.append({"role": msg["role"], "content": msg["content"]})
-                messages.append({"role": "user", "content": user_message})
-
-                # 打印调试信息
-                logger.info(f"[AIService] 使用适配器模式: provider={provider_code}, model={model_name}")
-
-                # 使用适配器
+            if usage_info:
                 try:
-                    accumulated_content = ""
-                    async for chunk in adapter.chat_stream(
-                        messages=messages,
-                        model=model_name,
-                        system_prompt=system_prompt,
-                        temperature=0.7
-                    ):
-                        if isinstance(chunk, str):
-                            accumulated_content += chunk
-                            yield chunk
-                            await asyncio.sleep(0.001)
-                        elif isinstance(chunk, dict):
-                            # usage 信息
-                            yield {
-                                'type': 'usage',
-                                'prompt_tokens': chunk.get('prompt_tokens', 0),
-                                'completion_tokens': chunk.get('completion_tokens', 0),
-                                'total_tokens': chunk.get('total_tokens', 0),
-                                'model_provider': provider_code,
-                                'model_name': model_name
-                            }
+                    from .point_service import PointService
+                    point_service = PointService(self.db)
+                    points = point_service.calculate_points_from_tokens(
+                        provider_code=usage_info.get('model_provider', provider_code),
+                        model_code=usage_info.get('model_name', model_name),
+                        prompt_tokens=usage_info.get('prompt_tokens', 0),
+                        completion_tokens=usage_info.get('completion_tokens', 0)
+                    )
+                    usage_info['points_deducted'] = points
                 except Exception as e:
-                    logger.error(f"适配器调用失败: {e}", exc_info=True)
-                    yield f"⚠️ AI 服务调用失败: {str(e)}"
-                    return  # 确保不再执行后续代码
-                return
+                    logger.error(f"积分计算失败: {e}")
+                    usage_info['points_deducted'] = 0
 
-            # 使用 OpenAI 客户端（原有逻辑）
-            client, model_name = self._get_ai_client(model_config) if model_config else (self.default_client, self.default_model_name)
-
-            # 解析 provider_code（用于返回 usage 信息）
-            if model_config and ":" in model_config:
-                provider = model_config.split(":", 1)[0].lower()
+                yield {
+                    'type': 'usage',
+                    'prompt_tokens': usage_info.get('prompt_tokens', 0),
+                    'completion_tokens': usage_info.get('completion_tokens', 0),
+                    'total_tokens': usage_info.get('total_tokens', 0),
+                    'model_provider': usage_info.get('model_provider', provider_code),
+                    'model_name': usage_info.get('model_name', model_name),
+                    'points_deducted': usage_info.get('points_deducted', 0),
+                }
             else:
-                # 测试环境支持：使用默认供应商
-                testing = os.getenv("PYTEST_CURRENT_TEST") or os.getenv("TESTING")
-                if testing:
-                    provider = os.getenv("CURRENT_PROVIDER", "deepseek")
-                else:
-                    from src.services.model_provider_service import ModelProviderService
-                    provider_service = ModelProviderService(self.db)
-                    provider_info = provider_service.get_default_provider()
-                    provider = provider_info.provider_code if provider_info else "unknown"
-
-            # 统一变量名：为了和 newapi 处理代码兼容，provider_code = provider
-            provider_code = provider
-
-            # 无客户端时的模拟返回
-            if not client:
-                mock_reply = f"Mock 回复：收到你的消息「{user_message}」"
-                # 模拟流式输出
-                for char in mock_reply:
-                    yield char
-                    await asyncio.sleep(0.05)  # 模拟延迟
-                # Mock模式返回空的usage
+                logger.warning("流式响应中未找到 usage 信息")
                 yield {
                     'type': 'usage',
                     'prompt_tokens': 0,
                     'completion_tokens': 0,
                     'total_tokens': 0,
-                    'model_provider': provider,
-                    'model_name': model_name
-                }
-                return
-
-            try:
-                # ===== 新增：构建基础消息列表（只在第一轮构建）=====
-                if continue_count == 0:
-                    base_messages = [{"role": "system", "content": system_prompt}]
-                    for msg in history:
-                        base_messages.append({"role": msg["role"], "content": msg["content"]})
-                    base_messages.append({"role": "user", "content": user_message})
-                    messages = base_messages
-                else:
-                    # 续写轮：使用 build_continuation_messages() 构建 messages
-                    from src.services.model_provider_service import ModelProviderService
-                    model_provider_service = ModelProviderService(self.db)
-                    model_config_obj = model_provider_service.get_model_config(
-                        provider_code=provider_code,
-                        model_code=model_name
-                    )
-
-                    continue_window_size = 2000  # 默认值
-                    if model_config_obj and model_config_obj.continue_window_size:
-                        continue_window_size = model_config_obj.continue_window_size
-
-                    messages = self.build_continuation_messages(
-                        base_messages=base_messages,
-                        accumulated_content=accumulated,
-                        provider_code=provider_code,
-                        continue_window_size=continue_window_size
-                    )
-
-                # 记录系统提示词（用于调试）
-                logger.info(f"流式对话请求 - 系统提示词长度: {len(system_prompt)} 字符, 历史消息数: {len(history)}, 用户消息: {user_message[:50]}..., 使用模型: {model_name}")
-
-                # newapi 供应商使用 aiohttp（httpx 与 NewAPI 不兼容）
-                if provider_code == "newapi":
-                    import aiohttp
-                    import json as json_module
-                    from src.services.model_provider_service import ModelProviderService
-                    from src.services.encryption_service import EncryptionService
-                    from src.db_models import ModelProviderModel
-
-                    # 重新获取 API 密钥和 base_url
-                    provider_service = ModelProviderService(self.db)
-                    encryption = EncryptionService()
-                    provider_info = provider_service.get_provider_by_code(provider_code)
-                    provider_model = self.db.query(ModelProviderModel).filter(
-                        ModelProviderModel.id == provider_info.id
-                    ).first()
-                    newapi_key = encryption.decrypt(provider_model.api_key_encrypted)
-                    newapi_url = provider_info.base_url
-
-                    # 获取模型特定配置（如 temperature 限制）
-                    model_config = MODEL_SPECIFIC_CONFIG.get(model_name, {})
-                    temperature = model_config.get('temperature', 0.7)
-
-                    headers = {
-                        'Authorization': f'Bearer {newapi_key}',
-                        'Content-Type': 'application/json'
-                    }
-                    payload = {
-                        'model': model_name,
-                        'messages': messages,
-                        'stream': True,
-                        'temperature': temperature
-                    }
-
-                    # 记录请求详情（用于调试）
-                    print(f"[NewAPI Debug Stream] URL: {newapi_url}/chat/completions")
-                    print(f"[NewAPI Debug Stream] Model: {model_name}")
-                    print(f"[NewAPI Debug Stream] Payload: {json.dumps(payload, ensure_ascii=False)[:500]}")
-                    print(f"[NewAPI Debug Stream] Headers: Authorization=Bearer {newapi_key[:10]}...")
-
-                    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=120.0)) as session:
-                        async with session.post(
-                            f'{newapi_url}/chat/completions',
-                            headers=headers,
-                            json=payload
-                        ) as response:
-                            print(f"[NewAPI Debug Stream] Response status: {response.status}")
-                            if response.status != 200:
-                                error_text = await response.text()
-                                print(f"[NewAPI Debug Stream] Error response: {error_text}")
-                                try:
-                                    error_json = await response.json()
-                                    print(f"[NewAPI Debug Stream] Error JSON: {error_json}")
-                                except:
-                                    pass
-                                yield f"⚠️ AI服务调用失败: HTTP {response.status}\n请稍后重试或联系管理员。"
-                                # 返回空的 usage
-                                yield {
-                                    'type': 'usage',
-                                    'prompt_tokens': 0,
-                                    'completion_tokens': 0,
-                                    'total_tokens': 0,
-                                    'model_provider': provider_code,
-                                    'model_name': model_name
-                                }
-                                return
-
-                            accumulated_content = ""
-                            usage_info = None  # 存储usage信息
-
-                            # 使用 readline() 按行读取 SSE 流
-                            while True:
-                                line = await response.content.readline()
-                                if not line:
-                                    break
-                                line_text = line.decode('utf-8').strip()
-                                print(f"[NewAPI Debug Stream] 原始行: {line_text[:200]}")  # 调试：打印原始行
-                                if not line_text:
-                                    continue  # 跳过空行
-                                if line_text.startswith('data: '):
-                                    line_text = line_text[6:]  # 去掉 'data: '
-                                elif line_text.startswith('data:'):
-                                    line_text = line_text[5:]  # 去掉 'data:'
-                                if line_text == '[DONE]':
-                                    print(f"[NewAPI Debug Stream] 收到 [DONE]")
-                                    break
-                                try:
-                                    chunk_data = json_module.loads(line_text)
-                                    print(f"[NewAPI Debug Stream] 解析成功: {list(chunk_data.keys()) if isinstance(chunk_data, dict) else type(chunk_data)}")
-
-                                    # 提取 usage 信息（在最后一个chunk中）
-                                    if 'usage' in chunk_data and chunk_data['usage']:
-                                        api_usage = chunk_data['usage']
-                                        usage_info = {
-                                            'prompt_tokens': api_usage.get('prompt_tokens', 0),
-                                            'completion_tokens': api_usage.get('completion_tokens', 0),
-                                            'total_tokens': api_usage.get('total_tokens', 0),
-                                            'model_provider': provider_code,
-                                            'model_name': model_name
-                                        }
-                                        print(f"[NewAPI Debug Stream] 提取到usage信息: {usage_info}")
-
-                                    if 'choices' in chunk_data and chunk_data['choices']:
-                                        delta = chunk_data['choices'][0].get('delta', {})
-                                        content = delta.get('content', '')
-                                        if content:
-                                            accumulated_content += content
-                                            print(f"[NewAPI Debug Stream] 内容: {content[:50]}...")
-                                            yield content
-                                except json_module.JSONDecodeError as e:
-                                    print(f"[NewAPI Debug Stream] JSON 解析失败: {e}, 行内容: {line_text[:100]}")
-
-                            print(f"[NewAPI Debug Stream] 流结束，累积内容长度: {len(accumulated_content)}")
-
-                            # 返回 usage（优先使用API返回的真实usage）
-                            if usage_info:
-                                # 计算积分
-                                try:
-                                    from .point_service import PointService
-                                    point_service = PointService(self.db)
-                                    points = point_service.calculate_points_from_tokens(
-                                        provider_code=usage_info.get('model_provider', ''),
-                                        model_code=usage_info.get('model_name', ''),
-                                        prompt_tokens=usage_info.get('prompt_tokens', 0),
-                                        completion_tokens=usage_info.get('completion_tokens', 0)
-                                    )
-                                    usage_info['points_deducted'] = points
-                                    print(f"[NewAPI Debug Stream] AI调用完成 - Tokens:{usage_info['total_tokens']}, 积分:{points}")
-                                except Exception as e:
-                                    print(f"[NewAPI Debug Stream] 积分计算失败: {e}")
-                                    usage_info['points_deducted'] = 0
-
-                                yield {
-                                    'type': 'usage',
-                                    **usage_info
-                                }
-                            else:
-                                # 降级方案：使用估算的token数（根据字符长度）
-                                estimated_tokens = len(accumulated_content)
-                                print(f"[NewAPI Debug Stream] ⚠️ 未找到usage信息，使用估算值: {estimated_tokens} tokens")
-                                yield {
-                                    'type': 'usage',
-                                    'prompt_tokens': 0,
-                                    'completion_tokens': estimated_tokens,
-                                    'total_tokens': estimated_tokens,
-                                    'model_provider': provider_code,
-                                    'model_name': model_name,
-                                    'points_deducted': max(1, estimated_tokens // 10)  # 粗略估算：10字符=1token≈1积分
-                                }
-                    return
-
-                # 使用流式输出（同步调用，需要在异步函数中处理）
-                # 注意：OpenAI 客户端的流式调用是同步的，需要在异步上下文中处理
-                stream = client.chat.completions.create(
-                    model=model_name,
-                    messages=messages,
-                    temperature=0.7,
-                    stream=True  # 启用流式输出
-                )
-
-                # 逐块返回内容（在异步上下文中处理同步流）
-                accumulated_content = ""
-                finish_reason = None
-                usage_info = None  # 用于存储本轮的 usage 信息
-
-                for chunk in stream:
-                    if chunk.choices and len(chunk.choices) > 0:
-                        choice = chunk.choices[0]
-                        delta = choice.delta
-                        if delta and delta.content:
-                            accumulated_content += delta.content
-                            yield delta.content
-                            # 让出控制权，允许其他协程运行，确保流式数据及时发送
-                            await asyncio.sleep(0.001)  # 很小的延迟，确保流式效果
-
-                        # 检查是否完成，并记录 finish_reason
-                        if choice.finish_reason:
-                            finish_reason = choice.finish_reason
-                            logger.info(f"流式输出完成，finish_reason: {finish_reason}, 已生成内容长度: {len(accumulated_content)}")
-
-                    # 捕获 usage 信息（通常在最后一个 chunk 中）
-                    if hasattr(chunk, 'usage') and chunk.usage:
-                        usage_info = {
-                            'prompt_tokens': chunk.usage.prompt_tokens,
-                            'completion_tokens': chunk.usage.completion_tokens,
-                            'total_tokens': chunk.usage.total_tokens,
-                            'model_provider': provider,
-                            'model_name': model_name
-                        }
-                        logger.info(f"捕获到 token 使用信息: {usage_info}")
-
-                # 累加到 accumulated 和 total_usage
-                accumulated += accumulated_content
-                if usage_info:
-                    # 安全累加（避免 Mock 对象导致的 TypeError）
-                    prompt_tokens = usage_info.get('prompt_tokens', 0)
-                    completion_tokens = usage_info.get('completion_tokens', 0)
-                    total_tokens = usage_info.get('total_tokens', 0)
-
-                    # 确保是数字类型（避免 Mock 对象）
-                    if isinstance(prompt_tokens, (int, float)):
-                        total_usage['prompt_tokens'] += prompt_tokens
-                    if isinstance(completion_tokens, (int, float)):
-                        total_usage['completion_tokens'] += completion_tokens
-                    if isinstance(total_tokens, (int, float)):
-                        total_usage['total_tokens'] += total_tokens
-
-
-                # 判断是否需要继续续写
-                # 只有在以下情况才继续：
-                # 1. finish_reason == 'length'（确实因 token 限制截断）
-                # 2. 内容不完整（使用 code_validator 检查）
-                # 3. 还有剩余续写次数
-
-                # 验证当前内容的完整性
-                validation = self.code_validator.validate_content(accumulated)
-                if not validation.valid:
-                    logger.warning(f"内容不完整，触发续写: {validation.issues}")
-                else:
-                    logger.info("内容已完整，无需续写")
-
-                should_continue = (
-                    finish_reason == 'length' and
-                    not validation.valid and  # 只有验证失败时才续写
-                    continue_count < max_continue  # 还有剩余续写次数
-                )
-
-                if should_continue:
-                    logger.info(f"检测到内容被截断，准备第 {continue_count + 2} 轮续写")
-                    # 继续循环，进入下一轮
-                    continue
-                else:
-                    # 不需要续写，返回最终的 usage
-                    logger.info(f"流式输出完成，finish_reason: {finish_reason}")
-                    if usage_info:
-                        # 计算积分（使用累积的 total_usage）
-                        try:
-                            from .point_service import PointService
-                            point_service = PointService(self.db)
-                            points = point_service.calculate_points_from_tokens(
-                                provider_code=provider_code,
-                                model_code=model_name,
-                                prompt_tokens=total_usage['prompt_tokens'],
-                                completion_tokens=total_usage['completion_tokens']
-                            )
-                            total_usage['points_deducted'] = points
-                            logger.info(f"AI 调用完成 - 模型:{provider_code}:{model_name}, Tokens:{total_usage['total_tokens']}, 积分:{points}")
-                        except Exception as e:
-                            logger.error(f"积分计算失败: {e}")
-                            total_usage['points_deducted'] = 0
-
-                        yield {
-                            'type': 'usage',
-                            'prompt_tokens': total_usage['prompt_tokens'],
-                            'completion_tokens': total_usage['completion_tokens'],
-                            'total_tokens': total_usage['total_tokens'],
-                            'model_provider': provider_code,
-                            'model_name': model_name,
-                            'points_deducted': total_usage.get('points_deducted', 0)
-                        }
-                    else:
-                        logger.warning("流式响应中未找到 usage 信息")
-                        yield {
-                            'type': 'usage',
-                            'prompt_tokens': 0,
-                            'completion_tokens': 0,
-                            'total_tokens': 0,
-                            'model_provider': provider_code,
-                            'model_name': model_name
-                        }
-                    # 退出循环
-                    break
-
-            except Exception as e:
-                error_type = type(e).__name__
-                logger.error(f"AI 服务调用异常（流式对话）- 错误类型: {error_type}: {e}", exc_info=True)
-                logger.error(f"异常详细信息: {repr(e)}")  # 添加更详细的日志
-
-                # 根据不同错误类型给出更友好的提示
-                if "timeout" in str(e).lower() or "timed out" in str(e).lower():
-                    yield "⚠️ AI服务响应超时，可能是网络问题。建议：\n1. 检查网络连接\n2. 如果使用代理，请确认代理设置正确\n3. 稍后重试"
-                elif "connection" in str(e).lower() or "connect" in str(e).lower():
-                    yield "⚠️ 无法连接到AI服务，请检查：\n1. 网络是否正常\n2. API密钥是否正确\n3. 服务提供商是否可用"
-                elif "concatenate" in str(e).lower() and "dict" in str(e).lower():
-                    # 特殊处理：TypeError about dict concatenation
-                    yield "⚠️ AI服务调用失败: 续写逻辑处理错误（已记录）\n请稍后重试或联系管理员。"
-                else:
-                    error_msg = str(e)[:100] if str(e) else f"{error_type}(无详细错误信息)"
-                    yield f"⚠️ AI服务调用失败: {error_msg}\n请稍后重试或联系管理员。"
-
-                # 即使出错也 yield 一个空的 usage，保持协议一致
-                yield {
-                    'type': 'usage',
-                    'prompt_tokens': 0,
-                    'completion_tokens': 0,
-                    'total_tokens': 0,
-                    'model_provider': provider_code if 'provider_code' in locals() else 'unknown',
-                    'model_name': model_name if 'model_name' in locals() else 'unknown'
+                    'model_provider': provider_code,
+                    'model_name': model_name,
                 }
 
-                # 异常后退出循环
-                break
+        except Exception as e:
+            error_type = type(e).__name__
+            logger.error(f"AI 服务调用异常（流式对话）- {error_type}: {e}", exc_info=True)
 
-    
-        # ==================== 多模态生成功能 ====================
-    
+            if "timeout" in str(e).lower() or "timed out" in str(e).lower():
+                error_msg = "⚠️ AI服务响应超时，可能是网络问题，请稍后重试。"
+            elif "connection" in str(e).lower():
+                error_msg = "⚠️ 无法连接到AI服务，请检查网络或API配置。"
+            else:
+                error_msg = f"⚠️ AI服务调用失败: {str(e)[:100]}"
+
+            # 以 error 类型 dict 返回，避免错误消息混入内容流被前端拼接进正文
+            yield {'type': 'error', 'error': error_msg}
+
+            yield {
+                'type': 'usage',
+                'prompt_tokens': 0,
+                'completion_tokens': 0,
+                'total_tokens': 0,
+                'model_provider': provider_code,
+                'model_name': model_name,
+            }
+
+    # ==================== 多模态生成功能 ====================
+
     async def generate_image(
         self,
         prompt: str,

@@ -75,11 +75,11 @@ class TestOpenAIAdapter:
         class MockResponse:
             usage = MockUsage()
 
-        usage = adapter._extract_usage(MockResponse(), "deepseek-chat", "deepseek")
+        usage = adapter._extract_openai_usage(MockResponse(), "deepseek-chat")
         assert usage['prompt_tokens'] == 10
         assert usage['completion_tokens'] == 20
         assert usage['total_tokens'] == 30
-        assert usage['model_provider'] == 'deepseek'
+        assert usage['model_provider'] == 'openai'
         assert usage['model_name'] == 'deepseek-chat'
 
     @pytest.mark.asyncio

@@ -29,11 +29,8 @@ class DoubaoAdapter(BaseLLMAdapter):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        # 如果没有提供 base_url，使用默认的豆包端点
         if not self.base_url:
             self.base_url = self.DEFAULT_BASE_URL
-
-        # 创建 httpx 客户端
         timeout = kwargs.get('timeout', 120.0)
         self.client = httpx.AsyncClient(
             base_url=self.base_url,
@@ -44,6 +41,10 @@ class DoubaoAdapter(BaseLLMAdapter):
             timeout=timeout,
         )
 
+    @property
+    def provider_code(self) -> str:
+        return 'doubao'
+
     async def chat(
         self,
         messages: List[Dict[str, str]],
@@ -52,18 +53,6 @@ class DoubaoAdapter(BaseLLMAdapter):
         temperature: float = 0.7,
         **kwargs
     ) -> Tuple[str, Optional[Dict]]:
-        """非流式对话
-
-        Args:
-            messages: 消息列表，格式 [{"role": "user", "content": "..."}]
-            model: 模型名称（如 "ep-20241115153230-wjggg" 或 "doubao-pro-4k"）
-            system_prompt: 系统提示词
-            temperature: 温度参数
-            **kwargs: 额外参数（如 max_tokens, top_p 等）
-
-        Returns:
-            (response_content, usage_info)
-        """
         # 构建请求体
         request_body = self._build_request_body(
             model, messages, system_prompt, temperature, kwargs, stream=False
@@ -78,11 +67,11 @@ class DoubaoAdapter(BaseLLMAdapter):
 
             data = response.json()
 
-            # 提取内容
             content = data["choices"][0]["message"]["content"]
-
-            # 提取 usage
+            finish_reason = data["choices"][0].get("finish_reason", "stop")
             usage = self._extract_usage(data, model)
+            usage['finish_reason'] = finish_reason
+            usage['type'] = 'usage'
 
             return content, usage
 
@@ -104,19 +93,6 @@ class DoubaoAdapter(BaseLLMAdapter):
         temperature: float = 0.7,
         **kwargs
     ) -> AsyncGenerator[str | Dict, None]:
-        """流式对话
-
-        Args:
-            messages: 消息列表
-            model: 模型名称
-            system_prompt: 系统提示词
-            temperature: 温度参数
-            **kwargs: 额外参数
-
-        Yields:
-            内容片段 (str)
-            最后一次 yield usage_info (Dict)
-        """
         # 构建请求体
         request_body = self._build_request_body(
             model, messages, system_prompt, temperature, kwargs, stream=True
@@ -131,31 +107,31 @@ class DoubaoAdapter(BaseLLMAdapter):
                 response.raise_for_status()
 
                 usage_info = None
+                finish_reason = 'stop'
 
-                # 解析 SSE 流
                 async for line in response.aiter_lines():
                     if not line or not line.strip():
                         continue
 
-                    # SSE 格式: "data: {...}"
                     if line.startswith("data: "):
-                        data_str = line[6:]  # 移除 "data: " 前缀
+                        data_str = line[6:]
 
-                        # 检查是否为结束标记
                         if data_str.strip() == "[DONE]":
                             break
 
                         try:
                             data = json.loads(data_str)
 
-                            # 提取内容
                             if data.get("choices") and data["choices"]:
                                 delta = data["choices"][0].get("delta", {})
                                 content = delta.get("content", "")
                                 if content:
                                     yield content
 
-                            # 提取 usage（通常在最后一个 chunk 中）
+                                chunk_finish = data["choices"][0].get("finish_reason")
+                                if chunk_finish:
+                                    finish_reason = chunk_finish
+
                             if "usage" in data:
                                 usage_info = self._extract_usage(data, model)
 
@@ -163,11 +139,12 @@ class DoubaoAdapter(BaseLLMAdapter):
                             logger.warning(f"无法解析豆包流式响应: {data_str}")
                             continue
 
-                # 确保发送 usage_info
                 if usage_info:
+                    usage_info['finish_reason'] = finish_reason
+                    usage_info['type'] = 'usage'
                     yield usage_info
                 else:
-                    yield self._extract_usage(None, model)
+                    yield self._build_usage(model, finish_reason=finish_reason)
 
         except httpx.HTTPStatusError as e:
             logger.error(f"豆包流式 API 调用失败: {e.response.status_code} - {e.response.text}")

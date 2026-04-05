@@ -9,6 +9,7 @@ from .glm_adapter import GLMAdapter
 from .bedrock_adapter import BedrockAdapter
 from .gemini_adapter import GeminiAdapter
 from .doubao_adapter import DoubaoAdapter
+from .newapi_adapter import NewAPIAdapter
 
 # 供应商代码到适配器类的映射
 ADAPTER_REGISTRY: Dict[str, Type[BaseLLMAdapter]] = {
@@ -33,6 +34,8 @@ ADAPTER_REGISTRY: Dict[str, Type[BaseLLMAdapter]] = {
     # 豆包
     "doubao": DoubaoAdapter,
     "bytedance": DoubaoAdapter,
+    # NewAPI（OpenAI 代理/聚合，使用 aiohttp 替代 httpx）
+    "newapi": NewAPIAdapter,
 }
 
 
