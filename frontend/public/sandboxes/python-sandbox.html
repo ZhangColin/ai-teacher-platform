@@ -65,35 +65,39 @@
                     // 设置微Python 的标准输出重定向
                     pyodide.setStdout({
                         batched: (text) => {
-                            sendMessage('stdout', { content: text });
+                            sendMessage('output', {
+                                output: { type: 'stdout', text }
+                            });
                         }
                     });
 
                     pyodide.setStderr({
                         batched: (text) => {
-                            sendMessage('stderr', { content: text });
+                            sendMessage('output', {
+                                output: { type: 'stderr', text }
+                            });
                         }
                     });
 
                     updateOutput('沙箱已就绪');
-                    sendMessage('status', { status: 'ready' });
+                    sendMessage('ready', {});
 
                 } catch (error) {
                     updateOutput('加载失败: ' + error.message);
-                    sendMessage('stderr', { content: 'Pyodide 加载失败: ' + error.message });
-                    sendMessage('status', { status: 'error' });
+                    sendMessage('error', {
+                        output: { type: 'error', text: 'Pyodide 加载失败: ' + error.message }
+                    });
                 }
             }
 
             // 执行 Python 代码
             async function executeCode(code) {
                 if (!pyodide) {
-                    sendMessage('stderr', { content: '错误：Pyodide 尚未加载完成' });
-                    sendMessage('status', { status: 'error' });
+                    sendMessage('error', {
+                        output: { type: 'error', text: '错误：Pyodide 尚未加载完成' }
+                    });
                     return;
                 }
-
-                sendMessage('status', { status: 'running' });
 
                 try {
                     // 检测是否需要 matplotlib
@@ -110,8 +114,8 @@
                                 import matplotlib.pyplot as plt
                             `);
                         } catch (loadError) {
-                            sendMessage('stderr', {
-                                content: '警告：matplotlib 加载失败，将不显示图形: ' + loadError.message
+                            sendMessage('output', {
+                                output: { type: 'stderr', text: '警告：matplotlib 加载失败，将不显示图形: ' + loadError.message }
                             });
                         }
                     }
@@ -142,9 +146,12 @@
                                     img_base64
                                 `);
 
-                                sendMessage('image', {
-                                    data: imageData,
-                                    mimeType: 'image/png'
+                                sendMessage('output', {
+                                    output: {
+                                        type: 'image',
+                                        mime: 'image/png',
+                                        data: imageData
+                                    }
                                 });
                             }
                         } catch (figError) {
@@ -153,7 +160,7 @@
                         }
                     }
 
-                    sendMessage('status', { status: 'done' });
+                    sendMessage('done', {});
 
                 } catch (error) {
                     // 格式化 Python 错误信息
@@ -164,8 +171,9 @@
                         errorMsg = errorMsg.replace('PythonError: ', '');
                     }
 
-                    sendMessage('stderr', { content: errorMsg });
-                    sendMessage('status', { status: 'error' });
+                    sendMessage('error', {
+                        output: { type: 'error', text: errorMsg }
+                    });
                 }
             }
 
@@ -183,8 +191,9 @@
 
                 const code = event.data.code;
                 if (typeof code !== 'string') {
-                    sendMessage('status', { status: 'error' });
-                    sendMessage('stderr', { content: '错误：代码必须是字符串' });
+                    sendMessage('error', {
+                        output: { type: 'error', text: '错误：代码必须是字符串' }
+                    });
                     return;
                 }
 

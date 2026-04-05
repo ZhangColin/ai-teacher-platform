@@ -64,36 +64,43 @@
 
                 const code = event.data.code;
                 if (typeof code !== 'string') {
-                    sendMessage('status', { status: 'error' });
-                    sendMessage('stderr', { content: '错误：代码必须是字符串' });
+                    sendMessage('error', {
+                        output: { type: 'error', text: '错误：代码必须是字符串' }
+                    });
                     return;
                 }
 
-                // 发送运行状态
-                sendMessage('status', { status: 'running' });
-
                 // 劫持 console 方法
                 console.log = function(...args) {
-                    sendMessage('stdout', {
-                        content: args.map(arg =>
-                            typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
-                        ).join(' ')
+                    sendMessage('output', {
+                        output: {
+                            type: 'stdout',
+                            text: args.map(arg =>
+                                typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+                            ).join(' ')
+                        }
                     });
                 };
 
                 console.warn = function(...args) {
-                    sendMessage('stdout', {
-                        content: '[警告] ' + args.map(arg =>
-                            typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
-                        ).join(' ')
+                    sendMessage('output', {
+                        output: {
+                            type: 'stdout',
+                            text: '[警告] ' + args.map(arg =>
+                                typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+                            ).join(' ')
+                        }
                     });
                 };
 
                 console.error = function(...args) {
-                    sendMessage('stderr', {
-                        content: '[错误] ' + args.map(arg =>
-                            typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
-                        ).join(' ')
+                    sendMessage('output', {
+                        output: {
+                            type: 'stderr',
+                            text: '[错误] ' + args.map(arg =>
+                                typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+                            ).join(' ')
+                        }
                     });
                 };
 
@@ -103,14 +110,13 @@
                     fn();
 
                     // 执行成功
-                    sendMessage('status', { status: 'done' });
+                    sendMessage('done', {});
 
                 } catch (error) {
                     // 执行出错
-                    sendMessage('stderr', {
-                        content: error.toString()
+                    sendMessage('error', {
+                        output: { type: 'error', text: error.toString() }
                     });
-                    sendMessage('status', { status: 'error' });
                 } finally {
                     // 恢复原始的 console 方法
                     console.log = originalConsole.log;
@@ -121,7 +127,7 @@
 
             // 页面加载完成后发送 ready 状态
             window.addEventListener('load', function() {
-                sendMessage('status', { status: 'ready' });
+                sendMessage('ready', {});
                 document.getElementById('output').textContent = '沙箱已就绪';
             });
         })();
